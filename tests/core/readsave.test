@@ -551,12 +551,12 @@ digraph G {
   rankdir=LR
   node [shape="circle"]
   I [label="", style=invis, width=0]
-  0 [label="6", peripheries=2]
+  0 [label="0", peripheries=2]
   u0 [label="...", shape=none, width=0, height=0]
-  1 [label="0", peripheries=2]
-  2 [label="1", peripheries=2]
-  3 [label="2", peripheries=2]
-  4 [label="3", peripheries=2]
+  1 [label="1", peripheries=2]
+  2 [label="2", peripheries=2]
+  3 [label="3", peripheries=2]
+  4 [label="4", peripheries=2]
 }
 EOF
 
@@ -775,16 +775,16 @@ cat output4
 cat >expect4<<EOF
 HOA: v1
 States: 3
-Start: 1
+Start: 0
 AP: 2 "a" "b"
 acc-name: Buchi
 Acceptance: 1 Inf(0)
 properties: trans-labels explicit-labels state-acc deterministic weak
 --BODY--
 State: 0
-[1] 2
+[0] 1
 State: 1
-[0] 0
+[1] 2
 State: 2 {0}
 [0] 2
 --END--
@@ -805,7 +805,7 @@ test `autfilt --is-terminal -c output4d` = 1
 cat >expect5<<EOF
 HOA: v1
 States: 3
-Start: 1
+Start: 0
 AP: 2 "a" "b"
 acc-name: Buchi
 Acceptance: 1 Inf(0)
@@ -814,9 +814,9 @@ properties: deterministic unambiguous semi-deterministic weak
 properties: inherently-weak
 --BODY--
 State: 0
-[1] 2
+[0] 1
 State: 1
-[0] 0
+[1] 2
 State: 2 {0}
 [0] 2
 --END--
