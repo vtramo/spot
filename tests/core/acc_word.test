@@ -74,19 +74,19 @@ cat >expected <<EOF
 HOA: v1.1
 name: "a U b"
 States: 2
-Start: 0
+Start: 1
 AP: 2 "b" "a"
 acc-name: Buchi
 Acceptance: 1 Inf(0)
 properties: trans-labels explicit-labels state-acc !complete
 properties: deterministic stutter-invariant terminal
-spot.highlight.edges: 2 1 3 1
+spot.highlight.edges: 1 1 2 1
 --BODY--
-State: 0
-[!0&1] 0
-[0] 1
-State: 1 {0}
-[t] 1
+State: 0 {0}
+[t] 0
+State: 1
+[0] 0
+[!0&1] 1
 --END--
 EOF
 diff expected out
@@ -99,27 +99,27 @@ cat >expected <<EOF
 HOA: v1.1
 name: "Fa & Fb"
 States: 4
-Start: 3
+Start: 2
 AP: 2 "a" "b"
 acc-name: Buchi
 Acceptance: 1 Inf(0)
 properties: trans-labels explicit-labels state-acc complete
 properties: deterministic stutter-invariant terminal
-spot.highlight.edges: 2 2 3 3 4 3 6 2 8 3 9 3
+spot.highlight.edges: 1 3 2 3 5 3 6 3 7 2 8 2
 --BODY--
-State: 0
-[!0] 0
-[0] 1
-State: 1 {0}
-[t] 1
+State: 0 {0}
+[t] 0
+State: 1
+[1] 0
+[!1] 1
 State: 2
-[1] 1
-[!1] 2
+[0&1] 0
+[0&!1] 1
+[!0&!1] 2
+[!0&1] 3
 State: 3
-[!0&1] 0
-[0&1] 1
-[0&!1] 2
-[!0&!1] 3
+[0] 0
+[!0] 3
 --END--
 EOF
 diff expected out

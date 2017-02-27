@@ -32,7 +32,6 @@
 #include <list>
 #include <vector>
 #include <sstream>
-#include <memory>
 #include <spot/twaalgos/minimize.hh>
 #include <spot/misc/hash.hh>
 #include <spot/misc/bddlt.hh>
@@ -61,332 +60,6 @@ namespace spot
 
   namespace
   {
-    // The following is based on: "Fast brief practical DFA
-    // minimization", Antti Valmari, IPL 112 (2012) 213-217.
-    //
-    // The code has been rearranged to better match our coding
-    // conventions, but all the variable names have been kept.
-    struct valmari_dfa_minimize
-    {
-      // Refinable partition
-      //
-      // We have to instances of the partition class below, and they
-      // will share the following temporary arrays that are never used
-      // together.
-      std::unique_ptr<int[]> M; // there are M[s] marked elements in set s
-      std::unique_ptr<int[]> W; // touched sets (= set with marked elements).
-      int w = 0; // number of touched sets.
-
-      struct partition
-      {
-        int z;                    // sets are numbered from 0 to z-1
-        std::unique_ptr<int[]> E; // elements from set s are E[F[s]]...E[P[s]-1]
-        std::unique_ptr<int[]> L; // L[e] is the location of element #e in E
-        std::unique_ptr<int[]> S; // S[e] is the set that contains element #e
-        std::unique_ptr<int[]> F; // F[s] first element of set s
-        std::unique_ptr<int[]> P; // P[s] "past" element of set s
-        int *M;
-        int *W;
-        int &w;
-
-        partition(int n, int* M, int* W, int& w) // "init(n)" in the paper
-          : z(n > 0),
-            E(new int[n]),
-            L(new int[n]),
-            S(new int[n]),
-            F(new int[n]),
-            P(new int[n]),
-            M(M),
-            W(W),
-            w(w)
-        {
-          // put all elements in set 0, if we have any
-          for (int i = 0; i < n; ++i)
-            {
-              E[i] = L[i] = i;
-              S[i] = 0;
-            }
-          if (z)
-            {
-              F[0] = 0;
-              P[0] = n;
-            }
-        }
-
-        // Mark an element.
-        //
-        // The order of the elements in E[F[s]]...E[P[s]-1] should be
-        // such that all marked elements (there are M[s] of them) at
-        // the beginning of the range.  So when we mark one element,
-        // we have to swap it with the element at position F[S] + M[s]
-        // to preserve this order.
-        void mark(int e)
-        {
-          int s = S[e];
-          int i = L[e];
-          int j = F[s] + M[s];
-          assert(i >= j);       // cannot mark a marked element
-          E[i] = E[j];
-          L[E[i]] = i;
-          E[j] = e;
-          L[e] = j;
-          if (!M[s]++)
-            W[w++] = s;
-        }
-
-        // Split sets that contain a mix of marked and non-marked
-        // elements.
-        //
-        // Using W[] we can iterate over the w sets that contain
-        // marked elements.  If all the elements of a set are marked,
-        // it does not need to be split.  Otherwise, create a new set
-        // containing the marked or the non-marked elements, whichever
-        // are the fewest.
-        void split()
-        {
-          while (w)
-            {
-              int s = W[--w];
-              int j = F[s] + M[s]; // "past" element for the marked block
-              if (j == P[s])       // all marked => nothing to split
-                {
-                  M[s] = 0;
-                  continue;
-                }
-              if (M[s] <= P[s] - j) // fewer marked elements than non-marked
-                {
-                  F[z] = F[s];
-                  P[z] = F[s] = j;
-                }
-              else              // more marked elements
-                {
-                  P[z] = P[s];
-                  F[z] = P[s] = j;
-                }
-              for (int i = F[z]; i < P[z]; ++i)
-                S[E[i]] = z;
-              M[s] = M[z++] = 0;
-            }
-        }
-      };
-
-      int nn;                   // number of states
-      int mm;                   // number of transitions
-      int ff;                   // number of final states
-
-      partition B;              // blocks (sets of states)
-      int *T;                   // tails of transitions
-      int *L;                   // labels of transitions
-      int *H;                   // heads of transitions
-      // The outgoing transitions of state s are
-      // A[F[s]],...,A[F[s+1]].
-      std::unique_ptr<int[]> A;
-      std::unique_ptr<int[]> F;
-
-      void make_adjacent(int* K)
-      {
-        for (int q = 0; q <= nn; ++q)
-          F[q] = 0;
-        for (int t = 0; t < mm; ++t)
-          ++F[K[t]];
-        for (int q = 0; q < nn; ++q)
-          F[q + 1] += F[q];
-        for (int t = mm; t--;)
-          A[--F[K[t]]] = t;
-      }
-
-      // Removal of irrelevant parts
-      int rr = 0;   // number of reached states
-
-      inline void reach(int q)
-      {
-        int i = B.L[q];
-        if (i >= rr)
-          {
-            B.E[i] = B.E[rr];
-            B.L[B.E[i]] = i;
-            B.E[rr] = q;
-            B.L[q] = rr++;
-          }
-      }
-
-      void rem_unreachable(int* T, int* H)
-      {
-        make_adjacent(T);
-        for (int i = 0; i < rr; ++i)
-          for (int j = F[B.E[i]]; j < F[B.E[i] + 1]; ++j)
-            reach(H[A[j]]);
-        int j = 0;
-        for (int t = 0; t < mm; ++t)
-          if (B.L[T[t]] < rr)
-            {
-              H[j] = H[t];
-              L[j] = L[t];
-              T[j] = T[t];
-              ++j;
-            }
-        mm = j;
-        B.P[0] = rr;
-        rr = 0;
-      }
-
-      valmari_dfa_minimize(int nn, int mm,
-                           int* T, int* L, int* H,
-                           int q0,
-                           int* final_begin,
-                           int* final_end)
-        : M(new int[mm + 1]), W(new int[mm + 1]),
-          nn(nn), mm(mm),
-          B(nn, M.get(), W.get(), w),
-          T(T), L(L), H(H),
-          A(new int[mm]), F(new int[nn + 1])
-      {
-        // Remove states that cannot be reached from the initial
-        // states, and from which final states cannot be reached.
-        reach(q0);
-        rem_unreachable(T, H);
-        while (final_begin != final_end)
-          {
-            int q = *final_begin++;
-            if (B.L[q] < B.P[0])
-              reach(q);
-          }
-        ff = rr;
-        rem_unreachable(H, T);
-        mm = this->mm;
-
-        make_adjacent(H);
-        this->nn = nn = B.P[0]; // number of reachable states, can
-                                // only be saved after make_adjacent
-                                // has run.
-
-        // Make the initial partition
-        M[0] = ff;
-        if (ff)
-          {
-            W[w++] = 0;
-            B.split();
-          }
-
-        // Make the transition partition
-        partition C(mm, M.get(), W.get(), w);
-        if (mm)
-          {
-            std::sort(C.E.get(), C.E.get() + mm,
-                      [L](int i, int j) { return L[i] < L[j]; });
-            C.z = M[0] = 0;
-            int a = L[C.E[0]];
-            for (int i = 0; i < mm; ++i)
-              {
-                int t = C.E[i];
-                if (L[t] != a)
-                  {
-                    a = L[t];
-                    C.P[C.z++] = i;
-                    C.F[C.z] = i;
-                    M[C.z] = 0;
-                  }
-                C.S[t] = C.z;
-                C.L[t] = i;
-              }
-            C.P[C.z++] = mm;
-          }
-        // Split blocks and cords
-        int b = 1;
-        int c = 0;
-        while (c < C.z)
-          {
-            for (int i = C.F[c]; i < C.P[c]; ++i)
-              B.mark(T[C.E[i]]);
-            B.split();
-            ++c;
-            while (b < B.z)
-              {
-                for (int i = B.F[b]; i < B.P[b]; ++i)
-                  for (int j = F[B.E[i]]; j < F[B.E[i] + 1]; ++j)
-                    C.mark(A[j]);
-                C.split();
-                ++b;
-              }
-          }
-      }
-    };
-
-    twa_graph_ptr my_minimize_dfa(const const_twa_graph_ptr& aut,
-                                  std::vector<int>& final_states)
-    {
-      // We need to convert our TwA representation with bdd labels
-      // into a letter-labeled representation.  First look for all
-      // possible labels.
-      std::map<bdd, std::vector<bdd>,
-               bdd_less_than> label_to_letters;
-      bdd vars = aut->ap_vars();
-      int mm = 0;
-      for (auto& e: aut->edges())
-        {
-          bdd cond = e.cond;
-          auto p = label_to_letters.emplace(cond, std::vector<bdd>{});
-          if (p.second)
-            {
-              while (cond != bddfalse)
-                {
-                  bdd letter = bdd_satoneset(cond, vars, bddfalse);
-                  p.first->second.push_back(letter);
-                  cond -= letter;
-                }
-            }
-          mm += p.first->second.size();
-        }
-      std::unique_ptr<int[]> H(new int[mm]);
-      std::unique_ptr<int[]> L(new int[mm]);
-      std::unique_ptr<int[]> T(new int[mm]);
-      int pos = 0;
-      for (const auto& e: aut->edges())
-        for (const auto& let: label_to_letters[e.cond])
-          {
-            T[pos] = e.src;
-            L[pos] = let.id();
-            H[pos++] = e.dst;
-          }
-
-      valmari_dfa_minimize vdm(aut->num_states(), mm,
-                               T.get(), L.get(), H.get(),
-                               aut->get_init_state_number(),
-                               final_states.data(),
-                               final_states.data() + final_states.size());
-
-      auto res = make_twa_graph(aut->get_dict());
-      res->copy_ap_of(aut);
-      res->prop_state_acc(true);
-      const auto& B = vdm.B;
-      mm = vdm.mm;
-      int ff = vdm.ff;
-      unsigned ns = B.z;
-      res->new_states(ns);
-      if (!final_states.empty())
-        res->set_buchi();
-      if (!mm)
-        {
-          assert(ns == 1);
-          return res;         // empty automaton
-        }
-      res->set_init_state(B.S[aut->get_init_state_number()]);
-      int nn = vdm.nn;
-      // We don't iterate on the transition vector of the valmari
-      // code, because we have less edges in our input automaton and
-      // they are already bdd-labeled.
-      for (unsigned src = 0; src < ns; ++src)
-        {
-          int p = B.F[src];
-          for (auto& e: aut->out(B.E[p]))
-            if (B.L[e.dst] < nn)
-              res->new_acc_edge(src, B.S[e.dst], e.cond, p < ff);
-        }
-      res->merge_edges();
-      return res;
-    }
-
-
     static std::ostream&
     dump_hash_set(const hash_set* hs,
                   std::ostream& out)
@@ -838,9 +511,8 @@ namespace spot
       throw std::runtime_error
         ("minimize_wdba() does not support alternation");
 
-    //hash_set* final = new hash_set;
-    //hash_set* non_final = new hash_set;
-    std::vector<int> final;
+    hash_set* final = new hash_set;
+    hash_set* non_final = new hash_set;
 
     twa_graph_ptr det_a;
 
@@ -918,17 +590,19 @@ namespace spot
 
           useless[m] = is_useless;
 
-          if (!is_useless && !(d[m] & 1))
+          if (!is_useless)
             {
+              hash_set* dest_set = (d[m] & 1) ? non_final : final;
               auto& con = sm.states_of(m);
-              final.insert(final.end(), con.begin(), con.end());
+              dest_set->insert(con.begin(), con.end());
             }
         }
     }
 
+
     logtimer lt;
-    auto res = my_minimize_dfa(det_a, final);
-    //auto res = minimize_dfa(det_a, final, non_final);
+    //auto res = my_minimize_dfa(det_a, final);
+    auto res = minimize_dfa(det_a, final, non_final);
     lt.stop(det_a, res);
     res->prop_copy(a, { false, false, false, false, false, true });
     res->prop_universal(true);
