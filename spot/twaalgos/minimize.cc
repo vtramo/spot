@@ -48,6 +48,11 @@
 #include <spot/twaalgos/dualize.hh>
 #include <spot/twaalgos/remfin.hh>
 
+#include <spot/misc/escape.hh>
+#include <spot/misc/timer.hh>
+#include <spot/twaalgos/hoa.hh>
+#include <fstream>
+
 namespace spot
 {
   // This is called hash_set for historical reason, but we need the
@@ -787,6 +792,46 @@ namespace spot
     return res;
   }
 
+  namespace
+  {
+    class logtimer
+    {
+      stopwatch t;
+    public:
+      logtimer()
+      {
+        t.start();
+      }
+
+      void stop(const const_twa_graph_ptr& in, const const_twa_graph_ptr& out)
+      {
+        double d = t.stop();
+
+        std::ostringstream os;
+        os << d << ',';
+        {
+          std::ostringstream f;
+          print_hoa(f, in, "l");
+          escape_rfc4180(os, f.str()) << ',';
+        }
+        {
+          std::ostringstream f;
+          print_hoa(f, out, "l");
+          escape_rfc4180(os, f.str()) << '\n';
+        }
+
+        std::fstream outs;
+        outs.rdbuf()->pubsetbuf(nullptr, 0);
+        outs.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+        outs.open("/home/adl/wdba.log",
+                  std::ios_base::app | std::ios_base::out);
+        outs << os.str();
+      }
+
+    };
+
+  }
+
   twa_graph_ptr minimize_wdba(const const_twa_graph_ptr& a)
   {
     if (!a->is_existential())
@@ -881,8 +926,10 @@ namespace spot
         }
     }
 
+    logtimer lt;
     auto res = my_minimize_dfa(det_a, final);
     //auto res = minimize_dfa(det_a, final, non_final);
+    lt.stop(det_a, res);
     res->prop_copy(a, { false, false, false, false, false, true });
     res->prop_universal(true);
     res->prop_weak(true);
