@@ -26,6 +26,7 @@
 #include <vector>
 #include <spot/twaalgos/powerset.hh>
 #include <spot/misc/hash.hh>
+#include <spot/priv/robin_hood.hh>
 #include <spot/twaalgos/sccinfo.hh>
 #include <spot/twaalgos/cycles.hh>
 #include <spot/twaalgos/gtec/gtec.hh>
@@ -192,7 +193,8 @@ namespace spot
 
     typedef power_map::power_state power_state;
 
-    typedef std::unordered_map<bitvect*, int, bv_hash, bv_equal> power_set;
+    typedef robin_hood::unordered_flat_map<bitvect*, int,
+                                           bv_hash, bv_equal> power_set;
     power_set seen;
 
     std::vector<const bitvect*> toclean;
