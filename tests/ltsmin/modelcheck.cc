@@ -218,6 +218,10 @@ static const argp_option options[] =
       "2 : (faster) assume all values in [0 .. 2^28-1]", 0 },
     // ------------------------------------------------------------
     { nullptr, 0, nullptr, 0, "General options:", 5 },
+    // ------------------------------------------------------------
+    { nullptr, 0, nullptr, 0, "Bitstate hashing", 6 },
+    { "bitstate_hashing", 'H', nullptr, 0, "bitstate hashing", 0 },
+
     { nullptr, 0, nullptr, 0, nullptr, 0 }
   };
 
