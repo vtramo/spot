@@ -19,9 +19,8 @@
 
 #pragma once
 
-#include <bitset>
-
 #include <spot/kripke/kripke.hh>
+#include <spot/mc/bloom_filter.hh>
 
 namespace spot
 {
@@ -30,8 +29,8 @@ namespace spot
   class bitstate
   {
   public:
-    bitstate(kripkecube<State, SuccIterator>& sys, unsigned tid):
-      sys_(sys), tid_(tid)
+    bitstate(kripkecube<State, SuccIterator>& sys, uint32_t mem_size):
+      sys_(sys)
     {
       static_assert(spot::is_a_kripkecube_ptr<decltype(&sys),
           State, SuccIterator>::value,
@@ -39,6 +38,7 @@ namespace spot
 
       seen_.reserve(2000000);
       todo_.reserve(100000);
+      bf_ = std::make_unique<bloom_filter>(mem_size);
     }
 
     ~bitstate()
@@ -74,28 +74,6 @@ namespace spot
       return state_number;
     }
 
-    // Must be a power of two minus 1 (it will be used as a bit mask)
-    static const unsigned MEM_SIZE = (1 << 30) - 1;
-
-    // https://burtleburtle.net/bob/c/lookup3.c
-    #define rot(x,k) (((x)<<(k)) | ((x)>>(32-(k))))
-    uint32_t jenkins_hash(uint32_t k)
-    {
-      // Internal states
-      uint32_t s1, s2;
-      s1 = s2 = 0xdeadbeef;
-
-      s2 ^= s1; s2 -= rot(s1, 14);
-      k  ^= s2; k  -= rot(s2, 11);
-      s1 ^= k;  s1 -= rot(k, 25);
-      s2 ^= s1; s2 -= rot(s1, 16);
-      k  ^= s2; k  -= rot(s2, 4);
-      s1 ^= k;  s1 -= rot(k, 14);
-      s2 ^= s1; s2 -= rot(s1, 24);
-
-      return s2 & MEM_SIZE;
-    }
-
     unsigned int dfs_bitstate_hashing()
     {
       unsigned int state_number = 1;
@@ -107,16 +85,15 @@ namespace spot
       {
         State current = todo_.back();
         todo_.pop_back();
-        bs_[jenkins_hash(state_hash(current))] = 1;
+        bf_->insert(state_hash(current));
 
         for (auto it = sys_.succ(current, tid_); !it->done(); it->next())
         {
           auto neighbor = it->state();
-          auto neighbor_hash = jenkins_hash(state_hash(neighbor));
-          if (bs_[neighbor_hash] == 0)
+          if (bf_->contains(state_hash(neighbor)) == false)
           {
             todo_.push_back(neighbor);
-            bs_[neighbor_hash] = 1;
+            bf_->insert(state_hash(neighbor));
             state_number++;
           }
         }
@@ -131,6 +108,7 @@ namespace spot
 
     std::unordered_set<State, StateHash, StateEqual> seen_;
     std::vector<State> todo_;
-    std::bitset<MEM_SIZE> bs_;
+    // TODO: unique_ptr are not thread safe
+    std::unique_ptr<bloom_filter> bf_;
   };
 }
