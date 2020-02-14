@@ -161,7 +161,7 @@ namespace spot
 
   template<typename kripke_ptr, typename State,
            typename Iterator, typename Hash, typename Equal>
-    void bitstate_hashing(kripke_ptr sys, uint32_t mem_size)
+    void bitstate_hashing(kripke_ptr sys, size_t mem_size)
   {
     using algo_name = spot::bitstate<State, Iterator, Hash, Equal>;
     auto s = new algo_name(*sys, mem_size);

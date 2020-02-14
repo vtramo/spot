@@ -73,16 +73,8 @@ struct mc_options_
   unsigned compress = 0;
   unsigned nb_threads = 1;
   bool csv = false;
-<<<<<<< HEAD
   spot::mc_algorithm algorithm = spot::mc_algorithm::BLOEMEN_EC;
   bool force_parallel = false;
-=======
-  bool has_deadlock = false;
-  bool bloemen = false;
-  bool bloemen_ec = false;
-  bool cndfs = false;
-  unsigned bitstate_mem_size = 0;
->>>>>>> 64bcc008e... mc: bloom_filter: move code out of bitstate.hh
 } mc_options;
 
 
@@ -136,15 +128,6 @@ parse_opt_finput(int key, char* arg, struct argp_state*)
       mc_options.force_parallel = true;
       mc_options.selfloopize = false;
       break;
-<<<<<<< HEAD
-=======
-    case 'H':
-      mc_options.bitstate_mem_size = to_unsigned(arg, "-H/--bitstate-hashing");
-      break;
-    case 'k':
-      mc_options.kripke_output = true;
-      break;
->>>>>>> 64bcc008e... mc: bloom_filter: move code out of bitstate.hh
     case 'm':
       mc_options.model = arg;
       break;

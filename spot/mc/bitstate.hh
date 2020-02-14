@@ -29,7 +29,7 @@ namespace spot
   class bitstate
   {
   public:
-    bitstate(kripkecube<State, SuccIterator>& sys, uint32_t mem_size):
+    bitstate(kripkecube<State, SuccIterator>& sys, size_t mem_size):
       sys_(sys)
     {
       static_assert(spot::is_a_kripkecube_ptr<decltype(&sys),

@@ -19,41 +19,25 @@
 
 #pragma once
 
+#include <spot/misc/hashfunc.hh>
+
 #include <functional>
 
 namespace spot
 {
   class bloom_filter
   {
-    using hash_t = uint32_t;
+    using hash_t = size_t;
     using hash_function_t = std::function<hash_t(hash_t)>;
 
-    // https://burtleburtle.net/bob/c/lookup3.c
-    #define rot(x,k) (((x)<<(k)) | ((x)>>(32-(k))))
-    static hash_t jenkins_hash_function(hash_t k)
-    {
-      hash_t s1, s2;
-      s1 = s2 = 0xdeadbeef;
-
-      s2 ^= s1; s2 -= rot(s1, 14);
-      k  ^= s2; k  -= rot(s2, 11);
-      s1 ^= k;  s1 -= rot(k, 25);
-      s2 ^= s1; s2 -= rot(s1, 16);
-      k  ^= s2; k  -= rot(s2, 4);
-      s1 ^= k;  s1 -= rot(k, 14);
-      s2 ^= s1; s2 -= rot(s1, 24);
-
-      return s2;
-    }
-
   public:
-    bloom_filter(uint32_t mem_size)
+    bloom_filter(size_t mem_size)
       : mem_size_(mem_size)
     {
       bitset_.assign(mem_size, false);
 
       // Internal hash functions
-      hash_functions_.push_back(jenkins_hash_function);
+      hash_functions_.push_back(lookup3_hash);
     }
 
     void insert(hash_t elem)
@@ -80,6 +64,6 @@ namespace spot
   private:
     std::vector<hash_function_t> hash_functions_;
     std::vector<bool> bitset_;
-    uint32_t mem_size_;
+    size_t mem_size_;
   };
 }
