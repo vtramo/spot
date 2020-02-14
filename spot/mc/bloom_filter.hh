@@ -19,25 +19,25 @@
 
 #pragma once
 
-#include <spot/misc/hashfunc.hh>
-
 #include <functional>
 
 namespace spot
 {
   class bloom_filter
   {
+  public:
+    // TODO: benchmark std::function overhead
     using hash_t = size_t;
     using hash_function_t = std::function<hash_t(hash_t)>;
+    using hash_functions_t = std::vector<hash_function_t>;
 
-  public:
-    bloom_filter(size_t mem_size)
-      : mem_size_(mem_size)
+    bloom_filter(size_t mem_size, hash_functions_t hash_functions)
+      : mem_size_(mem_size), hash_functions_(hash_functions)
     {
-      bitset_.assign(mem_size, false);
+      if (hash_functions.empty())
+        throw std::invalid_argument("Bloom filter has no hash functions");
 
-      // Internal hash functions
-      hash_functions_.push_back(lookup3_hash);
+      bitset_.assign(mem_size, false);
     }
 
     void insert(hash_t elem)
@@ -62,8 +62,8 @@ namespace spot
     }
 
   private:
-    std::vector<hash_function_t> hash_functions_;
-    std::vector<bool> bitset_;
     size_t mem_size_;
+    hash_functions_t hash_functions_;
+    std::vector<bool> bitset_;
   };
 }

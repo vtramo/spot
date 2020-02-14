@@ -21,6 +21,7 @@
 
 #include <spot/kripke/kripke.hh>
 #include <spot/mc/bloom_filter.hh>
+#include <spot/misc/hashfunc.hh>
 
 namespace spot
 {
@@ -38,7 +39,9 @@ namespace spot
 
       seen_.reserve(2000000);
       todo_.reserve(100000);
-      bf_ = std::make_unique<bloom_filter>(mem_size);
+
+      bloom_filter::hash_functions_t hash_functions = {lookup3_hash};
+      bf_ = std::make_unique<bloom_filter>(mem_size, hash_functions);
     }
 
     ~bitstate()
