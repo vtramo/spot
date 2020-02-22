@@ -19,4 +19,4 @@
 ## You should have received a copy of the GNU General Public License
 ## along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-SUBDIRS = emptchk ltl2tgba ltlcounter ltlclasses wdba spin13 dtgbasat stutter
+SUBDIRS = bitstate emptchk ltl2tgba ltlcounter ltlclasses wdba spin13 dtgbasat stutter

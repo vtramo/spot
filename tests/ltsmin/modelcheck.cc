@@ -75,6 +75,10 @@ struct mc_options_
   bool csv = false;
   spot::mc_algorithm algorithm = spot::mc_algorithm::BLOEMEN_EC;
   bool force_parallel = false;
+  bool has_deadlock = false;
+  bool bloemen = false;
+  bool bloemen_ec = false;
+  bool cndfs = false;
 } mc_options;
 
 
@@ -218,10 +222,6 @@ static const argp_option options[] =
       "2 : (faster) assume all values in [0 .. 2^28-1]", 0 },
     // ------------------------------------------------------------
     { nullptr, 0, nullptr, 0, "General options:", 5 },
-    // ------------------------------------------------------------
-    { nullptr, 0, nullptr, 0, "Bitstate hashing", 6 },
-    { "bitstate_hashing", 'H', "INT", 0, "bitstate hashing memory size", 0 },
-
     { nullptr, 0, nullptr, 0, nullptr, 0 }
   };
 

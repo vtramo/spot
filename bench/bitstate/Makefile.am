@@ -1,6 +1,6 @@
 ## -*- coding: utf-8 -*-
-## Copyright (C) 2015, 2016, 2017, 2019, 2020 Laboratoire de Recherche et
-## Développement de l'Epita (LRDE).
+## Copyright (C) 2020 Laboratoire de Recherche et Développement de
+## l'Epita (LRDE).
 ##
 ## This file is part of Spot, a model checking library.
 ##
@@ -17,15 +17,17 @@
 ## You should have received a copy of the GNU General Public License
 ## along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-AM_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) $(BUDDY_CPPFLAGS)
-AM_CXXFLAGS = $(WARNING_CXXFLAGS)
+AM_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) $(BUDDY_CPPFLAGS) \
+              -I$(top_builddir)/lib -I$(top_srcdir)/lib
+AM_CXXFLAGS = $(CXXFLAGS)
 
-mcdir = $(pkgincludedir)/mc
-mc_HEADERS = intersect.hh lpar13.hh unionfind.hh utils.hh mc.hh\
-	mc_instanciator.hh deadlock.hh bloemen.hh bloemen_ec.hh cndfs.hh\
-	bloom_filter.hh
+LDADD =						\
+  $(top_builddir)/bin/libcommon.a		\
+  $(top_builddir)/lib/libgnu.la			\
+  $(top_builddir)/spot/libspot.la		\
+  $(top_builddir)/buddy/src/libbddx.la		\
+  $(top_builddir)/spot/ltsmin/libspotltsmin.la
 
-noinst_LTLIBRARIES = libmc.la
+bin_PROGRAMS = bitstate
 
-libmc_la_SOURCES = \
-  unionfind.cc
+bitstate_SOURCES = bitstate.cc

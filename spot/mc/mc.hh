@@ -158,17 +158,4 @@ namespace spot
 
     throw std::runtime_error("Unable to compare these elements!");
   }
-
-  template<typename kripke_ptr, typename State,
-           typename Iterator, typename Hash, typename Equal>
-    void bitstate_hashing(kripke_ptr sys, size_t mem_size)
-  {
-    using algo_name = spot::bitstate<State, Iterator, Hash, Equal>;
-    auto s = new algo_name(*sys, mem_size);
-
-    std::cout << "\nBitstate hashing:\n";
-    std::cout << "DFS: " << s->dfs() << '\n';
-    std::cout << "DFS (with BH): " << s->dfs_bitstate_hashing() << '\n';
-    delete s;
-  }
 }
