@@ -1,0 +1,7 @@
+# Benchmark binary
+bitstate
+# Input/output generated files
+data/
+log/
+# Divine files
+*.dve*

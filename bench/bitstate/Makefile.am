@@ -31,3 +31,5 @@ LDADD =						\
 bin_PROGRAMS = bitstate
 
 bitstate_SOURCES = bitstate.cc
+
+CLEANFILES = *.dve *.dve2C *.dve.cpp

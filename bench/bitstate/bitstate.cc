@@ -85,6 +85,9 @@ int main(int argc, char** argv)
     std::cerr << e.what() << '\n';
   }
 
+  if (!modelcube)
+    return 2;
+
   run<spot::ltsmin_kripkecube_ptr,
       spot::cspins_state,
       spot::cspins_iterator,
