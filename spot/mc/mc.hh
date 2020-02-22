@@ -168,7 +168,7 @@ namespace spot
 
     std::cout << "\nBitstate hashing:\n";
     std::cout << "DFS: " << s->dfs() << '\n';
-    std::cout << "DFS (bitstate hashing): " << s->dfs_bitstate_hashing() << '\n';
+    std::cout << "DFS (with BH): " << s->dfs_bitstate_hashing() << '\n';
     delete s;
   }
 }

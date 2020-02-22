@@ -69,7 +69,7 @@ namespace spot
           {
             todo_.push_back(neighbor);
             seen_.insert(neighbor);
-            state_number++;
+            ++state_number;
           }
         }
       }
@@ -97,7 +97,7 @@ namespace spot
           {
             todo_.push_back(neighbor);
             bf_->insert(state_hash(neighbor));
-            state_number++;
+            ++state_number;
           }
         }
       }

@@ -67,7 +67,7 @@ namespace spot
   /// \brief Jenkins lookup3 hash function.
   ///
   /// https://burtleburtle.net/bob/c/lookup3.c
-  #define _jenkins_rot(x,k) (((x)<<(k)) | ((x)>>(32-(k))))
+  #define _jenkins_rot(x, k) (((x)<<(k)) | ((x)>>(32-(k))))
   inline size_t
   lookup3_hash(size_t key)
   {
