@@ -50,28 +50,45 @@ public:
     seen_.clear();
   }
 
+  void push(State s)
+  {
+    todo_.push_back({s, sys_.succ(s, tid_), state_number_});
+    seen_.insert(s);
+    ++state_number_;
+  }
+
+  void pop()
+  {
+    StateHash state_hash;
+
+    auto current = todo_.back();
+    bf_->insert(state_hash(current.s));
+    seen_.erase(current.s);
+    todo_.pop_back();
+  }
+
   void run()
   {
     state_number_ = 1;
     State initial = sys_.initial(tid_);
     StateHash state_hash;
-    todo_.push_back(initial);
+    push(initial);
 
     while (!todo_.empty())
     {
-      State current = todo_.back();
-      todo_.pop_back();
-      bf_->insert(state_hash(current));
-
-      for (auto it = sys_.succ(current, tid_); !it->done(); it->next())
+      if (todo_.back().it->done())
       {
-        auto neighbor = it->state();
-        if (bf_->contains(state_hash(neighbor)) == false)
-        {
-          todo_.push_back(neighbor);
-          bf_->insert(state_hash(neighbor));
-          ++state_number_;
-        }
+        pop();
+      }
+      else
+      {
+        State next = todo_.back().it->state();
+        todo_.back().it->next();
+
+        bool marked = seen_.find(next) != seen_.end() ||
+                      bf_->contains(state_hash(next));
+        if (marked == false)
+          push(next);
       }
     }
   }
@@ -81,12 +98,20 @@ public:
     return state_number_;
   }
 
+private:
+  struct todo__element
+  {
+    State s;
+    SuccIterator* it;
+    unsigned int current_state;
+  };
+
 protected:
   kripkecube<State, SuccIterator>& sys_;
   unsigned int tid_;
 
   std::unordered_set<State, StateHash, StateEqual> seen_;
-  std::vector<State> todo_;
+  std::vector<todo__element> todo_;
   unsigned int state_number_;
   // TODO: unique_ptr are not thread safe
   std::unique_ptr<bloom_filter> bf_;
