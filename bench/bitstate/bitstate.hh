@@ -30,8 +30,9 @@ template<typename State, typename SuccIterator,
 class bitstate_hashing_stats
 {
 public:
-  bitstate_hashing_stats(kripkecube<State, SuccIterator>& sys, size_t mem_size):
-    sys_(sys)
+  bitstate_hashing_stats(kripkecube<State, SuccIterator>& sys, unsigned tid,
+                         size_t mem_size):
+    sys_(sys), tid_(tid)
   {
     static_assert(spot::is_a_kripkecube_ptr<decltype(&sys),
         State, SuccIterator>::value,
