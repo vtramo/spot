@@ -38,17 +38,8 @@ public:
         State, SuccIterator>::value,
         "error: does not match the kripkecube requirements");
 
-    seen_.reserve(2000000);
-    todo_.reserve(100000);
-
     bloom_filter::hash_functions_t hash_functions = {lookup3_hash};
     bf_ = std::make_unique<bloom_filter>(mem_size, hash_functions);
-  }
-
-  ~bitstate_hashing_stats()
-  {
-    // States will be destroyed by the system, so just clear map
-    seen_.clear();
   }
 
   void push(State s)
@@ -60,19 +51,18 @@ public:
 
   void pop()
   {
-    StateHash state_hash;
-
     auto current = todo_.back();
-    bf_->insert(state_hash(current.s));
-    seen_.erase(current.s);
     todo_.pop_back();
+    seen_.erase(current.s);
+    bf_->insert(state_hash_(current.s));
+
+    sys_.recycle(current.it, tid_);
   }
 
   void run()
   {
     state_number_ = 1;
     State initial = sys_.initial(tid_);
-    StateHash state_hash;
     push(initial);
 
     while (!todo_.empty())
@@ -87,7 +77,7 @@ public:
         todo_.back().it->next();
 
         bool marked = seen_.find(next) != seen_.end() ||
-                      bf_->contains(state_hash(next));
+                      bf_->contains(state_hash_(next));
         if (marked == false)
           push(next);
       }
@@ -110,6 +100,7 @@ private:
 protected:
   kripkecube<State, SuccIterator>& sys_;
   unsigned int tid_;
+  StateHash state_hash_;
 
   std::unordered_set<State, StateHash, StateEqual> seen_;
   std::vector<todo__element> todo_;
