@@ -25,6 +25,8 @@
 #include <spot/kripke/kripkegraph.hh>
 #include <spot/ltsmin/ltsmin.hh>
 #include <spot/ltsmin/spins_kripke.hh>
+#include <spot/misc/memusage.hh>
+#include <spot/misc/timer.hh>
 
 #include <ostream>
 #include <string>
@@ -37,20 +39,43 @@ template<typename kripke_ptr, typename State,
          typename Iterator, typename Hash, typename Equal>
 void run(kripke_ptr sys, std::ofstream& csv, std::vector<size_t> mem_sizes)
 {
-  std::string header("memory (bits), nb states reached");
-  csv << header << '\n';
+  spot::timer_map timer;
+  int mem_used;
+  using algo_name = bitstate_hashing_stats<State, Iterator, Hash, Equal>;
 
-  // TODO: add timer and memory usage (misc/memusage and misc/timer)
-  for (auto mem_size : mem_sizes)
+  csv <<
+    "memory (bits),"
+    "nb states reached,"
+    "total memory used (nb pages),"
+    "user time (seconds),"
+    "sys time (seconds),"
+    "wall time (seconds)\n";
+
+  for (size_t mem_size : mem_sizes)
   {
-    using algo_name = bitstate_hashing_stats<State, Iterator, Hash, Equal>;
-    auto bh = new algo_name(*sys, mem_size);
+    auto bh = new algo_name(*sys, 0, mem_size);
+
+    const std::string round = "Using " + std::to_string(mem_size) + " bits";
+    timer.start(round);
+    mem_used = spot::memusage();
 
     bh->run();
-    csv << mem_size << ',' << bh->get_nb_reached_states() << '\n';
+
+    mem_used = spot::memusage() - mem_used;
+    timer.stop(round);
+
+    csv << mem_size << ','
+        << bh->get_nb_reached_states() << ','
+        << mem_used << ','
+        << (float) timer.timer(round).utime() / CLOCKS_PER_SEC << ','
+        << (float) timer.timer(round).stime() / CLOCKS_PER_SEC << ','
+        << (float) timer.timer(round).walltime() / CLOCKS_PER_SEC
+        << '\n';
 
     delete bh;
   }
+
+  timer.print(std::cout);
 }
 
 int main(int argc, char** argv)
