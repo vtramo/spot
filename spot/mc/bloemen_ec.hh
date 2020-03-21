@@ -72,22 +72,21 @@ namespace spot
     };
 
     /// \brief The haser for the previous uf_element.
-    struct uf_element_hasher
+    struct uf_element_hasher : brq::hash_adaptor<uf_element*>
     {
       uf_element_hasher(const uf_element*)
       { }
 
       uf_element_hasher() = default;
 
-      brick::hash::hash128_t
-      hash(const uf_element* lhs) const
+      auto hash(const uf_element* lhs) const
       {
         StateHash hash;
         // Not modulo 31 according to brick::hashset specifications.
         unsigned u = hash(lhs->st_kripke) % (1<<30);
         u = wang32_hash(lhs->st_prop) ^ u;
         u = u % (1<<30);
-        return {u, u};
+        return u;
       }
 
       bool equal(const uf_element* lhs,
@@ -97,11 +96,20 @@ namespace spot
         return (lhs->st_prop == rhs->st_prop)
           && equal(lhs->st_kripke, rhs->st_kripke);
       }
+
+      // WARNING: temporary technical fix to have pointers in brick hash table
+      using hash64_t = uint64_t;
+      template<typename cell>
+      typename cell::pointer match(cell &c, const uf_element* t,
+                                   hash64_t h) const
+      {
+        // NOT very sure that dereferencing will not kill some brick property
+        return c.match(h) && equal(c.fetch() , t) ? c.value() : nullptr;
+      }
     };
 
     ///< \brief Shortcut to ease shared map manipulation
-    using shared_map = brick::hashset::FastConcurrent <uf_element*,
-                                                       uf_element_hasher>;
+    using shared_map = brq::concurrent_hash_set<uf_element*>;
 
     iterable_uf_ec(const iterable_uf_ec<State, StateHash, StateEqual>& uf):
       map_(uf.map_), tid_(uf.tid_), size_(std::thread::hardware_concurrency()),
@@ -134,7 +142,7 @@ namespace spot
       v->uf_status_ = uf_status::LIVE;
       v->list_status_ = list_status::BUSY;
 
-      auto it = map_.insert({v});
+      auto it = map_.insert(v, uf_element_hasher());
       bool b = it.isnew();
 
       // Insertion failed, delete element

@@ -61,20 +61,19 @@ namespace spot
     };
 
     /// \brief The haser for the previous state.
-    struct pair_hasher
+    struct pair_hasher : brq::hash_adaptor<deadlock_pair*>
     {
       pair_hasher(const deadlock_pair*)
       { }
 
       pair_hasher() = default;
 
-      brick::hash::hash128_t
-      hash(const deadlock_pair* lhs) const
+      auto hash(const deadlock_pair* lhs) const
       {
         StateHash hash;
         // Not modulo 31 according to brick::hashset specifications.
         unsigned u = hash(lhs->st) % (1<<30);
-        return {u, u};
+        return u;
       }
 
       bool equal(const deadlock_pair* lhs,
@@ -82,6 +81,16 @@ namespace spot
       {
         StateEqual equal;
         return equal(lhs->st, rhs->st);
+      }
+
+      // WARNING: temporary technical fix to have pointers in brick hash table
+      using hash64_t = uint64_t;
+      template<typename cell>
+      typename cell::pointer match(cell &c, const deadlock_pair* t,
+                                   hash64_t h) const
+      {
+        // NOT very sure that dereferencing will not kill some brick property
+        return c.match(h) && equal(c.fetch() , t) ? c.value() : nullptr;
       }
     };
 
@@ -91,8 +100,7 @@ namespace spot
   public:
 
     ///< \brief Shortcut to ease shared map manipulation
-    using shared_map = brick::hashset::FastConcurrent <deadlock_pair*,
-                                                       pair_hasher>;
+    using shared_map = brq::concurrent_hash_set<deadlock_pair*>;
     using shared_struct = shared_map;
 
     static shared_struct* make_shared_structure(shared_map, unsigned)
@@ -182,7 +190,7 @@ namespace spot
       deadlock_pair* v = (deadlock_pair*) p_pair_.allocate();
       v->st = s;
       v->colors = ref;
-      auto it = map_.insert(v);
+      auto it = map_.insert(v, pair_hasher());
       bool b = it.isnew();
 
       // Insertion failed, delete element
