@@ -22,8 +22,16 @@
 
 AUTOMAKE_OPTIONS = subdir-objects
 
-nobase_pkginclude_HEADERS = bricks/brick-assert bricks/brick-bitlevel \
-	bricks/brick-hash bricks/brick-hashset  bricks/brick-shmem \
+nobase_include_HEADERS= \
+	bricks/brick-assert \
+	bricks/brick-bitlevel \
+	bricks/brick-hash \
+	bricks/brick-hashset \
+	bricks/brick-min \
+	bricks/brick-ptr \
+	bricks/brick-shmem \
+	bricks/brick-string \
+	bricks/brick-trace \
 	bricks/brick-types
 
 
