@@ -70,7 +70,8 @@
 #define TRACE(...) ::brq::trace_fn< true >( 3, BRICK_LOCATION( "" ), __VA_ARGS__ )
 #define NOISE(...) ::brq::trace_fn< true >( 4, BRICK_LOCATION( "" ), __VA_ARGS__ )
 #endif
-#define DEBUG(...) ::brq::trace_fn< false >( 2, BRICK_LOCATION( "" ), __VA_ARGS__ )
+// FIX HERE: DEBUG already defined in spot
+//#define DEBUG(...) ::brq::trace_fn< false >( 2, BRICK_LOCATION( "" ), __VA_ARGS__ )
 #define INFO(...)  ::brq::trace_fn< false >( 1, BRICK_LOCATION( "" ), __VA_ARGS__ )
 #define ERROR(...) ::brq::trace_fn< false >( 0, BRICK_LOCATION( "" ), __VA_ARGS__ )
 

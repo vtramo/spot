@@ -99,7 +99,8 @@ namespace brq
 
     static mark_t mark;
 
-    static mark_t operator<<( string_builder &bld, mark_t ) { return mark_t( bld ); }
+    // FIX HERE: fix recursive template depth exceeded (from brick-hashset)
+    /*static mark_t operator<<( string_builder &bld, mark_t ) { return mark_t( bld ); }
     static pad operator<<( string_builder &bld, pad p ) { return pad( bld, p ); }
 
     static string_builder &operator<<( mark_t m, pad p )
@@ -110,7 +111,7 @@ namespace brq
     static string_builder &operator<<( pad p, mark_t )
     {
         return pad::write( *p.mark.b, p.width, p.mark.mark, p.ch, true );
-    }
+    }*/
 
     template< typename transform_t, typename stream_t >
     struct string_transform
@@ -332,7 +333,8 @@ namespace brq
         return parse_end == end ? parse_result() : no_parse( "error parsing ", s, " as a number" );
     }
 
-    static parse_result from_string( std::string_view s, bool &f )
+    // FIX HERE: fix recursive template depth exceeded (from brick-hashset)
+    /*static parse_result from_string( std::string_view s, bool &f )
     {
         if ( s == "yes" || s == "true" || s == "1" )
         {
@@ -353,7 +355,7 @@ namespace brq
     {
         v = s;
         return {};
-    }
+    }*/
 
     template< typename container >
     auto from_string( std::string_view s, container &c ) -> decltype( from_string( s, c.back() ) )

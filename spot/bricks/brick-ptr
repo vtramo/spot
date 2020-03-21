@@ -18,8 +18,12 @@
 
 #pragma once
 
-#include <brick-assert>
+// FIX HERE: use #include "" instead of #include <>
+#include "brick-assert"
 #include <atomic>
+// FIX HERE: add missing includes
+#include <limits>
+#include <functional>
 
 namespace brq
 {

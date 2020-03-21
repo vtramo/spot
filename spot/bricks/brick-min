@@ -189,7 +189,8 @@ namespace brq
             return (*this) << ( str ? std::string_view( str ) : "<nullptr>" );
         }
 
-        template< typename C >
+        // FIX HERE: fix recursive template depth exceeded (from brick-hashset)
+        /*template< typename C >
         auto operator<<( const C &c ) noexcept
             -> std::enable_if_t< !std::is_convertible_v< C, std::string_view > &&
                                  !std::is_convertible_v< C, std::u32string_view >,
@@ -199,7 +200,7 @@ namespace brq
                 return *this << "[ " << *c << " ]";
             else
                 return *this << "<null>";
-        }
+        }*/
 
         template< typename C >
         auto operator<<( const C &c ) noexcept
@@ -230,7 +231,8 @@ namespace brq
             return f( *this ), *this;
         }
 
-        template< typename V >
+        // FIX HERE: fix recursive template depth exceeded (from brick-hashset)
+        /*template< typename V >
         auto operator<<( const V &val ) noexcept
             -> decltype( std::to_chars( _buffer, _buffer, val ), *this )
         {
@@ -248,7 +250,7 @@ namespace brq
             _offset = result.ptr - _buffer;
             _buffer[ _offset ] = 0;
             return *this;
-        }
+        }*/
     };
 
     struct fallback

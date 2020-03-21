@@ -24,7 +24,8 @@
 
 #pragma once
 
-#include <brick-assert>
+// FIX HERE: use #include "" instead of #include <>
+#include "brick-assert"
 
 #include <type_traits>
 #include <limits>
@@ -259,7 +260,8 @@ namespace brick::bitlevel
             return c.c;
         }
 
-        uint32_t mixdown( uint64_t i ) /* due to Thomas Wang */
+        // FIX HERE: unused functions
+        /*uint32_t mixdown( uint64_t i ) // due to Thomas Wang
         {
             i = (~i) + (i << 18);
             i =   i  ^ (i >> 31);
@@ -273,7 +275,7 @@ namespace brick::bitlevel
         uint32_t mixdown( uint32_t a, uint32_t b )
         {
             return mixdown( ( uint64_t( a ) << 32 ) | uint64_t( b ) );
-        }
+        }*/
     }
 
     /* Fills `x` by bits up to the most si significant bit. Complexity is O(log n),
@@ -521,13 +523,14 @@ namespace brick::bitlevel
                 return *this; \
             }
 
-            OP(+=);
-            OP(-=);
-            OP(*=);
-            OP(/=);
-            OP(%=);
-            OP(|=);
-            OP(&=);
+            // FIX HERE: remove extra ';' (-pedantic)
+            OP(+=)
+            OP(-=)
+            OP(*=)
+            OP(/=)
+            OP(%=)
+            OP(|=)
+            OP(&=)
     #undef OP
         };
     };

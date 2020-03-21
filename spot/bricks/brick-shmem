@@ -39,7 +39,8 @@
 
 #pragma once
 
-#include <brick-assert>
+// FIX HERE: use #include "" instead of #include <>
+#include "brick-assert"
 #include <deque>
 #include <iostream>
 #include <typeinfo>
@@ -91,12 +92,15 @@ struct Thread : T, ThreadBase
             start();
     }
 
-    virtual void start()
+    // FIX HERE: add override
+    virtual void start() override
     {
-        _thread.reset( new std::thread( [this]() { this->main(); } ) );
+        // FIX HERE: add noexcept
+        _thread.reset( new std::thread( [this]() noexcept { this->main(); } ) );
     }
 
-    virtual void stop()
+    // FIX HERE: add override
+    virtual void stop() override
     {
         if ( _thread && _thread->joinable() )
             join();
@@ -666,7 +670,8 @@ std::future_status wait( I b, I e, F cleanup, steady_time until = later( 500 ) )
         return std::future_status::ready;
     }
     return std::future_status::timeout;
-} catch ( ... ) { cleanup(); throw; };
+// FIX HERE: remove extra ';' (-pedantic)
+} catch ( ... ) { cleanup(); throw; }
 
 }
 

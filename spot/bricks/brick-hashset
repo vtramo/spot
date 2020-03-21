@@ -20,13 +20,14 @@
 
 #pragma once
 
-#include <brick-hash>
-#include <brick-ptr>
-#include <brick-shmem>
-#include <brick-bitlevel>
-#include <brick-assert>
-#include <brick-trace>
-#include <brick-types>
+// FIX HERE: use #include "" instead of #include <>
+#include "brick-hash"
+#include "brick-ptr"
+#include "brick-shmem"
+#include "brick-bitlevel"
+#include "brick-assert"
+#include "brick-trace"
+#include "brick-types"
 
 #include <type_traits>
 #include <set>
@@ -241,8 +242,9 @@ namespace brq::impl
     template< typename T >
     struct alignas( std::min( 16ul, sizeof( tagged< T > ) ) ) atomic_cell : cell_base< T >
     {
-        using tagged = tagged< T >;
-        using bare_value = typename tagged::Type;
+        // FIX HERE: remove name shadowing
+        using taggedT = tagged< T >;
+        using bare_value = typename taggedT::Type;
         using atomic_value = std::atomic< bare_value >;
         using pointer = const atomic_value *;
         using reference = const atomic_value &;
@@ -262,8 +264,8 @@ namespace brq::impl
         bool tombstone() const { return status() == 2; }
 
         pointer value() const { return &_value; }
-        T fetch() const { return tagged::fetch( _value ); }
-        T copy() const { bare_value v = _value; v.tag( 0 ); return tagged::fetch( v ); }
+        T fetch() const { return taggedT::fetch( _value ); }
+        T copy() const { bare_value v = _value; v.tag( 0 ); return taggedT::fetch( v ); }
         bool wait() { return !invalid(); }
         bool match( hash64_t hash ) const { return _value.load().tag() == ( hashbits( hash ) | 3 ); }
         bool tombstone( hash64_t hash ) const { return _value.load().tag() == ( hashbits( hash ) | 2 ); }
@@ -369,7 +371,8 @@ namespace brq::impl
         brq::refcount_ptr< hash_table, true > next;
         std::atomic< size_t > _size;
         std::atomic< ssize_t > to_rehash;
-        uint8_t _data[];
+        // FIX HERE: replace flexible array member with array of size 1
+        uint8_t _data[1];
         Cell &data( int i = 0 ) { return reinterpret_cast< Cell * >( _data )[ i ]; }
 
         using value_type = typename Cell::value_type;
@@ -378,7 +381,8 @@ namespace brq::impl
         using Lookup = std::pair< typename Cell::pointer, LookupTag >;
         enum InsertMode { Rehash, Insert };
 
-        template< typename stream >
+        // FIX HERE: fix recursive template depth exceeded
+        /*template< typename stream >
         friend auto operator<<( stream &o, LookupTag t ) -> decltype( o << "" )
         {
             switch ( t )
@@ -388,7 +392,7 @@ namespace brq::impl
                 case Invalid: return o << "invalid";
                 default: return o << int( t );
             }
-        }
+        }*/
 
         static void *operator new( size_t objsize, size_t cellcount )
         {
@@ -396,6 +400,12 @@ namespace brq::impl
             if ( !rv )
                 throw std::bad_alloc();
             return rv;
+        }
+
+        // FIX HERE: add missing delete operator
+        static void operator delete( void *memory )
+        {
+            free(memory);
         }
 
         hash_table( size_t size, ssize_t rehash )
@@ -443,6 +453,8 @@ namespace brq::impl
             ASSERT_EQ( mask | size(), mask + size() );
 
             Cell *tomb = nullptr;
+            // FIX HERE: unused variable tomb if concurrent is set
+            (void)(tomb);
 
             for ( unsigned i = 0; i < max; ++i )
             {
@@ -477,19 +489,21 @@ namespace brq::impl
         auto find_generic( const X &x, hash64_t h, F match )
             -> std::pair< decltype( match( std::declval< Cell & >(), x, h ) ), LookupTag >
         {
+            // FIX HERE: explicit cast from nullptr to bool needed by GCC
+            const auto nil = (decltype( match( std::declval< Cell & >(), x, h ) )) nullptr;
             const size_t mask = size() - 1;
 
             for ( size_t i = 0; i < max_chain; ++i )
             {
                 Cell &cell = data( index( h, i, mask ) );
                 if ( cell.invalid() )
-                    return { nullptr, Invalid };
+                    return { nil, Invalid };
                 if ( cell.empty() )
-                    return { nullptr, Empty };
+                    return { nil, Empty };
                 if ( auto v = match( cell, x, h ) )
                     return { v, Found };
             }
-            return { nullptr, Empty };
+            return { nil, Empty };
         }
 
         template< typename X, typename A >
@@ -537,6 +551,12 @@ namespace brq::impl
         using table = impl::hash_table< cell, max_chain, grow_t::Initial, concurrent >;
 
         brq::refcount_ptr< table > _table;
+
+        // FIX HERE: add missing delete operator
+        static void operator delete( void *memory )
+        {
+            free(memory);
+        }
 
         size_t capacity()
         {
@@ -646,6 +666,8 @@ namespace brq::impl
                     case A::Bury: buried = c.bury(); return true;
                     case A::Done: buried = true; return true;
                     case A::Mismatch: return false;
+                    // FIX HERE: add missing default
+                    default: return false;
                 }
             };
 
@@ -710,10 +732,12 @@ namespace brq::impl
 
                 if ( !result )
                 {
-                    string_builder err;
+                    // FIX HERE: replace string_builder with std::stringstream
+                    // (prevent segfault)
+                    std::stringstream err;
                     err << "hash table " << _table << " failed to rehash at size " << _table->size();
                     to.to_rehash.store( 0 ); /* prevent stalls and deadlocks */
-                    throw std::runtime_error( err.buffer() );
+                    throw std::runtime_error( err.str() );
                 }
             }
 
