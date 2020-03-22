@@ -19,33 +19,85 @@
 
 #pragma once
 
+#include <spot/misc/hashfunc.hh>
+
+#include <atomic>
 #include <functional>
+
+/* Lock-free concurrent Bloom Filter implementation */
 
 namespace spot
 {
-  class bloom_filter
+  class concurrent_bitset
   {
   public:
-    // TODO: benchmark std::function overhead
+    static const size_t BITS_PER_ELEMENT = 8 * sizeof(uint32_t);
+
+    concurrent_bitset(size_t mem_size)
+      : mem_size_(mem_size)
+    {
+      bits_ = new std::atomic<uint32_t>[mem_size]();
+    }
+
+    ~concurrent_bitset()
+    {
+      delete[] bits_;
+    }
+
+    size_t get_size() const
+    {
+        return mem_size_;
+    }
+
+    size_t get_index(size_t bit) const
+    {
+      return bit / BITS_PER_ELEMENT;
+    }
+
+    size_t get_mask(size_t bit) const
+    {
+      return 1L << (bit % BITS_PER_ELEMENT);
+    }
+
+    void set(size_t bit)
+    {
+      bits_[get_index(bit)] |= get_mask(bit);
+    }
+
+    bool test(size_t bit) const
+    {
+      return bits_[get_index(bit)] & get_mask(bit);
+    }
+
+  private:
+    std::atomic<uint32_t> *bits_;
+    size_t mem_size_;
+  };
+
+  class concurrent_bloom_filter
+  {
+  public:
     using hash_t = size_t;
     using hash_function_t = std::function<hash_t(hash_t)>;
     using hash_functions_t = std::vector<hash_function_t>;
 
-    bloom_filter(size_t mem_size, hash_functions_t hash_functions)
-      : mem_size_(mem_size), hash_functions_(hash_functions)
+    concurrent_bloom_filter(size_t mem_size, hash_functions_t hash_functions)
+      : bitset_(mem_size), hash_functions_(hash_functions)
     {
       if (hash_functions.empty())
         throw std::invalid_argument("Bloom filter has no hash functions");
-
-      bitset_.assign(mem_size, false);
     }
+
+    // Default internal hash function
+    concurrent_bloom_filter(size_t mem_size)
+      : concurrent_bloom_filter(mem_size, {lookup3_hash}) { }
 
     void insert(hash_t elem)
     {
       for (const auto& f : hash_functions_)
       {
-        hash_t hash = f(elem) % mem_size_;
-        bitset_[hash] = true;
+        hash_t hash = f(elem) % bitset_.get_size();
+        bitset_.set(hash);
       }
     }
 
@@ -53,8 +105,8 @@ namespace spot
     {
       for (const auto& f : hash_functions_)
       {
-        hash_t hash = f(elem) % mem_size_;
-        if (bitset_[hash] == false)
+        hash_t hash = f(elem) % bitset_.get_size();
+        if (bitset_.test(hash) == false)
           return false;
       }
 
@@ -62,8 +114,7 @@ namespace spot
     }
 
   private:
-    size_t mem_size_;
+    concurrent_bitset bitset_;
     hash_functions_t hash_functions_;
-    std::vector<bool> bitset_;
   };
 }

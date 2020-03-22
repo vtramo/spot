@@ -21,7 +21,6 @@
 
 #include <spot/kripke/kripke.hh>
 #include <spot/mc/bloom_filter.hh>
-#include <spot/misc/hashfunc.hh>
 
 using namespace spot;
 
@@ -32,14 +31,11 @@ class bitstate_hashing_stats
 public:
   bitstate_hashing_stats(kripkecube<State, SuccIterator>& sys, unsigned tid,
                          size_t mem_size):
-    sys_(sys), tid_(tid)
+    sys_(sys), tid_(tid), bloom_filter_(mem_size)
   {
     static_assert(spot::is_a_kripkecube_ptr<decltype(&sys),
         State, SuccIterator>::value,
         "error: does not match the kripkecube requirements");
-
-    bloom_filter::hash_functions_t hash_functions = {lookup3_hash};
-    bf_ = std::make_unique<bloom_filter>(mem_size, hash_functions);
   }
 
   void push(State s)
@@ -54,7 +50,7 @@ public:
     auto current = todo_.back();
     todo_.pop_back();
     seen_.erase(current.s);
-    bf_->insert(state_hash_(current.s));
+    bloom_filter_.insert(state_hash_(current.s));
 
     sys_.recycle(current.it, tid_);
   }
@@ -77,7 +73,7 @@ public:
         todo_.back().it->next();
 
         bool marked = seen_.find(next) != seen_.end() ||
-                      bf_->contains(state_hash_(next));
+                      bloom_filter_.contains(state_hash_(next));
         if (marked == false)
           push(next);
       }
@@ -105,6 +101,5 @@ protected:
   std::unordered_set<State, StateHash, StateEqual> seen_;
   std::vector<todo__element> todo_;
   unsigned int state_number_;
-  // TODO: unique_ptr are not thread safe
-  std::unique_ptr<bloom_filter> bf_;
+  concurrent_bloom_filter bloom_filter_;
 };
