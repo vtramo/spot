@@ -22,7 +22,6 @@
 #include <spot/misc/hashfunc.hh>
 
 #include <atomic>
-#include <functional>
 
 /* Lock-free concurrent Bloom Filter implementation */
 
@@ -58,7 +57,7 @@ namespace spot
 
   public:
     using hash_t = size_t;
-    using hash_function_t = std::function<hash_t(hash_t)>;
+    using hash_function_t = hash_t (*)(hash_t);
     using hash_functions_t = std::vector<hash_function_t>;
 
     concurrent_bloom_filter(size_t mem_size, hash_functions_t hash_functions)
