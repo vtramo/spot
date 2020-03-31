@@ -28,26 +28,13 @@
 
 namespace spot
 {
-  class concurrent_bitset
+  class concurrent_bloom_filter
   {
-  public:
-    static const size_t BITS_PER_ELEMENT = 8 * sizeof(uint32_t);
+  private:
+    /* Internal concurrent bitset */
+    static const size_t BITS_PER_ELEMENT = sizeof(uint32_t) * CHAR_BIT;
 
-    concurrent_bitset(size_t mem_size)
-      : mem_size_(mem_size)
-    {
-      bits_ = new std::atomic<uint32_t>[mem_size]();
-    }
-
-    ~concurrent_bitset()
-    {
-      delete[] bits_;
-    }
-
-    size_t get_size() const
-    {
-        return mem_size_;
-    }
+    std::atomic<uint32_t> *bits_;
 
     size_t get_index(size_t bit) const
     {
@@ -69,21 +56,15 @@ namespace spot
       return bits_[get_index(bit)] & get_mask(bit);
     }
 
-  private:
-    std::atomic<uint32_t> *bits_;
-    size_t mem_size_;
-  };
-
-  class concurrent_bloom_filter
-  {
   public:
     using hash_t = size_t;
     using hash_function_t = std::function<hash_t(hash_t)>;
     using hash_functions_t = std::vector<hash_function_t>;
 
     concurrent_bloom_filter(size_t mem_size, hash_functions_t hash_functions)
-      : bitset_(mem_size), hash_functions_(hash_functions)
+      : mem_size_(mem_size), hash_functions_(hash_functions)
     {
+      bits_ = new std::atomic<uint32_t>[mem_size]();
       if (hash_functions.empty())
         throw std::invalid_argument("Bloom filter has no hash functions");
     }
@@ -92,12 +73,17 @@ namespace spot
     concurrent_bloom_filter(size_t mem_size)
       : concurrent_bloom_filter(mem_size, {lookup3_hash}) { }
 
+    ~concurrent_bloom_filter()
+    {
+      delete[] bits_;
+    }
+
     void insert(hash_t elem)
     {
       for (const auto& f : hash_functions_)
       {
-        hash_t hash = f(elem) % bitset_.get_size();
-        bitset_.set(hash);
+        hash_t hash = f(elem) % mem_size_;
+        set(hash);
       }
     }
 
@@ -105,8 +91,8 @@ namespace spot
     {
       for (const auto& f : hash_functions_)
       {
-        hash_t hash = f(elem) % bitset_.get_size();
-        if (bitset_.test(hash) == false)
+        hash_t hash = f(elem) % mem_size_;
+        if (test(hash) == false)
           return false;
       }
 
@@ -114,7 +100,7 @@ namespace spot
     }
 
   private:
-    concurrent_bitset bitset_;
+    size_t mem_size_;
     hash_functions_t hash_functions_;
   };
 }
