@@ -26,33 +26,104 @@
 #include <spot/bricks/brick-shmem>
 #include <spot/bricks/brick-types>
 
+#include <chrono>
+
+using namespace std::chrono_literals;
 
 struct both
 {
+  both() = default;
   int x;
   int y;
+
+  auto hash() const
+  {
+    // Not modulo 31 according to brick::hashset specifications.
+    unsigned u = x % (1<<30);
+    return u;
+  }
+
+  inline bool operator==(const both rhs) 
+  {
+    std::cout << "                       Compare it\n";
+    return x == rhs.x && y == rhs.y;
+  }
+
 };
 
-template<typename T>
-struct mytest_hasher_both
+
+static inline bool equals(const both* lhs, const both* rhs) 
 {
-  template<typename X>
-  mytest_hasher_both(X&)
-  { }
+  std::cout << "                       Compare it (ptr)\n";
+  return lhs->x == rhs->x && lhs->x == rhs->y;
+}
 
-  mytest_hasher_both() = default;
 
-  brick::hash::hash128_t hash(both t) const
+/// \brief The haser for the previous state.
+struct both_hasher : brq::hash_adaptor<both>
+{
+  both_hasher() = default;
+
+  auto hash(const both lhs) const
   {
-    return std::make_pair(t.x*10, t.x);
+    // Not modulo 31 according to brick::hashset specifications.
+    std::cout << "                       HASH it!\n";
+    unsigned u = lhs.x % (1<<30);
+    return u;
   }
-  bool valid(both t) const
+};
+
+static int main_raw_element()
+{
+  // Declare concurrent hash table
+  brq::concurrent_hash_set<both> ht;
+
+  // Declare workers and provide them some jobs.
+   std::vector<std::thread> workers;
+  for (int i = 0; i < 4; i++)
+    workers.
+      push_back(std::thread([](int tid, brq::concurrent_hash_set<both> ht) throw()
+                            {
+                              for (int i = 0; i< 200; ++i)
+                                {
+                                  std::cout << "i: " << i << std::endl;
+                                  ht.insert(both{i%2, tid}, both_hasher());
+                                }
+                            }, i, ht));
+
+  //Wait the end of all threads.
+  for (auto& t: workers)
+    t.join();
+
+  // Display the whole table.
+  for (unsigned i = 0; i < ht.capacity(); ++ i)
+    if (ht.valid(i))
+      std::cout << i << ": {"
+                << ht.valueAt(i).x << ','
+                << ht.valueAt(i).y  << "}\n";
+  return 0;
+}
+
+/// \brief The haser for the previous state.
+struct both_ptr_hasher : brq::hash_adaptor<both*>
+{
+  both_ptr_hasher() = default;
+
+  auto hash(const both* lhs) const
   {
-    return t.x != 0;
+    // Not modulo 31 according to brick::hashset specifications.
+    std::cout << "                       HASH it!\n";
+    unsigned u = lhs->x % (1<<30);
+    return u;
   }
-  bool equal(both a, both b) const
+
+  // Ouch i do not like that.
+  using hash64_t = uint64_t;
+  template< typename cell >
+  typename cell::pointer match( cell &c, const both* t, hash64_t h ) const
   {
-    return a.x == b.x;
+    // NOT very sure that dereferecing will not just kill some brick property
+    return c.match( h ) && *(c.fetch()) == *(t) ? c.value() : nullptr;
   }
 };
 
@@ -200,31 +271,35 @@ static void test_brick_types()
   t3.enum_ulong();
 }
 
-int main()
+static int main_ptr_element()
 {
   // Declare concurrent hash table
-  brick::hashset::FastConcurrent<both , mytest_hasher_both<both>> ht2;
+  brq::concurrent_hash_set<both*> ht;
 
   // Declare workers and provide them some jobs.
-  std::vector<std::thread> workers;
-  for (int i = 0; i < 6; i++)
+   std::vector<std::thread> workers;
+  for (int i = 0; i < 1; i++)
     workers.
-      push_back(std::thread([&ht2](int tid)
+      push_back(std::thread([](int tid, brq::concurrent_hash_set<both*> ht) throw()
                             {
-                              for (int i = 0; i< 2000; ++i)
-                                ht2.insert({i, tid});
-                            }, i));
+                              for (int i = 0; i< 200; ++i)
+                                {
+                                  std::cout << "i: " << i << std::endl;
+                                  // FIXME Dealloc new
+                                  ht.insert(new both{i%2, tid}, both_ptr_hasher());
+                                }
+                            }, i, ht));
 
-  // Wait the end of all threads.
+  //Wait the end of all threads.
   for (auto& t: workers)
     t.join();
 
   // Display the whole table.
-  for (unsigned i = 0; i < ht2.capacity(); ++ i)
-    if (ht2.valid(i))
+  for (unsigned i = 0; i < ht.capacity(); ++ i)
+    if (ht.valid(i))
       std::cout << i << ": {"
-                << ht2.valueAt(i).x << ','
-                << ht2.valueAt(i).y  << "}\n";
+                << ht.valueAt(i)->x << ','
+                << ht.valueAt(i)->y  << "}\n";
 
   // Run tests that are already embedded inside of bricks
   test_brick_hashmap();
@@ -232,5 +307,13 @@ int main()
   test_brick_hash();
   test_brick_shmem();
   test_brick_types();
+  return 0;
+}
+
+int main()
+{
+  main_raw_element();
+  std::cout << "----------------------------------------------------\n";
+  main_ptr_element();
   return 0;
 }
