@@ -1,5 +1,5 @@
 # Benchmark binary
-bitstate
+bench
 # Input/output generated files
 data/
 log/

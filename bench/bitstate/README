@@ -1,12 +1,15 @@
+Bistate hashing benchmarking
+============================
+
 This directory contains benchmarking tools used to compute various statistics on
 the bitstate hashing technique.
 
-To retrieve model datasets, use the bootstrap.sh script. To run all the
-downloaded datasets, use the run.sh script.
+Usage
+-----
 
-To benchmark individual model, you can directly use the bitstate binary:
+To retrieve model datasets, use the bootstrap.sh script.
 
   $ make
-  $ ./bitstate input_model.dve log_file.csv 1000,10000,100000
+  $ ./bench input_model.dve algo_name 1000,10000,100000
   # Optional (to remove generated files)
   $ make clean

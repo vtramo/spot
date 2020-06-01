@@ -21,6 +21,11 @@
 
 #include <spot/kripke/kripke.hh>
 #include <spot/mc/bloom_filter.hh>
+#include <spot/misc/memusage.hh>
+#include <spot/misc/timer.hh>
+
+#include <string>
+#include <vector>
 
 using namespace spot;
 
@@ -103,3 +108,39 @@ protected:
   unsigned int state_number_;
   concurrent_bloom_filter bloom_filter_;
 };
+
+template<typename kripke_ptr, typename State,
+         typename Iterator, typename Hash, typename Equal>
+void bench_bitstate(kripke_ptr sys, std::vector<size_t> mem_sizes)
+{
+  spot::timer_map timer;
+  int mem_used;
+  using algo_name = bitstate_hashing_stats<State, Iterator, Hash, Equal>;
+
+  // TODO: print reference
+
+  for (size_t mem_size : mem_sizes)
+  {
+    auto bh = new algo_name(*sys, 0, mem_size);
+
+    const std::string round = "Using " + std::to_string(mem_size) + " bits";
+    timer.start(round);
+    mem_used = spot::memusage();
+
+    bh->run();
+
+    mem_used = spot::memusage() - mem_used;
+    timer.stop(round);
+
+    auto walltime = (float) timer.timer(round).walltime() / CLOCKS_PER_SEC;
+    std::cout << "\n" << round << "\n"
+              << "\tmem_size (nb bits): " << mem_size << "\n"
+              << "\tmem_used (nb pages): " << mem_used << "\n"
+              << "\twalltime (seconds): " << walltime << "\n";
+
+    delete bh;
+  }
+
+  std::cout << "\n";
+  timer.print(std::cout);
+}

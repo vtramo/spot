@@ -28,8 +28,8 @@ LDADD =						\
   $(top_builddir)/buddy/src/libbddx.la		\
   $(top_builddir)/spot/ltsmin/libspotltsmin.la
 
-bin_PROGRAMS = bitstate
+bin_PROGRAMS = bench
 
-bitstate_SOURCES = bitstate.cc
+bench_SOURCES = main.cc
 
 CLEANFILES = *.dve *.dve2C *.dve.cpp
