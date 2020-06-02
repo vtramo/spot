@@ -41,6 +41,13 @@ namespace spot
   ///
   /// At position 1 we store the size of the state: keeping this information
   /// allows to compress the state
+  ///
+  /// At position 2 we store the thread id in order to properly recycle the
+  /// state allocated by a specific thread.
+  ///
+  /// At position 3 we store bitstate metadata using bitmasks recording which
+  /// thread references the state (to known when to properly release the state
+  /// memory)
   typedef int* cspins_state;
 
   /// \brief This class provides the ability to compare two states
@@ -48,7 +55,9 @@ namespace spot
   {
     bool operator()(const cspins_state lhs, const cspins_state rhs) const
     {
-      return 0 == memcmp(lhs, rhs, (2+rhs[1])* sizeof(int));
+      return lhs[0] == rhs[0] && // Check wether hash are comparables
+             lhs[1] == rhs[1] && // Check wether size are comparables
+             0 == memcmp(lhs+4, rhs+4, rhs[1] * sizeof(int)); // Check raw
     }
   };
 
@@ -71,7 +80,7 @@ namespace spot
     /// and indicate wether compression should be used:
     ///  - 1 for handle large models
     ///  - 2 (faster) assume all values in [0 .. 2^28-1]
-    cspins_state_manager(unsigned int state_size, int compress);
+    cspins_state_manager(unsigned int state_size, int compress, int tid = 0);
 
     /// \brief Get Rid of the internal representation of the state
     int* unbox_state(cspins_state s) const;
@@ -99,6 +108,7 @@ namespace spot
     const unsigned int state_size_;
     void (*fn_compress_)(const int*, size_t, int*, size_t&);
     void (*fn_decompress_)(const int*, size_t, int*, size_t);
+    int tid_;
   };
 
   // \brief This structure is used as a parameter during callback when

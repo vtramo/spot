@@ -33,21 +33,23 @@
 namespace spot
 {
   cspins_state_manager::cspins_state_manager(unsigned int state_size,
-                                             int compress)
-    : p_((state_size+2)*sizeof(int)), compress_(compress),
-      /* reserve one integer for the hash value and size */
+                                             int compress, int tid)
+    : p_((state_size+4)*sizeof(int)), compress_(compress),
+      /* reserve one integer for the hash value, size, tid, and bitstate
+       * metadata */
       state_size_(state_size),
       fn_compress_(compress == 0 ? nullptr
                    : compress == 1 ? int_array_array_compress
                    : int_array_array_compress2),
       fn_decompress_(compress == 0 ? nullptr
                      : compress == 1 ? int_array_array_decompress
-                     : int_array_array_decompress2)
+                     : int_array_array_decompress2),
+      tid_(tid)
   { }
 
   int* cspins_state_manager::unbox_state(cspins_state s) const
   {
-    return s+2;
+    return s+4;
   }
 
   // cmp is the area we can use to compute the compressed rep of dst.
@@ -63,7 +65,7 @@ namespace spot
         fn_compress_(dst, state_size_, cmp, csize);
         ref = cmp;
         size = csize;
-        out = (cspins_state) msp_.allocate((size+2)*sizeof(int));
+        out = (cspins_state) msp_.allocate((size+4)*sizeof(int));
       }
     else
       out = (cspins_state) p_.allocate();
@@ -73,19 +75,22 @@ namespace spot
       hash_value = wang32_hash(hash_value ^ dst[i]);
     out[0] = hash_value;
     out[1] = size;
+    out[2] = tid_;
+    // Bitstate metadata (initialized bit tid_ to 1)
+    out[3] = (1 << tid_);
     return out;
   }
 
   void cspins_state_manager::decompress(cspins_state s, int* uncompressed,
                                         unsigned size) const
   {
-    fn_decompress_(s+2, s[1], uncompressed, size);
+    fn_decompress_(s+4, s[1], uncompressed, size);
   }
 
   void cspins_state_manager::dealloc(cspins_state s)
   {
     if (compress_)
-      msp_.deallocate(s, (s[1]+2)*sizeof(int));
+      msp_.deallocate(s, (s[1]+4)*sizeof(int));
     else
       p_.deallocate(s);
   }
@@ -210,7 +215,7 @@ namespace spot
         recycle_.push_back(std::vector<cspins_iterator*>());
         recycle_.back().reserve(2000000);
         new (&manager_[i])
-          cspins_state_manager(d_->get_state_size(), compress);
+          cspins_state_manager(d_->get_state_size(), compress, i);
         inner_[i].compressed = new int[d_->get_state_size() * 2];
         inner_[i].uncompressed = new int[d_->get_state_size()+30];
       }
@@ -322,9 +327,9 @@ namespace spot
     // State is compressed, uncompress it
     if (compress_)
       {
-        manager_[tid].decompress(s, inner_[tid].uncompressed+2,
-                                 manager_[tid].size());
-        vars = inner_[tid].uncompressed + 2;
+        int *state = manager_[tid].unbox_state(inner_[tid].uncompressed);
+        manager_[tid].decompress(s, state, manager_[tid].size());
+        vars = state;
       }
 
     for (auto& ap: pset_)
