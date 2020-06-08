@@ -236,6 +236,8 @@ namespace spot
     /// \brief The number of thread used by *this* kripke
     unsigned get_threads();
 
+    int* unbox_bitstate_metadata(cspins_state s);
+
   private:
     /// \brief Parse the set of atomic proposition to have a more
     /// efficient data strucure for computation

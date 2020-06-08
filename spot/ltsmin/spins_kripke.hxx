@@ -317,6 +317,12 @@ namespace spot
     return nb_threads_;
   }
 
+  int* kripkecube<cspins_state, cspins_iterator>
+  ::unbox_bitstate_metadata(cspins_state s)
+  {
+    return s+3;
+  }
+
   void
   kripkecube<cspins_state, cspins_iterator>::compute_condition
   (cube c, cspins_state s, unsigned tid)

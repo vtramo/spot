@@ -152,6 +152,14 @@ namespace spot
       if ((*it)->colors[tid_] == static_cast<int>(OPEN))
         return false;
 
+      // Set bitstate metadata
+      int* unbox_s = sys_.unbox_bitstate_metadata((*it)->st);
+      int tmp = unbox_s[0];
+      while (!(tmp & (1 << tid_)))
+      {
+        tmp = __atomic_fetch_or(unbox_s, (1 << tid_), __ATOMIC_RELAXED);
+      }
+
       // Keep a ptr over the array of colors
       refs_.push_back((*it)->colors);
 
@@ -165,6 +173,15 @@ namespace spot
     {
       // Track maximum dfs size
       dfs_ = todo_.size()  > dfs_ ? todo_.size() : dfs_;
+
+      // Clear bitstate metadata
+      State st = todo_.back().s;
+      int* unbox_s = sys_.unbox_bitstate_metadata(st);
+      int tmp = unbox_s[0];
+      while (tmp & (1 << tid_))
+      {
+        tmp = __atomic_fetch_and(unbox_s, ~(1 << tid_), __ATOMIC_RELAXED);
+      }
 
       // Don't avoid pop but modify the status of the state
       // during backtrack
