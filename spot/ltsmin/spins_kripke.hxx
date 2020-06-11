@@ -209,11 +209,16 @@ namespace spot
   {
     manager_ = static_cast<cspins_state_manager*>
       (::operator new(sizeof(cspins_state_manager) * nb_threads));
+    recycle_mutex_ = new std::mutex[nb_threads_];
     inner_ = new inner_callback_parameters[nb_threads_];
     for (unsigned i = 0; i < nb_threads_; ++i)
       {
         recycle_.push_back(std::vector<cspins_iterator*>());
         recycle_.back().reserve(2000000);
+
+        recycle_state_.push_back(std::vector<cspins_state>());
+        recycle_state_.back().reserve(2000000);
+
         new (&manager_[i])
           cspins_state_manager(d_->get_state_size(), compress, i);
         inner_[i].compressed = new int[d_->get_state_size() * 2];
@@ -234,6 +239,8 @@ namespace spot
             delete j;
           }
       }
+
+    delete[] recycle_mutex_;
 
     for (unsigned i = 0; i < nb_threads_; ++i)
       {
@@ -304,6 +311,14 @@ namespace spot
                                                      unsigned tid)
   {
     recycle_[tid].push_back(it);
+  }
+
+  void
+  kripkecube<cspins_state, cspins_iterator>::recycle_state(cspins_state st,
+                                                           unsigned tid)
+  {
+    std::lock_guard<std::mutex> lock(recycle_mutex_[tid]);
+    recycle_state_[tid].push_back(st);
   }
 
   const std::vector<std::string>
