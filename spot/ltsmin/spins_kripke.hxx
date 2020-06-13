@@ -318,6 +318,15 @@ namespace spot
     int tid = st[2];
     std::lock_guard<std::mutex> lock(recycle_mutex_[tid]);
     recycle_st_[tid].push_back(st);
+
+    if (recycle_st_[tid].size() == 10)
+    {
+      for (auto& s : recycle_st_[tid])
+      {
+        manager_[tid].dealloc(s);
+      }
+      recycle_st_[tid].clear();
+    }
   }
 
   const std::vector<std::string>
