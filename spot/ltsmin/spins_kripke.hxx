@@ -213,11 +213,11 @@ namespace spot
     inner_ = new inner_callback_parameters[nb_threads_];
     for (unsigned i = 0; i < nb_threads_; ++i)
       {
-        recycle_.push_back(std::vector<cspins_iterator*>());
-        recycle_.back().reserve(2000000);
+        recycle_it_.push_back(std::vector<cspins_iterator*>());
+        recycle_it_.back().reserve(2000000);
 
-        recycle_state_.push_back(std::vector<cspins_state>());
-        recycle_state_.back().reserve(2000000);
+        recycle_st_.push_back(std::vector<cspins_state>());
+        recycle_st_.back().reserve(2000000);
 
         new (&manager_[i])
           cspins_state_manager(d_->get_state_size(), compress, i);
@@ -231,7 +231,7 @@ namespace spot
 
   kripkecube<cspins_state, cspins_iterator>::~kripkecube()
   {
-    for (auto& i: recycle_)
+    for (auto& i: recycle_it_)
       {
         for (auto& j: i)
           {
@@ -291,10 +291,10 @@ namespace spot
         cubeset_, dead_idx_, tid
       };
 
-    if (SPOT_LIKELY(!recycle_[tid].empty()))
+    if (SPOT_LIKELY(!recycle_it_[tid].empty()))
       {
-        auto tmp  = recycle_[tid].back();
-        recycle_[tid].pop_back();
+        auto tmp  = recycle_it_[tid].back();
+        recycle_it_[tid].pop_back();
         p.cond = tmp->condition();
         compute_condition(p.cond, s, tid);
         tmp->recycle(p);
@@ -306,19 +306,18 @@ namespace spot
     return new cspins_iterator(p);
   }
 
-  void
-  kripkecube<cspins_state, cspins_iterator>::recycle(cspins_iterator* it,
-                                                     unsigned tid)
+  void kripkecube<cspins_state, cspins_iterator>
+  ::recycle_iterator(cspins_iterator* it, unsigned tid)
   {
-    recycle_[tid].push_back(it);
+    recycle_it_[tid].push_back(it);
   }
 
-  void
-  kripkecube<cspins_state, cspins_iterator>::recycle_state(cspins_state st,
-                                                           unsigned tid)
+  void kripkecube<cspins_state, cspins_iterator>
+  ::recycle_state(cspins_state st)
   {
+    int tid = st[2];
     std::lock_guard<std::mutex> lock(recycle_mutex_[tid]);
-    recycle_state_[tid].push_back(st);
+    recycle_st_[tid].push_back(st);
   }
 
   const std::vector<std::string>

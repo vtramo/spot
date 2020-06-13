@@ -129,7 +129,7 @@ namespace spot
     {
       while (!todo_.empty())
         {
-          sys_.recycle(todo_.back().it, tid_);
+          sys_.recycle_iterator(todo_.back().it, tid_);
           todo_.pop_back();
         }
     }
@@ -151,7 +151,7 @@ namespace spot
                   deadlock_ = todo_.back().current_tr == transitions_;
                   if (compute_deadlock && deadlock_)
                     break;
-                  sys_.recycle(todo_.back().it, tid_);
+                  sys_.recycle_iterator(todo_.back().it, tid_);
                   todo_.pop_back();
                 }
             }

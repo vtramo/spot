@@ -228,8 +228,8 @@ namespace spot
     cspins_state initial(unsigned tid);
     std::string to_string(const cspins_state s, unsigned tid = 0) const;
     cspins_iterator* succ(const cspins_state s, unsigned tid);
-    void recycle(cspins_iterator* it, unsigned tid);
-    void recycle_state(cspins_state st, unsigned tid);
+    void recycle_iterator(cspins_iterator* it, unsigned tid);
+    void recycle_state(cspins_state st);
 
     /// \brief List the atomic propositions used by *this* kripke
     const std::vector<std::string> ap();
@@ -254,8 +254,8 @@ namespace spot
     bool compress_;                  // Should a compression be performed
 
     // One per threads to store no longer used iterators/states (save memory)
-    std::vector<std::vector<cspins_iterator*>> recycle_;
-    std::vector<std::vector<cspins_state>> recycle_state_;
+    std::vector<std::vector<cspins_iterator*>> recycle_it_;
+    std::vector<std::vector<cspins_state>> recycle_st_;
     std::mutex* recycle_mutex_;
 
     inner_callback_parameters* inner_; // One callback per thread

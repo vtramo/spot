@@ -57,7 +57,7 @@ public:
     seen_.erase(current.s);
     bloom_filter_.insert(state_hash_(current.s));
 
-    sys_.recycle(current.it, tid_);
+    sys_.recycle_iterator(current.it, tid_);
   }
 
   void run()

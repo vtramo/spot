@@ -61,7 +61,7 @@ namespace spot
            {
              if (SPOT_LIKELY(pop(todo_.back().s)))
                {
-                 sys_.recycle(todo_.back().it, 0);
+                 sys_.recycle_iterator(todo_.back().it, 0);
                  todo_.pop_back();
                }
            }
@@ -245,7 +245,7 @@ namespace spot
                                              newtop,
                                              map[newtop])))
                 {
-                  sys_.recycle(todo_.back().it_kripke, 0);
+                  sys_.recycle_iterator(todo_.back().it_kripke, 0);
                   todo_.pop_back();
                 }
             }

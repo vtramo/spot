@@ -97,7 +97,7 @@ namespace spot
       map.clear();
       while (!todo.empty())
         {
-          sys_.recycle(todo.back().it_kripke, tid_);
+          sys_.recycle_iterator(todo.back().it_kripke, tid_);
           todo.pop_back();
         }
     }
@@ -133,7 +133,7 @@ namespace spot
                                         newtop,
                                         map[newtop])))
                 {
-                  sys_.recycle(todo.back().it_kripke, tid_);
+                  sys_.recycle_iterator(todo.back().it_kripke, tid_);
                   // FIXME a local storage for twacube iterator?
                   todo.pop_back();
                   if (SPOT_UNLIKELY(found_))
@@ -358,11 +358,11 @@ namespace spot
                           while (!bfs.empty())
                             {
                               auto* e = bfs.front();
-                              sys_.recycle(e->it_kripke, tid_);
+                              sys_.recycle_iterator(e->it_kripke, tid_);
                               bfs.pop();
                               delete e;
                             }
-                          sys_.recycle(front->it_kripke, tid_);
+                          sys_.recycle_iterator(front->it_kripke, tid_);
                           delete front;
 
                           // update acceptance
@@ -396,7 +396,7 @@ namespace spot
               front->it_prop->reset();
               front->it_kripke->next();
             }
-          sys_.recycle(front->it_kripke, tid_);
+          sys_.recycle_iterator(front->it_kripke, tid_);
           delete front;
         }
 

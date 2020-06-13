@@ -122,12 +122,12 @@ namespace spot
     {
       while (!todo_blue_.empty())
         {
-          sys_.recycle(todo_blue_.back().it_kripke, tid_);
+          sys_.recycle_iterator(todo_blue_.back().it_kripke, tid_);
           todo_blue_.pop_back();
         }
       while (!todo_red_.empty())
         {
-          sys_.recycle(todo_red_.back().it_kripke, tid_);
+          sys_.recycle_iterator(todo_red_.back().it_kripke, tid_);
           todo_red_.pop_back();
         }
     }
@@ -183,6 +183,17 @@ namespace spot
       return {true, *it};
     }
 
+    bool pop_blue()
+    {
+      // Track maximum dfs size
+      dfs_ = todo_blue_.size()  > dfs_ ? todo_blue_.size() : dfs_;
+
+      todo_blue_.back().st.colors->l[tid_].cyan = false;
+      sys_.recycle_iterator(todo_blue_.back().it_kripke, tid_);
+      todo_blue_.pop_back();
+      return true;
+    }
+
     std::pair<bool, product_state>
     push_red(product_state s, bool ignore_cyan)
     {
@@ -208,17 +219,6 @@ namespace spot
       return {true, *it};
     }
 
-    bool pop_blue()
-    {
-      // Track maximum dfs size
-      dfs_ = todo_blue_.size()  > dfs_ ? todo_blue_.size() : dfs_;
-
-      todo_blue_.back().st.colors->l[tid_].cyan = false;
-      sys_.recycle(todo_blue_.back().it_kripke, tid_);
-      todo_blue_.pop_back();
-      return true;
-    }
-
     bool pop_red()
     {
       // Track maximum dfs size
@@ -226,7 +226,7 @@ namespace spot
         todo_blue_.size() + todo_red_.size() : dfs_;
 
 
-      sys_.recycle(todo_red_.back().it_kripke, tid_);
+      sys_.recycle_iterator(todo_red_.back().it_kripke, tid_);
       todo_red_.pop_back();
       return true;
     }

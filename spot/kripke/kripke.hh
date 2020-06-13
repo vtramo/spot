@@ -55,7 +55,10 @@ namespace spot
 
     /// \brief Allocation and deallocation of iterator is costly. This
     /// method allows to reuse old iterators.
-    void recycle(SuccIterator*, unsigned tid);
+    void recycle_iterator(SuccIterator*, unsigned tid);
+
+    /// \brief Same as recycle_iterator() but for states.
+    void recycle_state(State);
 
     /// \brief This method allow to deallocate a given state.
     const std::vector<std::string> ap();
@@ -82,10 +85,12 @@ namespace spot
        std::is_same<unsigned,    decltype(u->get_threads())>::value         &&
        std::is_same<std::string, decltype(u->to_string(State(), 0))>::value &&
        std::is_same<SuccIter*,   decltype(u->succ(State(), 0))>::value      &&
-       std::is_same<void,        decltype(u->recycle(nullptr, 0))>::value   &&
+       std::is_same<void, decltype(u->recycle_iterator(nullptr, 0))>::value &&
+       std::is_same<void, decltype(u->recycle_state(nullptr))>::value       &&
        std::is_same<const std::vector<std::string>,
                                  decltype(u->ap())>::value                  &&
-       std::is_same<void,        decltype(u->recycle(nullptr, 0))>::value   &&
+       std::is_same<void, decltype(u->recycle_iterator(nullptr, 0))>::value &&
+       std::is_same<void, decltype(u->recycle_state(nullptr))>::value       &&
 
        // Check the SuccIterator
        std::is_same<void,        decltype(v->next())>::value                &&
