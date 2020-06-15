@@ -217,7 +217,7 @@ namespace spot
         recycle_it_.back().reserve(2000000);
 
         recycle_st_.push_back(std::vector<cspins_state>());
-        recycle_st_.back().reserve(2000000);
+        recycle_st_.back().reserve(10); // Since recycle is done every 10
 
         new (&manager_[i])
           cspins_state_manager(d_->get_state_size(), compress, i);
@@ -317,7 +317,6 @@ namespace spot
   {
     int tid = st[2];
     std::lock_guard<std::mutex> lock(recycle_mutex_[tid]);
-    recycle_st_[tid].push_back(st);
 
     if (recycle_st_[tid].size() == 10)
     {
@@ -327,6 +326,9 @@ namespace spot
       }
       recycle_st_[tid].clear();
     }
+
+    // Prefer insertion after.
+    recycle_st_[tid].push_back(st);
   }
 
   const std::vector<std::string>

@@ -54,46 +54,42 @@ namespace spot
     {
       State st;                 ///< \brief the effective state
       int* colors;              ///< \brief the colors (one per thread)
+
+      bool operator==(const deadlock_pair& other) const
+      {
+        StateEqual equal;
+        return equal(st, other.st);
+      }
     };
 
     /// \brief The hasher for the previous state.
-    struct pair_hasher : brq::hash_adaptor<deadlock_pair*>
+    struct pair_hasher : brq::hash_adaptor<deadlock_pair>
     {
-      pair_hasher(const deadlock_pair*)
+      pair_hasher(const deadlock_pair&)
       { }
 
       pair_hasher() = default;
 
-      auto hash(const deadlock_pair* lhs) const
+      auto hash(const deadlock_pair& lhs) const
       {
         StateHash hash;
         // Not modulo 31 according to brick::hashset specifications.
-        unsigned u = hash(lhs->st) % (1<<30);
+        unsigned u = hash(lhs.st) % (1<<30);
         return u;
       }
 
-      bool equal(const deadlock_pair* lhs,
-                 const deadlock_pair* rhs) const
+      bool equal(const deadlock_pair& lhs,
+                 const deadlock_pair& rhs) const
       {
         StateEqual equal;
-        return equal(lhs->st, rhs->st);
-      }
-
-      // WARNING: temporary technical fix to have pointers in brick hash table
-      using hash64_t = uint64_t;
-      template<typename cell>
-      typename cell::pointer match(cell &c, const deadlock_pair* t,
-                                   hash64_t h) const
-      {
-        // NOT very sure that dereferencing will not kill some brick property
-        return c.match(h) && equal(c.fetch() , t) ? c.value() : nullptr;
+        return equal(lhs.st, rhs.st);
       }
     };
 
   public:
 
     ///< \brief Shortcut to ease shared map manipulation
-    using shared_map = brq::concurrent_hash_set<deadlock_pair*>;
+    using shared_map = brq::concurrent_hash_set<deadlock_pair>;
 
     swarmed_deadlock_bitstate(kripkecube<State, SuccIterator>& sys,
                               shared_map& map, size_t mem_size,
@@ -102,7 +98,6 @@ namespace spot
       bloom_filter_(mem_size),
       nb_th_(std::thread::hardware_concurrency()),
       p_(sizeof(int)*std::thread::hardware_concurrency()),
-      p_pair_(sizeof(deadlock_pair)),
       stop_(stop)
     {
       static_assert(spot::is_a_kripkecube_ptr<decltype(&sys),
@@ -132,39 +127,53 @@ namespace spot
         ref[i] = UNKNOWN;
 
       // Try to insert the new state in the shared map.
-      deadlock_pair* v = (deadlock_pair*) p_pair_.allocate();
-      v->st = s;
-      v->colors = ref;
-      auto it = map_.insert(v, pair_hasher());
-      bool b = it.isnew();
+      deadlock_pair v { s, ref };
 
-      // Insertion failed, delete element
+      auto it = map_.find(v, pair_hasher());
+      // State is not in table
+      // FIXME is there a method like end() in brick-hashset?
+      if (!it.isnew() && !it.valid())
+        {
+          // But is in bloom ..
+          if (bloom_filter_.contains(state_hash_(s)))
+            return false;
+
+          // otherwise we have to insert it in table
+          it = map_.insert(v, pair_hasher());
+        }
+
+      bool b = it.isnew();
+      // Insertion or lookup failed, delete element
       // FIXME Should we add a local cache to avoid useless allocations?
       if (!b)
         p_.deallocate(ref);
 
       // The state has been mark dead by another thread
       for (unsigned i = 0; !b && i < nb_th_; ++i)
-        if ((*it)->colors[i] == static_cast<int>(CLOSED))
+        if (it->colors[i] == static_cast<int>(CLOSED))
           return false;
 
       // The state has already been visited by the current thread
-      if ((*it)->colors[tid_] == static_cast<int>(OPEN))
+      if (it->colors[tid_] == static_cast<int>(OPEN))
+        return false;
+
+      // Rare case: no more threads is using the state
+      int* unbox_s = sys_.unbox_bitstate_metadata(it->st);
+      int cnt = __atomic_load_n(&unbox_s[0], __ATOMIC_RELAXED);
+      if (SPOT_UNLIKELY(cnt == 0))
         return false;
 
       // Set bitstate metadata
-      int* unbox_s = sys_.unbox_bitstate_metadata((*it)->st);
-      int tmp = unbox_s[0];
-      while (!(tmp & (1 << tid_)))
+      while (!(cnt & (1 << tid_)))
       {
-        tmp = __atomic_fetch_or(unbox_s, (1 << tid_), __ATOMIC_RELAXED);
+        cnt = __atomic_fetch_or(unbox_s, (1 << tid_), __ATOMIC_RELAXED);
       }
 
       // Keep a ptr over the array of colors
-      refs_.push_back((*it)->colors);
+      refs_.push_back(it->colors);
 
       // Mark state as visited.
-      (*it)->colors[tid_] = OPEN;
+      it->colors[tid_] = OPEN;
       ++states_;
       return true;
     }
@@ -177,16 +186,27 @@ namespace spot
       // Clear bitstate metadata
       State st = todo_.back().s;
       int* unbox_s = sys_.unbox_bitstate_metadata(st);
-      int tmp = unbox_s[0];
-      while (tmp & (1 << tid_))
+      int cnt = __atomic_load_n(&unbox_s[0], __ATOMIC_RELAXED);
+      while (cnt & (1 << tid_))
       {
-        tmp = __atomic_fetch_and(unbox_s, ~(1 << tid_), __ATOMIC_RELAXED);
+        cnt = __atomic_fetch_and(unbox_s, ~(1 << tid_), __ATOMIC_RELAXED);
       }
+
+      // Insert the state into the filter
+      bloom_filter_.insert(state_hash_(st));
 
       // Don't avoid pop but modify the status of the state
       // during backtrack
       refs_.back()[tid_] = CLOSED;
       refs_.pop_back();
+
+      // Release memory if no thread is using the state
+      if (cnt == 0)
+      {
+        deadlock_pair p { st, nullptr };
+        map_.erase(p, pair_hasher());
+        sys_.recycle_state(st);
+      }
       return true;
     }
 
@@ -214,6 +234,7 @@ namespace spot
         {
           todo_.push_back({initial, sys_.succ(initial, tid_), transitions_});
         }
+
       while (!todo_.empty() && !stop_.load(std::memory_order_relaxed))
         {
           if (todo_.back().it->done())
@@ -281,7 +302,6 @@ namespace spot
     /// \brief Maximum number of threads that can be handled by this algorithm
     unsigned nb_th_ = 0;
     fixed_size_pool<pool_type::Unsafe> p_;  ///< \brief Color Allocator
-    fixed_size_pool<pool_type::Unsafe> p_pair_;  ///< \brief State Allocator
     bool deadlock_ = false;                 ///< \brief Deadlock detected?
     std::atomic<bool>& stop_;               ///< \brief Stop-the-world boolean
     /// \brief Stack that grows according to the todo stack. It avoid multiple
