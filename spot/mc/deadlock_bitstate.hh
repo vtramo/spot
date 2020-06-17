@@ -119,7 +119,8 @@ namespace spot
       tm_.start("DFS thread " + std::to_string(tid_));
     }
 
-    bool push(State s)
+    // Returns nullptr if no push
+    State push(State s)
     {
       // Prepare data for a newer allocation
       int* ref = (int*) p_.allocate();
@@ -136,7 +137,7 @@ namespace spot
         {
           // But is in bloom ..
           if (bloom_filter_.contains(state_hash_(s)))
-            return false;
+            return nullptr;
 
           // otherwise we have to insert it in table
           it = map_.insert(v, pair_hasher());
@@ -151,17 +152,17 @@ namespace spot
       // The state has been mark dead by another thread
       for (unsigned i = 0; !b && i < nb_th_; ++i)
         if (it->colors[i] == static_cast<int>(CLOSED))
-          return false;
+          return nullptr;
 
       // The state has already been visited by the current thread
       if (it->colors[tid_] == static_cast<int>(OPEN))
-        return false;
+        return nullptr;
 
       // Rare case: no more threads is using the state
       int* unbox_s = sys_.unbox_bitstate_metadata(it->st);
       int cnt = __atomic_load_n(&unbox_s[0], __ATOMIC_RELAXED);
       if (SPOT_UNLIKELY(cnt == 0))
-        return false;
+        return nullptr;
 
       // Set bitstate metadata
       while (!(cnt & (1 << tid_)))
@@ -175,7 +176,8 @@ namespace spot
       // Mark state as visited.
       it->colors[tid_] = OPEN;
       ++states_;
-      return true;
+
+      return it->st;
     }
 
     bool pop()
@@ -229,10 +231,13 @@ namespace spot
     void run()
     {
       setup();
-      State initial = sys_.initial(tid_);
-      if (SPOT_LIKELY(push(initial)))
+      State tmp = sys_.initial(tid_);
+      State initial = push(tmp);
+      if (SPOT_LIKELY(initial != nullptr))
         {
           todo_.push_back({initial, sys_.succ(initial, tid_), transitions_});
+          if (tmp != initial)
+            sys_.recycle_state(tmp);
         }
 
       while (!todo_.empty() && !stop_.load(std::memory_order_relaxed))
@@ -251,12 +256,15 @@ namespace spot
           else
             {
               ++transitions_;
-              State dst = todo_.back().it->state();
+              tmp = todo_.back().it->state();
+              State dst = push(tmp);
 
-              if (SPOT_LIKELY(push(dst)))
+              if (SPOT_LIKELY(dst != nullptr))
                 {
                   todo_.back().it->next();
                   todo_.push_back({dst, sys_.succ(dst, tid_), transitions_});
+                  if (tmp != dst)
+                    sys_.recycle_state(tmp);
                 }
               else
                 {
