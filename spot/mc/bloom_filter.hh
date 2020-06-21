@@ -63,7 +63,7 @@ namespace spot
     concurrent_bloom_filter(size_t mem_size, hash_functions_t hash_functions)
       : mem_size_(mem_size), hash_functions_(hash_functions)
     {
-      bits_ = new std::atomic<uint32_t>[mem_size]();
+      bits_ = new std::atomic<uint32_t>[mem_size / BITS_PER_ELEMENT]();
       if (hash_functions.empty())
         throw std::invalid_argument("Bloom filter has no hash functions");
     }
