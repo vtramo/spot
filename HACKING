@@ -53,6 +53,8 @@ only for certain operations (like releases):
 
   pandoc    used during Debian packaging for the conversion of
             IPython notebooks to html
+  svgo      for reducing SVG images before generating the tarball
+            (install with: npm install -g svgo)
   ltl2ba    used in the generated documentation and the test suite
   ltl2dstar likewise
   ltl3dra   likewise

@@ -1,5 +1,5 @@
 ## -*- coding: utf-8 -*-
-## Copyright (C) 2010-2011, 2013-2019 Laboratoire de Recherche et
+## Copyright (C) 2010-2011, 2013-2020 Laboratoire de Recherche et
 ## Développement de l'Epita (LRDE).
 ## Copyright (C) 2003-2005 Laboratoire d'Informatique de Paris 6
 ## (LIP6), département Systèmes Répartis Coopératifs (SRC), Université
@@ -29,15 +29,25 @@ endif
 
 all-local: $(DOXY_STAMP) $(srcdir)/org-stamp
 
-.PHONY: doc
+.PHONY: doc svgo
 doc:
 	-rm -f stamp
 	$(MAKE) stamp
+
+# We use SVGO only if it is available.
+SVGO = if ! (svgo -v >/dev/null); then :; else svgo --disable=removeViewBox
+SVGOEND = ; fi
+
+dist-hook: svgo
+svgo:
+	$(SVGO) -f $(distdir)/userdoc $(SVGOEND)
+
 
 stamp: $(srcdir)/Doxyfile.in $(top_srcdir)/configure.ac
 	$(MAKE) Doxyfile
 	-rm -rf spot.html spot.latex
 	$(DOXYGEN)
+	$(SVGO) -f spot.html $(SVGOEND)
 	touch $@
 
 spot.html spot.tag: stamp
