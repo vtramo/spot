@@ -5,24 +5,18 @@
 \usetikzlibrary{positioning}
 \usetikzlibrary{calc}
 \usetikzlibrary{shapes}
-\usetikzlibrary{patterns}
 \usetikzlibrary{backgrounds}
-\usetikzlibrary{shapes.callouts}
 \newcommand{\CF}{\ensuremath{\mathcal{F}}}
 
-\newcommand{\pin}[1]{\tikz[baseline=0]\node[fill=yellow,draw,circle,thin,inner sep=0.5pt,above left] {\footnotesize #1};}
-
 \begin{document}
-
+\scalebox{1.2}{
+\begin{tikzpicture}[shorten >=1pt,>=stealth',semithick,node distance=5.5mm]
 \tikzstyle{dstep}=[align=center,minimum height=3em]
 \tikzstyle{pstep}=[draw,dstep,drop shadow,fill=white]
 \tikzstyle{iostep}=[dstep,rounded corners=1mm]
 \tikzstyle{instep}=[iostep,fill=yellow!20]
 \tikzstyle{outstep}=[iostep,fill=green!20]
 \tikzstyle{errstep}=[iostep,fill=red!20]
-
-\scalebox{1.2}{
-\begin{tikzpicture}[shorten >=1pt,>=stealth',semithick,node distance=5.5mm]
 %\tikzset{callout/.style={ellipse callout, callout pointer arc=30,
 %  callout absolute pointer={#1},fill=blue!30,draw}}
 %\tikzstyle{
@@ -32,7 +26,7 @@
 \draw[->] (trans) -- (wdba);
 \node[pstep,right=of wdba.0] (simp) {simplify\\TGBA};
 \draw[->] (wdba) -- node[above]{fail} (simp);
-\node[instep,below=of trans,yshift=-2mm] (ltl1) {LTL\\formula};
+\node[instep,below=of trans,yshift=-4mm] (ltl1) {LTL\\formula};
 \draw[->] (ltl1) -- (trans);
 
 \node[pstep,right=of simp,yshift=8mm,xshift=1mm] (degen) {degen\\to TBA};
@@ -50,7 +44,7 @@
 \coordinate (turn) at ($(nottcong.-130 |- simp.0)$);
 \draw[->] (isdet) -- node[below right,at start]{det.} (turn);
 \draw[->] (tbadet2) -- node[right,pos=.6]{success} ($(tbadet2 |- turn)$);
-\node[pstep,below=of tbadet.-125,yshift=-3mm] (dtbasat) {DTBA SAT\\minimization};
+\node[pstep,below=of tbadet.-125,yshift=-5mm] (dtbasat) {DTBA SAT\\minimization};
 \node[pstep,below=of dtbasat,yshift=5mm] (dtgbasat) {DTGBA SAT\\minimization};
 \draw[->] (turn) |- node[above left]{$m=1$} (dtbasat);
 \draw[->] (turn) |- node[above left]{$m>1$} (dtgbasat);
@@ -61,7 +55,7 @@
 
 \draw[->] (dtgbasat) -- (mindtgba);
 \draw[->] (dtbasat) -- (mindtba);
-\node[pstep,below=of ltl1,yshift=-2mm,xshift=1mm] (ltl2dstar) {\texttt{ltl2dstar}\\(DRA)};
+\node[pstep,below=of ltl1,yshift=-3mm,xshift=1mm] (ltl2dstar) {\texttt{ltl2dstar}\\(DRA)};
 \draw[->] (ltl1) -- ($(ltl1 |- ltl2dstar.90)$);
 \node[pstep,right=of ltl2dstar] (dra2dba) {attempt\\conversion\\to DBA};
 \draw[->] (ltl2dstar) -- (dra2dba);
@@ -77,23 +71,21 @@
 \draw[->] (wdba2.160) -| node[below right,sloped]{success} (wdbaok);
 
 \begin{scope}[on background layer]
-\coordinate (pt1) at ($(tbadet.north east)+(3mm,2mm)$);
-\coordinate (pt2) at ($(mindtba.north east)+(3mm,0mm)$);
-\coordinate (pt3) at ($(mindtgba.south east)+(0mm,-1mm)$);
+\coordinate (pt1) at ($(tbadet.north east)+(3mm,3mm)$);
+\coordinate (pt2) at ($(mindtba.north east)+(3mm,1mm)$);
+\coordinate (pt3) at ($(mindtgba.south east)+(0mm,-2mm)$);
 \coordinate[xshift=1mm,yshift=1mm] (turn3) at (turn);
-\path[pattern color=blue!30,pattern=north west lines] ($(trans.west |- pt1)$) |- (pt2) |- (pt3) -| (turn3) -| (pt1) --  cycle;
+\path[fill=blue!30,opacity=.3,rounded corners=1mm] ($(trans.west |- pt1)$) ++ (-1mm,0) |- (pt2) -- (pt3 -| pt2) -| (turn3) -| (pt1) --  cycle;
 \node[below right] at ($(trans.west |- pt1)$) {\texttt{ltl2tgba}};
 
 
 \coordinate[yshift=1mm,xshift=1mm] (pt4) at ($(pt2 -| turn3)$);
-\coordinate[yshift=-3mm,xshift=-1mm] (pt5) at ($(dra2dba.south west)$);
+\coordinate[yshift=-4mm,xshift=-1mm] (pt5) at ($(dra2dba.south west)$);
 \coordinate[yshift=1mm,xshift=-1mm] (pt6) at ($(dra2dba.north west)$);
-\path[pattern color=blue!30!red!30,pattern=north east lines] (pt5) -| (pt4)  -- ($(pt2) + (1mm,1mm)$) |- (pt6) -- cycle;
-\node[above left,yshift=-1mm] at ($(pt5 -| pt4)$) {\texttt{dstar2tgba}};
+\path[fill=blue!30!red!30,opacity=.3,rounded corners=1mm] (pt5) -| (pt4)  -- ($(pt2) + (1mm,1mm)$) |- (pt6) -- cycle;
+\node[above left,yshift=-1mm] at ($(pt5 -| pt4)$) {\texttt{dstar2tgba}/\texttt{autfilt}};
 \end{scope}
-
-%\node[fill=yellow,draw,ellipse callout,thin,inner sep=0.5pt,callout pointer arc=30,,yshift=6mm,callout absolute pointer={(c1)}] at (c1) {\footnotesize 1};
-
+%\draw[red] (current bounding box.north west) rectangle (current bounding box.south east);
 \end{tikzpicture}}
 \end{document}
 %%% Local Variables:

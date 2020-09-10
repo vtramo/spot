@@ -249,7 +249,8 @@ The following figure (from our [[https://www.lrde.epita.fr/~adl/dl/adl/baarir.14
 the processing chains that can be used to turn an LTL formula into a
 minimal DBA/DTBA/DTGBA.  The blue area at the top describes =ltl2tgba
 -D -x sat-minimize=, while the purple area at the bottom corresponds
-to =dstar2tgba -D -x stat-minimize=.
+to =dstar2tgba -D -x stat-minimize= (but =autfilt= support similar
+options).
 
 [[file:satmin.svg]]
 
