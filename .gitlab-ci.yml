@@ -182,7 +182,7 @@ debpkg-stable:
     - vol=spot-stable-$CI_COMMIT_SHA
     - docker volume create $vol
     - exitcode=0
-    - docker run --rm=true -v $vol:/build/result registry.lrde.epita.fr/spot-debuild:stable ./build-spot.sh $CI_COMMIT_REF_NAME -j${NBPROC-1} || exitcode=$?
+    - docker run --rm=true -v $vol:/build/result gitlab-registry.lrde.epita.fr/spot/buildenv/debian:stable ./build-spot.sh $CI_COMMIT_REF_NAME -j${NBPROC-1} || exitcode=$?
     - docker run -v $vol:/build/result --name helper-$vol registry.lrde.epita.fr/spot-debuild:stable true || exitcode=$?
     - docker cp helper-$vol:/build/result _build_stable || exitcode=$?
     - docker rm helper-$vol || exitcode=$?
@@ -209,7 +209,7 @@ debpkg-stable-i386:
     - vol=spot-stable-$CI_COMMIT_SHA
     - docker volume create $vol
     - exitcode=0
-    - docker create -v $vol:/build/result --name helper-$vol registry.lrde.epita.fr/spot-debuild-i386:stable ./bin-spot.sh -j${NBPROC-1} || exitcode=$?
+    - docker create -v $vol:/build/result --name helper-$vol gitlab-registry.lrde.epita.fr/spot/buildenv/debian-i386:stable ./bin-spot.sh -j${NBPROC-1} || exitcode=$?
     - docker cp _build_stable/. helper-$vol:/build/result || exitcode=$?
     - rm -rf _build_stable
     - docker start -a helper-$vol || exitcode=$?
@@ -231,11 +231,10 @@ debpkg-unstable:
     - next
   script:
     - docker pull gitlab-registry.lrde.epita.fr/spot/buildenv/debian
-    - docker pull gitlab-registry.lrde.epita.fr/spot/buildenv/debian-i386
     - vol=spot-unstable-$CI_COMMIT_SHA
     - docker volume create $vol
     - exitcode=0
-    - docker run -v $vol:/build/result --name helper-$vol registry.lrde.epita.fr/spot-debuild ./build-spot.sh $CI_COMMIT_REF_NAME -j${NBPROC-1} || exitcode=$?
+    - docker run -v $vol:/build/result --name helper-$vol gitlab-registry.lrde.epita.fr/spot/buildenv/debian ./build-spot.sh $CI_COMMIT_REF_NAME -j${NBPROC-1} || exitcode=$?
     - docker cp helper-$vol:/build/result _build_unstable || exitcode=$?
     - docker rm helper-$vol || exitcode=$?
     - docker volume rm $vol || exitcode=$?
@@ -259,7 +258,7 @@ debpkg-unstable-i386:
     - vol=spot-unstable-$CI_COMMIT_SHA
     - docker volume create $vol
     - exitcode=0
-    - docker create -v $vol:/build/result --name helper-$vol registry.lrde.epita.fr/spot-debuild-i386 ./bin-spot.sh -j${NBPROC-1} || exitcode=$?
+    - docker create -v $vol:/build/result --name helper-$vol gitlab-registry.lrde.epita.fr/spot/buildenv/debian-i386 ./bin-spot.sh -j${NBPROC-1} || exitcode=$?
     - docker cp _build_unstable/. helper-$vol:/build/result || exitcode=$?
     - rm -rf _build_unstable
     - docker start -a helper-$vol || exitcode=$?
