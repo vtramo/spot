@@ -380,8 +380,8 @@ namespace spot
       throw std::runtime_error
         ("minimize_wdba() does not support alternation");
 
-    hash_set* final = new hash_set;
-    hash_set* non_final = new hash_set;
+    hash_set* final;
+    hash_set* non_final;
 
     twa_graph_ptr det_a;
 
@@ -444,6 +444,8 @@ namespace spot
               }
         }
 
+      final = new hash_set;
+      non_final = new hash_set;
 
       // SCC that have been marked as useless.
       std::vector<bool> useless(scc_count);
