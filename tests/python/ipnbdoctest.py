@@ -171,6 +171,10 @@ def canonical_dict(dict, ignores):
             re.sub(r"(' returned non-zero exit status \d+)\.", r'\1',
                    dict['evalue'])
 
+    if ('ename' in dict and dict['ename'] == 'ModuleNotFoundError' and
+            'pandas' in dict['evalue']):
+        sys.exit(77)
+
     if 'transient' in dict:
         del dict['transient']
     if 'execution_count' in dict:
