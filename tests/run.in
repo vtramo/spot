@@ -26,6 +26,7 @@
 # path of dependent libraries in each library).
 modpath='@abs_top_builddir@/python/.libs:@abs_top_builddir@/python/spot/.libs'
 modpath=$modpath:'@abs_top_builddir@/spot/ltsmin/.libs'
+modpath=$modpath:'@abs_top_builddir@/spot/gen/.libs'
 modpath=$modpath:'@abs_top_builddir@/spot/.libs'
 modpath=$modpath:'@abs_top_builddir@/buddy/src/.libs'
 
