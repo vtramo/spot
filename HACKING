@@ -24,7 +24,7 @@ since the generated files they produce are distributed.)
   GNU Autoconf >= 2.61
   GNU Automake >= 1.11
   GNU Libtool >= 2.4
-  GNU Flex (the version seems to matters, we used 2.5.35)
+  GNU Flex >= 2.6
   GNU Bison >= 3.0
   GNU Emacs (preferably >= 24 but it may work with older versions)
   org-mode >= 9.1 (the version that comes bundled with your emacs
@@ -59,6 +59,7 @@ only for certain operations (like releases):
   ltl2dstar likewise
   ltl3dra   likewise
   spin      likewise
+  dot2tex   used for an example in the documentation and in one test
   glucose >= 3.0  likewise
   lbtt >= 1.2.1a  used in the test suite (ltlcross is now more
             powerful, but additional tests do not hurt)
