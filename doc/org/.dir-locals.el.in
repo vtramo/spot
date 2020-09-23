@@ -41,8 +41,8 @@
 	      (shell-file-name . "@SHELL@")
               (ess-ask-for-ess-directory . nil)
               (org-export-html-postamble . nil)
-              (org-html-table-header-tags .
-                 '("<th scope=\"%s\"%s><div><span>" . "</span></div></th>"))
+              (org-html-table-header-tags
+                 "<th scope=\"%s\"%s><div><span>" . "</span></div></th>")
               (org-babel-default-header-args:plantuml
                . ((:results . "file")
                   (:exports . "results")
