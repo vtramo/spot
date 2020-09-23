@@ -1,6 +1,6 @@
 #!/bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2013, 2016, 2017, 2019 Laboratoire de Recherche et
+# Copyright (C) 2013, 2016, 2017, 2019, 2020 Laboratoire de Recherche et
 # Développement de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -99,7 +99,7 @@ test `wc -l < formulas.4` -eq 168
 
 # Add some carriage returns to simulate MS-DOS files and
 # make sure our parser does not mind.
-sed 's/$/\r/' formulas.2 > formulas.2ms
+$PERL -pe 's/$/\r/' formulas.2 > formulas.2ms
 # The --csv-escape option is now obsolete and replaced by double
 # quotes in the format string.  So eventually the first two lines
 # should disappear.

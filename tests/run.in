@@ -61,6 +61,9 @@ export top_builddir
 top_srcdir='@abs_top_srcdir@'
 export top_srcdir
 
+PERL='@PERL@'
+export PERL
+
 # Reset those variables, as they may affect the output of DOT.
 SPOT_DOTEXTRA=
 export SPOT_DOTEXTRA
@@ -108,7 +111,7 @@ case $1 in
   *.test)
     exec sh -x "$@";;
   *.pl)
-    exec @PERL@ "$@";;
+    exec $PERL "$@";;
   *python*|*jupyter*)
     PYTHONPATH=$pypath DYLD_LIBRARY_PATH=$modpath \
     exec $PREFIXCMD "$@";;
