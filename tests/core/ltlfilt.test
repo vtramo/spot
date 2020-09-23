@@ -1,6 +1,6 @@
 #! /bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2013-2019 Laboratoire de Recherche et Développement de
+# Copyright (C) 2013-2020 Laboratoire de Recherche et Développement de
 # l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -475,7 +475,7 @@ run 0 ltlfilt -p --wring -u --nnf --relabel=pnn --define in >out
 diff exp out
 
 run 0 ltlfilt -0 in > out
-perl -i -pe 's/\0/@\n/g' out
+$PERL -i -pe 's/\0/@\n/g' out
 cat >exp <<EOF
 a & c & Xb@
 a & b & GF(a | c) & FG(a | c)@

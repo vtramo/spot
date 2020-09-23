@@ -169,7 +169,7 @@ grep "ltldo: failed to parse '2a'.*-n" err
 genltl --rv-counter=9 | ltldo ltl2tgba --stats='
 print("%[up]R + %[uc]R + %[sp]R + %[sc]R - %R\n");
 die if abs(%[up]R + %[uc]R + %[sp]R + %[sc]R - %R) > 0.02;' > code.pl
-perl code.pl
+$PERL code.pl
 
 # ltldo should not leave temporary files behind itself on errors
 ltldo -f a 'ltl2dstar --ltl2nba=spin:ltl2tgba@-DS' && exit 2

@@ -297,7 +297,7 @@ grep input: stderr > stderrfilt
 diff stderrfilt expected-err
 
 # DOS-style new lines should have the same output.
-perl -pi -e 's/$/\r/' input
+$PERL -pi -e 's/$/\r/' input
 run 2 ../ikwiad -ks -XN input > stdout 2>stderr
 cat stderr
 grep input: stderr > stderrfilt

@@ -386,7 +386,7 @@ EOF
 ltlfilt -Fformulas/1 --stats='%f,%f,%>' |
 ltl2tgba -F-/2 --stats='%<,%<, %s,%t' |
     ltl2tgba -D -F-/2 --stats='%<,%<,%>, %s,%t' |
-    perl -p -e 's/$/\r/' |
+    $PERL -p -e 's/$/\r/' |
     ltl2tgba -B -F-/2 --stats='%<,%<,%>, %s,%t' |
     ltl2tgba -BD -F-/2 --stats='%<,%<,%>, %s,%t' |
     ltl2tgba -GD -F-/2 --stats='%<,%>, %s,%t' > output

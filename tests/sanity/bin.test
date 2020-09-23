@@ -1,7 +1,7 @@
 #! /bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2017 Laboratoire de Recherche et Développement de
-# l'Epita (LRDE).
+# Copyright (C) 2017, 2020 Laboratoire de Recherche et Développement
+# de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
 #
@@ -102,7 +102,7 @@ do
     # of the document string fall right into the rmargin.
     ARGP_HELP_FMT=rmargin=10000 \
     $top_builddir/bin/$binary --help > help-$binary.tmp
-    if ! perl -ne '/\n\s*\n(\s*-.*\n)/ && print("$1") && exit(1)' \
+    if ! $PERL -ne '/\n\s*\n(\s*-.*\n)/ && print("$1") && exit(1)' \
             -0777 help-$binary.tmp > help-err
     then
         echo "bin/$binary --help has options after blank line;" \
