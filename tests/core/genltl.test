@@ -24,8 +24,10 @@ set -e
 # Make sure the name of each pattern is correctly output by %F.
 opts=`genltl --help | sed -n '/=RANGE/{
 s/^ *//
-s/=RANGE\[\?,RANGE.*/=1,1/p
-s/\[\?=RANGE.*/=1/p
+s/=RANGE\[,RANGE.*/=1,1/p
+s/=RANGE,RANGE.*/=1,1/p
+s/\[=RANGE.*/=1/p
+s/=RANGE.*/=1/p
 }'`
 res=`genltl $opts --format="--%F=%L"`
 test "$opts" = "$res"
