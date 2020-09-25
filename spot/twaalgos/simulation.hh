@@ -122,4 +122,59 @@ namespace spot
   iterated_simulations_sba(const const_twa_graph_ptr& automaton);
   /// @}
 
+  /// @{
+  /// \brief Attempt to reduce the automaton by direct simulation.
+  ///
+  /// Compute direct simulation for all states using \cite clemente.2.17.corr,
+  /// then reduce the automaton.
+  ///
+  /// There is no need to call scc_filter() before as it is always applied to
+  /// remove dead and unreacheable states.
+  ///
+  /// \param aut the automaton to simulate.
+  /// \return a new automaton which is at worst a copy of the received
+  /// one
+  SPOT_API
+  twa_graph_ptr reduce_direct_sim(const const_twa_graph_ptr& aut);
+  SPOT_API
+  twa_graph_ptr reduce_direct_sim_sba(const const_twa_graph_ptr& aut);
+  /// @}
+
+  /// @{
+  /// \brief Attempt to reduce the automaton by reverse simulation.
+  ///
+  /// Reverse the automaton, compute the simulation and reduce it in the same
+  /// way as reduce_direct_sim().
+  ///
+  /// There is no need to call scc_filter() before as it is always applied to
+  /// remove dead and unreacheable states.
+  ///
+  /// \param aut the automaton to simulate.
+  /// \return a new automaton which is at worst a copy of the received
+  /// one
+  SPOT_API
+  twa_graph_ptr reduce_direct_cosim(const const_twa_graph_ptr& aut);
+  SPOT_API
+  twa_graph_ptr reduce_direct_cosim_sba(const const_twa_graph_ptr& aut);
+  /// @}
+
+  /// @{
+  /// \brief Iterate reduce_direct_sim() and reduce_direct_cosim().
+  ///
+  /// Runs reduce_direct_sim() and reduce_direct_cosim() in a loop,
+  /// until the automaton does not change size (states and
+  /// transitions).
+  ///
+  /// There is no need to call scc_filter() before as it is always applied to
+  /// remove dead and unreacheable states.
+  ///
+  /// \param aut the automaton to simulate.
+  /// \return a new automaton which is at worst a copy of the received
+  /// one
+  SPOT_API
+  twa_graph_ptr reduce_iterated(const const_twa_graph_ptr& aut);
+  SPOT_API
+  twa_graph_ptr reduce_iterated_sba(const const_twa_graph_ptr& aut);
+  /// @}
+
 } // End namespace spot.

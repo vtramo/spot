@@ -188,3 +188,464 @@ State: 0 "[1,7]"
 [1] 0
 [!1] 0 {0}
 --END--"""
+
+aut = spot.automaton('''HOA: v1
+States: 12
+Start: 0
+AP: 2 "a" "b"
+acc-name: Buchi
+Acceptance: 1 Inf(0)
+properties: trans-labels explicit-labels trans-acc deterministic
+--BODY--
+State: 0
+[!0&1] 1
+[0&!1] 0
+[0&1] 2
+State: 1
+[!0&1] 0
+[0&!1] 3 {0}
+[0&1] 4
+State: 2
+[!0&1] 2
+[0&!1] 4
+[0&1] 5
+State: 3
+[!0&1] 0
+[0&!1] 3
+[0&1] 6
+State: 4
+[!0&1] 7
+[0&!1] 4
+[0&1] 8
+State: 5
+[!0&1] 7
+[0&!1] 4
+[0&1] 8
+State: 6
+[!0&1] 2
+[0&!1] 6
+[0&1] 9
+State: 7
+[!0&1] 10
+[0&!1] 6 {0}
+[0&1] 9 {0}
+State: 8
+[!0&1] 2 {0}
+[0&!1] 6 {0}
+[0&1] 9 {0}
+State: 9
+[!0&1] 2
+[0&!1] 4
+[0&1] 5
+State: 10
+[!0&1] 7
+[0&!1] 4 {0}
+[0&1] 11
+State: 11
+[!0&1] 2 {0}
+[0&!1] 6 {0}
+[0&1] 9 {0}
+--END--''')
+assert spot.reduce_iterated(aut).to_str() == '''HOA: v1
+States: 9
+Start: 0
+AP: 2 "a" "b"
+acc-name: Buchi
+Acceptance: 1 Inf(0)
+properties: trans-labels explicit-labels trans-acc deterministic
+--BODY--
+State: 0
+[0&!1] 0
+[!0&1] 1
+[0&1] 2
+State: 1
+[!0&1] 0
+[0&!1] 3 {0}
+[0&1] 4
+State: 2
+[!0&1] 2
+[0] 4
+State: 3
+[!0&1] 0
+[0&!1] 3
+[0&1] 5
+State: 4
+[0&!1] 4
+[!0&1] 6
+[0&1] 7
+State: 5
+[1] 2
+[0&!1] 5
+State: 6
+[0&1] 2 {0}
+[0&!1] 5 {0}
+[!0&1] 8
+State: 7
+[1] 2 {0}
+[0&!1] 5 {0}
+State: 8
+[0&!1] 4 {0}
+[!0&1] 6
+[0&1] 7
+--END--'''
+
+aut = spot.automaton('''HOA: v1
+States: 6
+Start: 0
+AP: 2 "a" "b"
+acc-name: co-Buchi
+Acceptance: 1 Fin(0)
+properties: trans-labels explicit-labels state-acc very-weak
+--BODY--
+State: 0
+[1] 1
+[1] 2
+State: 1 {0}
+[0] 1
+State: 2
+[0] 3
+State: 3
+[1] 3
+State: 4
+[1] 5
+State: 5
+[0] 5
+--END--''')
+assert spot.reduce_iterated(aut).to_str() == '''HOA: v1
+States: 3
+Start: 0
+AP: 2 "a" "b"
+acc-name: co-Buchi
+Acceptance: 1 Fin(0)
+properties: trans-labels explicit-labels state-acc deterministic
+properties: very-weak
+--BODY--
+State: 0 {0}
+[1] 1
+State: 1
+[0] 2
+State: 2
+[1] 2
+--END--'''
+
+aut = spot.automaton('''HOA: v1
+States: 5
+Start: 0
+AP: 4 "p0" "p1" "p2" "p3"
+Acceptance: 2 Fin(0) & Fin(1)
+properties: trans-labels explicit-labels trans-acc
+--BODY--
+State: 0
+[0&!1&!2&3] 1
+State: 1
+[0&1&!2&3] 2 {0 1}
+[0&1&!2&3] 3 {0 1}
+[0&1&2&!3] 0
+[0&1&!2&3] 4 {0 1}
+[0&1&!2&3] 1 {0 1}
+State: 2
+[0&1&!2&3] 2
+State: 3
+[0&1&!2&3] 2 {1}
+[0&1&!2&3] 3 {1}
+State: 4
+[0&1&!2&3] 2 {0}
+[0&1&!2&3] 4 {0}
+--END--''')
+
+assert spot.reduce_direct_cosim(aut).to_str() == '''HOA: v1
+States: 5
+Start: 0
+AP: 4 "p0" "p2" "p3" "p1"
+Acceptance: 2 Fin(0) & Fin(1)
+properties: trans-labels explicit-labels trans-acc
+--BODY--
+State: 0
+[0&!1&2&!3] 1
+State: 1
+[0&1&!2&3] 0
+[0&!1&2&3] 1 {0 1}
+[0&!1&2&3] 2 {0 1}
+[0&!1&2&3] 3 {0 1}
+[0&!1&2&3] 4 {0 1}
+State: 2
+[0&!1&2&3] 2
+State: 3
+[0&!1&2&3] 3 {1}
+State: 4
+[0&!1&2&3] 4 {0}
+--END--'''
+
+aut = spot.automaton('''HOA: v1
+States: 2
+Start: 0
+AP: 2 "a" "b"
+Acceptance: 2 Fin(0) & Fin(1)
+properties: trans-labels explicit-labels trans-acc
+--BODY--
+State: 0
+[0] 1 {0}
+[0] 1 {1}
+State: 1
+[0] 0
+--END--''')
+assert spot.reduce_direct_sim(aut).to_str() == '''HOA: v1
+States: 1
+Start: 0
+AP: 2 "a" "b"
+Acceptance: 2 Fin(0) & Fin(1)
+properties: trans-labels explicit-labels state-acc deterministic
+--BODY--
+State: 0
+--END--'''
+
+aut = spot.automaton('''HOA: v1
+name: "(p1 U p2) U p3"
+States: 4
+Start: 0
+AP: 3 "p1" "p2" "p3"
+acc-name: Buchi
+Acceptance: 1 Inf(0)
+properties: trans-labels explicit-labels state-acc stutter-invariant
+properties: terminal
+--BODY--
+State: 0
+[1&!2] 0
+[2] 1
+[0&!2] 2
+State: 1 {0}
+[t] 1
+State: 2
+[1&!2] 0
+[1&2] 1
+[0&!1 | 0&!2] 2
+[0&!1&2] 3
+State: 3
+[1] 1
+[0&!1] 3
+--END--''')
+assert spot.reduce_direct_cosim_sba(aut).to_str() == '''HOA: v1
+States: 4
+Start: 0
+AP: 3 "p2" "p3" "p1"
+acc-name: Buchi
+Acceptance: 1 Inf(0)
+properties: trans-labels explicit-labels state-acc stutter-invariant
+properties: terminal
+--BODY--
+State: 0
+[0&!1] 0
+[1] 1
+[!1&2] 2
+State: 1 {0}
+[t] 1
+State: 2
+[0&!1] 0
+[0&1] 1
+[!0&2 | !1&2] 2
+[!0&1&2] 3
+State: 3
+[0] 1
+[!0&2] 3
+--END--'''
+
+aut = spot.automaton('''HOA: v1
+States: 4
+Start: 0
+AP: 2 "a" "b"
+acc-name: Buchi
+Acceptance: 1 Inf(0)
+properties: trans-labels explicit-labels state-acc
+--BODY--
+State: 0
+[0] 1
+State: 1
+[1] 2
+[1] 3
+State: 2
+[1] 2
+State: 3 {0}
+[1] 3
+--END--''')
+assert spot.reduce_direct_cosim(aut).to_str() == '''HOA: v1
+States: 3
+Start: 0
+AP: 2 "a" "b"
+acc-name: Buchi
+Acceptance: 1 Inf(0)
+properties: trans-labels explicit-labels state-acc deterministic
+--BODY--
+State: 0
+[0] 1
+State: 1
+[1] 2
+State: 2 {0}
+[1] 2
+--END--'''
+
+assert spot.reduce_direct_sim_sba(aut).to_str() == '''HOA: v1
+States: 2
+Start: 0
+AP: 2 "a" "b"
+acc-name: Buchi
+Acceptance: 1 Inf(0)
+properties: trans-labels explicit-labels state-acc deterministic
+--BODY--
+State: 0
+[0] 1
+State: 1 {0}
+[1] 1
+--END--'''
+
+aut = spot.automaton('''HOA: v1
+States: 3
+Start: 0
+AP: 1 "a"
+Acceptance: 1 t
+properties: trans-labels explicit-labels state-acc deterministic
+--BODY--
+State: 0
+[0] 1
+State: 1
+[0] 2
+State: 2 {0}
+[0] 2
+--END--''')
+assert spot.reduce_iterated_sba(aut).to_str() == '''HOA: v1
+States: 1
+Start: 0
+AP: 1 "a"
+Acceptance: 1 t
+properties: trans-labels explicit-labels state-acc colored
+properties: deterministic
+--BODY--
+State: 0 {0}
+[0] 0
+--END--'''
+
+aut = spot.automaton('''HOA: v1
+States: 30
+Start: 0
+AP: 4 "c" "d" "a1" "b1"
+acc-name: Buchi
+Acceptance: 1 Inf(0)
+properties: trans-labels explicit-labels trans-acc weak
+--BODY--
+State: 0
+[0&!1&!2&!3] 1
+[0&!1&!2&!3] 2
+State: 1
+[!0&!1&!2&3] 3
+[!0&!1&2&!3] 4
+State: 2
+[!0&!1&!2&3 | !0&!1&2&!3] 5
+[!0&1&!2&!3] 6
+State: 3
+[0&!1&!2&!3] 7
+State: 4
+[0&!1&!2&!3] 8
+State: 5
+[0&!1&!2&!3] 1
+[0&!1&!2&!3] 9
+State: 6
+[!0&!1&!2&3 | !0&!1&2&!3] 10
+State: 7
+[!0&!1&!2&3 | !0&!1&2&!3] 3
+[!0&1&!2&!3] 11
+[!0&1&!2&!3] 12
+[0&!1&!2&!3] 13
+State: 8
+[!0&!1&!2&3 | !0&!1&2&!3] 4
+[!0&1&!2&!3] 14
+[!0&1&!2&!3] 15
+[0&!1&!2&!3] 16
+State: 9
+[!0&!1&!2&3 | !0&!1&2&!3] 5
+[!0&1&!2&!3] 6
+[0&!1&!2&!3] 17
+[0&!1&!2&!3] 18
+State: 10
+[0&!1&!2&!3] 17 {0}
+[0&!1&!2&!3] 19
+State: 11
+[!0&!1&2&!3] 20
+[!0&!1&!2&3] 21 {0}
+State: 12
+[!0&!1&!2&3 | !0&!1&2&!3] 22
+State: 13
+[0&!1&!2&!3] 13
+State: 14
+[!0&!1&2&!3] 21 {0}
+[!0&!1&!2&3] 23
+State: 15
+[!0&!1&!2&3 | !0&!1&2&!3] 24
+State: 16
+[0&!1&!2&!3] 16
+State: 17
+State: 18
+[0&!1&!2&!3] 17
+[0&!1&!2&!3] 18
+State: 19
+[0&!1&!2&!3] 17 {0}
+[0&!1&!2&!3] 19
+State: 20
+[0&!1&!2&!3] 25
+State: 21
+[0&!1&!2&!3] 26 {0}
+State: 22
+[0&!1&!2&!3] 27
+State: 23
+[0&!1&!2&!3] 28
+State: 24
+[0&!1&!2&!3] 29
+State: 25
+[0&!1&!2&!3] 25
+State: 26
+[0&!1&!2&!3] 26 {0}
+State: 27
+[0&!1&!2&!3] 27
+State: 28
+[0&!1&!2&!3] 28
+State: 29
+[0&!1&!2&!3] 29
+--END--''')
+assert spot.reduce_iterated(a).to_str() == '''HOA: v1
+States: 8
+Start: 0
+AP: 2 "p0" "p1"
+acc-name: Buchi
+Acceptance: 1 Inf(0)
+properties: trans-labels explicit-labels trans-acc stutter-invariant
+--BODY--
+State: 0
+[0] 0
+[!0] 1 {0}
+[0&1] 2 {0}
+[!0&1] 3
+State: 1
+[1] 1
+[!1] 1 {0}
+[!0&1] 3
+[0&1] 4
+State: 2
+[0&1] 2 {0}
+State: 3
+[!1] 1 {0}
+[!0&1] 3
+[0&1] 5
+State: 4
+[0&!1] 6
+State: 5
+[!0&!1] 1 {0}
+[!0&1] 3
+[0&1] 5
+[0&!1] 6 {0}
+State: 6
+[!0&!1] 1 {0}
+[0] 6
+[!0&1] 7
+State: 7
+[!1] 1 {0}
+[0&1] 5
+[1] 7
+--END--'''
