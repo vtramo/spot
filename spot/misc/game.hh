@@ -100,4 +100,8 @@ namespace spot
   /// \brief Get the owner of a state.
   SPOT_API
   unsigned get_state_player(const_twa_graph_ptr arena, unsigned state);
+
+  /// \brief Solve a reachability game.
+  SPOT_API
+  bool solve_reachability_game(twa_graph_ptr game);
 }
