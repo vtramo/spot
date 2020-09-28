@@ -71,8 +71,7 @@ instance =gfa= is an atomic proposition, but =GFa= actually denotes
 the LTL formula =G(F(a))=.  Any double-quoted string is also
 considered to be an atomic proposition, so if =GFa= had to be an
 atomic proposition, it could be written
-#+HTML: <code>"GFa"</code>
-.
+@@html:<code>@@"GFa"@@html::</code>@@.
 
 These double-quote strings also make it possible to embed arbitrarily
 complex expressions that represent an atomic proposition that Spot

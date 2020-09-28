@@ -14,7 +14,7 @@ are used to specify how to output of automata.
 All tools that can output automata implement the following options:
 
 #+BEGIN_SRC sh :exports results
-ltl2tgba --help | sed -n '/Output format:/,/^$/p' | sed '1d;$d'
+ltl2tgba --help | sed -n 's/ *$//g;/Output format:/,/^$/p' | sed '1d;$d'
 #+END_SRC
 #+RESULTS:
 #+begin_example
@@ -26,25 +26,25 @@ ltl2tgba --help | sed -n '/Output format:/,/^$/p' | sed '1d;$d'
                              'unambiguous', 'stutter-invariant',
                              'stutter-sensitive-example', 'semi-determinism',
                              or 'strength'.
-  -d, --dot[=1|a|A|b|B|c|C(COLOR)|e|E|f(FONT)|h|k|K|n|N|o|r|R|s|t|u|v|y|+INT|<INT|#]                                                          GraphViz's format.
-                             Add letters for (1) force numbered states, (a)
-                             show acceptance condition (default), (A) hide
-                             acceptance condition, (b) acceptance sets as
-                             bullets, (B) bullets except for Büchi/co-Büchi
-                             automata, (c) force circular nodes, (C) color
-                             nodes with COLOR, (d) show origins when known, (e)
-                             force elliptic nodes, (E) force rEctangular nodes,
-                             (f(FONT)) use FONT, (g) hide edge labels, (h)
-                             horizontal layout, (k) use state labels when
-                             possible, (K) use transition labels (default), (n)
-                             show name, (N) hide name, (o) ordered transitions,
-                             (r) rainbow colors for acceptance sets, (R) color
-                             acceptance sets by Inf/Fin, (s) with SCCs, (t)
-                             force transition-based acceptance, (u) hide true
-                             states, (v) vertical layout, (y) split universal
-                             edges by color, (+INT) add INT to all set numbers,
-                             (<INT) display at most INT states, (#) show
-                             internal edge numbers
+  -d, --dot[=1|a|A|b|B|c|C(COLOR)|e|E|f(FONT)|h|k|K|n|N|o|r|R|s|t|u|v|y|+INT|<INT|#]
+                             GraphViz's format.  Add letters for (1) force
+                             numbered states, (a) show acceptance condition
+                             (default), (A) hide acceptance condition, (b)
+                             acceptance sets as bullets, (B) bullets except for
+                             Büchi/co-Büchi automata, (c) force circular
+                             nodes, (C) color nodes with COLOR, (d) show
+                             origins when known, (e) force elliptic nodes, (E)
+                             force rEctangular nodes, (f(FONT)) use FONT, (g)
+                             hide edge labels, (h) horizontal layout, (k) use
+                             state labels when possible, (K) use transition
+                             labels (default), (n) show name, (N) hide name,
+                             (o) ordered transitions, (r) rainbow colors for
+                             acceptance sets, (R) color acceptance sets by
+                             Inf/Fin, (s) with SCCs, (t) force transition-based
+                             acceptance, (u) hide true states, (v) vertical
+                             layout, (y) split universal edges by color, (+INT)
+                             add INT to all set numbers, (<INT) display at most
+                             INT states, (#) show internal edge numbers
   -H, --hoaf[=1.1|i|k|l|m|s|t|v]   Output the automaton in HOA format
                              (default).  Add letters to select (1.1) version
                              1.1 of the format, (i) use implicit labels for
@@ -399,11 +399,9 @@ of Promela syntax.)
 The =-d= or =--dot= option causes automata to be output in GraphViz's
 format.
 
-#+NAME: oaut-dot1
 #+BEGIN_SRC sh :prologue export SPOT_DOTEXTRA= SPOT_DOTDEFAULT=
 ltl2tgba '(Ga -> Gb) W c' -d
 #+END_SRC
-#+RESULTS: oaut-dot1
 #+begin_example
 digraph "(Gb | F!a) W c" {
   rankdir=LR
@@ -438,12 +436,19 @@ This output should be processed with =dot= to be converted into a
 picture.  For instance use =dot -Tpng= or =dot -Tpdf=.  The pictures
 on this page are produced with =dot -Tsvg=.
 
+#+NAME: oaut-dot1
+#+BEGIN_SRC sh :exports code :prologue export SPOT_DOTEXTRA= SPOT_DOTDEFAULT=
+ltl2tgba '(Ga -> Gb) W c' -d | dot -Tsvg
+#+END_SRC
+
 #+BEGIN_SRC dot :file oaut-dot1.svg :var txt=oaut-dot1 :exports results
 $txt
 #+END_SRC
 
 #+RESULTS:
 [[file:oaut-dot1.svg]]
+
+However in this documentation simply omit the calls to =dot -Tsvg=.
 
 ** Customizing the dot output
 
