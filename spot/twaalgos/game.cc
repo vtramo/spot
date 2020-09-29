@@ -30,6 +30,16 @@ namespace spot
 {
   namespace
   {
+    constexpr unsigned unseen_mark = std::numeric_limits<unsigned>::max();
+    using par_t = int;
+    constexpr par_t limit_par_even =
+        std::numeric_limits<par_t>::max() & 1
+        ? std::numeric_limits<par_t>::max()-3
+        : std::numeric_limits<par_t>::max()-2;
+    using strat_t = long long;
+    constexpr strat_t no_strat_mark = std::numeric_limits<strat_t>::min();
+
+
     static const std::vector<bool>*
     ensure_game(const const_twa_graph_ptr& arena, const char* fnname)
     {
@@ -48,15 +58,11 @@ namespace spot
     ensure_parity_game(const const_twa_graph_ptr& arena, const char* fnname)
     {
       bool max, odd;
-      arena->acc().is_parity(max, odd, true);
-      if (!(max && odd))
+      bool is_par = arena->acc().is_parity(max, odd, true);
+      if (!is_par)
         throw std::runtime_error
           (std::string(fnname) +
-           ": arena must have max-odd acceptance condition");
-      for (const auto& e : arena->edges())
-        if (!e.acc)
-          throw std::runtime_error
-            (std::string(fnname) + ": arena must be colorized");
+           ": arena must have one of the four parity acceptance conditions");
       return ensure_game(arena, fnname);
     }
 
@@ -71,10 +77,7 @@ namespace spot
       {
         // returns true if player p wins v
         // false otherwise
-        if (!has_winner_[v])
-          return false;
-
-        return winner_[v] == p;
+        return has_winner_[v] ? winner_[v] == p : false;
       }
 
       inline void set(unsigned v, bool p)
@@ -95,40 +98,27 @@ namespace spot
       }
     }; // winner_t
 
-    // When using scc decomposition we need to track the
-    // changes made to the graph
-    struct edge_stash_t
-    {
-      edge_stash_t(unsigned num, unsigned dst, acc_cond::mark_t acc) noexcept
-        : e_num(num),
-          e_dst(dst),
-          e_acc(acc)
-      {
-      }
-      const unsigned e_num, e_dst;
-      const acc_cond::mark_t e_acc;
-    }; // edge_stash_t
-
     // Internal structs used by parity_game
     // Struct to change recursive calls to stack
     struct work_t
     {
-      work_t(unsigned wstep_, unsigned rd_, unsigned min_par_,
-             unsigned max_par_) noexcept
+      work_t(unsigned wstep_, unsigned rd_, par_t min_par_,
+             par_t max_par_) noexcept
         : wstep(wstep_),
           rd(rd_),
           min_par(min_par_),
           max_par(max_par_)
       {
       }
-      const unsigned wstep, rd, min_par, max_par;
+      const unsigned wstep, rd;
+      const par_t min_par, max_par;
     }; // work_t
 
     // Collects information about an scc
     // Used to detect special cases
     struct subgame_info_t
     {
-      typedef std::set<unsigned, std::greater<unsigned>> all_parities_t;
+      typedef std::set<par_t, std::greater<par_t>> all_parities_t;
 
       subgame_info_t() noexcept
       {
@@ -159,7 +149,7 @@ namespace spot
     {
     public:
 
-      bool solve(const twa_graph_ptr &arena)
+      bool solve(const twa_graph_ptr& arena)
       {
         // todo check if reordering states according to scc is worth it
         set_up(arena);
@@ -167,11 +157,25 @@ namespace spot
         subgame_info_t subgame_info;
         for (c_scc_idx_ = 0; c_scc_idx_ < info_->scc_count(); ++c_scc_idx_)
           {
+            // Testing
+            // Make sure that every state that has a winner also
+            // belongs to a subgame
+            assert([&]()
+                    {
+                      for (unsigned i = 0; i < arena_->num_states(); ++i)
+                        if (w_.has_winner_[i]
+                            && (subgame_[i] == unseen_mark))
+                          return false;
+                        return true;
+                    }());
             // Useless SCCs are winning for player 0.
             if (!info_->is_useful_scc(c_scc_idx_))
               {
+                // This scc also gets its own subgame
+                ++rd_;
                 for (unsigned v: c_states())
                   {
+                    subgame_[v] = rd_;
                     w_.set(v, false);
                     // The strategy for player 0 is to take the first
                     // available edge.
@@ -197,27 +201,35 @@ namespace spot
                   {
                     // "Regular" solver
                     max_abs_par_ = *subgame_info.all_parities.begin();
-                    w_stack_.emplace_back(0, 0, 0, max_abs_par_);
+                    w_stack_.emplace_back(0, 0,
+                                          min_par_graph_, max_abs_par_);
                     zielonka();
                   }
               }
           }
-        // All done -> restore graph, i.e. undo self-looping
-        restore();
-
+        // Every state needs a winner
         assert(std::all_of(w_.has_winner_.cbegin(), w_.has_winner_.cend(),
                            [](bool b)
                            { return b; }));
-        assert(std::all_of(s_.cbegin(), s_.cend(),
-                           [](unsigned e_idx)
-                           { return e_idx > 0; }));
+        // Only the states owned by the winner need a strategy
+        assert([&]()
+               {
+                  for (unsigned v = 0; v < arena_->num_states(); ++v)
+                    {
+                      if (((*owner_ptr_)[v] == w_.winner(v))
+                          && ((s_[v] <= 0) || (s_[v] > arena_->num_edges())))
+                        return false;
+                    }
+                  return true;
+               }());
 
         // Put the solution as named property
         region_t &w = *arena->get_or_set_named_prop<region_t>("state-winner");
         strategy_t &s = *arena->get_or_set_named_prop<strategy_t>("strategy");
         w.swap(w_.winner_);
-        s.resize(s_.size());
-        std::copy(s_.begin(), s_.end(), s.begin());
+        s.reserve(s_.size());
+        for (auto as : s_)
+          s.push_back(as == no_strat_mark ? 0 : (unsigned) as);
 
         clean_up();
         return w[arena->get_init_state_number()];
@@ -234,7 +246,7 @@ namespace spot
         return info_->states_of(c_scc_idx_);
       }
 
-      void set_up(const twa_graph_ptr &arena)
+      void set_up(const twa_graph_ptr& arena)
       {
         owner_ptr_ = ensure_parity_game(arena, "solve_parity_game()");
         arena_ = arena;
@@ -247,22 +259,63 @@ namespace spot
         w_.winner_.clear();
         w_.winner_.resize(n_states, 0);
         s_.clear();
-        s_.resize(n_states, -1);
+        s_.resize(n_states, no_strat_mark);
         // Init
         rd_ = 0;
-        max_abs_par_ = arena_->get_acceptance().used_sets().max_set() - 1;
         info_ = std::make_unique<scc_info>(arena_);
-        // Every edge leaving an scc needs to be "fixed"
-        // at some point.
-        // We store: number of edge fixed, original dst, original acc
-        change_stash_.clear();
-        change_stash_.reserve(info_->scc_count() * 2);
+        // Create all the parities
+        // we want zielonka to work with any of the four parity types
+        // and we want it to work on partially colored arenas
+        // However the actually algorithm still supposes max odd.
+        // Therefore (and in order to avoid the manipulation of the mark
+        // at each step) we generate a vector directly storing the
+        // "equivalent" parity for each edge
+        bool max, odd;
+        arena_->acc().is_parity(max, odd, true);
+        max_abs_par_ = arena_->acc().all_sets().max_set()-1;
+        // Make it the next larger odd
+        par_t next_max_par = max_abs_par_ + 1;
+        all_edge_par_.resize(arena_->edge_vector().size(),
+                             std::numeric_limits<par_t>::max());
+
+        // The parities are modified much like for colorize_parity
+        // however if the acceptance condition is "min", we negate all
+        // parities to get "max"
+    // The algorithm works on negative or positive parities alike
+    //| kind/style | n   |   empty tr.   | other tr.  | result       | min par
+    //|------------+-----+---------------+------------+--------------|---------
+    //| max odd    | any | set to {-1}   | unchanged  | max odd n    | -1
+    //| max even   | any | set to {0}    | add 1      | max odd n+1  | 0
+    //| min odd    | any | set to {-n}   | negate     | max odd 0    | -n
+    //| min even   | any | set to {-n+1} | negate + 1 | max odd +1   | -n + 1
+        min_par_graph_ = -(!max*max_abs_par_) - (max*odd);
+        max_par_graph_ = max*(max_abs_par_ + !odd) + !max*!odd;
+
+        // Takes an edge and returns the "equivalent" max odd parity
+        auto equiv_par = [max, odd, next_max_par, inv = 2*max-1](const auto& e)
+          {
+            par_t e_par = e.acc.max_set() - 1; // -1 for empty
+            // If "min" and empty -> set to n
+            if (!max & (e_par == -1))
+              e_par = next_max_par;
+            // Negate if min
+            e_par *= inv;
+            // even -> odd
+            e_par += !odd;
+            return e_par;
+          };
+
+        for (const auto& e : arena_->edges())
+          {
+            unsigned e_idx = arena_->edge_number(e);
+            all_edge_par_[e_idx] = equiv_par(e);
+          }
       }
 
       // Checks if an scc is empty and reports the occurring parities
       // or special cases
       inline subgame_info_t
-      inspect_scc(unsigned max_par)
+      inspect_scc(par_t max_par)
       {
         subgame_info_t info;
         info.is_empty = true;
@@ -278,7 +331,7 @@ namespace spot
               if (subgame_[e.dst] == unseen_mark)
                 {
                   info.is_empty = false;
-                  unsigned this_par = e.acc.max_set() - 1;
+                  par_t this_par = to_par(e);
                   if (this_par <= max_par)
                     {
                       info.all_parities.insert(this_par);
@@ -301,107 +354,78 @@ namespace spot
         return info;
       }
 
-      // Checks if an scc can be trivially solved,
-      // that is, all vertices of the scc belong to the
-      // attractor of a transition leaving the scc
+      // Computes the trivially solvable part of the scc
+      // That is the states that can be attracted to an
+      // outgoing transition
       inline subgame_info_t
       fix_scc()
       {
-        auto scc_acc = info_->acc_sets_of(c_scc_idx_);
-        // We will override all parities of edges leaving the scc
-        // Currently game is colored max odd
-        // So there is at least one color
-        bool added[] = {false, false};
-        unsigned par_pair[2];
-        unsigned scc_new_par = std::max(scc_acc.max_set(), 1u);
-        bool player_color_larger;
-        if (scc_new_par&1)
-          {
-            player_color_larger = false;
-            par_pair[1] = scc_new_par;
-            par_pair[0] = scc_new_par+1;
-          }
-        else
-          {
-            player_color_larger = true;
-            par_pair[1] = scc_new_par+1;
-            par_pair[0] = scc_new_par;
-          }
-        acc_cond::mark_t even_mark({par_pair[0]});
-        acc_cond::mark_t odd_mark({par_pair[1]});
+        // Note that the winner of the transitions
+        // leaving the scc are already determined
+        // attr(...) will only modify the
+        // states within the current scc
+        // but we have to "trick" it into
+        // not disregarding the transitions leaving the scc
+        // dummy needed to pass asserts
+        max_abs_par_ = limit_par_even+2;
+        // The attractors should define their own subgame
+        // but as we want to compute the attractors of the
+        // leaving transitions, we need to make
+        // sure that
+        // a) no transition is excluded due to its parity
+        // b) no transition is considered accepting/winning
+        //    due to its parity
+        // Final note: Attractors cannot intersect by definition
+        //             therefore the order in which they are computed
+        //             is irrelevant
+        unsigned dummy_rd = 0;
+        // Attractor of outgoing transitions winning for env
+        attr(dummy_rd, false, limit_par_even, true, limit_par_even, false);
+        // Attractor of outgoing transitions winning for player
+        attr(dummy_rd, true, limit_par_even+1, true, limit_par_even+1, false);
 
-        // Only necessary to pass tests
-        max_abs_par_ = std::max(par_pair[0], par_pair[1]);
+        // No strategy fix need
+        // assert if all winning states of the current scc have a valid strategy
 
-        for (unsigned v : c_states())
-          {
-            assert(subgame_[v] == unseen_mark);
-            bool owner = (*owner_ptr_)[v];
-            for (auto &e : arena_->out(v))
-              {
-                // The outgoing edges are taken finitely often
-                // -> disregard parity
-                if (info_->scc_of(e.dst) != c_scc_idx_)
-                  {
-                    // Edge leaving the scc
-                    change_stash_.emplace_back(arena_->edge_number(e),
-                                               e.dst, e.acc);
-                    if (w_.winner(e.dst))
-                      {
-                        // Winning region off player ->
-                        // odd mark if player
-                        // else 1 (smallest loosing for env)
-                        e.acc = owner ? odd_mark
-                                      : acc_cond::mark_t({1});
-                        added[1] = true;
-                      }
-                    else
-                      {
-                        // Winning region of env ->
-                        // even mark for env,
-                        // else 0 (smallest loosing for player)
-                        e.acc = !owner ? even_mark
-                                       : acc_cond::mark_t({0});
-                        added[0] = true;
-                      }
-                    // Replace with self-loop
-                    e.dst = e.src;
-                  }
-              } // e
-          } // v
+        assert([&]()
+               {
+                 for (unsigned v : c_states())
+                   {
+                     if (!w_.has_winner_[v])
+                       continue;
+                     // We only need a strategy if the winner
+                     // of the state is also the owner
+                     if (w_.winner(v) != (*owner_ptr_)[v])
+                       continue;
+                     if (s_[v] <= 0)
+                       {
+                         std::cerr << "state " << v << " has a winner "
+                                   << w_.winner(v) << " and owner "
+                                   << (*owner_ptr_)[v]
+                                   << " but no strategy "
+                                   << s_[v] << '\n';
+                         return false;
+                       }
+                     const auto& e = arena_->edge_storage(s_[v]);
+                     if (!w_.has_winner_[e.dst]
+                         || (w_.winner(e.src) != w_.winner(e.dst)))
+                       {
+                         std::cerr << "state " << v << " has a winner "
+                                   << w_.winner(v)
+                                   << " but no valid strategy\n";
+                         return false;
+                       }
+                   }
+                 return true;
+               }());
 
-        // Compute the attractors of the self-loops/transitions leaving scc
-        // These can be directly added to the winning states
-        // To avoid disregarding edges in attr computation we
-        // need to start with the larger color
-        // Todo come up with a test for this
-        unsigned dummy_rd;
-
-        for (bool p : {player_color_larger,
-                       !player_color_larger})
-          {
-            if (added[p])
-              {
-                // Always take the larger,
-                // Otherwise states with an transition to a winning AND
-                // a loosing scc are treated incorrectly
-                attr(dummy_rd, p, par_pair[p], true, par_pair[p]);
-              }
-          }
-
-        if (added[0] || added[1])
-          // Fix "negative" strategy
-          for (unsigned v : c_states())
-            if (subgame_[v] != unseen_mark)
-              s_[v] = std::abs(s_[v]);
-
-        return inspect_scc(unseen_mark);
+        auto ins = inspect_scc(limit_par_even);
+        return ins;
       } // fix_scc
 
       inline bool
-      attr(unsigned &rd, bool p, unsigned max_par,
-           bool acc_par, unsigned min_win_par,
-           bool no_check=false)
+      attr(unsigned &rd, bool p, par_t max_par,
+           bool acc_par, par_t min_win_par, bool respect_sg=true)
       {
         // In fix_scc, the attr computation is
         // abused so we can not check ertain things
@@ -418,8 +442,8 @@ namespace spot
         // As proposed in Oink! / PGSolver
         // Needs the transposed graph however
 
-        assert((no_check || !acc_par) || (acc_par && (max_par&1) == p));
-        assert(!acc_par || (0 < min_win_par));
+        assert((!acc_par) || (acc_par && to_player(max_par) == p));
+        assert(!acc_par || (min_par_graph_ <= min_win_par));
         assert((min_win_par <= max_par) && (max_par <= max_abs_par_));
 
         bool grown = false;
@@ -435,19 +459,16 @@ namespace spot
 
         do
           {
-            if (!to_add.empty())
+            grown |= !to_add.empty();
+            for (unsigned v : to_add)
               {
-                grown = true;
-                for (unsigned v : to_add)
+                // v is winning
+                w_.set(v, p);
+                // Mark if demanded
+                if (acc_par)
                   {
-                    // v is winning
-                    w_.set(v, p);
-                    // Mark if demanded
-                    if (acc_par)
-                      {
-                        assert(subgame_[v] == unseen_mark);
-                        subgame_[v] = rd;
-                      }
+                    assert(subgame_[v] == unseen_mark);
+                    subgame_[v] = rd;
                   }
               }
             to_add.clear();
@@ -455,7 +476,7 @@ namespace spot
             for (unsigned v : c_states())
               {
                 if ((subgame_[v] < rd) || (w_(v, p)))
-                  // Not in subgame or winning
+                  // Not in subgame or winning for p
                   continue;
 
                 bool is_owned = (*owner_ptr_)[v] == p;
@@ -465,11 +486,12 @@ namespace spot
                 // Optim: If given the choice,
                 // we seek to go to the "oldest" subgame
                 // That is the subgame with the lowest rd value
-                unsigned min_subgame_idx = -1u;
+                unsigned min_subgame_idx = unseen_mark;
                 for (const auto &e: arena_->out(v))
                   {
-                    unsigned this_par = e.acc.max_set() - 1;
-                    if ((subgame_[e.dst] >= rd) && (this_par <= max_par))
+                    par_t this_par = to_par(e);
+                    if ((!respect_sg || (subgame_[e.dst] >= rd))
+                         && (this_par <= max_par))
                       {
                         // Check if winning
                         if (w_(e.dst, p)
@@ -477,7 +499,7 @@ namespace spot
                           {
                             assert(!acc_par || (this_par < min_win_par) ||
                                    (acc_par && (min_win_par <= this_par) &&
-                                    ((this_par&1) == p)));
+                                    (to_player(this_par) == p)));
                             if (is_owned)
                               {
                                 wins = true;
@@ -528,7 +550,7 @@ namespace spot
       // We need to check if transitions that are accepted due
       // to their parity remain in the winning region of p
       inline bool
-      fix_strat_acc(unsigned rd, bool p, unsigned min_win_par, unsigned max_par)
+      fix_strat_acc(unsigned rd, bool p, par_t min_win_par, par_t max_par)
       {
         for (unsigned v : c_states())
           {
@@ -544,28 +566,28 @@ namespace spot
             const auto &e_s = arena_->edge_storage(s_[v]);
             // Optimization only for player
             if (!p && w_(e_s.dst, p))
-              // If current strat is admissible -> nothing to do
-              // for env
+              // If current strat is admissible ->
+              // nothing to do for env
               continue;
 
             // This is an accepting edge that is no longer admissible
             // or we seek a more desirable edge (for player)
-            assert(min_win_par <= e_s.acc.max_set() - 1);
-            assert(e_s.acc.max_set() - 1 <= max_par);
+            assert(min_win_par <= to_par(e_s));
+            assert(to_par(e_s) <= max_par);
 
             // Strategy heuristic : go to the oldest subgame
-            unsigned min_subgame_idx = -1u;
+            unsigned min_subgame_idx = unseen_mark;
 
-            s_[v] = -1;
+            s_[v] = no_strat_mark;
             for (const auto &e_fix : arena_->out(v))
               {
                 if (subgame_[e_fix.dst] >= rd)
                   {
-                    unsigned this_par = e_fix.acc.max_set() - 1;
+                    par_t this_par = to_par(e_fix);
                     // This edge must have less than max_par,
                     // otherwise it would have already been attracted
                     assert((this_par <= max_par)
-                           || ((this_par&1) != (max_par&1)));
+                           || (to_player(this_par) != (max_par&1)));
                     // if it is accepting and leads to the winning region
                     // -> valid fix
                     if ((min_win_par <= this_par)
@@ -579,7 +601,7 @@ namespace spot
                       }
                   }
               }
-            if (s_[v] == -1)
+            if (s_[v] == no_strat_mark)
               // NO fix found
               // This state is NOT won by p due to any accepting edges
               return true; // true -> grown
@@ -600,7 +622,7 @@ namespace spot
               case (0):
                 {
                   assert(this_work.rd == 0);
-                  assert(this_work.min_par == 0);
+                  assert(this_work.min_par == min_par_graph_);
 
                   unsigned rd;
                   assert(this_work.max_par <= max_abs_par_);
@@ -623,18 +645,20 @@ namespace spot
                   // -> Priority compression
                   // Optional, improves performance
                   // Highest actually occurring
-                  unsigned max_par = *subgame_info.all_parities.begin();
-                  unsigned min_win_par = max_par;
-                  while ((min_win_par > 2) &&
-                         (!subgame_info.all_parities.count(min_win_par-1)))
+                  // Attention in partially colored graphs
+                  // the parity -1 and 0 appear
+                  par_t max_par = *subgame_info.all_parities.begin();
+                  par_t min_win_par = max_par;
+                  while ((min_win_par >= (min_par_graph_+2)) &&
+                         (!subgame_info.all_parities.count(min_win_par - 1)))
                     min_win_par -= 2;
-                  assert(max_par > 0);
+                  assert(min_win_par >= min_par_graph_);
+                  assert(max_par >= min_win_par);
+                  assert((max_par&1) == (min_win_par&1));
                   assert(!subgame_info.all_parities.empty());
-                  assert(min_win_par > 0);
 
                   // Get the player
-                  bool p = min_win_par&1;
-                  assert((max_par&1) == (min_win_par&1));
+                  bool p = to_player(min_win_par);
                   // Attraction to highest par
                   // This increases rd_ and passes it to rd
                   attr(rd, p, max_par, true, min_win_par);
@@ -643,17 +667,17 @@ namespace spot
                   // Continuation
                   w_stack_.emplace_back(1, rd, min_win_par, max_par);
                   // Recursion
-                  w_stack_.emplace_back(0, 0, 0, min_win_par-1);
+                  w_stack_.emplace_back(0, 0, min_par_graph_, min_win_par - 1);
                   // Others attracted will have higher counts in subgame
                   break;
                 }
               case (1):
                 {
                   unsigned rd = this_work.rd;
-                  unsigned min_win_par = this_work.min_par;
-                  unsigned max_par = this_work.max_par;
-                  assert((min_win_par&1) == (max_par&1));
-                  bool p = min_win_par&1;
+                  par_t min_win_par = this_work.min_par;
+                  par_t max_par = this_work.max_par;
+                  assert(to_player(min_win_par) == to_player(max_par));
+                  bool p = to_player(min_win_par);
                   // Check if the attractor of w_[!p] is equal to w_[!p]
                   // if so, player wins if there remain accepting transitions
                   // for max_par (see fix_strat_acc)
@@ -683,9 +707,9 @@ namespace spot
                             // Mark as unseen
                             subgame_[v] = unseen_mark;
                             // Unset strat for testing
-                            s_[v] = -1;
+                            s_[v] = no_strat_mark;
                           }
-                      w_stack_.emplace_back(0, 0, 0, max_par);
+                      w_stack_.emplace_back(0, 0, min_par_graph_, max_par);
                       // No need to do anything else
                       // the attractor of !p of this level is not changed
                     }
@@ -697,20 +721,6 @@ namespace spot
           } // while
       } // zielonka
 
-      // Undo change to the graph made along the way
-      inline void restore()
-      {
-        // "Unfix" the edges leaving the sccs
-        // This is called once the game has been solved
-        for (auto &e_stash : change_stash_)
-          {
-            auto &e = arena_->edge_storage(e_stash.e_num);
-            e.dst = e_stash.e_dst;
-            e.acc = e_stash.e_acc;
-          }
-        // Done
-      }
-
       // Empty all internal variables
       inline void clean_up()
       {
@@ -721,12 +731,11 @@ namespace spot
         s_.clear();
         rd_ = 0;
         max_abs_par_ = 0;
-        change_stash_.clear();
       }
 
       // Dedicated solver for special cases
       inline void one_par_subgame_solver(const subgame_info_t &info,
-                                         unsigned max_par)
+                                         par_t max_par)
       {
         assert(info.all_parities.size() == 1);
         // The entire subgame is won by the player of the only parity
@@ -735,8 +744,8 @@ namespace spot
         // This subgame gets its own counter
         ++rd_;
         unsigned rd = rd_;
-        unsigned one_par = *info.all_parities.begin();
-        bool winner = one_par & 1;
+        par_t one_par = *info.all_parities.begin();
+        bool winner = to_player(one_par);
         assert(one_par <= max_par);
 
         for (unsigned v : c_states())
@@ -747,10 +756,10 @@ namespace spot
             subgame_[v] = rd;
             w_.set(v, winner);
             // Get the strategy
-            assert(s_[v] == -1);
+            assert(s_[v] == no_strat_mark);
             for (const auto &e : arena_->out(v))
               {
-                unsigned this_par = e.acc.max_set() - 1;
+                par_t this_par = to_par(e);
                 if ((subgame_[e.dst] >= rd) && (this_par <= max_par))
                   {
                     assert(this_par == one_par);
@@ -764,7 +773,18 @@ namespace spot
         // Done
       }
 
-      const unsigned unseen_mark = std::numeric_limits<unsigned>::max();
+      template <class EDGE>
+      inline par_t
+      to_par(const EDGE& e)
+      {
+        return all_edge_par_[arena_->edge_number(e)];
+      }
+
+      inline bool
+      to_player(par_t par)
+      {
+        return par & 1;
+      }
 
       twa_graph_ptr arena_;
       const std::vector<bool> *owner_ptr_;
@@ -775,18 +795,22 @@ namespace spot
       // strategies for env and player; For synthesis only player is needed
       // We need a signed value here in order to "fix" the strategy
       // during construction
-      std::vector<long long> s_;
+      std::vector<strat_t> s_;
 
       // Informations about sccs andthe current scc
       std::unique_ptr<scc_info> info_;
-      unsigned max_abs_par_; // Max parity occurring in the current scc
+      par_t max_abs_par_; // Max parity occurring in the current scc
+      // Minimal and maximal parity occurring in the entire graph
+      par_t min_par_graph_, max_par_graph_;
       // Info on the current scc
       unsigned c_scc_idx_;
-      // Fixes made to the sccs that have to be undone
-      // before returning
-      std::vector<edge_stash_t> change_stash_;
       // Change recursive calls to stack
       std::vector<work_t> w_stack_;
+      // Directly store a vector of parities
+      // This vector will be created such
+      // that it takes care of the actual parity condition
+      // and after that zielonka can be called as if max odd
+      std::vector<par_t> all_edge_par_;
     };
 
   } // anonymous
@@ -813,6 +837,24 @@ namespace spot
   void pg_print(std::ostream& os, const const_twa_graph_ptr& arena)
   {
     auto owner = ensure_parity_game(arena, "pg_print");
+    // Ensure coloring
+    assert([&]()
+            {
+              bool max;
+              bool odd;
+              arena->acc().is_parity(max, odd, true);
+              return max && odd;
+            }() && "pg_printer needs max-odd parity");
+    assert([&]()
+           {
+             for (unsigned ie = 0; ie < arena->num_edges(); ++ie)
+               {
+                  const auto& es = arena->edge_storage(ie+1);
+                  if (!es.acc)
+                    return false;
+               }
+             return true;
+           }() && "Arena must be colorized");
 
     unsigned ns = arena->num_states();
     unsigned init = arena->get_init_state_number();

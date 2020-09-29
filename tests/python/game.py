@@ -18,7 +18,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import spot
+import spot, buddy
 from unittest import TestCase
 tc = TestCase()
 
@@ -274,3 +274,100 @@ games = spot.split_edges(game)
 spot.set_state_players(games, spot.get_state_players(game))
 tc.assertTrue(spot.solve_game(games, si))
 
+g = spot.translate("GF(a&X(a)) -> GFb")
+a = buddy.bdd_ithvar(g.register_ap("a"))
+b = buddy.bdd_ithvar(g.register_ap("b"))
+gdpa = spot.tgba_determinize(spot.degeneralize_tba(g),
+                             False, True, True, False)
+spot.change_parity_here(gdpa, spot.parity_kind_max, spot.parity_style_odd)
+gsdpa = spot.split_2step(gdpa, b, True)
+spot.colorize_parity_here(gsdpa, True)
+tc.assertTrue(spot.solve_parity_game(gsdpa))
+tc.assertEqual(spot.highlight_strategy(gsdpa).to_str("HOA", "1.1"),
+"""HOA: v1.1
+States: 18
+Start: 0
+AP: 2 "a" "b"
+acc-name: parity max odd 5
+Acceptance: 5 Fin(4) & (Inf(3) | (Fin(2) & (Inf(1) | Fin(0))))
+properties: trans-labels explicit-labels trans-acc colored complete
+properties: deterministic
+spot.highlight.states: 0 4 1 4 2 4 3 4 4 4 5 4 6 4 7 4 8 4 9 4 """
++"""10 4 11 4 12 4 13 4 14 4 15 4 16 4 17 4
+spot.highlight.edges: 15 4 17 4 20 4 22 4 24 4 26 4 28 4 30 4 31 4 32 4 33 4
+spot.state-player: 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1 1 1 1
+controllable-AP: 1
+--BODY--
+State: 0
+[!0] 7 {0}
+[0] 8 {0}
+State: 1
+[!0] 9 {3}
+[0] 10 {3}
+State: 2
+[!0] 11 {1}
+[0] 12 {1}
+State: 3
+[!0] 9 {3}
+[0] 13 {4}
+State: 4
+[!0] 11 {1}
+[0] 14 {2}
+State: 5
+[!0] 15 {3}
+[0] 16 {3}
+State: 6
+[!0] 15 {3}
+[0] 17 {4}
+State: 7
+[!1] 1 {0}
+[1] 2 {0}
+State: 8
+[!1] 3 {0}
+[1] 4 {0}
+State: 9
+[!1] 1 {3}
+[1] 5 {3}
+State: 10
+[!1] 3 {3}
+[1] 6 {3}
+State: 11
+[!1] 2 {1}
+[1] 2 {3}
+State: 12
+[!1] 4 {1}
+[1] 4 {3}
+State: 13
+[!1] 3 {4}
+[1] 4 {4}
+State: 14
+[!1] 4 {2}
+[1] 4 {3}
+State: 15
+[t] 5 {3}
+State: 16
+[t] 6 {3}
+State: 17
+[t] 4 {4}
+--END--"""
+)
+
+# Test the different parity conditions
+gdpa = spot.tgba_determinize(spot.degeneralize_tba(g),
+                             False, True, True, False)
+
+g_test = spot.change_parity(gdpa, spot.parity_kind_max, spot.parity_style_odd)
+g_test_split = spot.split_2step(g_test, b, True)
+sp = spot.get_state_players(g_test_split)
+g_test_split_c = spot.colorize_parity(g_test_split)
+spot.set_state_players(g_test_split_c, sp)
+tc.assertTrue(spot.solve_parity_game(g_test_split_c))
+c_strat = spot.get_strategy(g_test_split_c)
+# All versions of parity need to result in the same strategy
+for kind in [spot.parity_kind_min, spot.parity_kind_max]:
+    for style in [spot.parity_style_even, spot.parity_style_odd]:
+        g_test_split1 = spot.change_parity(g_test_split, kind, style)
+        spot.set_state_players(g_test_split1, sp)
+        tc.assertTrue(spot.solve_parity_game(g_test_split1))
+        c_strat1 = spot.get_strategy(g_test_split1)
+        tc.assertTrue(c_strat == c_strat1)

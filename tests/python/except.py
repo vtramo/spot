@@ -244,16 +244,6 @@ else:
     report_missing_exception()
 
 try:
-    spot.solve_parity_game(a1)
-except RuntimeError as e:
-    tc.assertIn(
-        "solve_parity_game(): arena must have max-odd acceptance condition",
-        str(e))
-else:
-    report_missing_exception()
-
-
-try:
     spot.formula_Star(spot.formula("a"), 10, 333)
 except OverflowError as e:
     tc.assertIn("333", str(e))
