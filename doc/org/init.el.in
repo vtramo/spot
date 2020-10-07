@@ -54,6 +54,10 @@
 (require 'org-install)
 (require 'hoa-mode)
 
+; See https://github.com/emacs-ess/ESS/issues/1052
+(setq ess-gen-proc-buffer-name-function 'ess-gen-proc-buffer-name:directory)
+(setq ess-use-flymake nil)
+
 (setq org-export-htmlize-output-type 'css)
 (setq org-html-htmlize-output-type 'css)
 ; the .org-timestamp directory does not always exist, is not always
