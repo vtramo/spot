@@ -511,7 +511,6 @@ namespace spot
                        unsigned& sets,
                        std::mutex& seen_mut,
                        std::mutex& todo_mut,
-                       std::mutex& res_mut,
                        std::bitset<32>& active_threads,
                        std::atomic<bool>& stop)
       : aut_(aut)
@@ -523,7 +522,6 @@ namespace spot
       , sets_(sets)
       , seen_mut_(seen_mut)
       , todo_mut_(todo_mut)
-      , res_mut_(res_mut)
       , active_threads_(active_threads)
       , stop_(stop)
     {}
@@ -541,11 +539,8 @@ namespace spot
         auto it = seen_.find(s);
         if (it == seen_.end())
           {
-            unsigned dst_num;
-            {
-              std::lock_guard<std::mutex> rlock(res_mut_);
-              dst_num = res_->new_state();
-            }
+            unsigned dst_num = res_->async_new_state();
+
             it = seen_.emplace(s, dst_num).first;
             {
               std::lock_guard<std::mutex> tlock(todo_mut_);
@@ -602,18 +597,13 @@ namespace spot
               unsigned dst_num = get_state(*s);
               if (s.color_ != -1U)
                 {
-                  {
-                    std::lock_guard<std::mutex> lock(res_mut_);
-                    res_->create_transition(src_num, s.cond(), {s.color_}, dst_num);
-                  }
+                  res_->async_create_transition({src_num, dst_num, s.cond(), {s.color_}}, id_);
+
                   sets_ = std::max(s.color_ + 1, sets_);
                 }
               else
                 {
-                  {
-                    std::lock_guard<std::mutex> lock(res_mut_);
-                    res_->create_transition(src_num, s.cond(), {} , dst_num);
-                  }
+                  res_->async_create_transition({src_num, dst_num, s.cond(), {}}, id_);
                 }
             }
         }
@@ -629,7 +619,6 @@ namespace spot
     unsigned& sets_;
     std::mutex& seen_mut_;
     std::mutex& todo_mut_;
-    std::mutex& res_mut_;
     std::bitset<32>& active_threads_;
     std::atomic<bool>& stop_;
   };
@@ -697,13 +686,14 @@ namespace spot
       res->set_initial(res_init);
     }
 
+    res->async_init(nb_threads);
+
     std::vector<unsigned> sets(nb_threads);
     std::vector<std::thread> threads;
     std::vector<determinize_thread> det_threads;
     det_threads.reserve(nb_threads);
     std::mutex seen_mut;
     std::mutex todo_mut;
-    std::mutex res_mut;
     std::bitset<32> active_threads;
     std::atomic<bool> stop = false;
     for (size_t i = 0; i < nb_threads; ++i)
@@ -717,7 +707,6 @@ namespace spot
                                  sets[i],
                                  seen_mut,
                                  todo_mut,
-                                 res_mut,
                                  active_threads,
                                  stop);
         threads.push_back(std::thread(&determinize_thread::run, &det_threads[i]));
@@ -725,6 +714,8 @@ namespace spot
 
     for (auto& t : threads)
       t.join();
+
+    res->async_finalize();
 
     // Green and red colors work in pairs, so the number of parity conditions is
     // necessarily even.
