@@ -26,10 +26,10 @@
 #include <mutex>
 #include <set>
 #include <thread>
-#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
+#include <spot/bricks/brick-hashset>
 #include <spot/twacube_algos/twacube_determinize.hh>
 #include <bddx.h>
 
@@ -497,6 +497,37 @@ namespace spot
 
       return permutations(safra_support, cs);
     }
+
+    struct safra_state_pair
+    {
+      safra_state st;
+      unsigned id;
+    };
+
+    struct pair_hasher
+    {
+      pair_hasher(const safra_state_pair&)
+      { }
+
+      pair_hasher() = default;
+
+      brick::hash::hash128_t
+      hash(const safra_state_pair& lhs) const
+      {
+        // Not modulo 31 according to brick::hashset specifications.
+        unsigned u = lhs.st.hash() % (1<<30);
+        return {u, u};
+      }
+
+      bool equal(const safra_state_pair& lhs,
+                 const safra_state_pair& rhs) const
+      {
+        return lhs.st == rhs.st;
+      }
+    };
+
+    using shared_map = brick::hashset::FastConcurrent <safra_state_pair,
+                                                       pair_hasher>;
   }
 
   class determinize_thread
@@ -505,11 +536,10 @@ namespace spot
     determinize_thread(const twacube_ptr aut,
                        twacube_ptr res,
                        size_t id,
-                       std::unordered_map<safra_state, unsigned, hash_safra>& seen,
-                       std::deque<std::pair<safra_state, unsigned>>& todo,
+                       shared_map& seen,
+                       std::deque<safra_state_pair>& todo,
                        const std::vector<cube_support>& supports,
                        unsigned& sets,
-                       std::mutex& seen_mut,
                        std::mutex& todo_mut,
                        std::bitset<32>& active_threads,
                        std::atomic<bool>& stop)
@@ -520,7 +550,6 @@ namespace spot
       , todo_(todo)
       , supports_(supports)
       , sets_(sets)
-      , seen_mut_(seen_mut)
       , todo_mut_(todo_mut)
       , active_threads_(active_threads)
       , stop_(stop)
@@ -532,22 +561,31 @@ namespace spot
 
       const cubeset& cs = aut_->get_cubeset();
 
-      // find association between safra state and res state, or create one
-      auto get_state = [this](const safra_state& s) -> unsigned
-      {
-        std::lock_guard<std::mutex> slock(seen_mut_);
-        auto it = seen_.find(s);
-        if (it == seen_.end())
-          {
-            unsigned dst_num = res_->async_new_state();
+      std::optional<unsigned> reserved_state_id = std::nullopt;
 
-            it = seen_.emplace(s, dst_num).first;
-            {
-              std::lock_guard<std::mutex> tlock(todo_mut_);
-              todo_.emplace_back(*it);
-            }
+      // find association between safra state and res state, or create one
+      auto get_state = [&, this](const safra_state& s) -> unsigned
+      {
+        unsigned dst_num;
+        if (reserved_state_id)
+          dst_num = *reserved_state_id;
+        else
+          dst_num = res_->async_new_state();
+
+        safra_state_pair p = {s, dst_num};
+
+        auto it = seen_.insert(p);
+        if (it.isnew()) // state already in map, need to recycle dst_num
+          {
+            reserved_state_id = std::nullopt;
+            std::lock_guard<std::mutex> tlock(todo_mut_);
+            todo_.emplace_back(*it);
           }
-        return it->second;
+        else
+          {
+            reserved_state_id = dst_num;
+          }
+        return (*it).id;
       };
 
       compute_succs succs(aut_);
@@ -578,8 +616,8 @@ namespace spot
             else
               {
                 active_threads_[id_] = 1;
-                curr = todo_.front().first;
-                src_num = todo_.front().second;
+                curr = todo_.front().st;
+                src_num = todo_.front().id;
                 todo_.pop_front();
               }
           }
@@ -613,11 +651,10 @@ namespace spot
     const twacube_ptr aut_;
     twacube_ptr res_;
     size_t id_;
-    std::unordered_map<safra_state, unsigned, hash_safra>& seen_;
-    std::deque<std::pair<safra_state, unsigned>>& todo_;
+    shared_map seen_;
+    std::deque<safra_state_pair>& todo_;
     const std::vector<cube_support>& supports_;
     unsigned& sets_;
-    std::mutex& seen_mut_;
     std::mutex& todo_mut_;
     std::bitset<32>& active_threads_;
     std::atomic<bool>& stop_;
@@ -660,22 +697,21 @@ namespace spot
 
     // association between safra_state and destination state in resulting
     // automaton
-    std::unordered_map<safra_state, unsigned, hash_safra> seen;
+    shared_map seen;
 
     // a safra state and its corresponding state id in the resulting automaton
-    std::deque<std::pair<safra_state, unsigned>> todo;
+    std::deque<safra_state_pair> todo;
 
     // find association between safra state and res state, or create one
     auto get_state = [&res, &seen, &todo](const safra_state& s) -> unsigned
     {
-      auto it = seen.find(s);
-      if (it == seen.end())
-        {
-          unsigned dst_num = res->new_state();
-          it = seen.emplace(s, dst_num).first;
-          todo.emplace_back(*it);
-        }
-      return it->second;
+      unsigned dst_num = res->new_state();
+      safra_state_pair p = {s, dst_num};
+
+      auto it = seen.insert(p);
+      assert(it.isnew()); // first element inserted
+      todo.emplace_back(*it);
+      return (*it).id;
     };
 
     // initial state creation
@@ -692,7 +728,6 @@ namespace spot
     std::vector<std::thread> threads;
     std::vector<determinize_thread> det_threads;
     det_threads.reserve(nb_threads);
-    std::mutex seen_mut;
     std::mutex todo_mut;
     std::bitset<32> active_threads;
     std::atomic<bool> stop = false;
@@ -705,7 +740,6 @@ namespace spot
                                  todo,
                                  supports,
                                  sets[i],
-                                 seen_mut,
                                  todo_mut,
                                  active_threads,
                                  stop);
