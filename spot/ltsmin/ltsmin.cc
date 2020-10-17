@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2011, 2012, 2014-2019 Laboratoire de
+// Copyright (C) 2011, 2012, 2014-2020 Laboratoire de
 // Recherche et Développement de l'Epita (LRDE)
 //
 // This file is part of Spot, a model checking library.
@@ -1047,7 +1047,7 @@ namespace spot
         // should not be converted to pointer-to-functions (we have to
         // assume they can for POSIX).
         *reinterpret_cast<void**>(dst) = lt_dlsym(h, name);
-        if (dst == nullptr)
+        if (*dst == nullptr)
           throw std::runtime_error("Failed to resolve symbol '"s
                                    + name + "' in '" + file + "'.");
       };
