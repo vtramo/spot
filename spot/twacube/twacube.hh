@@ -55,7 +55,11 @@ namespace spot
 
   /// \brief describe the the exploration strategy to use
   /// when walking the successors of a state.
-  enum class SPOT_API edge_walking_strategy { Swarming, No_swarming };
+  enum class edge_walking_strategy
+    {
+      Swarming,
+      No_swarming,
+    };
 
   /// \brief Class for iterators over transitions
   class SPOT_API trans_index final:
