@@ -174,6 +174,8 @@ int main()
   spot::cube mcx = csx.alloc();
   csx.set_true_var(mcx, 0);
   csx.set_false_var(mcx, 42);
+  csx.set_var(mcx, 43, true);
+  csx.set_var(mcx, 43, false);
   std::cout << "cube : " << csx.dump(mcx, apsx) << '\n';
   csx.display(mcx);
 

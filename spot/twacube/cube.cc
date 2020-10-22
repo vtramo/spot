@@ -51,6 +51,15 @@ namespace spot
     *(c+x/nb_bits_) &= ~(1 << (x%nb_bits_));
   }
 
+  void cubeset::set_var(cube c, unsigned int x, bool val) const
+  {
+    *(c+x/nb_bits_) =
+      (*(c+x/nb_bits_) & ~(1UL << (x%nb_bits_))) | (val << (x%nb_bits_));
+    *(c+uint_size_+x/nb_bits_) =
+      (*(c+uint_size_+x/nb_bits_) & ~(1UL << (x%nb_bits_)))
+      | (!val << (x%nb_bits_));
+  }
+
   bool cubeset::is_true_var(cube c, unsigned int x) const
   {
     unsigned int i = x/nb_bits_;

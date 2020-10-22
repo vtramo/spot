@@ -93,6 +93,9 @@ namespace spot
     /// \brief Set the variable at position \a x to false.
     void set_false_var(cube c, unsigned int x) const;
 
+    /// \brief Set the variable at position \a x according to \a val
+    void set_var(cube c, unsigned int x, bool val) const;
+
     /// \brief Check if the variable at position \a x is true.
     bool is_true_var(cube c, unsigned int x) const;
 
