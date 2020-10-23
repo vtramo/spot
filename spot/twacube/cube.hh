@@ -123,5 +123,12 @@ namespace spot
 
     /// \brief Return the cube binded with atomic proposition names
     std::string dump(cube c, const std::vector<std::string>& aps) const;
+
+    /// \brief The number of unsigned needed by the cube (for each part)
+    /// considering aps atomic propositions
+    static size_t uint_size(int aps);
+
+    /// \brief The number of bits for an unsigned int
+    static size_t nb_bits() { return sizeof(unsigned int) * CHAR_BIT; }
   };
 }

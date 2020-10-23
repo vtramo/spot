@@ -28,10 +28,8 @@ namespace spot
   cubeset::cubeset(int aps)
   {
     size_ = aps;
-    nb_bits_ = sizeof(unsigned int) * CHAR_BIT;
-    uint_size_ = 1;
-    while ((aps = aps -  nb_bits_)>0)
-      ++uint_size_;
+    nb_bits_ = cubeset::nb_bits();
+    uint_size_ = cubeset::uint_size(aps);
   }
 
   cube cubeset::alloc() const
@@ -167,5 +165,14 @@ namespace spot
     if (res.front() == '&')
       res =  res.substr(1);
     return res;
+  }
+
+  size_t cubeset::uint_size(int aps)
+  {
+    unsigned uint_size = 1;
+    unsigned nb_bits = cubeset::nb_bits();
+    while ((aps = aps -  nb_bits)>0)
+      ++uint_size;
+    return uint_size;
   }
 }
