@@ -530,7 +530,7 @@ static int checked_main()
           if (propcube != nullptr)
             aps = propcube->ap();
 
-          modelcube = spot::ltsmin_model::load(mc_options.model)
+          modelcube = spot::ltsmin_model::load(mc_options.model,aps, deadf)
             .kripkecube(aps, deadf, mc_options.compress, mc_options.nb_threads,
                         mc_options.k_exp_strat);
         }

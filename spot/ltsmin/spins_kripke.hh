@@ -226,10 +226,6 @@ namespace spot
     unsigned get_threads();
 
   private:
-    /// \brief Parse the set of atomic proposition to have a more
-    /// efficient data strucure for computation
-    void match_aps(std::vector<std::string>& aps, std::string dead_prop);
-
     /// \brief Compute the cube associated to each state. The cube
     /// will then be given to all iterators.
     void compute_condition(cube c, cspins_state s, unsigned tid = 0);

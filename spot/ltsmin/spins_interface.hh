@@ -21,6 +21,7 @@
 
 #include <memory>
 #include <spot/misc/common.hh>
+#include <spot/twacube/cube.hh>
 
 namespace spot
 {
@@ -45,7 +46,8 @@ namespace spot
   {
   public:
     spins_interface() = default;
-    spins_interface(const std::string& file_arg);
+    spins_interface(const std::string& file_arg,
+                    std::vector<std::string> to_observe);
     ~spins_interface();
 
     // The various functions that can be called once the object
@@ -61,10 +63,17 @@ namespace spot
     int (*get_type_value_count)(int type);
     const char* (*get_type_value_name)(int type, int value);
 
+    // This function is generated once and computes aps for a given
+    // state
+    // FIXME not int*
+    void (*compute_aps)(int* state, cube  cube);
+
   private:
     // handle to the dynamic library. The variable is of type lt_dlhandle, but
     // we need this trick since we cannot put ltdl.h in public headers
     void* handle;
+    // Same but for handling the computation of atomic propositions
+    void* compute_handle;
   };
 
   using spins_interface_ptr = std::shared_ptr<const spins_interface>;

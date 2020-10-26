@@ -907,9 +907,21 @@ namespace spot
   }
 
   ltsmin_model
-  ltsmin_model::load(const std::string& file_arg)
+  ltsmin_model::load(const std::string& file_arg,
+                     std::vector<std::string> aps,
+                     const formula dead)
   {
-    return {std::make_shared<spins_interface>(file_arg)};
+    // An extra bit is required to selfloopize
+    if (!aps.empty() &&dead == spot::formula::ff())
+      {
+        bool add_dead = true;
+        for (auto it: aps)
+          if (dead != spot::formula::tt() && it.compare(dead.ap_name()))
+            add_dead = false;
+        if (dead.ap_name().compare("") != 0 && add_dead)
+          aps.push_back(dead.ap_name());
+      }
+    return {std::make_shared<spins_interface>(file_arg, aps)};
   }
 
   ltsmin_kripkecube_ptr
