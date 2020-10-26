@@ -51,7 +51,6 @@ namespace spot
     // The various functions that can be called once the object
     // has been instanciated.
     void (*get_initial_state)(void *to);
-    int (*have_property)();
     int (*get_successors)(void* m, int *in, TransitionCB, void *arg);
     int (*get_state_size)();
     const char* (*get_state_variable_name)(int var);

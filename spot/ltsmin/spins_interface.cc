@@ -138,6 +138,7 @@ namespace spot
                                    + name + "' in '" + file + "'.");
       };
 
+    int (*have_property)();
     // SpinS interface.
     if (ext == ".spins")
       {
@@ -168,7 +169,7 @@ namespace spot
         sym(&get_type_value_name, "get_state_variable_type_value");
       }
 
-    if (have_property && have_property())
+    if (have_property && *have_property && have_property())
       throw std::runtime_error("Models with embedded properties "
                                "are not supported.");
   }
