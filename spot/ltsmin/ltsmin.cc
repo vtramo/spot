@@ -318,13 +318,12 @@ namespace spot
         }
 
       // Also load the names of potential labels
-      int lab_count = d_->get_state_label_count();
+      int lab_count = d->get_state_label_count();
       std::unordered_map<std::string, int> labmatcher;
       for (int i = 0; i < lab_count; ++i)
       {
-      	labmatcher[d_->get_state_label_name(i)] = i;
+      	labmatcher[d->get_state_label_name(i)] = i;
       }
-
 
       int type_count = d->get_type_count();
       typedef std::map<std::string, int> enum_map_t;
