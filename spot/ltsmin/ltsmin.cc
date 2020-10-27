@@ -275,7 +275,7 @@ namespace spot
     ////////////////////////////////////////////////////////////////////////
     // PREDICATE EVALUATION
 
-    typedef enum { OP_EQ, OP_NE, OP_LT, OP_GT, OP_LE, OP_GE } relop;
+    typedef enum { STATE_LABEL, OP_EQ, OP_NE, OP_LT, OP_GT, OP_LE, OP_GE } relop;
 
     struct one_prop
     {
@@ -317,6 +317,15 @@ namespace spot
           val_map[name] = v;
         }
 
+      // Also load the names of potential labels
+      int lab_count = d_->get_state_label_count();
+      std::unordered_map<std::string, int> labmatcher;
+      for (int i = 0; i < lab_count; ++i)
+      {
+      	labmatcher[d_->get_state_label_name(i)] = i;
+      }
+
+
       int type_count = d->get_type_count();
       typedef std::map<std::string, int> enum_map_t;
       std::vector<enum_map_t> enum_map(type_count);
@@ -333,7 +342,19 @@ namespace spot
           if (*ap == dead)
             continue;
 
+
+
           const std::string& str = ap->ap_name();
+
+          // Look first if it a state label
+          auto itl = labmatcher.find(str);
+          if (itl != labmatcher.end()) {
+          	// found it
+        	int v = dict->register_proposition(*ap, d);
+        	one_prop p = {itl->second , STATE_LABEL, 0, v};
+        	out.emplace_back(p);
+          	continue;
+          }
           const char* s = str.c_str();
 
           // Skip any leading blank.
@@ -704,6 +725,9 @@ namespace spot
             bool cond = false;
             switch (i.op)
               {
+              case STATE_LABEL:
+			    cond = d_->eval_state_label(i.var_num,vars);
+			    break;
               case OP_EQ:
                 cond = (l == r);
                 break;
