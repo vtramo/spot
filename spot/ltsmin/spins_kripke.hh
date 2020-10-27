@@ -194,6 +194,7 @@ namespace spot
          VAR_OP_GT_VAR,    // a > b
          VAR_OP_LE_VAR,    // a <= b
          VAR_OP_GE_VAR,    // a >= b
+         STATE_LABEL,      // AtomicProp0
          VAR_DEAD          // The atomic proposition used to label deadlock
        };
 
