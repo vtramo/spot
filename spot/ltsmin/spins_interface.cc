@@ -98,6 +98,18 @@ namespace spot
     }
   }
 
+  int default_get_state_label_size ()
+  {
+	  return 0;
+  }
+  const char * default_get_state_label_name (int index)
+    {
+  	  return nullptr;
+    }
+  int default_eval_state_label (int label, int * state) {
+	  return 0;
+  }
+
   spins_interface::spins_interface(const std::string& file_arg)
   {
     std::string file;
@@ -138,6 +150,13 @@ namespace spot
                                    + name + "' in '" + file + "'.");
       };
 
+    auto sym_or_default = [&] (auto * dst, const char *name, auto * def)
+		{
+        *reinterpret_cast<void**>(dst) = lt_dlsym(h, name);
+        if (*dst == nullptr)
+        	*dst = def;
+		};
+
     int (*have_property)();
     // SpinS interface.
     if (ext == ".spins")
@@ -168,6 +187,12 @@ namespace spot
         sym(&get_type_value_count, "get_state_variable_type_value_count");
         sym(&get_type_value_name, "get_state_variable_type_value");
       }
+
+    // both, though only files coming from ITSTools will get non defaults currently.
+    sym_or_default(&get_state_label_size,"get_state_label_size",default_get_state_label_size);
+    sym_or_default(&get_state_label_name,"get_state_label_name",default_get_state_label_name);
+    sym_or_default(&eval_state_label,"eval_state_label",default_eval_state_label);
+
 
     if (have_property && *have_property && have_property())
       throw std::runtime_error("Models with embedded properties "
