@@ -277,59 +277,11 @@ namespace spot
 
     typedef enum { OP_EQ, OP_NE, OP_LT, OP_GT, OP_LE, OP_GE } relop;
 
-    typedef enum { AST_OP, AST_VAR, AST_VAL } ast_node_t;
-
-    struct ASTNode {
-    	ast_node_t type;
-    	ASTNode (ast_node_t type):type(type){}
-    	virtual int eval (const int* vars)=0;
-    	virtual ~ASTNode(){}
-    };
-    struct VarNode : public ASTNode {
-        int var_num;
-        VarNode (int var_num):ASTNode(AST_VAR),var_num(var_num) {}
-        int eval (const int* vars) {
-        	return vars[var_num];
-        }
-    };
-    struct ValNode : public ASTNode {
-        int val;
-        ValNode(int val):ASTNode(AST_VAL),val(val){}
-        int eval (const int*) {
-          	return val;
-        }
-    };
-    struct BinNode : public ASTNode {
-       std::shared_ptr<ASTNode>  l;
-       std::shared_ptr<ASTNode>  r;
-       relop op;
-       BinNode (const std::shared_ptr<ASTNode> & l, relop op, const std::shared_ptr<ASTNode> & r):ASTNode(AST_OP),l(l),r(r),op(op){}
-       int eval (const int* vars) {
-    	   int lv = l->eval(vars);
-    	   int rv = r->eval(vars);
-    	   switch (op) {
-    	   case OP_EQ :
-    		   return lv==rv;
-    	   case OP_NE :
-    		   return lv!=rv;
-    	   case OP_LT :
-    		   return lv<rv;
-    	   case OP_GT :
-    		   return lv>rv;
-    	   case OP_LE :
-    		   return lv<=rv;
-    	   case OP_GE :
-    		   return lv>=rv;
-    	   default :
-    		   throw "Unexpected operator type";
-    	   }
-       }
-    };
-
-
     struct one_prop
     {
-      std::shared_ptr<ASTNode>  expr;
+      int var_num;
+      relop op;
+      int val;
       int bddvar;  // if "var_num op val" is true, output bddvar,
                    // else its negation
     };
@@ -375,7 +327,6 @@ namespace spot
             enum_map[i].emplace(d->get_type_value_name(i, j), j);
         }
 
-      int type_num = 0;
       for (atomic_prop_set::const_iterator ap = aps->begin();
            ap != aps->end(); ++ap)
         {
@@ -420,20 +371,7 @@ namespace spot
               ++errors;
               continue;
             }
-          std::shared_ptr<ASTNode> left;
 
-          if ( *name >= '0' && *name <= '9') {
-        	  char* s_end;
-        	  long rval = strtol(name, &s_end, 10);
-        	  if (name == s_end)
-        	  {
-        		  err << "Failed to parse `" << name << "' as an integer.\n";
-        		  ++errors;
-        		  free(name);
-        		  continue;
-        	  }
-        	  left.reset(new ValNode(rval));
-          } else {
           // Lookup the name
           val_map_t::const_iterator ni = val_map.find(name);
           if (ni == val_map.end())
@@ -488,24 +426,18 @@ namespace spot
 
               // Record that X.Y must be equal to Z.
               int v = dict->register_proposition(*ap, d.get());
-              one_prop p = { nullptr,v };
-
-              p.expr.reset(new BinNode(std::shared_ptr<ASTNode> (new VarNode(ni->second.num)),OP_EQ, std::shared_ptr<ASTNode> (new ValNode(ei->second))));
-              //   { ni->second.num, OP_EQ, ei->second, v };
+              one_prop p = { ni->second.num, OP_EQ, ei->second, v };
               out.emplace_back(p);
               free(name);
               continue;
             }
 
-          	  int var_num = ni->second.num;
-          	  type_num = ni->second.type;
-          	  left =std::shared_ptr<ASTNode>(new VarNode(var_num));
-          }
+          int var_num = ni->second.num;
 
           if (!*s)                // No operator?  Assume "!= 0".
             {
               int v = dict->register_proposition(*ap, d);
-              one_prop p = { std::shared_ptr<ASTNode>(new BinNode(left, OP_NE, std::shared_ptr<ASTNode>(new ValNode(0)))), v };
+              one_prop p = { var_num, OP_NE, 0, v };
               out.emplace_back(p);
               free(name);
               continue;
@@ -564,10 +496,9 @@ namespace spot
           while (*s && (*s == ' ' || *s == '\t'))
             ++s;
 
-          std::shared_ptr<ASTNode> right;
           int val = 0; // Initialize to kill a warning from old compilers.
-
-          if (type_num == 0 && (*s >= '0' && *s <= '9' || *s == '-'))
+          int type_num = ni->second.type;
+          if (type_num == 0 || (*s >= '0' && *s <= '9') || *s == '-')
             {
               char* s_end;
               val = strtol(s, &s_end, 10);
@@ -579,7 +510,6 @@ namespace spot
                   continue;
                 }
               s = s_end;
-              right.reset(new ValNode(val));
             }
           else
             {
@@ -590,11 +520,6 @@ namespace spot
                 ++end;
               std::string st(s, end);
 
-              val_map_t::const_iterator ni = val_map.find(st);
-              if (ni != val_map.end()) {
-            	  right = std::shared_ptr<ASTNode>(new VarNode(ni->second.num));
-            	  s = end;
-              } else {
               // Lookup the string.
               enum_map_t::const_iterator ei = enum_map[type_num].find(st);
               if (ei == enum_map[type_num].end())
@@ -612,8 +537,7 @@ namespace spot
                   continue;
                 }
               s = end;
-              right.reset(new ValNode(val));
-            }
+              val = ei->second;
             }
 
           free(name);
@@ -630,9 +554,8 @@ namespace spot
             }
 
 
-
           int v = dict->register_proposition(*ap, d);
-          one_prop p = { std::shared_ptr<ASTNode>(new BinNode(left, op, right)), v };
+          one_prop p = { var_num, op, val, v };
           out.emplace_back(p);
         }
 
@@ -775,7 +698,32 @@ namespace spot
         bdd res = bddtrue;
         for (auto& i: *ps_)
           {
-        	bool cond = i.expr->eval(vars) != 0;
+            int l = vars[i.var_num];
+            int r = i.val;
+
+            bool cond = false;
+            switch (i.op)
+              {
+              case OP_EQ:
+                cond = (l == r);
+                break;
+              case OP_NE:
+                cond = (l != r);
+                break;
+              case OP_LT:
+                cond = (l < r);
+                break;
+              case OP_GT:
+                cond = (l > r);
+                break;
+              case OP_LE:
+                cond = (l <= r);
+                break;
+              case OP_GE:
+                cond = (l >= r);
+                break;
+              }
+
             if (cond)
               res &= bdd_ithvar(i.bddvar);
             else
