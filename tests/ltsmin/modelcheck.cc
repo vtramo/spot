@@ -548,7 +548,7 @@ static int checked_main()
       if (rval == spot::mc_rvalue::NO_DEADLOCK ||
           rval == spot::mc_rvalue::EMPTY ||
           rval == spot::mc_rvalue::SUCCESS)
-        std::cout << "no accepting run / counterexample found\n";
+        std::cout << "no accepting run found\n";
       else if (!mc_options.compute_counterexample)
         {
           std::cout << "an accepting run exists "
