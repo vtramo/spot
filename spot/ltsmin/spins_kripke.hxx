@@ -186,7 +186,7 @@ namespace spot
   ::kripkecube (spins_interface_ptr sip,
                 bool compress,
                 std::vector<std::string> visible_aps,
-                bool selfloopize, std::string /*dead_prop FIXME */,
+                bool selfloopize, std::string dead_prop,
                 unsigned int nb_threads,
                 trans_walking_strategy str)
     : sip_(sip), d_(sip.get()),
@@ -207,6 +207,16 @@ namespace spot
         inner_[i].uncompressed = new int[d_->get_state_size()+30];
       }
     dead_idx_ = -1;
+    for (unsigned  i = 0; i < aps_.size(); ++i)
+      {
+        if (aps_[i].compare(dead_prop) == 0)
+          {
+            dead_idx_ = i;
+            break;
+          }
+      }
+
+    const_cast<spot::spins_interface*>(d_)->generate_compute_aps(aps_);
   }
 
   kripkecube<cspins_state, cspins_iterator>::~kripkecube()

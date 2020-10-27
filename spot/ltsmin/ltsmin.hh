@@ -43,9 +43,7 @@ namespace spot
     // Similarly the divine models can be specified as *.dve source or
     // *.dve or *.dve2C libraries.
     //
-    static ltsmin_model load(const std::string& file,
-                             std::vector<std::string> to_observe = {},
-                             const formula dead = formula::tt());
+    static ltsmin_model load(const std::string& file);
 
     // \brief Generate a Kripke structure on-the-fly
     //

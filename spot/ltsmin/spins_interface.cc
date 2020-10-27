@@ -102,10 +102,8 @@ namespace spot
     }
   }
 
-  spins_interface::spins_interface(const std::string& file_arg,
-                                   std::vector<std::string> aps)
+  spins_interface::spins_interface(const std::string& file_arg)
   {
-    (void) aps;
     std::string file;
     if (file_arg.find_first_of("/\\") != std::string::npos)
       file = file_arg;
@@ -177,7 +175,6 @@ namespace spot
     if (have_property && have_property())
       throw std::runtime_error("Models with embedded properties "
                                "are not supported.");
-    generate_compute_aps(aps);
   }
 
   void spins_interface::generate_compute_aps(std::vector<std::string> aps)
@@ -337,7 +334,7 @@ namespace spot
                                  + gname + "'.\n" + lt_error);
       }
 
-    handle = h1;
+    compute_handle = h1;
 
     auto sym1 = [&](auto* dst, const char* name)
     {

@@ -46,8 +46,7 @@ namespace spot
   {
   public:
     spins_interface() = default;
-    spins_interface(const std::string& file_arg,
-                    std::vector<std::string> to_observe);
+    spins_interface(const std::string& file_arg);
     ~spins_interface();
 
     // The various functions that can be called once the object
