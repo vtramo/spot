@@ -177,9 +177,13 @@ namespace spot
     if (have_property && have_property())
       throw std::runtime_error("Models with embedded properties "
                                "are not supported.");
+    generate_compute_aps(aps);
+  }
 
+  void spins_interface::generate_compute_aps(std::vector<std::string> aps)
+  {
     // ---------------------------------------------------------------
-    // Fom Here, we build the function that will evaluate, for each
+    // We build the function that will evaluate, for each
     // state which atomic propositions are true or false
     // To achieve this, a C function is built, compiled and loaded
     // using dlopen.
@@ -248,14 +252,14 @@ namespace spot
         std::sregex_iterator end;
         while (next != end)
           {
-            std::string match = (*next).str();
+            std::string match = next->str();
             std::regex re_st_pos("[1-9]+");
             std::sregex_iterator tmp(match.begin(), match.end(), re_st_pos);
-            int var_idx  = std::stoi((*tmp).str());
+            int var_idx  = std::stoi(tmp->str());
             std::regex re_proc_stname("\\.[a-zA-Z0-9]+");
             std::sregex_iterator tmp2(match.begin(), match.end(),
                                       re_proc_stname);
-            std::string strtmp = (*tmp2).str();
+            std::string strtmp = tmp2->str();
             std::string proc_name(strtmp.begin()+1, strtmp.end());
             std::string tmatch  = "s\\[" + std::to_string(var_idx) + "\\]\\."
               + proc_name;
@@ -265,7 +269,7 @@ namespace spot
                                [proc_name])
               + ")";
             replace.emplace_back(tmatch, replacement);
-            next++;
+            ++next;
           }
 
         for (auto& p: replace)
@@ -347,9 +351,6 @@ namespace spot
     };
 
     sym1(&compute_aps, "compute_aps");
-    int f[100];
-    unsigned g[100];
-    compute_aps(f,g);
   }
 
   spins_interface::~spins_interface()
