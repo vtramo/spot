@@ -21,7 +21,6 @@
 
 #include <atomic>
 #include <bitset>
-#include <deque>
 #include <map>
 #include <mutex>
 #include <set>
@@ -32,6 +31,8 @@
 #include <spot/bricks/brick-hashset>
 #include <spot/twacube_algos/twacube_determinize.hh>
 #include <bddx.h>
+
+#include "concurrentqueue.h"
 
 namespace spot
 {
@@ -537,11 +538,11 @@ namespace spot
                        twacube_ptr res,
                        size_t id,
                        shared_map& seen,
-                       std::deque<safra_state_pair>& todo,
+                       moodycamel::ConcurrentQueue<safra_state_pair>& todo,
                        const std::vector<cube_support>& supports,
                        unsigned& sets,
                        std::mutex& todo_mut,
-                       std::bitset<32>& active_threads,
+                       std::atomic<unsigned>& active_threads,
                        std::atomic<bool>& stop)
       : aut_(aut)
       , res_(res)
@@ -578,8 +579,7 @@ namespace spot
         if (it.isnew()) // state already in map, need to recycle dst_num
           {
             reserved_state_id = std::nullopt;
-            std::lock_guard<std::mutex> tlock(todo_mut_);
-            todo_.emplace_back(*it);
+            todo_.enqueue(*it);
           }
         else
           {
@@ -589,6 +589,8 @@ namespace spot
       };
 
       compute_succs succs(aut_);
+
+      bool active = true;
 
       // core algorithm
       //
@@ -600,27 +602,37 @@ namespace spot
         {
           safra_state curr;
           unsigned src_num;
-          {
-            std::lock_guard<std::mutex> lock(todo_mut_);
-            if (todo_.empty())
-              {
-                active_threads_[id_] = 0;
-                if (active_threads_.none())
-                  {
-                    stop_ = true;
-                    break;
-                  }
 
-                continue;
-              }
-            else
-              {
-                active_threads_[id_] = 1;
-                curr = todo_.front().st;
-                src_num = todo_.front().id;
-                todo_.pop_front();
-              }
-          }
+          safra_state_pair p;
+          bool found = todo_.try_dequeue(p);
+
+          if (found)
+            {
+              if (!active)
+                {
+                  active = true;
+                  active_threads_++;
+                }
+
+              curr = p.st;
+              src_num = p.id;
+            }
+          else
+            {
+              if (active)
+                {
+                  active_threads_--;
+                  active = false;
+                }
+
+              if (active_threads_ == 0)
+                {
+                  stop_ = true;
+                  break;
+                }
+
+              continue;
+            }
 
           const auto letters = get_letters(curr, supports_, cs);
 
@@ -652,11 +664,11 @@ namespace spot
     twacube_ptr res_;
     size_t id_;
     shared_map seen_;
-    std::deque<safra_state_pair>& todo_;
+    moodycamel::ConcurrentQueue<safra_state_pair>& todo_;
     const std::vector<cube_support>& supports_;
     unsigned& sets_;
     std::mutex& todo_mut_;
-    std::bitset<32>& active_threads_;
+    std::atomic<unsigned>& active_threads_;
     std::atomic<bool>& stop_;
   };
 
@@ -700,7 +712,7 @@ namespace spot
     shared_map seen;
 
     // a safra state and its corresponding state id in the resulting automaton
-    std::deque<safra_state_pair> todo;
+    moodycamel::ConcurrentQueue<safra_state_pair> todo;
 
     // find association between safra state and res state, or create one
     auto get_state = [&res, &seen, &todo](const safra_state& s) -> unsigned
@@ -710,7 +722,7 @@ namespace spot
 
       auto it = seen.insert(p);
       assert(it.isnew()); // first element inserted
-      todo.emplace_back(*it);
+      todo.enqueue(*it);
       return (*it).id;
     };
 
@@ -729,7 +741,7 @@ namespace spot
     std::vector<determinize_thread> det_threads;
     det_threads.reserve(nb_threads);
     std::mutex todo_mut;
-    std::bitset<32> active_threads;
+    std::atomic<unsigned> active_threads = nb_threads;
     std::atomic<bool> stop = false;
     for (size_t i = 0; i < nb_threads; ++i)
       {
