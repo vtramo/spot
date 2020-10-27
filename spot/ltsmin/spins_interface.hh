@@ -61,7 +61,7 @@ namespace spot
     const char* (*get_type_value_name)(int type, int value);
     // label based functions
     int (*eval_state_label) (int label, int* src) ;
-    int (*get_state_label_size) () ;
+    int (*get_state_label_count) () ;
     const char * (*get_state_label_name) (int label) ;
   private:
     // handle to the dynamic library. The variable is of type lt_dlhandle, but
