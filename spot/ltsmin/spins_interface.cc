@@ -106,7 +106,7 @@ namespace spot
     {
   	  return nullptr;
     }
-  int default_eval_state_label (int label, int * state) {
+  int default_eval_state_label (int label, const int * state) {
 	  return 0;
   }
 

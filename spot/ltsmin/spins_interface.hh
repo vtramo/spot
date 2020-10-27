@@ -60,7 +60,7 @@ namespace spot
     int (*get_type_value_count)(int type);
     const char* (*get_type_value_name)(int type, int value);
     // label based functions
-    int (*eval_state_label) (int label, int* src) ;
+    int (*eval_state_label) (int label, const int* src) ;
     int (*get_state_label_count) () ;
     const char * (*get_state_label_name) (int label) ;
   private:
