@@ -21,6 +21,7 @@
 #include <spot/ltsmin/spins_interface.hh>
 #include <ltdl.h>
 #include <cstring>
+#include <ctype.h>
 #include <cstdlib>
 #include <string.h>
 #include <spot/mc/utils.hh>
@@ -177,8 +178,238 @@ namespace spot
                                "are not supported.");
   }
 
+  // FIXME : the use of a trie may simplify the following computation
   void spins_interface::generate_compute_aps(std::vector<std::string> aps)
   {
+    unsigned state_size = get_state_size();
+
+    std::unordered_map<std::string, unsigned> matcher_var_index;
+    std::unordered_map<int,                             // Process index
+                       std::unordered_map< std::string, // process'state name
+                                           int>         // corresponding id
+                       > matcher_typeid_index;
+
+    // Fill previous structures
+    for (unsigned i = 0; i < state_size; ++i)
+      {
+        std::string k_var = get_state_variable_name(i);
+        matcher_var_index.insert({k_var, i});
+        int type_id = get_state_variable_type(i);
+        std::unordered_map<std::string, int> tmp;
+        int enum_count = get_type_value_count(type_id);
+        for (int j = 0; j < enum_count; ++j)
+          tmp[get_type_value_name(type_id, j)] = j;
+        matcher_typeid_index[i] = tmp;
+      }
+
+    std::vector<std::string> new_aps;
+
+    // Build new aps by matching variables positions inside of state structure
+    for (auto str: aps)
+      {
+        unsigned pos = 0;
+        unsigned last_letter, first_letter, last_pos = 0;
+        std::string new_ap;
+
+        // lookup function for a stable position and copy into new_ap
+        // all intermediates
+        auto next_stable = [&]()
+        {
+          while (pos < str.size() && !isalpha(str[pos]))
+            ++pos;
+          new_ap = new_ap + str.substr(last_pos, pos-last_pos);
+          last_pos = pos;
+        };
+
+        // lookup function to find the start of the next variable
+        auto find_next_variable = [&]()
+        {
+          while (pos < str.size() && !isalpha(str[pos]))
+              ++pos;
+          first_letter = pos;
+        };
+
+        // lookup function to find the eand of a variable
+        auto eat_variable_name = [&]()
+        {
+          while (pos < str.size() &&
+                 (isalpha(str[pos])  || isdigit(str[pos])  ||
+                  str[pos] == '_'    || str[pos] == '['    ||
+                  str[pos] == ']'))
+            ++pos;
+          last_letter = pos;
+        };
+
+        auto eat_state_name = [&]()
+        {
+          while (pos < str.size() &&
+                 (isalpha(str[pos]) || isdigit(str[pos]) || str[pos] == '_'))
+            ++pos;
+        };
+
+        // lookup function to find the eand of a variable
+        auto error = [](std::string err)
+        {
+          std::cerr << err;
+          exit(1);
+        };
+
+        // Main loop
+        while (pos < str.size())
+          {
+            find_next_variable();
+            eat_variable_name();
+
+            // Multiple cases can occur then
+            //     (1) str[pos] is a '.' : this means that we are
+            //         facing something like P_0.state1 or P_0.var1
+            //     (2) str[pos] is whitespace, comparison operator,
+            //         arith operator, closing parenthesis, ...: in
+            //         this case str[first_letter..last_letter] must
+            //         be viable variable.  Warning situation
+            //         such 'P_0 == state1' may occur in this case
+            //     (3) we are facing 'min(k, j)' : this is not yet
+            //         supported and we may not want to support
+            //         something like that
+            if (str[pos] == '.') // (1)
+              {
+                std::string proc_name = str.substr(first_letter,
+                                                   last_letter-first_letter);
+                auto search_pn = matcher_var_index.find(proc_name);
+
+                if (search_pn == matcher_var_index.end())
+                  error(proc_name + ": unknown variable \n");
+
+                // remember index corresponding to this proc name
+                unsigned proc_index = search_pn-> second;
+
+                // skip the '.'  and search for the state name
+                ++pos;
+                if (pos == str.size() || !isalpha(str[pos]))
+                  error("State name must start with a letter "
+                        "and cannot be empty\n");
+
+                eat_state_name();
+
+                // Check wether this is a valid state name
+                std::string state_name = str.substr(last_letter+1,
+                                                    pos-1-last_letter);
+
+                auto search_sn =
+                  matcher_typeid_index[proc_index].find(state_name);
+                if (search_sn != matcher_typeid_index[proc_index].end())
+                  {
+                    int state_idx =
+                      matcher_typeid_index[proc_index][state_name];
+
+                    new_ap += str.substr(last_pos, first_letter-last_pos)
+                      + "(s[" + std::to_string(proc_index) + "] == "
+                      + std::to_string(state_idx) + ")";
+                    last_pos = pos;
+                    next_stable();
+                  }
+                else
+                  {
+                    // May be a variable of a process
+                    std::string tmpname = proc_name + '.' + state_name;
+                    search_pn = matcher_var_index.find(tmpname);
+                    if (search_pn == matcher_var_index.end())
+                      error(tmpname + ": unknown variable \n");
+
+                    new_ap += str.substr(last_pos, first_letter-last_pos)
+                      + "s[" + std::to_string(search_pn->second) +"]";;
+                    last_pos = pos;
+                    next_stable();
+                  }
+              }
+            else // (2) and  (3)
+              {
+                std::string proc_name = str.substr(first_letter,
+                                                   last_letter-first_letter);
+                auto search_pn = matcher_var_index.find(proc_name);
+                if (search_pn == matcher_var_index.end())
+                  error(proc_name + ": unknown variable \n");
+
+                // check wether we are facing P_0 == state or if this
+                // is directly variable state.
+                unsigned tmppos = pos;
+
+                while (tmppos < str.size() && (str[tmppos] == ' ' ||
+                                               str[tmppos] == '\t'))
+                  ++tmppos;
+
+                if (str[tmppos] != '=')
+                  {
+                    // it was a variable name: compute (part of) the
+                    // new aps
+                    pos = tmppos;
+
+                    // compute new aps
+                    new_ap = new_ap +
+                      str.substr(last_pos, first_letter-last_pos)
+                      + "(s[" + std::to_string(search_pn->second) +"])";
+                    last_pos = pos;
+                    next_stable();
+                    continue;
+                  }
+                else
+                  {
+                    std::string proc_name =
+                      str.substr(first_letter, last_letter-first_letter);
+                    auto search_pn = matcher_var_index.find(proc_name);
+                    if (search_pn == matcher_var_index.end())
+                      error(proc_name + ": unknown variable \n");
+
+                    // remember index corresponding to this proc name
+                    unsigned proc_index = search_pn-> second;
+                    if (tmppos+1 < str.size() && str[tmppos+1] == '=')
+                      {
+                        ++tmppos;
+                        pos = tmppos;
+
+                        while (pos < str.size() && !(isalpha(str[pos]) ||
+                                                     isdigit(str[pos])))
+                          ++pos;
+
+                        // We are Facing P_0 == statename
+                        if (!isdigit(str[pos]))
+                          {
+                            first_letter = pos;
+
+                            eat_state_name();
+
+                            std::string state_name =
+                              str.substr(first_letter, pos-first_letter);
+
+                            auto search_sn =
+                              matcher_typeid_index[proc_index].find(state_name);
+                            if (search_sn !=
+                                matcher_typeid_index[proc_index].end())
+                              {
+                                int state_idx =
+                                  matcher_typeid_index[proc_index][state_name];
+
+                                new_ap += "(s[" + std::to_string(proc_index)
+                                  + "] == " + std::to_string(state_idx) + ")";
+                                last_pos = pos;
+                                next_stable();
+                                continue;
+                              }
+                            else
+                              error(state_name + ": unrecognized for " +
+                                    proc_name + '\n');
+                          }
+                      }
+                    else
+                      error(proc_name + str.substr(pos, tmppos+2-pos) +
+                            ": unrecognized sequence \n");
+                  }
+              }
+          }
+        std::cout << "## Orig  " << str << "\n## New:  " << new_ap << std::endl;
+        new_aps.emplace_back(new_ap);
+      }
+
     // ---------------------------------------------------------------
     // We build the function that will evaluate, for each
     // state which atomic propositions are true or false
@@ -192,88 +423,6 @@ namespace spot
     // The solution would be to have a parser per model type, that takes
     // an atomic proposition and verify its syntax.
     // ---------------------------------------------------------------
-
-    std::vector<std::string> k_vars;  // The name of each variable
-    std::vector<int> k_types;         // The type of each variable
-
-    // Binds variable names to their index inside of the state
-    std::unordered_map<std::string, int> matcher_var_index;
-
-    // Binds process'state name with id
-    std::unordered_map<int,                             // Process index
-                       std::unordered_map< std::string, // process'state name
-                                           int>         // corresponding id
-                       > matcher_typeid_index;
-
-    // Fill the previous structures by walking all variables of a state
-    unsigned state_size = get_state_size();
-    for (unsigned i = 0; i < state_size; ++i) // walk all variables
-      {
-        // Find type and names
-        std::string k_var = get_state_variable_name(i);
-        k_vars.emplace_back(k_var);
-        matcher_var_index[k_var] = i;
-
-        int type_id = get_state_variable_type(i);
-        k_types.emplace_back(type_id);
-
-        // First time we see this type, insert it
-        if (matcher_typeid_index.find(type_id) == matcher_typeid_index.end())
-          {
-            std::unordered_map<std::string, int> tmp;
-            int enum_count = get_type_value_count(type_id);
-            for (int j = 0; j < enum_count; ++j)
-              tmp[get_type_value_name(type_id, j)] = j;
-            matcher_typeid_index[type_id] = tmp;
-          }
-      }
-
-    // Sorting is necessary, since we then use regular expressions
-    // to convert " a < b " into "s[1] < s[2]". Without sorting
-    // problems can occurs when some variable name is prefix of other
-    // variable names
-    std::sort(std::begin(k_vars), std::end(k_vars), std::greater<>());
-
-    for (auto& ap: aps)
-      for (auto& kv: k_vars)
-        ap = std::regex_replace(ap, std::regex(kv), "s[" +
-                                std::to_string(matcher_var_index[kv]) + "]");
-
-    // Treat specific cases P_0.S since this is  not really a reference
-    // to a variable
-    for (auto& ap: aps)
-      {
-        std::vector<std::pair<std::string, std::string>> replace;
-        std::regex re("s\\[[1-9]+\\]\\.[a-zA-Z0-9]+");
-        std::sregex_iterator next(ap.begin(), ap.end(), re);
-        std::sregex_iterator end;
-        while (next != end)
-          {
-            std::string match = next->str();
-            std::regex re_st_pos("[1-9]+");
-            std::sregex_iterator tmp(match.begin(), match.end(), re_st_pos);
-            int var_idx  = std::stoi(tmp->str());
-            std::regex re_proc_stname("\\.[a-zA-Z0-9]+");
-            std::sregex_iterator tmp2(match.begin(), match.end(),
-                                      re_proc_stname);
-            std::string strtmp = tmp2->str();
-            std::string proc_name(strtmp.begin()+1, strtmp.end());
-            std::string tmatch  = "s\\[" + std::to_string(var_idx) + "\\]\\."
-              + proc_name;
-            std::string replacement = "(s[" + std::to_string(var_idx)
-              + "] == "
-              + std::to_string(matcher_typeid_index[k_types[var_idx]]
-                               [proc_name])
-              + ")";
-            replace.emplace_back(tmatch, replacement);
-            ++next;
-          }
-
-        for (auto& p: replace)
-          {
-            ap = std::regex_replace(ap, std::regex(p.first), p.second);
-          }
-      }
 
     // Treat specific case  P_0 == S (close to preivous treatment)
 
@@ -301,8 +450,7 @@ namespace spot
     gfile <<  "    bool b;\n";
     int i = 0;
 
-
-    for (auto ap: aps)
+    for (auto ap: new_aps)
       {
         gfile << "    b = " + ap + ";\n";
         gfile << "    set_var(c, " + std::to_string(i) +  ", b);\n";
