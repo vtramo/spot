@@ -171,6 +171,10 @@ checked_main()
           tm.start("determinize");
           cube_det_aut = twacube_determinize(cube_aut, mc_options.nb_threads);
           tm.stop("determinize");
+
+          spot::const_twa_graph_ptr ref = spot::tgba_determinize(aut);
+          if (!spot::are_equivalent(cube_det_aut, ref))
+            exit(1);
         }
 
       auto duration = tm.timer("determinize").walltime();
