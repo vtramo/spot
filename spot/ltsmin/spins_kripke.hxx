@@ -325,6 +325,6 @@ namespace spot
                                  manager_[tid].size());
         vars = inner_[tid].uncompressed + 2;
       }
-    d_->compute_aps(vars, c);
+    d_->compute_aps_cube(vars, c);
   }
 }

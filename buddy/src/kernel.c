@@ -951,6 +951,29 @@ BDD bdd_nithvar(int var)
    return bddvarset[var*2+1];
 }
 
+/*
+NAME    {* bdd\_cond\_ithvar *}
+SECTION {* kernel *}
+SHORT   {* returns a bdd representing the I'th variable with a given
+           truth assignement*}
+PROTO   {* BDD bdd_cond_ithvar(int var) *}
+DESCR   {* This function is used to get a bdd representing  the I'th variable
+           with the {\tt cond} assignment
+RETURN  {* The  variable on succes, otherwise the constant false bdd *}
+ALSO    {* bdd\_setvarnum, bdd\_ithvar, bddtrue, bddfalse *}
+*/
+BDD bdd_cond_ithvar(int var, int cond)
+{
+#ifndef NDEBUG
+   if (var < 0  ||  var >= bddvarnum)
+   {
+      bdd_error(BDD_VAR);
+      return bddfalse;
+   }
+#endif
+
+   return bddvarset[var*2+!cond];
+}
 
 /*
 NAME    {* bdd\_varnum *}

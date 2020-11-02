@@ -295,272 +295,27 @@ namespace spot
     };
 
 
-    void
+    std::vector<int>
     convert_aps(const atomic_prop_set* aps,
                 spins_interface_ptr d,
                 bdd_dict_ptr dict,
-                formula dead,
-                prop_set& out)
+                formula dead)
     {
-      int errors = 0;
-      std::ostringstream err;
-
-      int state_size = d->get_state_size();
-      typedef std::map<std::string, var_info> val_map_t;
-      val_map_t val_map;
-
-      for (int i = 0; i < state_size; ++i)
-        {
-          const char* name = d->get_state_variable_name(i);
-          int type = d->get_state_variable_type(i);
-          var_info v = { i , type };
-          val_map[name] = v;
-        }
-
-      int type_count = d->get_type_count();
-      typedef std::map<std::string, int> enum_map_t;
-      std::vector<enum_map_t> enum_map(type_count);
-      for (int i = 0; i < type_count; ++i)
-        {
-          int enum_count = d->get_type_value_count(i);
-          for (int j = 0; j < enum_count; ++j)
-            enum_map[i].emplace(d->get_type_value_name(i, j), j);
-        }
-
+      std::vector<std::string> props;
+      std::vector<int> bdd_indexes;
       for (atomic_prop_set::const_iterator ap = aps->begin();
            ap != aps->end(); ++ap)
         {
-          if (*ap == dead)
-            continue;
-
-          const std::string& str = ap->ap_name();
-          const char* s = str.c_str();
-
-          // Skip any leading blank.
-          while (*s && (*s == ' ' || *s == '\t'))
-            ++s;
-          if (!*s)
-            {
-              err << "Proposition `" << str << "' cannot be parsed.\n";
-              ++errors;
-              continue;
-            }
-
-
-          char* name = (char*) malloc(str.size() + 1);
-          char* name_p = name;
-          char* lastdot = nullptr;
-          while (*s && (*s != '=') && *s != '<' && *s != '!'  && *s != '>')
-            {
-
-              if (*s == ' ' || *s == '\t')
-                ++s;
-              else
-                {
-                  if (*s == '.')
-                    lastdot = name_p;
-                  *name_p++ = *s++;
-                }
-            }
-          *name_p = 0;
-
-          if (name == name_p)
-            {
-              err << "Proposition `" << str << "' cannot be parsed.\n";
-              free(name);
-              ++errors;
-              continue;
-            }
-
-          // Lookup the name
-          val_map_t::const_iterator ni = val_map.find(name);
-          if (ni == val_map.end())
-            {
-              // We may have a name such as X.Y.Z
-              // If it is not a known variable, it might mean
-              // an enumerated variable X.Y with value Z.
-              if (lastdot)
-                {
-                  *lastdot++ = 0;
-                  ni = val_map.find(name);
-                }
-
-              if (ni == val_map.end())
-                {
-                  err << "No variable `" << name
-                      << "' found in model (for proposition `"
-                      << str << "').\n";
-                  free(name);
-                  ++errors;
-                  continue;
-                }
-
-              // We have found the enumerated variable, and lastdot is
-              // pointing to its expected value.
-              int type_num = ni->second.type;
-              enum_map_t::const_iterator ei = enum_map[type_num].find(lastdot);
-              if (ei == enum_map[type_num].end())
-                {
-                  err << "No state `" << lastdot << "' known for variable `"
-                      << name << "'.\n";
-                  err << "Possible states are:";
-                  for (auto& ej: enum_map[type_num])
-                    err << ' ' << ej.first;
-                  err << '\n';
-
-                  free(name);
-                  ++errors;
-                  continue;
-                }
-
-              // At this point, *s should be 0.
-              if (*s)
-                {
-                  err << "Trailing garbage `" << s
-                      << "' at end of proposition `"
-                      << str << "'.\n";
-                  free(name);
-                  ++errors;
-                  continue;
-                }
-
-              // Record that X.Y must be equal to Z.
-              int v = dict->register_proposition(*ap, d.get());
-              one_prop p = { ni->second.num, OP_EQ, ei->second, v };
-              out.emplace_back(p);
-              free(name);
-              continue;
-            }
-
-          int var_num = ni->second.num;
-
-          if (!*s)                // No operator?  Assume "!= 0".
-            {
-              int v = dict->register_proposition(*ap, d);
-              one_prop p = { var_num, OP_NE, 0, v };
-              out.emplace_back(p);
-              free(name);
-              continue;
-            }
-
-          relop op;
-
-          switch (*s)
-            {
-            case '!':
-              if (s[1] != '=')
-                goto report_error;
-              op = OP_NE;
-              s += 2;
-              break;
-            case '=':
-              if (s[1] != '=')
-                goto report_error;
-              op = OP_EQ;
-              s += 2;
-              break;
-            case '<':
-              if (s[1] == '=')
-                {
-                  op = OP_LE;
-                  s += 2;
-                }
-              else
-                {
-                  op = OP_LT;
-                  ++s;
-                }
-              break;
-            case '>':
-              if (s[1] == '=')
-                {
-                  op = OP_GE;
-                  s += 2;
-                }
-              else
-                {
-                  op = OP_GT;
-                  ++s;
-                }
-              break;
-            default:
-            report_error:
-              err << "Unexpected `" << s
-                  << "' while parsing atomic proposition `" << str
-                  << "'.\n";
-              ++errors;
-              free(name);
-              continue;
-            }
-
-          while (*s && (*s == ' ' || *s == '\t'))
-            ++s;
-
-          int val = 0; // Initialize to kill a warning from old compilers.
-          int type_num = ni->second.type;
-          if (type_num == 0 || (*s >= '0' && *s <= '9') || *s == '-')
-            {
-              char* s_end;
-              val = strtol(s, &s_end, 10);
-              if (s == s_end)
-                {
-                  err << "Failed to parse `" << s << "' as an integer.\n";
-                  ++errors;
-                  free(name);
-                  continue;
-                }
-              s = s_end;
-            }
-          else
-            {
-              // We are in a case such as P_0 == S, trying to convert
-              // the string S into an integer.
-              const char* end = s;
-              while (*end && *end != ' ' && *end != '\t')
-                ++end;
-              std::string st(s, end);
-
-              // Lookup the string.
-              enum_map_t::const_iterator ei = enum_map[type_num].find(st);
-              if (ei == enum_map[type_num].end())
-                {
-                  err << "No state `" << st << "' known for variable `"
-                      << name << "'.\n";
-                  err << "Possible states are:";
-                  for (ei = enum_map[type_num].begin();
-                       ei != enum_map[type_num].end(); ++ei)
-                    err << ' ' << ei->first;
-                  err << '\n';
-
-                  free(name);
-                  ++errors;
-                  continue;
-                }
-              s = end;
-              val = ei->second;
-            }
-
-          free(name);
-
-          while (*s && (*s == ' ' || *s == '\t'))
-            ++s;
-          if (*s)
-            {
-              err << "Unexpected `" << s
-                  << "' while parsing atomic proposition `" << str
-                  << "'.\n";
-              ++errors;
-              continue;
-            }
-
-
-          int v = dict->register_proposition(*ap, d);
-          one_prop p = { var_num, op, val, v };
-          out.emplace_back(p);
+          int v = dict->register_proposition(*ap, d.get());
+          bdd_indexes.emplace_back(v);
+          props.emplace_back(ap->ap_name());
         }
 
-      if (errors)
-        throw std::runtime_error(err.str());
+      const_cast<spot::spins_interface*>(d.get())
+        ->generate_compute_aps(props);
+
+      (void) dead; // FIXME
+      return bdd_indexes;
     }
 
     ////////////////////////////////////////////////////////////////////////
@@ -571,12 +326,11 @@ namespace spot
     public:
 
       spins_kripke(spins_interface_ptr d, const bdd_dict_ptr& dict,
-                   const spot::prop_set* ps, formula dead,
-                   int compress)
+                   formula dead, int compress, std::vector<int> bdd_indexes)
         : kripke(dict),
           d_(d),
           state_size_(d_->get_state_size()),
-          ps_(ps),
+          bdd_indexes_(bdd_indexes),
           compress_(compress == 0 ? nullptr
                     : compress == 1 ? int_array_array_compress
                     : int_array_array_compress2),
@@ -653,8 +407,6 @@ namespace spot
           }
         dict_->unregister_all_my_variables(d_.get());
 
-        delete ps_;
-
         if (state_condition_last_state_)
           state_condition_last_state_->destroy();
         delete state_condition_last_cc_; // Might be 0 already.
@@ -695,40 +447,12 @@ namespace spot
       bdd
       compute_state_condition_aux(const int* vars) const
       {
+        assert(bdd_indexes_.size() < sizeof(unsigned long long));
+
+        unsigned long long v = d_->compute_aps_bdd(vars);
         bdd res = bddtrue;
-        for (auto& i: *ps_)
-          {
-            int l = vars[i.var_num];
-            int r = i.val;
-
-            bool cond = false;
-            switch (i.op)
-              {
-              case OP_EQ:
-                cond = (l == r);
-                break;
-              case OP_NE:
-                cond = (l != r);
-                break;
-              case OP_LT:
-                cond = (l < r);
-                break;
-              case OP_GT:
-                cond = (l > r);
-                break;
-              case OP_LE:
-                cond = (l <= r);
-                break;
-              case OP_GE:
-                cond = (l >= r);
-                break;
-              }
-
-            if (cond)
-              res &= bdd_ithvar(i.bddvar);
-            else
-              res &= bdd_nithvar(i.bddvar);
-          }
+        for (unsigned i = 0; i < bdd_indexes_.size(); ++i)
+          res &= bdd_cond_ithvar(bdd_indexes_[i], (v >> i) & 1U);
         return res;
       }
 
@@ -885,9 +609,9 @@ namespace spot
       int state_size_;
       const char** vname_;
       bool* format_filter_;
-      const spot::prop_set* ps_;
       bdd alive_prop;
       bdd dead_prop;
+      std::vector<int> bdd_indexes_;
       void (*compress_)(const int*, size_t, int*, size_t&);
       void (*decompress_)(const int*, size_t, int*, size_t);
       int* uncompressed_;
@@ -955,19 +679,19 @@ namespace spot
                        bdd_dict_ptr dict,
                        const formula dead, int compress) const
   {
-    spot::prop_set* ps = new spot::prop_set;
+    std::vector<int> bdd_indexes;
     try
       {
-        convert_aps(to_observe, iface, dict, dead, *ps);
+        bdd_indexes = convert_aps(to_observe, iface, dict, dead);
       }
     catch (const std::runtime_error&)
       {
-        delete ps;
         dict->unregister_all_my_variables(iface.get());
         throw;
       }
     auto res = SPOT_make_shared_enabled__(spins_kripke,
-                                          iface, dict, ps, dead, compress);
+                                          iface, dict, dead, compress,
+                                          bdd_indexes);
     // All atomic propositions have been registered to the bdd_dict
     // for iface, but we also need to add them to the automaton so
     // twa::ap() works.

@@ -68,7 +68,8 @@ namespace spot
     // This function is generated once and computes aps for a given
     // state
     // FIXME not int*
-    void (*compute_aps)(int* state, cube  cube);
+    void (*compute_aps_cube)(int* state, cube  cube);
+    unsigned long long (*compute_aps_bdd)(const int* state);
 
   private:
     // handle to the dynamic library. The variable is of type lt_dlhandle, but

@@ -317,7 +317,7 @@ namespace spot
                       error(tmpname + ": unknown variable \n");
 
                     new_ap += str.substr(last_pos, first_letter-last_pos)
-                      + "s[" + std::to_string(search_pn->second) +"]";;
+                      + "s[" + std::to_string(search_pn->second) + "]";
                     last_pos = pos;
                     next_stable();
                   }
@@ -406,7 +406,6 @@ namespace spot
                   }
               }
           }
-        std::cout << "## Orig  " << str << "\n## New:  " << new_ap << std::endl;
         new_aps.emplace_back(new_ap);
       }
 
@@ -432,31 +431,48 @@ namespace spot
     // emptiness check are used.
     std::string gfilename = "/tmp/foo.cc"; // FIXME find a unique name
     std::ofstream gfile;
+    std::string cs, bs;
+
     gfile.open(gfilename, std::ofstream::out);
 
-    gfile << "#include <stddef.h>\n";
-    gfile << "using cube = unsigned*;\n";
-    gfile << "size_t nb_bits = " << cubeset::nb_bits() << ";\n";
-    gfile << "size_t uint_size = " << cubeset::uint_size(aps.size()) << ";\n";
-    gfile << "inline void set_var(cube c, unsigned int x, bool val)"
+    cs =  "#include <stddef.h>\n";
+    cs += "using cube = unsigned*;\n";
+    cs += "size_t nb_bits = " + std::to_string(cubeset::nb_bits()) + ";\n";
+    cs += "size_t uint_size = "
+      +  std::to_string(cubeset::uint_size(aps.size())) + ";\n";
+    cs += "inline void set_var(cube c, unsigned int x, bool val)"
       "\n{\n"
       "    *(c+x/nb_bits) = "
       "(*(c+x/nb_bits) & ~(1UL << (x%nb_bits))) | (val << (x%nb_bits));\n"
       "    *(c+uint_size+x/nb_bits) = "
       "(*(c+uint_size+x/nb_bits) & ~(1UL << (x%nb_bits)))"
       "| (!val << (x%nb_bits));\n"
-      "}\n\n";
-    gfile << "extern \"C\" void compute_aps(int* s, unsigned* c)\n{\n";
-    gfile <<  "    bool b;\n";
-    int i = 0;
+      "}\n\n"
+      "extern \"C\" void compute_aps_cube(int* s, unsigned* c)\n{\n";
+    cs += "    bool b;\n";
 
+
+    bs = "\n\nextern \"C\" unsigned long long "
+      "compute_aps_bdd(int* s)\n{\n"
+      "    unsigned long long res;\n"
+      "    bool b;\n";
+
+    int i = 0;
     for (auto ap: new_aps)
       {
-        gfile << "    b = " + ap + ";\n";
-        gfile << "    set_var(c, " + std::to_string(i) +  ", b);\n";
+        cs += "    b = " + ap + ";\n";
+        cs += "    set_var(c, " + std::to_string(i) +  ", b);\n";
+
+        bs += "    b = " + ap + ";\n";
+        bs += "    res = (res & ~(1UL << "+ std::to_string(i) + ")) |"
+          "(b << " + std::to_string(i) + ");\n";
+
         ++i;
       }
-    gfile << "}\n";
+    cs +=  "}\n";
+    bs +=  "    return res;\n}\n";
+
+    gfile << cs << bs;
     gfile.close();
 
     // Compile this file
@@ -495,7 +511,8 @@ namespace spot
                                  + name + "' in '" + gname + "'.");
     };
 
-    sym1(&compute_aps, "compute_aps");
+    sym1(&compute_aps_cube, "compute_aps_cube");
+    sym1(&compute_aps_bdd, "compute_aps_bdd");
   }
 
   spins_interface::~spins_interface()

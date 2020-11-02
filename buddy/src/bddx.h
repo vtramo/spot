@@ -307,6 +307,7 @@ BUDDY_API BDD      bdd_false(void) __constfn;
 BUDDY_API int      bdd_varnum(void) __purefn;
 BUDDY_API BDD      bdd_ithvar(int) __purefn;
 BUDDY_API BDD      bdd_nithvar(int) __purefn;
+BUDDY_API BDD      bdd_cond_ithvar(int, int) __purefn;
 BUDDY_API int      bdd_var(BDD) __purefn;
 BUDDY_API BDD      bdd_low(BDD) __purefn;
 BUDDY_API BDD      bdd_high(BDD) __purefn;
@@ -573,6 +574,7 @@ protected:
    friend bddxfalse bdd_false(void);
    friend bdd      bdd_ithvarpp(int);
    friend bdd      bdd_nithvarpp(int);
+   friend bdd      bdd_cond_ithvarpp(int, int);
    friend int      bdd_var(const bdd &);
    friend bdd      bdd_low(const bdd &);
    friend bdd      bdd_high(const bdd &);
@@ -705,6 +707,9 @@ inline bdd bdd_ithvarpp(int v)
 
 inline bdd bdd_nithvarpp(int v)
 { return bdd_nithvar(v); }
+
+inline bdd bdd_cond_ithvarpp(int v, int c)
+{ return bdd_cond_ithvar(v, c); }
 
 inline int bdd_var(const bdd &r)
 { return bdd_var(r.root); }
@@ -902,6 +907,7 @@ inline int bdd_addvarblock(const bdd &v, int f)
 #define bdd_init bdd_cpp_init
 #define bdd_ithvar bdd_ithvarpp
 #define bdd_nithvar bdd_nithvarpp
+#define bdd_cond_ithvar bdd_cond_ithvarpp
 #define bdd_makeset bdd_makesetpp
 #define bdd_ibuildcube bdd_ibuildcubepp
 #define bdd_anodecount bdd_anodecountpp
