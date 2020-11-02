@@ -16,6 +16,8 @@
 #include <spot/twaalgos/determinize.hh>
 #include <spot/twaalgos/isdet.hh>
 #include <spot/twaalgos/powerset.hh>
+#include <spot/twaalgos/sccfilter.hh>
+#include <spot/twaalgos/simulation.hh>
 #include <spot/twaalgos/translate.hh>
 #include <spot/twacube_algos/convert.hh>
 #include <spot/twacube_algos/twacube_determinize.hh>
@@ -28,6 +30,7 @@ struct mc_options_
   bool twa = false;
   bool twa_opt = false;
   bool twacube = false;
+  bool simulation = false;
   unsigned nb_threads = 1;
   unsigned wanted = 0;
   unsigned min = 0;
@@ -58,6 +61,8 @@ parse_opt_finput(int key, char* arg, struct argp_state*)
     case 's':
       mc_options.max_states = to_unsigned(arg, "-s/--max-states");
       break;
+    case 'S':
+      mc_options.simulation = true;
     case 'w':
       mc_options.wanted = to_unsigned(arg, "-w/--wanted");
       break;
@@ -73,9 +78,10 @@ static const argp_option options[] =
     // ------------------------------------------------------------
     { nullptr, 0, nullptr, 0, "Process options:", 1 },
     { "parallel", 'p', "INT", 0, "use INT threads (when possible)", 0 },
-    { "twa", 'a', nullptr, 0, "determinize using twa algo", 0},
-    { "twa_opt", 'A', nullptr, 0, "determinize using twa optimized algo", 0},
-    { "twacube", 'c', nullptr, 0, "determinize using twacube algo", 0},
+    { "simulation", 'S', nullptr, 0, "use simulation on twacube", 0 },
+    { "twa", 'a', nullptr, 0, "determinize using twa algo", 0 },
+    { "twa_opt", 'A', nullptr, 0, "determinize using twa optimized algo", 0 },
+    { "twacube", 'c', nullptr, 0, "determinize using twacube algo", 0 },
     // ------------------------------------------------------------
     { nullptr, 0, nullptr, 0, "Output options:", 2 },
     { "wanted", 'w', "INT", 0, "number of auts to bench", 0 },
@@ -127,7 +133,13 @@ checked_main()
   spot::parsed_aut_ptr res = nullptr;
   while ((res = parser.parse(dict))->aut != nullptr)
     {
-      spot::const_twa_graph_ptr aut = res->aut;
+      spot::twa_graph_ptr aut = res->aut;
+
+      if (mc_options.simulation)
+        {
+          aut = spot::simulation(spot::scc_filter(aut));
+        }
+
       std::string formula = *aut->get_named_prop<std::string>("automaton-name");
 
       assert(!res->aborted);
