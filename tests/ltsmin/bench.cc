@@ -25,8 +25,6 @@ const char argp_program_doc[] =
 
 struct mc_options_
 {
-  char* file = nullptr;
-  bool use_timer = false;
   bool twa = false;
   bool twa_opt = false;
   bool twacube = false;
@@ -51,9 +49,6 @@ parse_opt_finput(int key, char* arg, struct argp_state*)
     case 'c':
       mc_options.twacube = true;
       break;
-    case 'f':
-      mc_options.file = arg;
-      break;
     case 'm':
       mc_options.min = to_unsigned(arg, "-m/--min");
       break;
@@ -62,9 +57,6 @@ parse_opt_finput(int key, char* arg, struct argp_state*)
       break;
     case 's':
       mc_options.max_states = to_unsigned(arg, "-s/--max-states");
-      break;
-    case 't':
-      mc_options.use_timer = true;
       break;
     case 'w':
       mc_options.wanted = to_unsigned(arg, "-w/--wanted");
@@ -79,24 +71,19 @@ static const argp_option options[] =
   {
     // Keep each section sorted
     // ------------------------------------------------------------
-    { nullptr, 0, nullptr, 0, "Input options:", 1 },
-    { "file", 'f', "STRING", 0, "use the automata stored in file STRING", 0 },
-    // ------------------------------------------------------------
-    { nullptr, 0, nullptr, 0, "Process options:", 2 },
+    { nullptr, 0, nullptr, 0, "Process options:", 1 },
     { "parallel", 'p', "INT", 0, "use INT threads (when possible)", 0 },
-    { "timer", 't', nullptr, 0,
-      "time the different phases of the execution", 0 },
     { "twa", 'a', nullptr, 0, "determinize using twa algo", 0},
     { "twa_opt", 'A', nullptr, 0, "determinize using twa optimized algo", 0},
     { "twacube", 'c', nullptr, 0, "determinize using twacube algo", 0},
     // ------------------------------------------------------------
-    { nullptr, 0, nullptr, 0, "Output options:", 3 },
+    { nullptr, 0, nullptr, 0, "Output options:", 2 },
     { "wanted", 'w', "INT", 0, "number of auts to bench", 0 },
     { "min", 'm', "INT", 0, "min det time in seconds", 0 },
     { "max-states", 's', "INT", 0, "max num of states before abort", 0 },
     // ------------------------------------------------------------
 
-    { nullptr, 0, nullptr, 0, "General options:", 4 },
+    { nullptr, 0, nullptr, 0, "General options:", 3 },
     { nullptr, 0, nullptr, 0, nullptr, 0 }
   };
 
