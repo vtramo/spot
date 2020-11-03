@@ -20,8 +20,11 @@
 #pragma once
 
 #include <iosfwd>
+#include <string>
 #include <spot/misc/common.hh>
 #include <spot/twa/fwd.hh>
+
+class bdd;
 
 namespace spot
 {
@@ -53,4 +56,22 @@ namespace spot
   SPOT_API std::ostream&
   print_aiger(std::ostream& os, const const_twa_ptr& aut,
               const char* mode);
+
+  /// \brief Same as print_aiger but returns the aig as a string
+  SPOT_API std::string
+  get_aiger_string(const const_twa_ptr& aut,  const char* mode);
+
+  /// \brief Restores the form needed by pring_aiger
+  ///
+  ///        The translation to aiger relies on all edge conditions
+  ///        having the form (in)&(out) where in is a bdd in which only inputs
+  ///        appear and out is a bdd in which only outputs appear.
+  ///        This function will split edges having general conditions
+  ///        into multiple edges having this form
+  /// \param aut        twa_graph to be modified
+  /// \param all_outputs Conjunction of all outputs
+  /// \Note: All AP NOT appearing in outs are considered ins
+  SPOT_API void
+  restore_form(const twa_graph_ptr& aut, bdd all_outputs);
+
 }

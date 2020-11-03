@@ -50,6 +50,7 @@
 #include <spot/twaalgos/synthesis.hh>
 #include <spot/twaalgos/toparity.hh>
 #include <spot/twaalgos/hoa.hh>
+#include <spot/twaalgos/minimize.hh>
 
 enum
 {
@@ -136,6 +137,7 @@ static const char* opt_print_hoa_args = nullptr;
 static bool opt_real = false;
 static const char* opt_print_aiger = nullptr;
 static spot::option_map extra_options;
+static bool do_mini_mon;
 
 static double trans_time = 0.0;
 static double split_time = 0.0;
@@ -492,13 +494,25 @@ namespace
               if (want_time)
                 strat2aut_time = sw.stop();
 
+              // Test minimizing
+              spot::twa_graph_ptr final_aut;
+              if (do_mini_mon)
+                {
+                  final_aut = spot::minimize_monitor(strat_aut);
+                  spot::restore_form(final_aut, all_outputs);
+                  final_aut->set_named_prop("synthesis-outputs",
+                                            new bdd(all_outputs));
+
+                }
+              else
+                final_aut = strat_aut;
               // output the winning strategy
               if (opt_print_aiger)
-                spot::print_aiger(std::cout, strat_aut, opt_print_aiger);
+                spot::print_aiger(std::cout, final_aut, opt_print_aiger);
               else
                 {
                   automaton_printer printer;
-                  printer.print(strat_aut, timer);
+                  printer.print(final_aut, timer);
                 }
             }
           return 0;
@@ -597,6 +611,7 @@ main(int argc, char **argv)
                         argp_program_doc, children, nullptr, nullptr };
       if (int err = argp_parse(&ap, argc, argv, ARGP_NO_HELP, nullptr, nullptr))
         exit(err);
+      do_mini_mon = extra_options.get("do_mini", 0);
       check_no_formula();
 
       // Setup the dictionary now, so that BuDDy's initialization is

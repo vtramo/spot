@@ -110,6 +110,7 @@
 #include <spot/twa/twaproduct.hh>
 
 #include <spot/twaalgos/alternation.hh>
+#include <spot/twaalgos/aiger.hh>
 #include <spot/twaalgos/cleanacc.hh>
 #include <spot/twaalgos/degen.hh>
 #include <spot/twaalgos/dot.hh>
@@ -615,6 +616,7 @@ def state_is_accepting(self, src) -> "bool":
 // Should come after the definition of twa_graph
 
 %include <spot/twaalgos/alternation.hh>
+%include <spot/twaalgos/aiger.hh>
 %include <spot/twaalgos/cleanacc.hh>
 %include <spot/twaalgos/degen.hh>
 %include <spot/twaalgos/dot.hh>
