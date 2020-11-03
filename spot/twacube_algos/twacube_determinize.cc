@@ -541,7 +541,6 @@ namespace spot
                        moodycamel::ConcurrentQueue<safra_state_pair>& todo,
                        const std::vector<cube_support>& supports,
                        unsigned& sets,
-                       std::mutex& todo_mut,
                        std::atomic<unsigned>& active_threads,
                        std::atomic<bool>& stop)
       : aut_(aut)
@@ -551,7 +550,6 @@ namespace spot
       , todo_(todo)
       , supports_(supports)
       , sets_(sets)
-      , todo_mut_(todo_mut)
       , active_threads_(active_threads)
       , stop_(stop)
     {}
@@ -667,7 +665,6 @@ namespace spot
     moodycamel::ConcurrentQueue<safra_state_pair>& todo_;
     const std::vector<cube_support>& supports_;
     unsigned& sets_;
-    std::mutex& todo_mut_;
     std::atomic<unsigned>& active_threads_;
     std::atomic<bool>& stop_;
   };
@@ -740,7 +737,6 @@ namespace spot
     std::vector<std::thread> threads;
     std::vector<determinize_thread> det_threads;
     det_threads.reserve(nb_threads);
-    std::mutex todo_mut;
     std::atomic<unsigned> active_threads = nb_threads;
     std::atomic<bool> stop = false;
     for (size_t i = 0; i < nb_threads; ++i)
@@ -752,7 +748,6 @@ namespace spot
                                  todo,
                                  supports,
                                  sets[i],
-                                 todo_mut,
                                  active_threads,
                                  stop);
         threads.push_back(std::thread(&determinize_thread::run, &det_threads[i]));
