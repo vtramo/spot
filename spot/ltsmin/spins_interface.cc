@@ -198,7 +198,9 @@ namespace spot
         std::unordered_map<std::string, int> tmp;
         int enum_count = get_type_value_count(type_id);
         for (int j = 0; j < enum_count; ++j)
-          tmp[get_type_value_name(type_id, j)] = j;
+          {
+            tmp[get_type_value_name(type_id, j)] = j;
+          }
         matcher_typeid_index[i] = tmp;
       }
 
@@ -277,15 +279,10 @@ namespace spot
                                                    last_letter-first_letter);
                 auto search_pn = matcher_var_index.find(proc_name);
 
-                if (search_pn == matcher_var_index.end())
-                  error(proc_name + ": unknown variable \n");
-
-                // remember index corresponding to this proc name
-                unsigned proc_index = search_pn-> second;
-
                 // skip the '.'  and search for the state name
                 ++pos;
-                if (pos == str.size() || !isalpha(str[pos]))
+                if (pos == str.size() || !(isalpha(str[pos]) ||
+                                           str[pos] == '_'))
                   error("State name must start with a letter "
                         "and cannot be empty\n");
 
@@ -294,6 +291,25 @@ namespace spot
                 // Check wether this is a valid state name
                 std::string state_name = str.substr(last_letter+1,
                                                     pos-1-last_letter);
+
+                if (search_pn == matcher_var_index.end())
+                  {
+                    // May be a variable of a process
+                    std::string tmpname = proc_name + '.' + state_name;
+                    auto search_vn = matcher_var_index.find(tmpname);
+                    if (search_vn == matcher_var_index.end())
+                      error(tmpname + ": unknown variable \n");
+
+                    new_ap += str.substr(last_pos, first_letter-last_pos)
+                      + "s[" + std::to_string(search_vn->second) + "]";
+
+                    last_pos = pos;
+                    next_stable();
+                    continue;
+                  }
+
+                // remember index corresponding to this proc name
+                unsigned proc_index = search_pn-> second;
 
                 auto search_sn =
                   matcher_typeid_index[proc_index].find(state_name);
@@ -310,16 +326,17 @@ namespace spot
                   }
                 else
                   {
-                    // May be a variable of a process
                     std::string tmpname = proc_name + '.' + state_name;
-                    search_pn = matcher_var_index.find(tmpname);
-                    if (search_pn == matcher_var_index.end())
+                    auto search_vn = matcher_var_index.find(tmpname);
+                    if (search_vn == matcher_var_index.end())
                       error(tmpname + ": unknown variable \n");
 
                     new_ap += str.substr(last_pos, first_letter-last_pos)
-                      + "s[" + std::to_string(search_pn->second) + "]";
+                      + "s[" + std::to_string(search_vn->second) + "]";
+
                     last_pos = pos;
                     next_stable();
+                    continue;
                   }
               }
             else // (2) and  (3)
@@ -354,12 +371,6 @@ namespace spot
                   }
                 else
                   {
-                    std::string proc_name =
-                      str.substr(first_letter, last_letter-first_letter);
-                    auto search_pn = matcher_var_index.find(proc_name);
-                    if (search_pn == matcher_var_index.end())
-                      error(proc_name + ": unknown variable \n");
-
                     // remember index corresponding to this proc name
                     unsigned proc_index = search_pn-> second;
                     if (tmppos+1 < str.size() && str[tmppos+1] == '=')
@@ -398,6 +409,22 @@ namespace spot
                             else
                               error(state_name + ": unrecognized for " +
                                     proc_name + '\n');
+                          }
+                        else
+                          {
+                            // May be a variable
+                            auto search_vn = matcher_var_index.find(proc_name);
+                            if (search_vn == matcher_var_index.end())
+                              error(proc_name + ": unknown variable \n");
+
+                            new_ap += str.substr(last_pos,
+                                                 first_letter-last_pos)
+                              + "s[" + std::to_string(search_vn->second)
+                              + "] ==";
+
+                            last_pos = pos;
+                            next_stable();
+                            continue;
                           }
                       }
                     else
