@@ -541,8 +541,8 @@ namespace spot
                        moodycamel::ConcurrentQueue<safra_state_pair>& todo,
                        const std::vector<cube_support>& supports,
                        unsigned& sets,
-                       std::atomic<unsigned>& active_threads,
-                       std::atomic<bool>& stop)
+                       std::atomic<size_t>& processed,
+                       std::atomic<size_t>& nb_job)
       : aut_(aut)
       , res_(res)
       , id_(id)
@@ -550,8 +550,8 @@ namespace spot
       , todo_(todo)
       , supports_(supports)
       , sets_(sets)
-      , active_threads_(active_threads)
-      , stop_(stop)
+      , processed_(processed)
+      , nb_job_(nb_job)
     {}
 
     void run()
@@ -576,6 +576,7 @@ namespace spot
         auto it = seen_.insert(p);
         if (it.isnew()) // state already in map, need to recycle dst_num
           {
+            nb_job_++;
             reserved_state_id = std::nullopt;
             todo_.enqueue(*it);
           }
@@ -588,49 +589,29 @@ namespace spot
 
       compute_succs succs(aut_);
 
-      bool active = true;
-
       // core algorithm
       //
       // for every safra state,
       //     for each possible safra successor,
       //         compute successor emitted color
       //         create transition in res automaton, with color
-      while (!stop_.load(std::memory_order_relaxed))
+      while (true)
         {
+          size_t p = processed_;
+          size_t n = nb_job_;
+          if (p == n)
+            break;
           safra_state curr;
           unsigned src_num;
 
-          safra_state_pair p;
-          bool found = todo_.try_dequeue(p);
+          safra_state_pair pair;
+          bool found = todo_.try_dequeue(pair);
 
-          if (found)
-            {
-              if (!active)
-                {
-                  active = true;
-                  active_threads_++;
-                }
+          if (!found)
+            continue;
 
-              curr = p.st;
-              src_num = p.id;
-            }
-          else
-            {
-              if (active)
-                {
-                  active_threads_--;
-                  active = false;
-                }
-
-              if (active_threads_ == 0)
-                {
-                  stop_ = true;
-                  break;
-                }
-
-              continue;
-            }
+          curr = pair.st;
+          src_num = pair.id;
 
           const auto letters = get_letters(curr, supports_, cs);
 
@@ -654,6 +635,8 @@ namespace spot
                   res_->async_create_transition({src_num, dst_num, s.cond(), {}}, id_);
                 }
             }
+
+          processed_++;
         }
     }
 
@@ -665,8 +648,8 @@ namespace spot
     moodycamel::ConcurrentQueue<safra_state_pair>& todo_;
     const std::vector<cube_support>& supports_;
     unsigned& sets_;
-    std::atomic<unsigned>& active_threads_;
-    std::atomic<bool>& stop_;
+    std::atomic<size_t>& processed_;
+    std::atomic<size_t>& nb_job_;
   };
 
   twacube_ptr
@@ -737,8 +720,8 @@ namespace spot
     std::vector<std::thread> threads;
     std::vector<determinize_thread> det_threads;
     det_threads.reserve(nb_threads);
-    std::atomic<unsigned> active_threads = nb_threads;
-    std::atomic<bool> stop = false;
+    std::atomic<size_t> processed = 0;
+    std::atomic<size_t> nb_job = 1;
     for (size_t i = 0; i < nb_threads; ++i)
       {
         det_threads.emplace_back(aut,
@@ -748,8 +731,8 @@ namespace spot
                                  todo,
                                  supports,
                                  sets[i],
-                                 active_threads,
-                                 stop);
+                                 processed,
+                                 nb_job);
         threads.push_back(std::thread(&determinize_thread::run, &det_threads[i]));
       }
 
