@@ -138,6 +138,7 @@ static bool opt_real = false;
 static const char* opt_print_aiger = nullptr;
 static spot::option_map extra_options;
 static bool do_mini_mon;
+static int out_selec_heu;
 
 static double trans_time = 0.0;
 static double split_time = 0.0;
@@ -494,6 +495,10 @@ namespace
               if (want_time)
                 strat2aut_time = sw.stop();
 
+              // Use choice in outs
+              if (out_selec_heu >= 0)
+                spot::make_out_unique_here(strat_aut, all_inputs,
+                                           all_outputs, out_selec_heu);
               // Test minimizing
               spot::twa_graph_ptr final_aut;
               if (do_mini_mon)
@@ -612,6 +617,7 @@ main(int argc, char **argv)
       if (int err = argp_parse(&ap, argc, argv, ARGP_NO_HELP, nullptr, nullptr))
         exit(err);
       do_mini_mon = extra_options.get("do_mini", 0);
+      out_selec_heu = extra_options.get("out_selec_heu", 0);
       check_no_formula();
 
       // Setup the dictionary now, so that BuDDy's initialization is

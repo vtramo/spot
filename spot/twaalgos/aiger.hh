@@ -68,10 +68,22 @@ namespace spot
   ///        appear and out is a bdd in which only outputs appear.
   ///        This function will split edges having general conditions
   ///        into multiple edges having this form
-  /// \param aut        twa_graph to be modified
+  /// \param aut         twa_graph to be modified
   /// \param all_outputs Conjunction of all outputs
-  /// \Note: All AP NOT appearing in outs are considered ins
+  /// \Note: All AP NOT  appearing in outs are considered ins
   SPOT_API void
   restore_form(const twa_graph_ptr& aut, bdd all_outputs);
 
+  /// \brief Choses a minterm in output for each edge based on heuristics
+  ///
+  /// \param aut         twa_graph to be modified
+  /// \param all_outputs Conjunction of all outputs
+  /// \param mode        Selects the heuristic
+  ///                    0: No optimization, take first out-minterm
+  ///                    1: Use the minterm with fewest highs
+  ///                    TBD
+  /// \Note As for print_aiger edge conditions have to be of the form (in)&(out)
+  SPOT_API void
+  make_out_unique_here(const twa_graph_ptr& aut, const bdd& all_inputs,
+                       const bdd& all_outputs, int mode = 0);
 }

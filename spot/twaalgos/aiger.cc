@@ -443,37 +443,36 @@ namespace spot
 
     // Takes a product and returns the
     // number of highs
-    inline unsigned count_high(bdd b)
+    inline std::pair<unsigned, unsigned> count(bdd b)
     {
-      unsigned high=0;
+      unsigned high = 0;
+      unsigned low = 0;
       while (b != bddtrue)
         {
           if (bdd_low(b) == bddfalse)
             {
+              assert(bdd_low(b) == bddfalse);
               ++high;
               b = bdd_high(b);
             }
           else
             {
               assert(bdd_high(b) == bddfalse);
+              ++low;
               b = bdd_low(b);
             }
         }
-      return high;
+      return std::make_pair(low, high);
     }
 
     // Heuristic to minimize the number of gates
     // in the resulting aiger
     // the idea is to take the (valid) output with the
-    // least "highs" for each transition.
-    // Another idea is to chose conditions such that transitions
-    // can share output conditions. Problem this is a combinatorial
-    // problem and suboptimal solutions that can be computed in
-    // reasonable time have proven to be not as good
-    // Stores the outcondition to use in the used_outc vector
-    // for each transition in aut
-    std::vector<bdd> maxlow_outc(const const_twa_graph_ptr& aut,
-                                 const bdd& all_inputs)
+    // least or most "highs" for each transition.
+    std::vector<bdd> pol_outc(const const_twa_graph_ptr& aut,
+                                 const bdd& all_inputs,
+                                 const bdd& all_outputs,
+                                 bool min_high)
     {
       std::vector<bdd> used_outc(aut->num_edges()+1, bddfalse);
 
@@ -484,21 +483,30 @@ namespace spot
           bdd bout = bdd_exist(e.cond, all_inputs);
           assert(((bout & bdd_existcomp(e.cond, all_inputs)) == e.cond) &&
                  "Precondition (in) & (out) == cond violated");
-          unsigned n_high=-1u;
+          unsigned n_pol=-1u;
           while (bout != bddfalse)
             {
               bdd nextsat = bdd_satone(bout);
               bout -= nextsat;
-              unsigned next_high = count_high(nextsat);
-              if (next_high<n_high)
+              unsigned next_pol = min_high ? count(nextsat).second
+                                           : count(nextsat).first;
+              if (next_pol<n_pol)
                 {
-                  n_high = next_high;
+                  n_pol = next_pol;
                   used_outc[idx] = nextsat;
                 }
             }
           assert(used_outc[idx] != bddfalse);
         }
       //Done
+      // todo check if this is better
+      // Set all undefined AP to false/true depending on min_high
+      // todo why is true and false a different type?
+      bdd pol = min_high ? (bdd)bddfalse : (bdd)bddtrue;
+      for (unsigned i = 1; i < used_outc.size(); ++i)
+        used_outc[i] = bdd_satoneset(used_outc[i], all_outputs, pol);
+//      for (const auto& b : used_outc)
+//        std::cout << b << std::endl;
       return used_outc;
     }
 
@@ -544,7 +552,9 @@ namespace spot
       // however we need the edge to be deterministic in out too
       // So we need determinism and we also want the resulting aiger
       // to have as few gates as possible
-      std::vector<bdd> used_outc = maxlow_outc(aut, all_inputs);
+      std::vector<bdd> used_outc = pol_outc(aut, all_inputs,
+                                               all_outputs,
+                                               true);
 
       // Encode state in log2(num_states) latches.
       unsigned log2n = std::ceil(std::log2(aut->num_states()));
@@ -768,6 +778,54 @@ namespace spot
           aut->new_edge(e.src, e.dst, it->first & it->second, e.acc);
       }
     // Done
+  }
+
+  // todo:
+  // We should streamline unsplit/print_aiger because there is a lot
+  // of repeated work
+  void make_out_unique_here(const twa_graph_ptr& aut,
+                            const bdd& all_inputs, const bdd& all_outputs,
+                            int mode)
+  {
+    std::vector<bdd> used_outc;
+    switch (mode)
+    {
+      case (0):
+        {
+          used_outc.resize(aut->num_edges()+1);
+          for (unsigned i = 1; i <= aut->num_edges(); ++i)
+            {
+              auto& e = aut->edge_storage(i);
+              bdd bout = bdd_exist(e.cond, all_inputs);
+              assert(((bout & bdd_existcomp(e.cond, all_inputs)) == e.cond) &&
+                     "Precondition (in) & (out) == cond violated");
+              used_outc[i] = bdd_satoneset(bout, all_outputs, bddfalse);
+            }
+          break;
+        }
+      case (1):
+        {
+          used_outc = pol_outc(aut, all_inputs, all_outputs, true);
+          break;
+        }
+      case (2):
+      {
+        used_outc = pol_outc(aut, all_inputs, all_outputs, false);
+        break;
+      }
+      default:
+        throw std::runtime_error("Unknown heuristic for "
+                                 "choosing unambiguous out");
+    }
+    // Replace the condition of each edge with
+    // (in) & (used_outc[i])
+    for (unsigned i = 1; i <= aut->num_edges(); ++i)
+      {
+        auto& e = aut->edge_storage(i);
+        // Get the cond in ins
+        // and AND-it with the new out
+        e.cond = bdd_exist(e.cond, all_outputs) & used_outc[i];
+      }
   }
 
 }
