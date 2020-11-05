@@ -176,6 +176,7 @@ namespace spot
     if (have_property && have_property())
       throw std::runtime_error("Models with embedded properties "
                                "are not supported.");
+    compute_handle = nullptr;
   }
 
   // FIXME : the use of a trie may simplify the following computation
