@@ -296,7 +296,8 @@ namespace spot
         }
 
       const_cast<spot::spins_interface*>(d.get())
-        ->generate_compute_aps(props, dead.ap_name());
+        ->generate_compute_aps(props, (dead.is_tt() || dead.is_ff()?
+				       "" : dead.ap_name()));
 
       return bdd_indexes;
     }
