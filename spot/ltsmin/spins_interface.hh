@@ -63,7 +63,8 @@ namespace spot
     const char* (*get_type_value_name)(int type, int value);
 
 
-    void generate_compute_aps(std::vector<std::string>);
+    void generate_compute_aps(std::vector<std::string>,
+                              std::string dead);
 
     // This function is generated once and computes aps for a given
     // state

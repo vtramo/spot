@@ -216,7 +216,8 @@ namespace spot
           }
       }
 
-    const_cast<spot::spins_interface*>(d_)->generate_compute_aps(aps_);
+    const_cast<spot::spins_interface*>(d_)
+      ->generate_compute_aps(aps_, dead_prop);
   }
 
   kripkecube<cspins_state, cspins_iterator>::~kripkecube()

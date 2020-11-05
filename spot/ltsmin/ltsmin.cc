@@ -303,18 +303,21 @@ namespace spot
     {
       std::vector<std::string> props;
       std::vector<int> bdd_indexes;
+
       for (atomic_prop_set::const_iterator ap = aps->begin();
            ap != aps->end(); ++ap)
         {
+          if (*ap == dead)
+            continue;
+
           int v = dict->register_proposition(*ap, d.get());
           bdd_indexes.emplace_back(v);
           props.emplace_back(ap->ap_name());
         }
 
       const_cast<spot::spins_interface*>(d.get())
-        ->generate_compute_aps(props);
+        ->generate_compute_aps(props, dead.ap_name());
 
-      (void) dead; // FIXME
       return bdd_indexes;
     }
 

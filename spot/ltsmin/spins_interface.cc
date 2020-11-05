@@ -179,7 +179,8 @@ namespace spot
   }
 
   // FIXME : the use of a trie may simplify the following computation
-  void spins_interface::generate_compute_aps(std::vector<std::string> aps)
+  void spins_interface::generate_compute_aps(std::vector<std::string> aps,
+                                             std::string dead)
   {
     unsigned state_size = get_state_size();
 
@@ -209,6 +210,9 @@ namespace spot
     // Build new aps by matching variables positions inside of state structure
     for (auto str: aps)
       {
+        if (str.compare(dead) == 0)
+          continue;
+
         unsigned pos = 0;
         unsigned last_letter, first_letter, last_pos = 0;
         std::string new_ap;
