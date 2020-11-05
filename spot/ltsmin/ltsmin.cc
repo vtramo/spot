@@ -275,26 +275,6 @@ namespace spot
     ////////////////////////////////////////////////////////////////////////
     // PREDICATE EVALUATION
 
-    typedef enum { OP_EQ, OP_NE, OP_LT, OP_GT, OP_LE, OP_GE } relop;
-
-    struct one_prop
-    {
-      int var_num;
-      relop op;
-      int val;
-      int bddvar;  // if "var_num op val" is true, output bddvar,
-                   // else its negation
-    };
-    typedef std::vector<one_prop> prop_set;
-
-
-    struct var_info
-    {
-      int num;
-      int type;
-    };
-
-
     std::vector<int>
     convert_aps(const atomic_prop_set* aps,
                 spins_interface_ptr d,
