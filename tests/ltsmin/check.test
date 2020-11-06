@@ -74,9 +74,7 @@ grep 'Cannot open' stderr
 run 2 ../modelcheck --model beem-peterson.4.dve2C \
     --formula  'Xfoo | P_0.f & X"P_0.k < 2xx" | G"pos[0]"' 2>stderr
 cat stderr
-grep 'No variable' stderr
-grep 'No state' stderr
-grep 'Unexpected' stderr
+grep 'unknown variable' stderr
 
 # Test parallel algorithms
 

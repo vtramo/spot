@@ -257,8 +257,7 @@ namespace spot
         // lookup function to find the eand of a variable
         auto error = [](std::string err)
         {
-          std::cerr << err;
-          exit(1);
+          throw std::runtime_error(err);
         };
 
         // Main loop
