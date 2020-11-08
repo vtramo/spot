@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2016, 2019 Laboratoire de Recherche et Développement de l'Epita
-# (LRDE).
+# Copyright (C) 2016, 2019-2020 Laboratoire de Recherche et
+# Développement de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
 #
@@ -16,6 +16,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# This file is named "aux_.py" for compatibility with Windows'
+# historical limitations, but should really be imported as "spot.aux".
 
 """
 Auxiliary functions for Spot's Python bindings

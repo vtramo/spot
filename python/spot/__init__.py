@@ -47,6 +47,12 @@ for path in sys.path:
 
 
 from spot.impl import *
+# spot.aux_ used to be called spot.aux until the filename aux.py
+# caused issues on Windows.  So the file is now named aux_.py, but we
+# still want to import it as spot.aux, hence we add it to spot.modules
+# as an alias.
+import spot.aux_ as aux
+sys.modules['spot.aux'] = aux
 from spot.aux import \
      extend as _extend, \
      str_to_svg as _str_to_svg, \

@@ -1,6 +1,10 @@
 New in spot 2.9.4.dev  (not yet released)
 
-  Nothing yet.
+  Bugs fixed:
+
+  - The filename python/spot/aux.py caused a problem on Windows and
+    has been renamed.  Existing "import spot.aux" statements should
+    *not* be updated.  (Issue #437.)
 
 New in spot 2.9.4 (2020-09-07)
 
