@@ -2,9 +2,18 @@ New in spot 2.9.4.dev  (not yet released)
 
   Bugs fixed:
 
+  - Fix multiple spurious test suite failures on Darwin
+    (Issues #426, #427, #428, #429) or when the
+    Pandas package was not installed.
+
   - The filename python/spot/aux.py caused a problem on Windows and
     has been renamed.  Existing "import spot.aux" statements should
-    *not* be updated.  (Issue #437.)
+    *not* be updated.  (Issue #437)
+
+  - Fix memory leak in minimize_wdba() when determinization is aborted
+    because an output_aborter is passed.
+
+  - Distribution contains unnecessary large SVG files (Issue #422)
 
 New in spot 2.9.4 (2020-09-07)
 
