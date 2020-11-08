@@ -147,6 +147,12 @@ New in spot 2.9.4.dev  (not yet released)
   - Bindings for functions related to parity games.
     See https://spot.lrde.epita.fr/ipynb/paritygame.html for examples.
 
+  Bugs fixed:
+
+  - The filename python/spot/aux.py caused a problem on Windows and
+    has been renamed.  Existing "import spot.aux" statements should
+    *not* be updated.  (Issue #437.)
+
 New in spot 2.9.4 (2020-09-07)
 
   Bugs fixed:

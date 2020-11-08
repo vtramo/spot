@@ -30,7 +30,7 @@ SWIGFLAGS = -c++ -python -py3 -O -MD
 EXTRA_DIST = buddy.i spot/impl.i spot/ltsmin.i spot/gen.i
 nobase_pyexec_PYTHON = \
   spot/__init__.py \
-  spot/aux.py \
+  spot/aux_.py \
   spot/impl.py \
   spot/ltsmin.py \
   spot/gen.py \
