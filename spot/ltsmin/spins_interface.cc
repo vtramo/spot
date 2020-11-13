@@ -98,15 +98,22 @@ namespace spot
     }
   }
 
+  // predeclare to avoid -Werror=missing-declaration.
+  // these functions are pure locals.
+  int default_get_state_label_count ();
+  const char * default_get_state_label_name (int index);
+  int default_eval_state_label (int label, const int * state);
+
+
   int default_get_state_label_count ()
   {
 	  return 0;
   }
-  const char * default_get_state_label_name (int index)
+  const char * default_get_state_label_name (int)
     {
   	  return nullptr;
     }
-  int default_eval_state_label (int label, const int * state) {
+  int default_eval_state_label (int, const int *) {
 	  return 0;
   }
 
