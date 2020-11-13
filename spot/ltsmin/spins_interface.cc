@@ -195,10 +195,11 @@ namespace spot
         sym(&get_type_value_name, "get_state_variable_type_value");
       }
 
-    // both, though only files coming from ITSTools will get non defaults currently.
-    sym_or_default(&get_state_label_count, "get_state_label_count", 
+    // both, though only files coming from ITSTools 
+    // will get non defaults currently.
+    sym_or_default(&get_state_label_count, "get_state_label_count",
                    default_get_state_label_count);
-    sym_or_default(&get_state_label_name, "get_state_label_name", 
+    sym_or_default(&get_state_label_name, "get_state_label_name",
                    default_get_state_label_name);
     sym_or_default(&eval_state_label, "eval_state_label",
                    default_eval_state_label);
