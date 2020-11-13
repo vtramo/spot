@@ -725,8 +725,8 @@ namespace spot
             switch (i.op)
               {
               case STATE_LABEL:
-			    cond = d_->eval_state_label(i.var_num,vars);
-			    break;
+                cond = d_->eval_state_label(i.var_num,vars);
+                break;
               case OP_EQ:
                 cond = (l == r);
                 break;
