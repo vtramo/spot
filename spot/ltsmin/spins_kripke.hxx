@@ -334,7 +334,7 @@ namespace spot
         switch (ap.op)
           {
           case relop::STATE_LABEL:
-        	cond = d_->eval_state_label(ap.lval, vars);
+            cond = d_->eval_state_label(ap.lval, vars);
         	break;
           case relop::OP_EQ_VAR:
             cond = (ap.lval == vars[ap.rval]);
