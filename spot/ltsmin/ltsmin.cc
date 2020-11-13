@@ -275,7 +275,8 @@ namespace spot
     ////////////////////////////////////////////////////////////////////////
     // PREDICATE EVALUATION
 
-    typedef enum { STATE_LABEL, OP_EQ, OP_NE, OP_LT, OP_GT, OP_LE, OP_GE } relop;
+    typedef enum 
+      { STATE_LABEL, OP_EQ, OP_NE, OP_LT, OP_GT, OP_LE, OP_GE } relop;
 
     struct one_prop
     {
