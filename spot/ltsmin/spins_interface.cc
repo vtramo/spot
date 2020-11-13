@@ -158,11 +158,11 @@ namespace spot
       };
 
     auto sym_or_default = [&] (auto * dst, const char *name, auto * def)
-		{
+      {
         *reinterpret_cast<void**>(dst) = lt_dlsym(h, name);
         if (*dst == nullptr)
-        	*dst = def;
-		};
+          *dst = def;
+      };
 
     int (*have_property)();
     // SpinS interface.
