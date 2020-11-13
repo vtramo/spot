@@ -322,7 +322,7 @@ namespace spot
       std::unordered_map<std::string, int> labmatcher;
       for (int i = 0; i < lab_count; ++i)
       {
-      	labmatcher[d->get_state_label_name(i)] = i;
+        labmatcher[d->get_state_label_name(i)] = i;
       }
 
       int type_count = d->get_type_count();
@@ -348,11 +348,11 @@ namespace spot
           // Look first if it a state label
           auto itl = labmatcher.find(str);
           if (itl != labmatcher.end()) {
-          	// found it
-        	int v = dict->register_proposition(*ap, d);
-        	one_prop p = {itl->second , STATE_LABEL, 0, v};
-        	out.emplace_back(p);
-          	continue;
+            // found it
+            int v = dict->register_proposition(*ap, d);
+            one_prop p = {itl->second , STATE_LABEL, 0, v};
+            out.emplace_back(p);
+            continue;
           }
           const char* s = str.c_str();
 
