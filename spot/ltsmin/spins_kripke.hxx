@@ -335,7 +335,7 @@ namespace spot
           {
           case relop::STATE_LABEL:
             cond = d_->eval_state_label(ap.lval, vars);
-        	break;
+            break;
           case relop::OP_EQ_VAR:
             cond = (ap.lval == vars[ap.rval]);
             break;
@@ -440,7 +440,7 @@ namespace spot
     std::unordered_map<std::string, int> labmatcher;
     for (int i = 0; i < lab_count; ++i)
     {
-    	labmatcher[d_->get_state_label_name(i)] = i;
+      labmatcher[d_->get_state_label_name(i)] = i;
     }
 
     int i  = -1;
@@ -466,9 +466,9 @@ namespace spot
         // Look first if it a state label
         auto itl = labmatcher.find(ap);
         if (itl != labmatcher.end()) {
-        	// found it
-        	pset_.push_back({itl->second , relop::STATE_LABEL, 0});
-        	continue;
+          // found it
+          pset_.push_back({itl->second , relop::STATE_LABEL, 0});
+          continue;
         }
 
         // Look if it is a well known atomic proposition
