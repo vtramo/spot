@@ -124,8 +124,6 @@ checked_main()
 
   auto parser = spot::automaton_stream_parser("/dev/stdin");
 
-  std::cout << "nb_threads: " << mc_options.nb_threads << std::endl;
-
   std::cout << "formula,"
             << "walltime"
             << std::endl;
