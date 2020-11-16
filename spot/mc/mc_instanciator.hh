@@ -79,7 +79,7 @@ namespace spot
 
   template<typename algo_name, typename kripke_ptr, typename State,
            typename Iterator, typename Hash, typename Equal>
-  static ec_stats instanciate(kripke_ptr sys,
+  static SPOT_API ec_stats instanciate(kripke_ptr sys,
                               spot::twacube_ptr prop = nullptr,
                               bool trace = false)
   {
@@ -202,9 +202,10 @@ namespace spot
 
   template<typename kripke_ptr, typename State,
            typename Iterator, typename Hash, typename Equal>
-  static ec_stats ec_instanciator(const mc_algorithm algo, kripke_ptr sys,
-                                  spot::twacube_ptr prop = nullptr,
-                                  bool trace = false)
+  static SPOT_API ec_stats ec_instanciator(const mc_algorithm algo,
+                                           kripke_ptr sys,
+                                           spot::twacube_ptr prop = nullptr,
+                                           bool trace = false)
   {
     if (algo == mc_algorithm::BLOEMEN_EC || algo == mc_algorithm::CNDFS ||
         algo == mc_algorithm::SWARMING)
