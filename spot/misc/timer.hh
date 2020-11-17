@@ -45,7 +45,7 @@ namespace spot
   struct stopwatch
   {
   protected:
-    typedef std::chrono::high_resolution_clock clock;
+    typedef std::chrono::steady_clock clock;
     clock::time_point start_;
   public:
     /// Marks the start if the measurement
@@ -96,7 +96,7 @@ namespace spot
     {
       SPOT_ASSERT(!running);
       running = true;
-      wall_start_ = std::chrono::high_resolution_clock::now();
+      wall_start_ = std::chrono::steady_clock::now();
 #ifdef SPOT_HAVE_TIMES
       struct tms tmp;
       times(&tmp);
@@ -113,8 +113,8 @@ namespace spot
     void
     stop()
     {
-      auto end = std::chrono::high_resolution_clock::now();
-      wall_cumul_ = std::chrono::duration_cast
+      auto end = std::chrono::steady_clock::now();
+      wall_cumul_ += std::chrono::duration_cast
         <std::chrono::milliseconds>(end - wall_start_).count();
 #ifdef SPOT_HAVE_TIMES
       struct tms tmp;
@@ -213,8 +213,8 @@ namespace spot
     time_info start_;
     time_info total_;
     bool running;
-    std::chrono::high_resolution_clock::time_point wall_start_;
-    std::chrono::milliseconds::rep wall_cumul_;
+    std::chrono::steady_clock::time_point wall_start_;
+    std::chrono::milliseconds::rep wall_cumul_ = 0;
   };
 
   // This function declared here must be implemented in each file
