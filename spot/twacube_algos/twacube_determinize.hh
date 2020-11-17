@@ -19,13 +19,16 @@
 
 #pragma once
 
+#include <utility>
+
 #include <spot/misc/common.hh>
+#include <spot/misc/timer.hh>
 #include <spot/twacube/fwd.hh>
 #include <spot/twacube/twacube.hh>
 
 namespace spot
 {
   /// \brief Determinize a twacube
-  SPOT_API twacube_ptr
+  SPOT_API std::pair<twacube_ptr, std::vector<timer_map>>
   twacube_determinize(const twacube_ptr aut, size_t nb_threads);
 }

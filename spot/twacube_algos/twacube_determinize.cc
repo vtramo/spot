@@ -26,8 +26,10 @@
 #include <set>
 #include <thread>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
+#include <spot/misc/timer.hh>
 #include <spot/bricks/brick-hashset>
 #include <spot/twacube_algos/twacube_determinize.hh>
 #include <bddx.h>
@@ -472,18 +474,26 @@ namespace spot
     }
 
     std::vector<cube>
-    permutations(cube_support support_set, const cubeset& cs)
+    permutations(cube_support support_set, const cubeset& cs, timer_map& tm)
     {
+      tm.start("permutations");
       // switch set to vector, easier
       std::vector<size_t> support(support_set.begin(), support_set.end());
 
-      return cs.permutations(support);
+      tm.start("cs_permutations");
+
+      auto res = cs.permutations(support);
+
+      tm.stop("cs_permutations");
+      tm.stop("permutations");
+
+      return res;
     }
 
     // for a given powerset state, return all letters (atomic propositions) that
     // are involved in a transition from this state
     std::vector<cube>
-    get_letters(const safra_state& s, const std::vector<cube_support>& supports, const cubeset& cs)
+    get_letters(const safra_state& s, const std::vector<cube_support>& supports, const cubeset& cs, timer_map& tm)
     {
       cube_support safra_support;
 
@@ -496,7 +506,7 @@ namespace spot
         }
 
 
-      return permutations(safra_support, cs);
+      return permutations(safra_support, cs, tm);
     }
 
     struct safra_state_pair
@@ -542,7 +552,8 @@ namespace spot
                        const std::vector<cube_support>& supports,
                        unsigned& sets,
                        std::atomic<size_t>& processed,
-                       std::atomic<size_t>& nb_job)
+                       std::atomic<size_t>& nb_job,
+                       timer_map& tm)
       : aut_(aut)
       , res_(res)
       , id_(id)
@@ -552,6 +563,7 @@ namespace spot
       , sets_(sets)
       , processed_(processed)
       , nb_job_(nb_job)
+      , tm_(tm)
     {}
 
     void run()
@@ -613,7 +625,7 @@ namespace spot
           curr = pair.st;
           src_num = pair.id;
 
-          const auto letters = get_letters(curr, supports_, cs);
+          const auto letters = get_letters(curr, supports_, cs, tm_);
 
           succs.set(&curr, &letters);
 
@@ -650,9 +662,10 @@ namespace spot
     unsigned& sets_;
     std::atomic<size_t>& processed_;
     std::atomic<size_t>& nb_job_;
+    timer_map& tm_;
   };
 
-  twacube_ptr
+  std::pair<twacube_ptr, std::vector<timer_map>>
   twacube_determinize(const twacube_ptr aut, size_t nb_threads)
   {
     // TODO(am): check is_existential + is_universal before launching useless
@@ -722,6 +735,7 @@ namespace spot
     det_threads.reserve(nb_threads);
     std::atomic<size_t> processed = 0;
     std::atomic<size_t> nb_job = 1;
+    std::vector<timer_map> tms(nb_threads);
     for (size_t i = 0; i < nb_threads; ++i)
       {
         det_threads.emplace_back(aut,
@@ -732,7 +746,8 @@ namespace spot
                                  supports,
                                  sets[i],
                                  processed,
-                                 nb_job);
+                                 nb_job,
+                                 tms[i]);
         threads.push_back(std::thread(&determinize_thread::run, &det_threads[i]));
       }
 
@@ -756,6 +771,6 @@ namespace spot
     // TODO: optimization not implemented on twacube
     // cleanup_parity_here(res);
 
-    return res;
+    return { res, tms };
   }
 }

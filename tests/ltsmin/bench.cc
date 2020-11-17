@@ -161,13 +161,17 @@ checked_main()
         }
 
       spot::twacube_ptr cube_det_aut = nullptr;
+      std::optional<std::vector<spot::timer_map>> tm_permuts = std::nullopt;
 
       if (mc_options.twacube)
         {
           spot::twacube_ptr cube_aut = twa_to_twacube(aut);
           tm.start("determinize");
-          cube_det_aut = twacube_determinize(cube_aut, mc_options.nb_threads);
+          auto res = twacube_determinize(cube_aut, mc_options.nb_threads);
           tm.stop("determinize");
+
+          cube_det_aut = res.first;
+          tm_permuts = res.second;
 
           spot::const_twa_graph_ptr ref = spot::tgba_determinize(aut);
           if (!spot::are_equivalent(cube_det_aut, ref))
@@ -180,7 +184,39 @@ checked_main()
         {
           count++;
 
-          std::cout << formula << ',' << duration << std::endl;
+          std::cout << formula << ',' << duration;
+
+          if (tm_permuts)
+            {
+              std::vector<spot::timer_map>& tm_permuts_ = *tm_permuts;
+
+              auto sum_permuts = [](std::chrono::milliseconds::rep sum,
+                                    const spot::timer_map& tm)
+                {
+                  return sum + tm.timer("permutations").walltime();
+                };
+
+              auto sum_cs_permuts = [](std::chrono::milliseconds::rep sum,
+                                       const spot::timer_map& tm)
+                {
+                  return sum + tm.timer("cs_permutations").walltime();
+                };
+
+              std::chrono::milliseconds::rep permutations = std::accumulate(tm_permuts_.begin(),
+                                                                            tm_permuts_.end(),
+                                                                            0,
+                                                                            sum_permuts);
+
+              std::chrono::milliseconds::rep cs_permutations = std::accumulate(tm_permuts_.begin(),
+                                                                               tm_permuts_.end(),
+                                                                               0,
+                                                                               sum_cs_permuts);
+
+              std::cout << ',' << permutations
+                        << ',' << cs_permutations;
+            }
+
+          std::cout << std::endl;
 
           if (mc_options.wanted != 0 && count >= mc_options.wanted)
             return exit_code;
