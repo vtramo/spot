@@ -1,4 +1,4 @@
-New in spot 2.9.4.dev  (not yet released)
+New in spot 2.9.5 (2020-11-19)
 
   Bugs fixed:
 
@@ -13,7 +13,7 @@ New in spot 2.9.4.dev  (not yet released)
   - Fix memory leak in minimize_wdba() when determinization is aborted
     because an output_aborter is passed.
 
-  - Distribution contains unnecessary large SVG files (Issue #422)
+  - Distribution used to contain unnecessary large SVG files (Issue #422)
 
 New in spot 2.9.4 (2020-09-07)
 
