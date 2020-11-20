@@ -426,7 +426,7 @@ namespace spot
                               + "s[" + std::to_string(search_vn->second)
                               + "] ==";
 
-                            last_pos = pos;
+                            last_pos = tmppos +1;
                             next_stable();
                             continue;
                           }
