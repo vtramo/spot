@@ -306,7 +306,7 @@ namespace spot
     // 32th bit (i.e., the sign bit) of todo[x] indicates whether
     // states number x has been seen.
     std::vector<unsigned> todo(num_states, 0);
-    const unsigned seen = 1 << (sizeof(unsigned)*8-1);
+    const unsigned seen = 1U << (sizeof(unsigned)*8-1);
     const unsigned mask = seen - 1;
     unsigned todo_pos = 0;
     for (unsigned i: univ_dests(get_init_state_number()))
