@@ -19,7 +19,19 @@
 ## along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
+import os
+import copy
 from matplotlib import pyplot as plt
+
+def filter_features(features, names, excluded, filter, value):
+    f = copy.deepcopy(features)
+    excludedvalues = features[filter]
+    for e in excluded:
+        f.pop(e)
+    mask = (excludedvalues == value)
+    for feature in f:
+        f[feature] = f[feature][mask]
+    return f
 
 def scatter_plot(x, y, title='', xlabel='', ylabel='', axes=False):
     plt.title(title)
@@ -44,3 +56,16 @@ def basic_plot(x, y, title='', xlabel='', ylabel=''):
     plt.title(title)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
+
+def generate_time_scatter_plot(features, names, foldername, threads, extraname=''):
+    for thr in threads:
+        filename = foldername + 'time_difference%s.png' % (extraname + thr)
+        if os.path.isfile(filename):
+            return
+        bloemen_time = features['bloemen_time' + thr]
+        cndfs_time = features['cndfs_time' + thr]
+        extraname = ' ' + extraname if extraname else extraname
+        scatter_plot(bloemen_time, cndfs_time, 'time difference' + extraname + thr,
+                     'bloemen time', 'cndfs time', True)
+        plt.savefig(filename)
+        plt.clf()

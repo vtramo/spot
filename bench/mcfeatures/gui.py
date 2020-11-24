@@ -24,9 +24,8 @@ import os
 
 from correlations import *
 from plot import *
-from data_analysis import filter_features
 
-def make_layout(table, names, excluded, cachefolder, threads, windowsize):
+def make_layout(table, names, excluded, cachefolder, threads, windowsize, nbsb):
     name_max_len = len(max(names, key=len))
     layouttable = []
     for i in range(len(names)):
@@ -44,7 +43,6 @@ def make_layout(table, names, excluded, cachefolder, threads, windowsize):
                                  key=name))
         layouttable.append(row)
 
-
     timebuttons = []
     for thr in threads:
         timebuttons.append(sg.Button('Time' + thr,
@@ -54,6 +52,12 @@ def make_layout(table, names, excluded, cachefolder, threads, windowsize):
                   else sg.Button('See all')]
     for name in excluded:
         sortbuttons.append(sg.Button('Sort ' + name))
+
+    sbhidden = []
+    for i in range(nbsb):
+        i = str(i)
+        sbhidden.append(sg.Column([[sg.Button(i, key='sb' + i, visible=False)]],
+                                    pad=(0,0), key='sc' + i))
 
     layoutwindow = [
                      [
@@ -71,15 +75,7 @@ def make_layout(table, names, excluded, cachefolder, threads, windowsize):
                                              key='image')]
                                  ])
                      ],
-                     sortbuttons,
-                     [
-                       sg.Column([[sg.Button('a', key='sb0', visible=False)]],
-                                 pad=(0,0), key='sc0'),
-                       sg.Column([[sg.Button('b', key='sb1', visible=False)]],
-                                 pad=(0,0), key='sc1'),
-                       sg.Column([[sg.Button('c', key='sb2', visible=False)]],
-                                 pad=(0,0), key='sc2')
-                     ],
+                     sortbuttons, sbhidden,
                      [sg.Button('Exit')]
                    ]
     return layoutwindow
@@ -100,14 +96,20 @@ def generate_images(features, names, excluded, basepath):
             plt.savefig(filename)
             plt.clf()
 
-def update_filter_buttons(window, values):
-    window['sb2'].Update(visible=False)
-    window['sb1'].Update(visible=False)
-    window['sb0'].Update(text=values[0], visible=True)
-    if values.size > 1:
-        window['sb1'].Update(text=values[1], visible=True)
-        if values.size > 2:
-            window['sb2'].Update(text=values[2], visible=True)
+def update_filter_buttons(window, values, nbsb):
+    for i in range(nbsb):
+        if i < len(values):
+            window['sb' + str(i)].Update(text=values[i], visible=True)
+        else:
+            window['sb' + str(i)].Update(visible=False)
+
+def get_max_number_filter_possibilities(features, simplenames):
+    maxnb = 0
+    for n in simplenames:
+        maxnb = max(maxnb, np.unique(features[n]).size)
+    return maxnb
+
+
 
 def gui_display(features, names, simplenames, cachefolder, threads):
     sg.theme('DarkAmber')
@@ -117,13 +119,15 @@ def gui_display(features, names, simplenames, cachefolder, threads):
                   windowsize[1] - windowsize[1] // 12)
     tmpwindow.close()
 
-    sortby, feature1, feature2 = '', '', ''
+    sortby, feature1, feature2, number = '', '', '', ''
     values, filter = None, None
     complexnames = [x for x in names if x not in simplenames]
+    max_filter_nb = get_max_number_filter_possibilities(features, simplenames)
 
     table = correlation_matrix(features, names)
     generate_images(features, names, [], cachefolder + 'scps/scp-')
-    layout = make_layout(table, names, [], cachefolder, threads, windowsize)
+    layout = make_layout(table, names, [], cachefolder, threads, windowsize,
+                         max_filter_nb)
     window = sg.Window('Correlation Table', layout, size=windowsize,
                        finalize=True)
     while True:
@@ -136,7 +140,7 @@ def gui_display(features, names, simplenames, cachefolder, threads):
             values, filter = None, None
             excluded = [] if event == 'See all' else simplenames
             newlayout = make_layout(table, names, excluded, cachefolder,
-                                    threads, windowsize)
+                                    threads, windowsize, max_filter_nb)
             window.close()
             newwindow = sg.Window('Correlation Table', newlayout,
                                   size=windowsize, finalize=True)
@@ -144,18 +148,21 @@ def gui_display(features, names, simplenames, cachefolder, threads):
         elif 'Sort' in event:
             sortby = event.split(' ')[-1]
             values = np.unique(features[sortby])
-            update_filter_buttons(window, values)
+            update_filter_buttons(window, values, max_filter_nb)
         elif 'sb' in event and len(event) == 3:
             filter = values[int(event[-1])]
             f = filter_features(features, names, simplenames, sortby, filter)
             ftable = correlation_matrix(f, complexnames)
             newlayout = make_layout(ftable, complexnames,
-                                    excluded, cachefolder, threads, windowsize)
+                                    excluded, cachefolder, threads,
+                                    windowsize, max_filter_nb)
             window.close()
             newwindow = sg.Window('Correlation Table', newlayout,
                                   size=windowsize, finalize=True)
             window = newwindow
-            update_filter_buttons(window, values)
+            update_filter_buttons(window, values, max_filter_nb)
+            generate_time_scatter_plot(f, complexnames, cachefolder, threads,
+                                       sortby + str(filter))
             generate_images(f, complexnames, excluded,
                             '%sscps/scp%s%s-' % (cachefolder, sortby,
                                                  str(filter)))
@@ -165,10 +172,19 @@ def gui_display(features, names, simplenames, cachefolder, threads):
                                        (sortby,
                                         str(filter) if filter is not None else '',
                                         feature1, feature2))
+            else:
+                if not number:
+                    number = threads[0]
+                window['image'].update(cachefolder + 'time_difference%s%s.png' %\
+                                       (sortby + str(filter), number))
+
 
         elif 'Time' in  event:
-            window['image'].update(cachefolder + 'time_difference%s.png' %\
-                                   (event[-2:] if event != 'Time' else ''))
+            number = ''
+            if '_' in event:
+                number = '_' + event.split('_')[-1]
+            window['image'].update(cachefolder + 'time_difference%s%s.png' %\
+                                   (sortby + str(filter), number))
         else:
             feature1, feature2 = event.split('/')
             if filter is None:

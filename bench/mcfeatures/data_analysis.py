@@ -35,15 +35,13 @@ def get_simple_features(features, names):
             res.append(name)
     return res
 
-def read_csv():
-    if len(sys.argv) != 2:
-        sys.exit(1)
-    blacklist = ['time', 'model', 'formula']
+def read_csv(filename, blacklist=['time', 'model', 'formula']):
     threads = []
-    with open(sys.argv[1], newline='') as csvfile:
+    with open(filename, newline='') as csvfile:
         reader = csv.DictReader(csvfile)
         features = {}
         simplenames = []
+        # read header
         for name in reader.fieldnames:
             if name not in blacklist:
                 features[name] = np.empty((0))
@@ -53,6 +51,7 @@ def read_csv():
                         threads.append('')
                     else:
                         threads.append('_' + split[-1])
+        # read body
         for row in reader:
             for feature in features:
                 try:
@@ -68,34 +67,20 @@ def read_csv():
         names.append(f)
     for name in get_simple_features(features, names):
         if name not in simplenames:
-            simplenames.append(feature)
+            simplenames.append(name)
+
+    speed = features['bloemen_time' + threads[0]] /\
+            features['cndfs_time' + threads[0]]
+    speed = np.where(speed < 1, -1/speed + 1, speed - 1)
+    features['time_difference'] = speed
+    names.append('time_difference')
 
     return features, names, simplenames, threads
 
-def filter_features(features, names, excluded, filter, value):
-    f = copy.deepcopy(features)
-    excludedvalues = features[filter]
-    for e in excluded:
-        f.pop(e)
-    mask = (excludedvalues == value)
-    for feature in f:
-        f[feature] = f[feature][mask]
-    return f
-
-def generate_time_scatter_plot(features, names, foldername, threads):
-    for thr in threads:
-        filename = foldername + 'time_difference%s.png' % thr
-        if os.path.isfile(filename):
-            return
-        bloemen_time = features['bloemen_time' + thr]
-        cndfs_time = features['cndfs_time' + thr]
-        scatter_plot(bloemen_time, cndfs_time, 'time difference' + thr,
-                     'bloemen time', 'cndfs time', True)
-        plt.savefig(filename)
-        plt.clf()
-
 if __name__ == '__main__':
-    features, names, simplenames, threads = read_csv()
+    if len(sys.argv) != 2:
+        sys.exit(1)
+    features, names, simplenames, threads = read_csv(sys.argv[1])
 
     cachefolder = '.cache_' + os.path.basename(sys.argv[1]) + '/'
     if not os.path.exists(cachefolder):
