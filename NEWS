@@ -147,6 +147,11 @@ New in spot 2.9.5.dev (not yet released)
   - Bindings for functions related to parity games.
     See https://spot.lrde.epita.fr/ipynb/paritygame.html for examples.
 
+  Bugs fixed:
+
+  - twa_graph::merge_edges() could fail to merge two transitions if the
+    destination transition was the first of the automaton.  (Issue #441)
+
 New in spot 2.9.5 (2020-11-19)
 
   Bugs fixed:
