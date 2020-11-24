@@ -152,6 +152,10 @@ New in spot 2.9.5.dev (not yet released)
   - twa_graph::merge_edges() could fail to merge two transitions if the
     destination transition was the first of the automaton.  (Issue #441)
 
+  - On non-deterministic automata, iterated_simulations() was
+    performing an (unnecessary) second iteration even when the first
+    one failed to reduce the automaton.  (Issue #442)
+
 New in spot 2.9.5 (2020-11-19)
 
   Bugs fixed:

@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2012-2019 Laboratoire de Recherche et Développement
+// Copyright (C) 2012-2020 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -70,13 +70,13 @@ namespace spot
       {
       }
 
-      automaton_size(const twa_graph_ptr& a)
+      automaton_size(const const_twa_graph_ptr& a)
         : edges(a->num_edges()),
           states(a->num_states())
       {
       }
 
-      void set_size(const twa_graph_ptr& a)
+      void set_size(const const_twa_graph_ptr& a)
       {
         states = a->num_states();
         edges = a->num_edges();
@@ -920,7 +920,7 @@ namespace spot
   {
     twa_graph_ptr res = nullptr;
     automaton_size prev;
-    automaton_size next;
+    automaton_size next(t);
 
     do
       {
