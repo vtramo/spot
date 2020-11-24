@@ -195,7 +195,8 @@ namespace spot
       trans.resize(out);
 
     tend = out;
-    out = in = 2;
+    out = 1;
+    in = 2;
 
     // FIXME: We could should also merge edges when using
     // fin_acceptance, but the rule for Fin sets are different than
