@@ -16,10 +16,9 @@ include /usr/share/dpkg/default.mk
 # package maintainers to append LDFLAGS
 #export DEB_LDFLAGS_MAINT_APPEND = -Wl,--as-needed
 
-
-# main packaging script based on dh7 syntax
+# main packaging script
 %:
-	dh $@ --parallel --with=python3
+	dh $@ --with=python3
 
 # Find the LTO plugin, which we need to pass to ar, nm, and ranlib.
 LTOPLUG := $(shell gcc -v 2>&1 | \
