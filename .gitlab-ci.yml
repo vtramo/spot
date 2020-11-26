@@ -182,8 +182,7 @@ debpkg-stable:
     - vol=spot-stable-$CI_COMMIT_SHA
     - docker volume create $vol
     - exitcode=0
-    - docker run --rm=true -v $vol:/build/result gitlab-registry.lrde.epita.fr/spot/buildenv/debian:stable ./build-spot.sh $CI_COMMIT_REF_NAME -j${NBPROC-1} || exitcode=$?
-    - docker run -v $vol:/build/result --name helper-$vol registry.lrde.epita.fr/spot-debuild:stable true || exitcode=$?
+    - docker run -v $vol:/build/result  --name helper-$vol gitlab-registry.lrde.epita.fr/spot/buildenv/debian:stable ./build-spot.sh $CI_COMMIT_REF_NAME -j${NBPROC-1} || exitcode=$?
     - docker cp helper-$vol:/build/result _build_stable || exitcode=$?
     - docker rm helper-$vol || exitcode=$?
     - docker volume rm $vol || exitcode=$?
