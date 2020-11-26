@@ -26,23 +26,29 @@ LTOPLUG := $(shell gcc -v 2>&1 | \
 
 # ARFLAGS is for Automake
 # AR_FLAGS is for Libtool
-LTOSETUP =					\
-  LDFLAGS='-fuse-linker-plugin'			\
-  NM='nm --plugin $(LTOPLUG)'			\
-  ARFLAGS='cru --plugin $(LTOPLUG)'		\
-  AR_FLAGS='cru --plugin $(LTOPLUG)'		\
-  RANLIB='ranlib --plugin $(LTOPLUG)'           \
+# These activate the LTO pluggin, but also remove the 'u' option
+# from ar, since its now ignored with Debian's default to 'D'.
+LTOSETUP =					    \
+  LDFLAGS='-fuse-linker-plugin'			    \
+  NM='nm --plugin $(LTOPLUG)'			    \
+  ARFLAGS='cr --plugin $(LTOPLUG)'		    \
+  AR_FLAGS='cr --plugin $(LTOPLUG)'		    \
+  RANLIB='ranlib --plugin $(LTOPLUG)'		    \
   VALGRIND=false
 GCDADIR := $(shell pwd)/gcda
-PROFW = -Wno-error=coverage-mismatch
-PRO1SETUP =							\
-  CFLAGS='-flto -fprofile-generate=$(GCDADIR) $(PROFW)'		\
-  CXXFLAGS='-flto -fprofile-generate=$(GCDADIR) $(PROFW)'
-PRO2SETUP =						\
-  CFLAGS='-flto -fprofile-use=$(GCDADIR) $(PROFW)'	\
-  CXXFLAGS='-flto -fprofile-use=$(GCDADIR) $(PROFW)'
+
+FLTO = -flto=jobserver -Wno-error=coverage-mismatch
+PRO1SETUP = \
+  CFLAGS="$(FLTO) -fprofile-generate=$(GCDADIR)" \
+  CXXFLAGS="$(FLTO) -fprofile-generate=$(GCDADIR)"
+PRO2SETUP = \
+  CFLAGS="$(FLTO) -fprofile-use=$(GCDADIR) -fprofile-correction" \
+  CXXFLAGS="$(FLTO) -fprofile-use=$(GCDADIR) -fprofile-correction"
 PYDEFAULT=$(shell py3versions --default)
 PYOTHERS=$(filter-out $(PYDEFAULT), $(shell py3versions --supported))
+# This hack causes + to appear in front of the link step, so that
+# LTO can be done using GNU Make's job server.
+MAKEOVERRIDES += AM_V_CXXLD=+ AM_V_CCLD=+
 
 # We want to build Spot twice: once to get profile data, and a second
 # time to use it.
@@ -53,7 +59,7 @@ override_dh_auto_configure:
 	  --disable-static PYTHON=/usr/bin/$(PYDEFAULT)
 	dh_auto_build
 	dh_auto_test
-	make clean
+	$(MAKE) clean
 	dh_auto_configure -- $(PRO2SETUP) $(LTOSETUP)	\
 	  --disable-devel --enable-optimizations	\
 	  --disable-static PYTHON=/usr/bin/$(PYDEFAULT)
