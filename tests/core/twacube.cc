@@ -30,6 +30,8 @@
 #include <iostream>
 #include <spot/twa/twagraph.hh>
 #include <spot/twaalgos/dot.hh>
+#include <spot/twaalgos/sccinfo.hh>
+#include <spot/twacube_algos/sccinfocube.hh>
 #include <spot/tl/defaultenv.hh>
 
 static void checkit(std::string f_str)
@@ -39,10 +41,15 @@ static void checkit(std::string f_str)
   spot::formula f = pf.f;
   auto dict = spot::make_bdd_dict();
   spot::translator trans(dict);
-  auto prop = trans.run(&f);
+  spot::const_twa_graph_ptr prop = trans.run(&f);
 
-  auto propcube = spot::twa_to_twacube(prop);
+  std::shared_ptr<spot::scc_info> sccinfo =
+                        std::make_shared<spot::scc_info>(spot::scc_info(prop));
+  auto converted_prop = spot::twa_to_twacube(prop, nullptr);
+  auto propcube = converted_prop.first;
+  auto sccinfocube = converted_prop.second;
   assert(spot::are_equivalent(propcube, prop));
+  assert(spot::are_equivalent(sccinfocube, sccinfo));
 
   auto propcubeback = spot::twacube_to_twa(propcube, dict);
   assert(spot::are_equivalent(propcube, propcubeback));
