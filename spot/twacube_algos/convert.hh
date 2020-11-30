@@ -25,6 +25,7 @@
 #include <spot/misc/common.hh>
 #include <spot/twacube/cube.hh>
 #include <spot/twacube/twacube.hh>
+#include <spot/twacube_algos/sccinfocube.hh>
 #include <spot/twa/twagraph.hh>
 
 namespace spot
@@ -45,6 +46,10 @@ namespace spot
   SPOT_API std::vector<std::string>*
   extract_aps(spot::const_twa_graph_ptr aut,
               std::unordered_map<int, int>& ap_binder);
+
+  SPOT_API std::pair<spot::twacube_ptr, std::shared_ptr<scc_infocube>>
+    twa_to_twacube(const spot::const_twa_graph_ptr aut,
+                   std::shared_ptr<scc_infocube> sccinfo);
 
   /// \brief Convert a twa into a twacube
   SPOT_API twacube_ptr

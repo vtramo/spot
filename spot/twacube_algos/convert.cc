@@ -61,10 +61,12 @@ namespace spot
     return result;
   }
 
-  spot::twacube_ptr twa_to_twacube(const spot::const_twa_graph_ptr aut)
+  std::pair<spot::twacube_ptr, std::shared_ptr<scc_infocube>>
+    twa_to_twacube(const spot::const_twa_graph_ptr aut,
+                   std::shared_ptr<scc_infocube> sccinfo)
   {
     if (aut == nullptr)
-      return nullptr;
+      return {nullptr, sccinfo};
 
     // Compute the necessary binder and extract atomic propositions
     std::unordered_map<int, int> ap_binder;
@@ -82,6 +84,9 @@ namespace spot
     // Fill binder and create corresponding states into twacube
     for (unsigned n = 0; n < aut->num_states(); ++n)
       st_binder.insert({n, tg->new_state()});
+
+    if (sccinfo == nullptr)
+      sccinfo = std::make_shared<scc_infocube>(aut, st_binder);
 
     // Fix the initial state
     tg->set_initial(st_binder[aut->get_init_state_number()]);
@@ -113,7 +118,13 @@ namespace spot
     // Must be contiguous to support swarming.
     assert(tg->succ_contiguous());
     delete aps;
-    return tg;
+    return {tg, sccinfo};
+  }
+
+
+  spot::twacube_ptr twa_to_twacube(const spot::const_twa_graph_ptr aut)
+  {
+    return twa_to_twacube(aut, nullptr).first;
   }
 
   std::vector<std::string>*
