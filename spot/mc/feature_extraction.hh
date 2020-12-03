@@ -35,6 +35,7 @@
 #include <spot/misc/timer.hh>
 #include <spot/twacube/fwd.hh>
 #include <spot/twacube/twacube.hh>
+#include <spot/twacube_algos/sccinfocube.hh>
 
 namespace spot
 {
@@ -514,10 +515,11 @@ namespace spot
                        shared_map& map, /* useless here */
                        iterable_uf_fe<State, StateHash, StateEqual>* uf,
                        unsigned tid,
-                       std::atomic<bool>& stop):
+                       std::atomic<bool>& stop,
+                       scc_infocube_ptr sccinfo):
       sys_(sys),  twa_(twa), uf_(*uf), tid_(tid),
       nb_th_(std::thread::hardware_concurrency()),
-      stop_(stop)
+      stop_(stop), sccinfo_(sccinfo)
     {
       static_assert(spot::is_a_kripkecube_ptr<decltype(&sys),
                                              State, SuccIterator>::value,
@@ -693,6 +695,23 @@ namespace spot
       average_reachability /= scc_vect_.size();
       average_reachability /= nb_results;
 
+      int nb_weak_scc = 0;
+      for (auto b : sccinfo_.weak_sccs())
+        {
+          if (b)
+            ++nb_weak_scc;
+        }
+
+      int nb_accepting_scc = 0;
+      int nb_trivial_scc = 0;
+      for (unsigned i = 0; i < sccinfo_.scc_count(); ++i)
+        {
+          if (sccinfo_.is_accepting_scc(i))
+            ++nb_accepting_scc;
+          if (sccinfo_.is_trivial(i))
+            ++nb_trivial_scc;
+        }
+
       if (!nb_results)
           nb_results = 1;
 
@@ -700,12 +719,16 @@ namespace spot
       std::cout << "feature extraction csv : " << std::endl;
       std::cout << "in_incidence,out_incidence,average_incidence_ratio,"
                 << "repeated_transitions,average_scc_incidence_ratio,"
-                << "average_reachability" << std::endl;
+                << "average_node_reachability,nb_weak_scc,"
+                << "nb_accepting_scc,nb_trivial_scc" << std::endl;
       std::cout << total_in << delimiter << total_out << delimiter
                 << total_ratio / nb_results << delimiter
                 << repeated_ << delimiter
                 << average_scc_incidence << delimiter
-                << average_reachability << std::endl;
+                << average_reachability << delimiter
+                << nb_weak_scc << delimiter
+                << nb_accepting_scc << delimiter
+                << nb_trivial_scc <<std::endl;
     }
 
     void log_calculate()
@@ -833,6 +856,7 @@ namespace spot
     std::vector<uf_element*> todo_;          ///< \brief The "recursive" stack
     std::vector<uf_element*> Rp_;            ///< \brief The DFS stack
     std::vector<scc_element> scc_vect_;      ///< \brief Set of sccs information
+    scc_infocube_ptr sccinfo_;                   ///< \brief Scc information
     iterable_uf_fe<State, StateHash, StateEqual> uf_; ///< Copy!
     unsigned tid_;
     unsigned nb_th_;

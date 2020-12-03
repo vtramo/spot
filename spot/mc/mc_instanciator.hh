@@ -33,6 +33,7 @@
 #include <spot/mc/feature_extraction.hh>
 #include <spot/misc/common.hh>
 #include <spot/misc/timer.hh>
+#include <spot/twacube_algos/sccinfocube.hh>
 
 namespace spot
 {
@@ -82,7 +83,8 @@ namespace spot
            typename Iterator, typename Hash, typename Equal>
   static ec_stats instanciate(kripke_ptr sys,
                               spot::twacube_ptr prop = nullptr,
-                              bool trace = false)
+                              bool trace = false,
+                              scc_infocube_ptr sccinfo = nullptr)
   {
     spot::timer_map tm;
     std::atomic<bool> stop(false);
@@ -99,7 +101,10 @@ namespace spot
     for (unsigned i = 0; i < nbth; ++i)
       {
         ss[i] = algo_name::make_shared_structure(map, i);
-        swarmed[i] = new algo_name(*sys, prop, map, ss[i], i, stop);
+        if (sccinfo)
+          swarmed[i] = new algo_name(*sys, prop, map, ss[i], i, stop, sccinfo);
+        else
+          swarmed[i] = new algo_name(*sys, prop, map, ss[i], i, stop);
 
         static_assert(spot::is_a_mc_algorithm<decltype(&*swarmed[i])>::value,
                     "error: does not match the kripkecube requirements");
@@ -205,7 +210,8 @@ namespace spot
            typename Iterator, typename Hash, typename Equal>
   static ec_stats ec_instanciator(const mc_algorithm algo, kripke_ptr sys,
                                   spot::twacube_ptr prop = nullptr,
-                                  bool trace = false)
+                                  bool trace = false,
+                                  scc_infocube_ptr sccinfo = nullptr)
   {
     if (algo == mc_algorithm::BLOEMEN_EC || algo == mc_algorithm::CNDFS ||
         algo == mc_algorithm::SWARMING)
@@ -239,7 +245,7 @@ namespace spot
       case mc_algorithm::FEATURE_EXTRACTION:
         return instanciate
          <spot::swarmed_feature_extraction<State, Iterator, Hash, Equal>,
-           kripke_ptr, State, Iterator, Hash, Equal> (sys, prop, trace);
+           kripke_ptr, State, Iterator, Hash, Equal> (sys, prop, trace, sccinfo);
 
       case mc_algorithm::REACHABILITY:
         return instanciate
