@@ -599,7 +599,9 @@ namespace spot
         return (*it).id;
       };
 
+      tm_.start("compute_succs");
       compute_succs succs(aut_);
+      tm_.stop("compute_succs");
 
       // core algorithm
       //
@@ -609,6 +611,8 @@ namespace spot
       //         create transition in res automaton, with color
       while (true)
         {
+
+          tm_.start("dequeue");
           size_t p = processed_;
           size_t n = nb_job_;
           if (p == n)
@@ -622,20 +626,27 @@ namespace spot
           if (!found)
             continue;
 
+          tm_.stop("dequeue");
+
           curr = pair.st;
           src_num = pair.id;
 
+          tm_.start("letters");
           const auto letters = get_letters(curr, supports_, cs, tm_);
+          tm_.stop("letters");
 
           succs.set(&curr, &letters);
 
           // iterator over successors of curr
+          tm_.start("succs");
           for (auto s = succs.begin(); s != succs.end(); ++s)
             {
               if (s->nodes_.empty())
                 continue;
 
+              tm_.start("get_state");
               unsigned dst_num = get_state(*s);
+              tm_.stop("get_state");
               if (s.color_ != -1U)
                 {
                   res_->async_create_transition({src_num, dst_num, s.cond(), {s.color_}}, id_);
@@ -647,6 +658,7 @@ namespace spot
                   res_->async_create_transition({src_num, dst_num, s.cond(), {}}, id_);
                 }
             }
+          tm_.stop("succs");
 
           processed_++;
         }

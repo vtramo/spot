@@ -125,7 +125,14 @@ checked_main()
   auto parser = spot::automaton_stream_parser("/dev/stdin");
 
   std::cout << "formula,"
-            << "walltime"
+            << "walltime,"
+            << "permutations,"
+            << "cs_permutations,"
+            << "compute_succs,"
+            << "dequeue,"
+            << "letters,"
+            << "succs,"
+            << "get_state"
             << std::endl;
 
   spot::parsed_aut_ptr res = nullptr;
@@ -161,7 +168,7 @@ checked_main()
         }
 
       spot::twacube_ptr cube_det_aut = nullptr;
-      std::optional<std::vector<spot::timer_map>> tm_permuts = std::nullopt;
+      std::optional<std::vector<spot::timer_map>> tm_meta = std::nullopt;
 
       if (mc_options.twacube)
         {
@@ -171,7 +178,7 @@ checked_main()
           tm.stop("determinize");
 
           cube_det_aut = res.first;
-          tm_permuts = res.second;
+          tm_meta = res.second;
 
           spot::const_twa_graph_ptr ref = spot::tgba_determinize(aut);
           if (!spot::are_equivalent(cube_det_aut, ref))
@@ -186,9 +193,9 @@ checked_main()
 
           std::cout << formula << ',' << duration;
 
-          if (tm_permuts)
+          if (tm_meta)
             {
-              std::vector<spot::timer_map>& tm_permuts_ = *tm_permuts;
+              std::vector<spot::timer_map>& tm_meta_ = *tm_meta;
 
               auto sum_permuts = [](std::chrono::milliseconds::rep sum,
                                     const spot::timer_map& tm)
@@ -202,18 +209,24 @@ checked_main()
                   return sum + tm.timer("cs_permutations").walltime();
                 };
 
-              std::chrono::milliseconds::rep permutations = std::accumulate(tm_permuts_.begin(),
-                                                                            tm_permuts_.end(),
+              std::chrono::milliseconds::rep permutations = std::accumulate(tm_meta_.begin(),
+                                                                            tm_meta_.end(),
                                                                             0,
                                                                             sum_permuts);
 
-              std::chrono::milliseconds::rep cs_permutations = std::accumulate(tm_permuts_.begin(),
-                                                                               tm_permuts_.end(),
+              std::chrono::milliseconds::rep cs_permutations = std::accumulate(tm_meta_.begin(),
+                                                                               tm_meta_.end(),
                                                                                0,
                                                                                sum_cs_permuts);
 
               std::cout << ',' << permutations
                         << ',' << cs_permutations;
+
+              std::cout << ',' << tm_meta_[0].timer("compute_succs").walltime()
+                        << ',' << tm_meta_[0].timer("dequeue").walltime()
+                        << ',' << tm_meta_[0].timer("letters").walltime()
+                        << ',' << tm_meta_[0].timer("succs").walltime()
+                        << ',' << tm_meta_[0].timer("get_state").walltime();
             }
 
           std::cout << std::endl;
