@@ -82,7 +82,8 @@ namespace spot
 
   twa_graph_ptr
   tgba_powerset(const const_twa_graph_ptr& aut, power_map& pm, bool merge,
-                const output_aborter* aborter)
+                const output_aborter* aborter,
+                std::vector<unsigned>* accepting_sinks)
   {
     unsigned ns = aut->num_states();
     unsigned nap = aut->ap().size();
@@ -207,6 +208,23 @@ namespace spot
     auto res = make_twa_graph(aut->get_dict());
     res->copy_ap_of(aut);
 
+    bitvect* acc_sinks = nullptr;
+    if (accepting_sinks)
+      {
+        acc_sinks = make_bitvect(ns);
+        for (unsigned s: *accepting_sinks)
+          acc_sinks->set(s);
+        toclean.emplace_back(acc_sinks);
+
+        // The accepting sink is the first registered state by
+        // convention.
+        power_state ps = bv_to_ps(acc_sinks);
+        unsigned num = res->new_state();
+        seen[acc_sinks] = num;
+        assert(pm.map_.size() == num);
+        pm.map_.emplace_back(std::move(ps));
+      }
+
     {
       unsigned init_num = aut->get_init_state_number();
       auto bvi = make_bitvect(ns);
@@ -239,6 +257,8 @@ namespace spot
             auto dst = &om->at(c);
             if (dst->is_fully_clear())
               continue;
+            if (acc_sinks && dst->intersects(*acc_sinks))
+              *dst = *acc_sinks;
             auto i = seen.find(dst);
             unsigned dst_num;
             if (i != seen.end())
@@ -274,10 +294,11 @@ namespace spot
 
   twa_graph_ptr
   tgba_powerset(const const_twa_graph_ptr& aut,
-                const output_aborter* aborter)
+                const output_aborter* aborter,
+                std::vector<unsigned>* accepting_sinks)
   {
     power_map pm;
-    return tgba_powerset(aut, pm, true, aborter);
+    return tgba_powerset(aut, pm, true, aborter, accepting_sinks);
   }
 
 

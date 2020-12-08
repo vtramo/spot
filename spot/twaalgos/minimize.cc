@@ -393,7 +393,25 @@ namespace spot
         }
       else
         {
-          det_a = tgba_powerset(a, aborter);
+          // Find any accepting sink state, to speed up the
+          // determinization by merging all states containing a sink
+          // state.
+          //
+          // We only as consider as "accepting sink" any state
+          // that have an accepting self-loop labeled by true.
+          std::vector<unsigned> acc_sinks;
+          unsigned ns = a->num_states();
+          for (unsigned n = 0; n < ns; ++n)
+            {
+              for (auto& e: a->out(n))
+                if (e.dst == n && e.cond == bddtrue
+                    && a->acc().accepting(e.acc))
+                  {
+                    acc_sinks.push_back(n);
+                    break;
+                  }
+            }
+          det_a = tgba_powerset(a, aborter, &acc_sinks);
           if (!det_a)
             return nullptr;
         }

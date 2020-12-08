@@ -94,14 +94,21 @@ namespace spot
   ///
   /// If ab \a aborter is given, abort the construction whenever it
   /// would build an automaton that is too large, and return nullptr.
+  ///
+  /// If a vector of accepting sinks is given, all power-state that
+  /// contains any accepting sink will be merged into a single state
+  /// with number 0.
+  ///
   //@{
   SPOT_API twa_graph_ptr
   tgba_powerset(const const_twa_graph_ptr& aut,
                 power_map& pm, bool merge = true,
-                const output_aborter* aborter = nullptr);
+                const output_aborter* aborter = nullptr,
+                std::vector<unsigned>* accepting_sinks = nullptr);
   SPOT_API twa_graph_ptr
   tgba_powerset(const const_twa_graph_ptr& aut,
-                const output_aborter* aborter = nullptr);
+                const output_aborter* aborter = nullptr,
+                std::vector<unsigned>* accepting_sinks = nullptr);
   //@}
 
 

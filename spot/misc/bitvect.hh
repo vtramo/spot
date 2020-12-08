@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2013-2019 Laboratoire de Recherche et Développement
+// Copyright (C) 2013-2020 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -253,6 +253,16 @@ namespace spot
       for (size_t i = 0; i < m; ++i)
         storage_[i] &= other.storage_[i];
       return *this;
+    }
+
+    bool intersects(const bitvect& other)
+    {
+      SPOT_ASSERT(other.size_ <= size_);
+      unsigned m = std::min(other.block_count_, block_count_);
+      for (size_t i = 0; i < m; ++i)
+        if (storage_[i] & other.storage_[i])
+          return true;
+      return false;
     }
 
     bitvect& operator^=(const bitvect& other)

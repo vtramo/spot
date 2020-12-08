@@ -141,6 +141,10 @@ New in spot 2.9.5.dev (not yet released)
                      automata-based implication checks for formula
                      simplifications.  Defaults to 64.
 
+  - tgba_powerset() now takes an extra optional argument to specify a
+    list of accepting sinks states if some are known.  Doing so can
+    cut the size of the powerset automaton by 2^|sinks| in favorable
+    cases.
 
   Python:
 
