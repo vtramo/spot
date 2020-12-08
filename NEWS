@@ -61,7 +61,7 @@ New in spot 2.9.1 (2020-07-15)
          ltl2tgba -D -G '(Fa & Fb & Fc & Fd) <-> GFe'
     now produces a 16-state automaton (instead of 31 in Spot 2.9).
 
-  - Option '-x wdba-minize=N' used to accept N=0 (off), or N=1 (on).
+  - Option '-x wdba-minimize=N' used to accept N=0 (off), or N=1 (on).
     It can now take three values:
       0: never attempt this optimization,
       1: always try to determinize and minimize automata as WDBA,
