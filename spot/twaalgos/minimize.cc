@@ -384,7 +384,7 @@ namespace spot
     hash_set* non_final;
 
     twa_graph_ptr det_a;
-
+    bool has_sinks = false;
     {
       bool input_is_det = is_deterministic(a);
       if (input_is_det)
@@ -396,21 +396,30 @@ namespace spot
           // Find any accepting sink state, to speed up the
           // determinization by merging all states containing a sink
           // state.
-          //
-          // We only as consider as "accepting sink" any state
-          // that have an accepting self-loop labeled by true.
           std::vector<unsigned> acc_sinks;
           unsigned ns = a->num_states();
-          for (unsigned n = 0; n < ns; ++n)
+          if (!a->prop_terminal().is_true())
             {
-              for (auto& e: a->out(n))
-                if (e.dst == n && e.cond == bddtrue
-                    && a->acc().accepting(e.acc))
-                  {
-                    acc_sinks.push_back(n);
-                    break;
-                  }
+              // We only consider as "accepting sink" any state
+              // that has an accepting self-loop labeled by true.
+              for (unsigned n = 0; n < ns; ++n)
+                for (auto& e: a->out(n))
+                  if (e.dst == n && e.cond == bddtrue
+                      && a->acc().accepting(e.acc))
+                    {
+                      acc_sinks.push_back(n);
+                      break;
+                    }
             }
+          else
+            {
+              // All accepting SCCs are terminal.
+              scc_info si(a, scc_info_options::NONE);
+              for (unsigned n = 0; n < ns; ++n)
+                if (si.is_accepting_scc(si.scc_of(n)))
+                  acc_sinks.push_back(n);
+            }
+          has_sinks = !acc_sinks.empty();
           det_a = tgba_powerset(a, aborter, &acc_sinks);
           if (!det_a)
             return nullptr;
@@ -440,6 +449,13 @@ namespace spot
           sm.determine_unknown_acceptance();
           for (unsigned m = 0; m < scc_count; ++m)
             is_accepting_scc[m] = sm.is_accepting_scc(m);
+        }
+      else if (a->prop_terminal())
+        {
+          // tgba_powerset has gathered all terminal states on
+          // powerstate 0.
+          if (has_sinks)
+            is_accepting_scc[sm.scc_of(0)] = true;
         }
       else
         {

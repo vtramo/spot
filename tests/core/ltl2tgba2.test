@@ -481,7 +481,7 @@ test 34,0 = `ltl2tgba -B --stats=%s,%d "$f"`
 # Issue #444.  Because WDBA-minimization disables itself for large
 # automata, the output is only deterministic up to a certain point,
 # and the goal is to raise that point.
-f='(!(G({(a)} |=> {(b)[*9]})))'
-test 11,1 = `ltl2tgba -B --stats=%s,%d "$f"`
-f='(!(G({(a)} |=> {(b)[*10]})))'
-test 12,0 = `ltl2tgba -B --stats=%s,%d "$f"`
+f='(!(G({(a)} |=> {(b)[*12]})))'
+test 14,1 = `ltl2tgba -B --stats=%s,%d "$f"`
+f='(!(G({(a)} |=> {(b)[*13]})))'
+test 15,0 = `ltl2tgba -B --stats=%s,%d "$f"`
