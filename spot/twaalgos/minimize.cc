@@ -386,7 +386,6 @@ namespace spot
     twa_graph_ptr det_a;
 
     {
-      power_map pm;
       bool input_is_det = is_deterministic(a);
       if (input_is_det)
         {
@@ -394,7 +393,7 @@ namespace spot
         }
       else
         {
-          det_a = tgba_powerset(a, pm, aborter);
+          det_a = tgba_powerset(a, aborter);
           if (!det_a)
             return nullptr;
         }

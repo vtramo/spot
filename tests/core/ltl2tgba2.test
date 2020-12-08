@@ -474,3 +474,7 @@ test "4,1" = `ltl2tgba -D --med "$f" --stats=%s,%d`
 # Issue #418.
 f='(G!a | G!b | G!c) & (FG!a2 | GFb2 | GFc2) & (GFc2 | FG!b2 | GFa2)'
 test 28 = `ltl2tgba -D -G -S --stats=%s "$f"`
+
+# Issue #443.  This used to be too long.
+f='(!(G({(a)} |=> {(b)[*32]})))'
+test 34 = `ltl2tgba -B --stats=%s "$f"`
