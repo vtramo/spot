@@ -115,7 +115,7 @@ namespace spot
     {
       auto end = std::chrono::steady_clock::now();
       wall_cumul_ += std::chrono::duration_cast
-        <std::chrono::milliseconds>(end - wall_start_).count();
+        <std::chrono::nanoseconds>(end - wall_start_).count();
 #ifdef SPOT_HAVE_TIMES
       struct tms tmp;
       times(&tmp);
@@ -203,7 +203,7 @@ namespace spot
     /// When using multithreading the cpu time is not
     /// relevant and we have to deal with wall time to have an
     /// effective timer
-    std::chrono::milliseconds::rep
+    std::chrono::nanoseconds::rep
     walltime() const
     {
       return wall_cumul_;
@@ -214,7 +214,7 @@ namespace spot
     time_info total_;
     bool running;
     std::chrono::steady_clock::time_point wall_start_;
-    std::chrono::milliseconds::rep wall_cumul_ = 0;
+    std::chrono::nanoseconds::rep wall_cumul_ = 0;
   };
 
   // This function declared here must be implemented in each file
