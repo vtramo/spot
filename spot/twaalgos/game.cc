@@ -960,51 +960,56 @@ namespace spot
 
   bool solve_reachability_game(twa_graph_ptr game)
   {
+    if (!game->acc().is_t())
+      throw std::runtime_error
+        ("solve_reachability_game(): arena should have true acceptance");
+
     auto owners = get_state_players(game);
 
-    auto winners = new region_t(game->num_states(), true);
+    unsigned ns = game->num_states();
+    auto winners = new region_t(ns, true);
     game->set_named_prop("state-winner", winners);
-    auto strategy = new strategy_t(game->num_states(), 0);
+    auto strategy = new strategy_t(ns, 0);
     game->set_named_prop("strategy", strategy);
 
-    std::vector<bool> seen(game->num_states(), false);
+    std::vector<bool> seen(ns, false);
     std::vector<unsigned> todo;
-    todo.reserve(game->num_states());
+    todo.reserve(ns);
 
     auto& g = game->get_graph();
     todo.push_back(game->get_init_state_number());
 
     while (!todo.empty())
-    {
-      unsigned cur = todo.back();
-      auto edges = game->out(cur);
-
-      if (!seen[cur])
       {
-        for (const auto& e : edges)
-          todo.push_back(e.dst);
-        seen[cur] = true;
-      }
-      else
-      {
-        todo.pop_back();
-        bool player = owners[cur];
+        unsigned cur = todo.back();
+        auto edges = game->out(cur);
 
-        auto it = std::find_if(edges.begin(), edges.end(),
-          [&winners, player](auto& e)
+        if (!seen[cur])
           {
-            return (*winners)[e.dst] == player;
-          });
-
-        if (it != edges.end())
-        {
-          (*strategy)[cur] = g.index_of_edge(*it);
-          (*winners)[cur] = player;
-        }
+            for (const auto& e : edges)
+              todo.push_back(e.dst);
+            seen[cur] = true;
+          }
         else
-          (*winners)[cur] = !player;
-       }
-    }
+          {
+            todo.pop_back();
+            bool player = owners[cur];
+
+            auto it = std::find_if(edges.begin(), edges.end(),
+                                   [winners, player](auto& e)
+                                   {
+                                     return (*winners)[e.dst] == player;
+                                   });
+
+            if (it != edges.end())
+              {
+                (*strategy)[cur] = g.index_of_edge(*it);
+                (*winners)[cur] = player;
+              }
+            else
+              (*winners)[cur] = !player;
+          }
+      }
 
     return (*winners)[game->get_init_state_number()];
   }

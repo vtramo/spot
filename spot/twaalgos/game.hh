@@ -58,9 +58,11 @@ namespace spot
   /// The arena is a deterministic max odd parity automaton with a
   /// "state-player" property.
   ///
-  /// This computes the winning strategy and winning region of this
-  /// game for player 1 using Zielonka's recursive algorithm.
-  /// \cite zielonka.98.tcs
+  /// Player 1 tries to satisfy the acceptance condition, while player
+  /// 0 tries to prevent that.
+  ///
+  /// This computes the winning strategy and winning region using
+  /// Zielonka's recursive algorithm.  \cite zielonka.98.tcs
   ///
   /// Also includes some inspiration from Oink.
   /// \cite vandijk.18.tacas
@@ -69,6 +71,22 @@ namespace spot
   /// the state-winner and strategy named properties.
   SPOT_API
   bool solve_parity_game(const twa_graph_ptr& arena);
+
+  /// \brief Solve a reachability game.
+  ///
+  /// The arena should be represented by an automaton with true
+  /// acceptance.
+  ///
+  /// Player 1 tries to satisfy the acceptance condition, while player
+  /// 0 tries to prevent that.   The only way for player 0 to win is
+  /// to find a way to move the play toward a state without successor.
+  /// If there no state without successors, then the game is necessarily
+  /// winning for player 1.
+  ///
+  /// Returns the player winning in the initial state, and sets
+  /// the state-winner and strategy named properties.
+  SPOT_API
+  bool solve_reachability_game(twa_graph_ptr game);
 
   /// \brief Print a max odd parity game using PG-solver syntax
   SPOT_API
@@ -100,8 +118,4 @@ namespace spot
   /// \brief Get the owner of a state.
   SPOT_API
   unsigned get_state_player(const_twa_graph_ptr arena, unsigned state);
-
-  /// \brief Solve a reachability game.
-  SPOT_API
-  bool solve_reachability_game(twa_graph_ptr game);
 }
