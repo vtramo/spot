@@ -19,7 +19,6 @@
 
 #include "config.h"
 
-#include <cmath>
 #include <spot/twaalgos/game.hh>
 #include <spot/misc/bddlt.hh>
 #include <spot/twaalgos/sccinfo.hh>
@@ -958,53 +957,91 @@ namespace spot
     return (*owners)[state] ? 1 : 0;
   }
 
-  bool solve_reachability_game(twa_graph_ptr game)
+  bool solve_safety_game(twa_graph_ptr game)
   {
+    if (!game->acc().is_t())
+      throw std::runtime_error
+        ("solve_safety_game(): arena should have true acceptance");
+
     auto owners = get_state_players(game);
 
-    auto winners = new region_t(game->num_states(), true);
+    unsigned ns = game->num_states();
+    auto winners = new region_t(ns, true);
     game->set_named_prop("state-winner", winners);
-    auto strategy = new strategy_t(game->num_states(), 0);
+    auto strategy = new strategy_t(ns, 0);
     game->set_named_prop("strategy", strategy);
 
-    std::vector<bool> seen(game->num_states(), false);
-    std::vector<unsigned> todo;
-    todo.reserve(game->num_states());
-
-    auto& g = game->get_graph();
-    todo.push_back(game->get_init_state_number());
-
-    while (!todo.empty())
-    {
-      unsigned cur = todo.back();
-      auto edges = game->out(cur);
-
-      if (!seen[cur])
+    // transposed is a reversed copy of game to compute predecessors
+    // more easily.  It also keep track of the original edge iindex.
+    struct edge_data {
+      unsigned edgeidx;
+    };
+    digraph<void, edge_data> transposed;
+    // Reverse the automaton, compute the out degree of
+    // each state, and save dead-states in queue.
+    transposed.new_states(ns);
+    std::vector<unsigned> out_degree;
+    out_degree.reserve(ns);
+    std::vector<unsigned> queue;
+    for (unsigned s = 0; s < ns; ++s)
       {
-        for (const auto& e : edges)
-          todo.push_back(e.dst);
-        seen[cur] = true;
-      }
-      else
-      {
-        todo.pop_back();
-        bool player = owners[cur];
-
-        auto it = std::find_if(edges.begin(), edges.end(),
-          [&winners, player](auto& e)
+        unsigned deg = 0;
+        for (auto& e: game->out(s))
           {
-            return (*winners)[e.dst] == player;
-          });
-
-        if (it != edges.end())
-        {
-          (*strategy)[cur] = g.index_of_edge(*it);
-          (*winners)[cur] = player;
-        }
-        else
-          (*winners)[cur] = !player;
-       }
-    }
+            transposed.new_edge(e.dst, e.src, game->edge_number(e));
+            ++deg;
+          }
+        out_degree.push_back(deg);
+        if (deg == 0)
+          {
+            (*winners)[s] = false;
+            queue.push_back(s);
+          }
+      }
+    // queue is initially filled with dead-states, which are winning
+    // for player 0.  Any predecessor owned by player 0 is therefore
+    // winning as well (check 1), and any predecessor owned by player
+    // 1 that has all its successors winning for player 0 (check 2) is
+    // also winning.  Use queue to propagate everything.
+    // For the second check, we decrease out_degree by each edge leading
+    // to a state winning for player 0, so if out_degree reaches 0,
+    // we have ensured that all outgoing transitions are winning for 0.
+    //
+    // We use queue as a stack, to propagate bad states in DFS.
+    // However it would be ok to replace the vector by a std::deque
+    // to implement a BFS and build shorter strategies for player 0.
+    // Right no we are assuming that strategies for player 0 have
+    // limited uses, so we just avoid the overhead of std::deque in
+    // favor of the simpler std::vector.
+    while (!queue.empty())
+      {
+        unsigned s = queue.back();
+        queue.pop_back();
+        for (auto& e: transposed.out(s))
+          {
+            unsigned pred = e.dst;
+            if (!(*winners)[pred])
+              continue;
+            // check 1 || check 2
+            bool check1 = owners[pred] == false;
+            if (check1 || --out_degree[pred] == 0)
+              {
+                (*winners)[pred] = false;
+                queue.push_back(pred);
+                if (check1)
+                  (*strategy)[pred] = e.edgeidx;
+              }
+          }
+      }
+    // Let's fill in the strategy for Player 1.
+    for (unsigned s = 0; s < ns; ++s)
+      if (owners[s] && (*winners)[s])
+        for (auto& e: game->out(s))
+          if ((*winners)[e.dst])
+            {
+              (*strategy)[s] = game->edge_number(e);
+              break;
+            }
 
     return (*winners)[game->get_init_state_number()];
   }

@@ -196,24 +196,39 @@ assert spot.is_deterministic(a2)
 try:
     spot.product_xor(a1, a2)
 except RuntimeError as e:
-    assert "product_xor() only works with deterministic automata"
+    assert "product_xor() only works with deterministic automata" in str(e)
 else:
     report_missing_exception()
 try:
     spot.product_xor(a2, a1)
 except RuntimeError as e:
-    assert "product_xor() only works with deterministic automata"
+    assert "product_xor() only works with deterministic automata" in str(e)
 else:
     report_missing_exception()
 try:
     spot.product_xnor(a1, a2)
 except RuntimeError as e:
-    assert "product_xnor() only works with deterministic automata"
+    assert "product_xnor() only works with deterministic automata" in str(e)
 else:
     report_missing_exception()
 try:
     spot.product_xnor(a2, a1)
 except RuntimeError as e:
-    assert "product_xnor() only works with deterministic automata"
+    assert "product_xnor() only works with deterministic automata" in str(e)
+else:
+    report_missing_exception()
+
+try:
+    spot.solve_safety_game(a1)
+except RuntimeError as e:
+    assert "solve_safety_game(): arena should have true acceptance" in str(e)
+else:
+    report_missing_exception()
+
+try:
+    spot.solve_parity_game(a1)
+except RuntimeError as e:
+    assert "solve_parity_game(): arena must have max-odd acceptance condition" \
+        in str(e)
 else:
     report_missing_exception()

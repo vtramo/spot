@@ -357,12 +357,12 @@ TESTS_ipython = \
   python/contains.ipynb \
   python/decompose.ipynb \
   python/formulas.ipynb \
+  python/games.ipynb \
   python/gen.ipynb \
   python/highlighting.ipynb \
   python/ltsmin-dve.ipynb \
   python/ltsmin-pml.ipynb \
   python/parity.ipynb \
-  python/paritygame.ipynb \
   python/product.ipynb \
   python/randaut.ipynb \
   python/randltl.ipynb \
