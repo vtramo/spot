@@ -1,5 +1,5 @@
 ## -*- coding: utf-8 -*-
-## Copyright (C) 2011, 2012, 2013, 2014, 2016-2018 Laboratoire de Recherche
+## Copyright (C) 2011-2014, 2016-2018, 2020 Laboratoire de Recherche
 ## et Développement de l'Epita (LRDE).
 ## Copyright (C) 2003, 2004, 2005, 2006 Laboratoire d'Informatique de
 ## Paris 6 (LIP6), département Systèmes Répartis Coopératifs (SRC),
@@ -40,7 +40,6 @@ misc_HEADERS = \
   escape.hh \
   fixpool.hh \
   formater.hh \
-  game.hh \
   hash.hh \
   hashfunc.hh \
   intvcomp.hh \
@@ -67,7 +66,6 @@ libmisc_la_SOURCES = \
   clz.cc \
   escape.cc \
   formater.cc \
-  game.cc \
   intvcomp.cc \
   intvcmp2.cc \
   memusage.cc \

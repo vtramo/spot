@@ -20,7 +20,7 @@
 #include "config.h"
 
 #include <cmath>
-#include <spot/misc/game.hh>
+#include <spot/twaalgos/game.hh>
 #include <spot/misc/bddlt.hh>
 #include <spot/twaalgos/sccinfo.hh>
 

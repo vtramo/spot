@@ -144,6 +144,7 @@
 #include <spot/twaalgos/iscolored.hh>
 #include <spot/twaalgos/isunamb.hh>
 #include <spot/twaalgos/isweakscc.hh>
+#include <spot/twaalgos/game.hh>
 #include <spot/twaalgos/langmap.hh>
 #include <spot/twaalgos/simulation.hh>
 #include <spot/twaalgos/split.hh>
@@ -164,8 +165,6 @@
 #include <spot/twaalgos/toparity.hh>
 
 #include <spot/parseaut/public.hh>
-
-#include <spot/misc/game.hh>
 
 #include <spot/kripke/fairkripke.hh>
 #include <spot/kripke/kripke.hh>
@@ -668,6 +667,7 @@ def state_is_accepting(self, src) -> "bool":
 %include <spot/twaalgos/iscolored.hh>
 %include <spot/twaalgos/isunamb.hh>
 %include <spot/twaalgos/isweakscc.hh>
+%include <spot/twaalgos/game.hh>
 %include <spot/twaalgos/simulation.hh>
 %include <spot/twaalgos/parity.hh>
 %include <spot/twaalgos/postproc.hh>
@@ -694,8 +694,6 @@ def state_is_accepting(self, src) -> "bool":
 %}
 
 %include <spot/twaalgos/complement.hh>
-
-%include <spot/misc/game.hh>
 
 %include <spot/kripke/fairkripke.hh>
 %include <spot/kripke/kripke.hh>
