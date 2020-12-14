@@ -9,6 +9,10 @@ New in spot 2.9.5.dev (not yet released)
     performing an (unnecessary) second iteration even when the first
     one failed to reduce the automaton.  (Issue #442)
 
+  - When passed an incomplete automaton as input, tgba_determinize()
+    would sometimes produce a complete automaton but incorrectly mark
+    it as incomplete.
+
 New in spot 2.9.5 (2020-11-19)
 
   Bugs fixed:

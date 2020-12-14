@@ -926,9 +926,12 @@ namespace spot
                    { false, // state based
                        false, // inherently_weak
                        false, false, // deterministic
-                       true, // complete
+                       false, // complete
                        true // stutter inv
                        });
+    // completeness can only be improved.
+    if (aut->prop_complete().is_true())
+      res->prop_complete(true);
 
     // Given a safra_state get its associated state in output automata.
     // Required to create new edges from 2 safra-state
