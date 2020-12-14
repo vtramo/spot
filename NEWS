@@ -170,6 +170,9 @@ New in spot 2.9.5.dev (not yet released)
     performing an (unnecessary) second iteration even when the first
     one failed to reduce the automaton.  (Issue #442)
 
+  - tgba_determinize() could create parity automata using more colors
+    than necessary.
+
 New in spot 2.9.5 (2020-11-19)
 
   Bugs fixed:

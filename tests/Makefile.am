@@ -376,6 +376,7 @@ TESTS_ipython = \
 # do not consider part of the documentation: those have to start
 # with a _.
 TESTS_python = \
+  python/298.py \
   python/341.py \
   python/_altscc.ipynb \
   python/_autparserr.ipynb \

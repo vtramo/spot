@@ -94,7 +94,8 @@ namespace spot
     // default constructor
     safra_state();
     safra_state(state_t state_number, bool acceptance_scc = false);
-    safra_state(const safra_build& s, const compute_succs& cs, unsigned& color);
+    safra_state(const safra_build& s, const compute_succs& cs, unsigned& color,
+                unsigned topbrace);
     // Compute successor for transition ap
     safra_state
     compute_succ(const compute_succs& cs, const bdd& ap, unsigned& color) const;
@@ -102,7 +103,7 @@ namespace spot
     merge_redundant_states(const std::vector<std::vector<char>>& implies);
     unsigned
     finalize_construction(const std::vector<int>& buildbraces,
-                          const compute_succs& cs);
+                          const compute_succs& cs, unsigned topbrace);
 
     // each brace points to its parent.
     // braces_[i] is the parent of i
@@ -593,6 +594,7 @@ namespace spot
     safra_build& ss = cs.ss;
     ss.braces_ = braces_; // copy
     ss.nodes_.clear();
+    unsigned topbrace = braces_.size();
     for (const auto& node: nodes_)
       {
         for (const auto& t: cs.aut->out(node.first))
@@ -612,7 +614,7 @@ namespace spot
               ss.update_succ(node.second, t.dst, t.acc);
           }
       }
-    return safra_state(ss, cs, color);
+    return safra_state(ss, cs, color, topbrace);
   }
 
   // When a node a implies a node b, remove the node a.
@@ -643,7 +645,7 @@ namespace spot
   // Return the emitted color, red or green
   unsigned
   safra_state::finalize_construction(const std::vector<int>& buildbraces,
-                                     const compute_succs& cs)
+                                     const compute_succs& cs, unsigned topbrace)
   {
     unsigned red = -1U;
     unsigned green = -1U;
@@ -698,11 +700,15 @@ namespace spot
             // Step A5 renumber braces
             ++decr;
 
-            // Step A3 emit red
-            red = std::min(red, 2*b);
+            // Any brace above topbrace was added while constructing
+            // this successor, so it should not emit any red.
+            if (b < topbrace)
+              // Step A3 emit red
+              red = std::min(red, 2*b);
           }
         else if (cs.empty_green[b] & is_green)
           {
+            assert(b < topbrace);
             // Step A4 emit green
             green = std::min(green, 2*b+1);
           }
@@ -745,12 +751,13 @@ namespace spot
 
   safra_state::safra_state(const safra_build& s,
                            const compute_succs& cs,
-                           unsigned& color)
+                           unsigned& color,
+                           unsigned topbrace)
   : nodes_(s.nodes_.begin(), s.nodes_.end())
   {
     if (cs.use_simulation)
       merge_redundant_states(cs.implies);
-    color = finalize_construction(s.braces_, cs);
+    color = finalize_construction(s.braces_, cs, topbrace);
   }
 
   bool
