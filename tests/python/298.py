@@ -25,9 +25,16 @@ a1 = spot.automaton("""genltl --dac=51 | ltl2tgba --med |""")
 a1 = spot.degeneralize_tba(a1)
 r1 = spot.tgba_determinize(a1, True, False, False)
 assert r1.num_sets() == 3
+assert a1.prop_complete().is_false();
+# This used to fail in 2.9.5 and earlier.
+assert r1.prop_complete().is_maybe();
+assert spot.is_complete(r1)
 
 a2 = spot.automaton("""genltl --dac=51 | ltl2tgba --high |""")
 a2 = spot.degeneralize_tba(a2)
 r2 = spot.tgba_determinize(a2, True, False, False)
 # This used to fail in 2.9.5 and earlier.
 assert r2.num_sets() == 3
+assert a2.prop_complete().is_false();
+assert r2.prop_complete().is_maybe();
+assert spot.is_complete(r2)

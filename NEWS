@@ -173,6 +173,10 @@ New in spot 2.9.5.dev (not yet released)
   - tgba_determinize() could create parity automata using more colors
     than necessary.
 
+  - When passed an incomplete automaton as input, tgba_determinize()
+    would sometimes produce a complete automaton but incorrectly mark
+    it as incomplete.
+
 New in spot 2.9.5 (2020-11-19)
 
   Bugs fixed:
