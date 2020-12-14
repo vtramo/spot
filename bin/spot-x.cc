@@ -58,6 +58,12 @@ default) to disable.") },
 the transitions that enter accepting SCCs, and not only on the transitions \
 inside accepting SCCs.  This option defaults to 0, and is only used when \
 comp-susp=1.") },
+    { DOC("exprop", "When set, this causes the core LTL translation to \
+explicitly iterate over all possible valuations of atomic propositions when \
+considering the successors of a BDD-encoded state, instead of discovering \
+possible successors by rewriting the BDD as a sum of product.  This is enabled \
+by default for --high, and disabled by default otherwise.  When unambiguous \
+automata are required, this option forced and cannot be disabled.") },
     { DOC("skel-simul", "Default to 1.  Set to 0 to disable simulation \
 on the skeleton automaton during compositional suspension. Only used when \
 comp-susp=1.") },

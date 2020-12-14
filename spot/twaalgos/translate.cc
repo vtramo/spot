@@ -39,6 +39,7 @@ namespace spot
     relabel_bool_ = 4;
     tls_impl_ = -1;
     ltl_split_ = true;
+    exprop_ = -1;
 
     opt_ = opt;
     if (!opt)
@@ -62,6 +63,7 @@ namespace spot
     ltl_split_ = opt->get("ltl-split", 1);
     int tls_max_states = opt->get("tls-max-states", 64);
     tls_max_states_ = std::max(0, tls_max_states);
+    exprop_ = opt->get("exprop", -1);
   }
 
   void translator::build_simplifier(const bdd_dict_ptr& dict)
@@ -396,7 +398,9 @@ namespace spot
                   }
               }
           }
-        bool exprop = unambiguous || level_ == postprocessor::High;
+        bool exprop = unambiguous
+          || (level_ == postprocessor::High && exprop_ != 0)
+          || exprop_ > 0;
         aut = ltl_to_tgba_fm(r, simpl_->get_dict(), exprop,
                              true, false, false, nullptr, nullptr,
                              unambiguous);

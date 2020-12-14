@@ -485,3 +485,21 @@ f='(!(G({(a)} |=> {(b)[*12]})))'
 test 14,1 = `ltl2tgba -B --stats=%s,%d "$f"`
 f='(!(G({(a)} |=> {(b)[*13]})))'
 test 15,0 = `ltl2tgba -B --stats=%s,%d "$f"`
+
+# Related to Issue #298.  The difference between the translation of
+# this formula with --med and --high is just a different ordering of
+# the states caused by the use of exprop.
+opts="-x scc-filter=0,tls-impl=0,gf-guarantee=0,wdba-minimize=0"
+f='G(p0 -> F(p1 & !p2 & X(!p2 U p3)))'
+ltl2tgba $opts --med "$f" >med.hoa
+ltl2tgba $opts,exprop=0 "$f" > high.hoa
+diff med.hoa high.hoa
+ltl2tgba $opts "$f" > high.hoa
+test $(wc -l < med.hoa) = $(wc -l < high.hoa)
+cmp med.hoa high.hoa && exit 1
+autfilt --stats=%F:%s,%e med.hoa high.hoa >out
+cat >exp <<EOF
+med.hoa:4,14
+high.hoa:4,14
+EOF
+diff exp out

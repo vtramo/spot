@@ -135,11 +135,21 @@ New in spot 2.9.5.dev (not yet released)
     automaton, but we should not waste too much space and time trying
     that.
 
-    spot::translator additionally honor the following new variable:
+    spot::translator additionally honor the following new variables:
 
-     tls-max-states  Maximum number of states of automata involved in
-                     automata-based implication checks for formula
-                     simplifications.  Defaults to 64.
+      tls-max-states  Maximum number of states of automata involved in
+                      automata-based implication checks for formula
+                      simplifications.  Defaults to 64.
+      exprop          When set, this causes the core LTL translation to
+                      explicitly iterate over all possible valuations of
+                      atomic propositions when considering the successors
+                      of a BDD-encoded state, instead of discovering
+                      possible successors by rewriting the BDD as a sum of
+                      product.  This is enabled by default for --high,
+                      and disabled by default otherwise.  When unambiguous
+                      automata are required, this option forced and
+                      cannot be disabled.  (This feature is not new, but
+                      was not tunable before.)
 
   - tgba_powerset() now takes an extra optional argument to specify a
     list of accepting sinks states if some are known.  Doing so can

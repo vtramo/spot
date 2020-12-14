@@ -155,6 +155,7 @@ namespace spot
     bool gf_guarantee_set_ = false;
     bool ltl_split_;
     unsigned tls_max_states_ = 0;
+    int exprop_;
     const option_map* opt_;
   };
   /// @}
