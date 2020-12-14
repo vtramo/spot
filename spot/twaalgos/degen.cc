@@ -1100,7 +1100,7 @@ namespace spot
 
   std::vector<acc_cond::mark_t>
   propagate_marks_vector(const const_twa_graph_ptr& aut,
-                         scc_info* si)
+                         const scc_info* si)
   {
     bool own_si = true;
     if (si)
@@ -1160,7 +1160,7 @@ namespace spot
     return marks;
   }
 
-  void propagate_marks_here(twa_graph_ptr& aut, scc_info* si)
+  void propagate_marks_here(twa_graph_ptr& aut, const scc_info* si)
   {
     auto marks = propagate_marks_vector(aut, si);
     for (auto& e: aut->edges())

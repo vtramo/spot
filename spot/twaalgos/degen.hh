@@ -172,10 +172,10 @@ namespace spot
   /// @{
   SPOT_API std::vector<acc_cond::mark_t>
   propagate_marks_vector(const const_twa_graph_ptr& aut,
-                         scc_info* si = nullptr);
+                         const scc_info* si = nullptr);
 
   SPOT_API void
   propagate_marks_here(twa_graph_ptr& aut,
-                       scc_info* si = nullptr);
+                       const scc_info* si = nullptr);
   /// @}
 }
