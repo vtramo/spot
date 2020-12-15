@@ -18,6 +18,19 @@ New in spot 2.9.5.dev (not yet released)
     Choices are "ITE" for the if-then-else normal form or "ISOP" for
     relying on irreducible sums of products.
 
+  - ltl2tgba, autfilt, dstar2tgba, and randaut learned a --buchi
+    option, or -b for short.  This output Büchi automata without
+    forcing state-based acceptance.
+
+    The following aliases have also been added for consistency:
+    --gba  is an alias for --tgba, because the "t" of --tgba is
+           never forced.
+    --sba  is an alias for -B/--ba, because -B really
+           implies -S and that is not clear from --ba.
+    As a consequence of the introduction of --sba, the option
+    --sbacc (an alias for --state-based-acceptance) cannot be
+    abbreviated as --sba anymore.
+
   Library:
 
   - Historically, Spot labels automata by Boolean formulas over
@@ -67,9 +80,13 @@ New in spot 2.9.5.dev (not yet released)
 
     can be replaced by
 
-         postprocessor::set_type(postprocessor::BA)
+         postprocessor::set_type(postprocessor::GeneralizedBuchi)
 
     and
+
+         postprocessor::set_type(postprocessor::BA)
+
+   by
 
          postprocessor::set_type(postprocessor::Buchi)
          postprocessor::set_pref(postprocessor::Small

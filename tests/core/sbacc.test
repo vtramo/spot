@@ -1,6 +1,6 @@
 #! /bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2015, 2016, 2017 Laboratoire de Recherche et
+# Copyright (C) 2015-2017, 2020 Laboratoire de Recherche et
 # Développement de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -127,7 +127,7 @@ EOF
 
 diff out.hoa expected
 
-autfilt --sba -H expected > out.hoa
+autfilt --sbacc -H expected > out.hoa
 diff out.hoa expected
 
 autfilt --strip-acc -H expected -n1 > out.hoa

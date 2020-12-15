@@ -15,8 +15,10 @@ Those options will be covered in more detail below, but here is
 a quick summary:
 
 - =--tgba= (the default) outputs Transition-based Generalized Büchi
-  Automata
-- =--ba= (or =-B=) outputs state-based Büchi automata
+  Automata,
+= =--buchi= (or =-b=) outputs transition-based Büchi automata,
+- =--sba= (or =-B=) outputs state-based Büchi automata
+  (=--ba= is a historical alias for this option)
 - =--monitor= (or =-M=) outputs monitors
 - =--generic --deterministic= (or =-DG=) will do whatever it takes to
   produce a deterministic automaton, and may use any acceptance
@@ -24,8 +26,19 @@ a quick summary:
 - =--parity --deterministic= (or =-DP=) will produce a deterministic
   automaton with parity acceptance.
 
-(The latter two can also be used with =--deterministic=, but that is
-less frequent.)
+The latter two can also be used without =--deterministic=, but that is
+less frequent.
+
+Except for =-B= which forces state-based acceptance, these options
+build transition-based automata by default.  Internally, Spot only
+supports transition-based automata.  However, while transition-based
+automata can be smaller then their state-based counterpart, there are
+many cases where transition-based acceptance does not bring any benefits.
+
+In case where it is detected that the transition-based automaton looks
+like a state-based automaton, the different automaton printers will
+usually present the result as an automaton with state-based acceptance
+for simplicity.
 
 * TGBA and BA
 
@@ -57,11 +70,11 @@ State: 1
 --END--
 #+end_SRC
 
-Actually, because =ltl2tgba= is often used with a single formula
-passed on the command line, the =-f= option can be omitted and any
-command-line parameter that is not the argument of some option will be
-assumed to be a formula to translate (this differs from [[file:ltlfilt.org][=ltlfilt=]],
-where such parameters are assumed to be filenames).
+As =ltl2tgba= is often used with a single formula passed on the
+command line, the =-f= option can be omitted and any command-line
+parameter that is not the argument of some option will be assumed to
+be a formula to translate (this differs from [[file:ltlfilt.org][=ltlfilt=]], where such
+parameters are assumed to be filenames).
 
 =ltl2tgba= honors the [[file:oaut.org][common options for selecting the output format]].
 The default output format, as shown above, is the [[file:hoa.org][HOA]] format, as this
@@ -69,7 +82,7 @@ can easily be piped to other tools.
 
 To convert the automaton into a picture, or into vectorial format, use
 =--dot= or =-d= to request [[http://www.graphviz.org/][GraphViz output]] and process the result with
-=dot= or =dotty=.  Typically, you could get a =pdf= of this TGBA using
+=dot= or =dotty=.  Typically, one can get a =pdf= of this TGBA using
 #+BEGIN_SRC sh :exports code
 ltl2tgba "Fa & GFb" -d | dot -Tpdf > tgba.pdf
 #+END_SRC
@@ -92,10 +105,10 @@ $txt
 
 Characters like ⓿, ❶, etc. denotes the acceptance sets a transition
 belongs to.  In this case, there is only one acceptance set, called
-=0=, containing a single transition.  You may have many transitions in
-the same acceptance set, and a transition may also belong to multiple
+=0=, containing a single transition.  An acceptance set can contains
+multiple transitions, and a transition may also belong to multiple
 acceptance sets.  An infinite path through this automaton is accepting
-iff it visit each acceptance set infinitely often.  Therefore, in the
+iff it visits each acceptance set infinitely often.  Therefore, in the
 above example, any accepted path will /necessarily/ leave the initial
 state after a finite amount of steps, and then it will verify the
 property =b= infinitely often.  It is also possible that an automaton
@@ -137,99 +150,66 @@ these acceptance sets ensures that atomic propositions =a= and =b= must
 be true infinitely often.
 
 A Büchi automaton for the previous formula can be obtained with the
-=-B= option:
+=-B= or =-b= options, depending on whether we insist on have
+state-based acceptance (=-B=) or if transition-based acceptance is OK
+(=-b=).
+
+#+NAME: dotex2tba
+#+BEGIN_SRC sh :exports code
+ltl2tgba -b 'GFa & GFb' -d
+#+END_SRC
+#+BEGIN_SRC dot :file dotex2tba.svg :var txt=dotex2tba :exports results
+$txt
+#+END_SRC
+
+#+RESULTS:
+[[file:dotex2tba.svg]]
 
 #+NAME: dotex2ba
 #+BEGIN_SRC sh :exports code
 ltl2tgba -B 'GFa & GFb' -d
 #+END_SRC
-#+RESULTS: dotex2ba
-#+begin_example
-digraph G {
-  rankdir=LR
-  node [shape="circle"]
-  fontname="Lato"
-  node [fontname="Lato"]
-  edge [fontname="Lato"]
-  node[style=filled, fillcolor="#ffffa0"] edge[arrowhead=vee, arrowsize=.7]
-  I [label="", style=invis, width=0]
-  I -> 0
-  0 [label="0", peripheries=2]
-  0 -> 0 [label=<a &amp; b>]
-  0 -> 1 [label=<!b>]
-  0 -> 2 [label=<!a &amp; b>]
-  1 [label="1"]
-  1 -> 0 [label=<a &amp; b>]
-  1 -> 1 [label=<!b>]
-  1 -> 2 [label=<!a &amp; b>]
-  2 [label="2"]
-  2 -> 0 [label=<a>]
-  2 -> 2 [label=<!a>]
-}
-#+end_example
-
 #+BEGIN_SRC dot :file dotex2ba.svg :var txt=dotex2ba :exports results
 $txt
 #+END_SRC
 #+RESULTS:
 [[file:dotex2ba.svg]]
 
-Although accepting states in the Büchi automaton are (traditionally)
-pictured with double-lines, internally this automaton is still handled
-as a TGBA with a single acceptance set such that the transitions
-leaving the state are either all accepting, or all non-accepting.  You
-can see this underlying TGBA if you pass the =--dot=t= option (the =t=
-requests the use of transition-based acceptance as it is done
-internally):
+Although accepting states in state-based Büchi automaton are
+(traditionally) pictured with double-lines, internally this automaton
+is still handled as a TGBA with a single acceptance set such that the
+transitions leaving the state are either all accepting, or all
+non-accepting.  The underlying TGBA can be seen by passing the
+=--dot=t= option (the =t= requests the use of transition-based
+acceptance, as it is done internally):
 
 #+BEGIN_SRC sh :exports code
-ltl2tgba --dot=t -B 'GFa & GFb'
+ltl2tgba -B 'GFa & GFb' --dot=t
 #+END_SRC
-
 #+NAME: dotex2ba-t
 #+BEGIN_SRC sh :exports none
-ltl2tgba --dot=.t -B 'GFa & GFb'
+ltl2tgba -B 'GFa & GFb' --dot=.t
 #+END_SRC
-
-#+RESULTS: dotex2ba-t
-#+begin_example
-digraph G {
-  rankdir=LR
-  fontname="Lato"
-  node [fontname="Lato"]
-  edge [fontname="Lato"]
-  node[style=filled, fillcolor="#ffffa0"] edge[arrowhead=vee, arrowsize=.7]
-  I [label="", style=invis, width=0]
-  I -> 0
-  0 [label="0"]
-  0 -> 0 [label=<a &amp; b<br/><font color="#5DA5DA">⓿</font>>]
-  0 -> 1 [label=<!b<br/><font color="#5DA5DA">⓿</font>>]
-  0 -> 2 [label=<!a &amp; b<br/><font color="#5DA5DA">⓿</font>>]
-  1 [label="1"]
-  1 -> 0 [label=<a &amp; b>]
-  1 -> 1 [label=<!b>]
-  1 -> 2 [label=<!a &amp; b>]
-  2 [label="2"]
-  2 -> 0 [label=<a>]
-  2 -> 2 [label=<!a>]
-}
-#+end_example
-
 #+BEGIN_SRC dot :file dotex2ba-t.svg :var txt=dotex2ba-t :exports results
 $txt
 #+END_SRC
 #+RESULTS:
 [[file:dotex2ba-t.svg]]
 
-Using option =-S= instead of option =-B= you can obtain generalized
-Büchi automata with state-based acceptance.  Here is the same formula
-as above, for comparison.
+
+Option =-B= is in fact a shorthand for =-b -S=, where =-b= requests
+Büchi acceptance, and =-S= requests state-based acceptance.
+
+Calling =ltl2tgba -S= will build an automaton with generalized Büchi
+acceptance (the default for =ltltgba=), but force state-based
+acceptance on the output.
+
+Here is the same formula as above, for comparison.
 
 #+NAME: dotex2gba
 #+BEGIN_SRC sh :exports code
 ltl2tgba -S 'GFa & GFb' -d
 #+END_SRC
-
 #+BEGIN_SRC dot :file dotex2gba.svg :var txt=dotex2gba :exports results
 $txt
 #+END_SRC
@@ -254,23 +234,32 @@ ltl2tgba --help | sed -n '/Output format:/,/^$/p' | sed '1d;$d'
                              --lbtt or --spin)
       --check[=PROP]         test for the additional property PROP and output
                              the result in the HOA format (implies -H).  PROP
-                             may be any prefix of 'all' (default),
-                             'unambiguous', 'stutter-invariant', or
-                             'strength'.
-  -d, --dot[=1|a|b|B|c|e|f(FONT)|h|n|N|o|r|R|s|t|v|+INT]
+                             may be some prefix of 'all' (default),
+                             'unambiguous', 'stutter-invariant',
+                             'stutter-sensitive-example', 'semi-determinism',
+                             or 'strength'.
+  -d, --dot[=1|a|A|b|B|c|C(COLOR)|e|E|f(FONT)|h|k|K|n|N|o|r|R|s|t|u|v|y|+INT|<INT|#]
                              GraphViz's format.  Add letters for (1) force
-                             numbered states, (a) acceptance display, (b)
+                             numbered states, (a) show acceptance condition
+                             (default), (A) hide acceptance condition, (b)
                              acceptance sets as bullets, (B) bullets except for
                              Büchi/co-Büchi automata, (c) force circular
-                             nodes, (e) force elliptic nodes, (f(FONT)) use
-                             FONT, (h) horizontal layout, (v) vertical layout,
-                             (n) with name, (N) without name, (o) ordered
-                             transitions, (r) rainbow colors for acceptance
-                             sets, (R) color acceptance sets by Inf/Fin, (s)
-                             with SCCs, (t) force transition-based acceptance,
-                             (+INT) add INT to all set numbers
-  -H, --hoaf[=i|l|m|s|t|v]   Output the automaton in HOA format (default).  Add
-                             letters to select (i) use implicit labels for
+                             nodes, (C) color nodes with COLOR, (d) show
+                             origins when known, (e) force elliptic nodes, (E)
+                             force rEctangular nodes, (f(FONT)) use FONT, (g)
+                             hide edge labels, (h) horizontal layout, (k) use
+                             state labels when possible, (K) use transition
+                             labels (default), (n) show name, (N) hide name,
+                             (o) ordered transitions, (r) rainbow colors for
+                             acceptance sets, (R) color acceptance sets by
+                             Inf/Fin, (s) with SCCs, (t) force transition-based
+                             acceptance, (u) hide true states, (v) vertical
+                             layout, (y) split universal edges by color, (+INT)
+                             add INT to all set numbers, (<INT) display at most
+                             INT states, (#) show internal edge numbers
+  -H, --hoaf[=1.1|i|k|l|m|s|t|v]   Output the automaton in HOA format
+                             (default).  Add letters to select (1.1) version
+                             1.1 of the format, (i) use implicit labels for
                              complete deterministic automata, (s) prefer
                              state-based acceptance when possible [default],
                              (t) force transition-based acceptance, (m) mix
@@ -287,40 +276,17 @@ ltl2tgba --help | sed -n '/Output format:/,/^$/p' | sed '1d;$d'
   -s, --spin[=6|c]           Spin neverclaim (implies --ba).  Add letters to
                              select (6) Spin's 6.2.4 style, (c) comments on
                              states
-      --stats=FORMAT         output statistics about the automaton
+      --stats=FORMAT, --format=FORMAT
+                             output statistics about the automaton
 #+end_example
 
 Option =-8= can be used to improve the readability of the output
-if your system can display UTF-8 correctly.
+on systems that can display UTF-8 correctly.
 
 #+NAME: dotex2ba8
 #+BEGIN_SRC sh :exports code
-ltl2tgba -B8 "GFa & GFb" -d
+ltl2tgba -8B "GFa & GFb" -d
 #+END_SRC
-#+RESULTS: dotex2ba8
-#+begin_example
-digraph G {
-  rankdir=LR
-  fontname="Lato"
-  node [fontname="Lato"]
-  edge [fontname="Lato"]
-  node[style=filled, fillcolor="#ffffa0"] edge[arrowhead=vee, arrowsize=.7]
-  I [label="", style=invis, width=0]
-  I -> 0
-  0 [label=<0<br/><font color="#5DA5DA">⓿</font>>]
-  0 -> 0 [label=<a∧b>]
-  0 -> 1 [label=<b̅>]
-  0 -> 2 [label=<a̅∧b>]
-  1 [label=<1>]
-  1 -> 0 [label=<a∧b>]
-  1 -> 1 [label=<b̅>]
-  1 -> 2 [label=<a̅∧b>]
-  2 [label=<2>]
-  2 -> 0 [label=<a>]
-  2 -> 2 [label=<a̅>]
-}
-#+end_example
-
 #+BEGIN_SRC dot :file dotex2ba8.svg :var txt=dotex2ba8 :exports results
 $txt
 #+END_SRC

@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2012-2016, 2018-2019 Laboratoire de Recherche et
+// Copyright (C) 2012-2016, 2018-2020 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -81,8 +81,14 @@ static const argp_option options[] =
       "probability that an edge belongs to one acceptance set (0.2)", 0 },
     { "automata", 'n', "INT", 0, "number of automata to output (1)\n"\
       "use a negative value for unbounded generation", 0 },
-    { "ba", 'B', nullptr, 0,
-      "build a Buchi automaton (implies --acceptance=Buchi --state-acc)", 0 },
+    { "sba", 'B', nullptr, 0,
+      "build a state-based Buchi automaton "
+      "(implies --acceptance=Buchi --state-acc)", 0 },
+    // historical name for --sba
+    { "ba", 0, nullptr, OPTION_ALIAS, nullptr, 0 },
+    { "buchi", 'b', nullptr, 0,
+      "build a Büchi automaton (same as --acceptance=Buchi)", 0 },
+    { "Buchi", 0, nullptr, OPTION_ALIAS, nullptr, 0 },
     { "colored", OPT_COLORED, nullptr, 0,
       "build an automaton in which each edge (or state if combined with "
       "-S) belong to a single acceptance set", 0 },
@@ -161,10 +167,10 @@ static bool gba_wanted = false;
 static std::unique_ptr<unique_aut_t> opt_uniq = nullptr;
 
 static void
-ba_options()
+ba_options(bool sbacc)
 {
   opt_acc_sets = { 1, 1 };
-  opt_state_acc = true;
+  opt_state_acc = sbacc;
 }
 
 // Range should have the form 12..34 or 12:34, maybe with spaces.  The
@@ -209,8 +215,12 @@ parse_opt(int key, char* arg, struct argp_state* as)
           generic_wanted = true;
         }
       break;
+    case 'b':
+      ba_options(false);
+      ba_wanted = true;
+      break;
     case 'B':
-      ba_options();
+      ba_options(true);
       ba_wanted = true;
       break;
     case 'e':
@@ -300,20 +310,22 @@ main(int argc, char** argv)
         error(2, 0,
               "--spin implies --ba so should not be used with --acceptance");
       if (generic_wanted && ba_wanted)
-        error(2, 0, "--acceptance and --ba may not be used together");
+        error(2, 0, "--acceptance and %s may not be used together",
+              opt_state_acc ? "--ba" : "--buchi");
 
       if (automaton_format == Spin && opt_acc_sets.max > 1)
         error(2, 0, "--spin is incompatible with --acceptance=%d..%d",
               opt_acc_sets.min, opt_acc_sets.max);
       if (ba_wanted && opt_acc_sets.min != 1 && opt_acc_sets.max != 1)
-        error(2, 0, "--ba is incompatible with --acceptance=%d..%d",
+        error(2, 0, "%s is incompatible with --acceptance=%d..%d",
+              opt_state_acc ? "--ba" : "--buchi",
               opt_acc_sets.min, opt_acc_sets.max);
       if (ba_wanted && generic_wanted)
         error(2, 0,
               "--ba is incompatible with --acceptance=%s", opt_acceptance);
 
       if (automaton_format == Spin)
-        ba_options();
+        ba_options(true);
 
       if (opt_colored && opt_acc_sets.min == -1 && !generic_wanted)
         error(2, 0, "--colored requires at least one acceptance set; "

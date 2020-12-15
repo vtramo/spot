@@ -297,48 +297,67 @@ represented in the first version.
 
 * LBTT output
 
-The [[http://www.tcs.hut.fi/Software/lbtt/doc/html/Format-for-automata.html][LBTT]] output has two flavors: state-based (which is used to output
-Büchi automata or monitors) or transition-based (for TGBA).
+The [[http://www.tcs.hut.fi/Software/lbtt/doc/html/Format-for-automata.html][LBTT]] output has two flavors: state-based or transition-based.  The
+transition flavor can be recognized by the present of a =t= after the
+second number.  (The first number is the number of states, while the
+second number is the number of acceptance sets used.)
+
+Compare the following transition-based and state-based Büchi automata
+for =GFp0=:
 
 #+BEGIN_SRC sh
-ltl2tgba --ba --lbtt 'p0 U p1'
+ltl2tgba -b --lbtt 'GFp0'
+#+END_SRC
+#+RESULTS:
+: 1 1t
+: 0 1
+: 0 -1 ! p0
+: 0 0 -1 p0
+: -1
+
+#+BEGIN_SRC sh
+ltl2tgba -B --lbtt 'GFp0'
 #+END_SRC
 #+RESULTS:
 : 2 1
-: 0 1 -1
-: 1 p1
-: 0 & p0 ! p1
+: 0 1 0 -1
+: 0 p0
+: 1 ! p0
 : -1
-: 1 0 0 -1
-: 1 t
+: 1 0 -1
+: 0 p0
+: 1 ! p0
 : -1
 
-If you want to request transition-based output even for Büchi automata,
-use =--lbtt=t=.
+Since even state-based automata are stored as transition-based
+automata by Spot, it is also possible to force transition-based
+LBTT output to be used even if the automaton declares itself as
+state-based.  This is done by passing =--lbtt=t=.
 
 #+BEGIN_SRC sh
-ltl2tgba --ba --lbtt=t 'p0 U p1'
+ltl2tgba -B --lbtt=t 'GFp0'
 #+END_SRC
 
 #+RESULTS:
 : 2 1t
 : 0 1
-: 1 -1 p1
-: 0 -1 & p0 ! p1
+: 0 0 -1 p0
+: 1 0 -1 ! p0
 : -1
 : 1 0
-: 1 0 -1 t
+: 0 -1 p0
+: 1 -1 ! p0
 : -1
 
 Note that the [[http://www.tcs.hut.fi/Software/lbtt/doc/html/Format-for-automata.html][LBTT]] output generalizes the format output by [[http://www.tcs.hut.fi/Software/maria/tools/lbt/][LBT]] with
 support for transition-based acceptance.  Both formats however are
 restricted to atomic propositions of the form =p0=, =p1=, etc...  In
 case other atomic propositions are used, Spot output them in double
-quotes.  This other extension of the format is also supported by
+quotes.  This second extension of the format was introduced by
 [[http://www.ltl2dstar.de/][ltl2dstar]].
 
 #+BEGIN_SRC sh
-ltl2tgba --ba --lbtt 'a U b'
+ltl2tgba -B --lbtt 'a U b'
 #+END_SRC
 
 #+RESULTS:

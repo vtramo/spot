@@ -50,9 +50,15 @@ static constexpr const argp_option options[] =
     { "generic", 'G', nullptr, 0,
       "any acceptance condition is allowed", 0 },
     { "tgba", OPT_TGBA, nullptr, 0,
-      "Transition-based Generalized Büchi Automaton (default)", 0 },
-    { "ba", 'B', nullptr, 0,
-      "Büchi Automaton (implies -S)", 0 },
+      "automaton with Generalized Büchi acceptance (default)", 0 },
+    { "gba", 0, nullptr, OPTION_ALIAS, nullptr, 0 },
+    { "sba", 'B', nullptr, 0,
+      "state-based Büchi Automaton (same as -S -b)", 0 },
+    // Historical name of the --sba option.
+    { "ba", 0, nullptr, OPTION_ALIAS, nullptr, 0 },
+    { "buchi", 'b', nullptr, 0,
+      "automaton with Büchi acceptance", 0 },
+    { "Buchi", 0, nullptr, OPTION_ALIAS, nullptr, 0 },
     { "monitor", 'M', nullptr, 0, "Monitor (accepts all finite prefixes "
       "of the given property)", 0 },
     { "complete", 'C', nullptr, 0, "output a complete automaton", 0 },
@@ -113,9 +119,15 @@ static const argp_option options_disabled[] =
     { "generic", 'G', nullptr, 0,
       "any acceptance is allowed (default)", 0 },
     { "tgba", OPT_TGBA, nullptr, 0,
-      "Transition-based Generalized Büchi Automaton", 0 },
-    { "ba", 'B', nullptr, 0,
-      "Büchi Automaton (with state-based acceptance)", 0 },
+      "automaton with Generalized Büchi acceptance", 0 },
+    { "gba", 0, nullptr, OPTION_ALIAS, nullptr, 0 },
+    { "sba", 'B', nullptr, 0,
+      "state-based Büchi Automaton (same as -S -b)", 0 },
+    // Historical name of the --sba option.
+    { "ba", 0, nullptr, OPTION_ALIAS, nullptr, 0 },
+    { "buchi", 'b', nullptr, 0,
+      "automaton with Büchi acceptance", 0 },
+    { "Buchi", 0, nullptr, OPTION_ALIAS, nullptr, 0 },
     { "monitor", 'M', nullptr, 0, "Monitor (accepts all finite prefixes "
       "of the given property)", 0 },
     { "complete", 'C', nullptr, 0, "output a complete automaton", 0 },
@@ -163,6 +175,10 @@ parse_opt_post(int key, char* arg, struct argp_state*)
     case 'a':
       pref = spot::postprocessor::Any;
       pref_set = true;
+      break;
+    case 'b':
+      type = spot::postprocessor::Buchi;
+      colored = spot::postprocessor::Any;
       break;
     case 'B':
       type = spot::postprocessor::Buchi;
