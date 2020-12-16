@@ -189,11 +189,22 @@ namespace spot
   }
 
   std::vector<cube>
-  cubeset::permutations(const std::vector<size_t>& support) const
+  cubeset::permutations(const std::vector<size_t>& support,
+                        const std::vector<std::pair<size_t, bool>>& fixed_vars) const
   {
     std::vector<cube> res;
 
-    permutations_rec(0, support, alloc(), res);
+    cube c = alloc();
+    // setup fixed vars
+    for (const auto& [idx, val] : fixed_vars)
+      {
+        if (val)
+          set_true_var(c, idx);
+        else
+          set_false_var(c, idx);
+      }
+
+    permutations_rec(0, support, c, res);
 
     return res;
   }

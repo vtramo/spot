@@ -454,20 +454,29 @@ namespace spot
       }
     };
 
+    enum class assignation
+    {
+        True,
+        False,
+        NotFixed,
+    };
+
     // set containing indices of atomic propositions included in the support
-    using cube_support = std::unordered_set<size_t>;
+    using cube_support = std::unordered_map<size_t, assignation>;
 
     /// \brief finds all the variables that \a c depends on.
     cube_support
     compute_cube_support(const cube& c, const cubeset& cs)
     {
-      std::unordered_set<size_t> res;
+      std::unordered_map<size_t, assignation> res;
 
       for (size_t i = 0; i < cs.size(); ++i)
         {
-          // if is free var
-          if (cs.is_true_var(c, i) || cs.is_false_var(c, i))
-            res.insert(i);
+          // if is non free var
+          if (cs.is_true_var(c, i))
+            res.insert({i, assignation::True});
+          else if (cs.is_false_var(c, i))
+            res.insert({i, assignation::False});
         }
 
       return res;
@@ -478,11 +487,28 @@ namespace spot
     {
       tm.start("permutations");
       // switch set to vector, easier
-      std::vector<size_t> support(support_set.begin(), support_set.end());
+      std::vector<size_t> unfixed_vars;
+      std::vector<std::pair<size_t, bool>> fixed_vars;
+
+      for (const auto& [key, value] : support_set)
+        {
+          switch (value)
+            {
+              case assignation::True:
+                fixed_vars.push_back({key, true});
+                break;
+              case assignation::False:
+                fixed_vars.push_back({key, false});
+                break;
+              case assignation::NotFixed:
+                unfixed_vars.push_back(key);
+                break;
+            }
+        }
 
       tm.start("cs_permutations");
 
-      auto res = cs.permutations(support);
+      auto res = cs.permutations(unfixed_vars, fixed_vars);
 
       tm.stop("cs_permutations");
       tm.stop("permutations");
@@ -501,8 +527,31 @@ namespace spot
       for (const auto& [state, _] : s.nodes_)
         {
           cube_support state_support = supports[state];
-          // compute the union of their support
-          safra_support.insert(state_support.begin(), state_support.end());
+          // merge support with res, marking values as fixed or not
+          for (const auto& key_value : state_support)
+            {
+              size_t key = key_value.first;
+              assignation value = key_value.second;
+
+              auto it = safra_support.find(key);
+              if (it != safra_support.end())
+                {
+                  // value already in state_support; need to check if it has
+                  // different assignations or not
+                  assignation other_value = it->second;
+                  if (other_value != assignation::NotFixed
+                      && value != other_value)
+                    {
+                      // other_value was true or false and different from new
+                      // value, so var is not fixed
+                      safra_support.insert({key, assignation::NotFixed});
+                    }
+                }
+              else
+                {
+                  safra_support.insert({key, value});
+                }
+            }
         }
 
 
@@ -703,8 +752,31 @@ namespace spot
             auto& trans = aut->trans_data(succs, THREAD_ID);
             cube_support support = compute_cube_support(trans.cube_, cs);
 
-            // union of support and res
-            res.insert(support.begin(), support.end());
+            // merge support with res, marking values as fixed or not
+            for (const auto& key_value : support)
+              {
+                size_t key = key_value.first;
+                assignation value = key_value.second;
+
+                auto it = res.find(key);
+                if (it != res.end())
+                  {
+                    // value already in support; need to check if it has
+                    // different assignations or not
+                    assignation other_value = it->second;
+                    if (other_value != assignation::NotFixed
+                        && value != other_value)
+                      {
+                        // other_value was true or false and different from new
+                        // value, so var is not fixed
+                        res.insert({key, assignation::NotFixed});
+                      }
+                  }
+                else
+                  {
+                    res.insert({key, value});
+                  }
+              }
 
             succs->next();
           }

@@ -139,7 +139,9 @@ namespace spot
     ///     - false_var = 0 0
     ///
     /// Used in determinization
-    std::vector<cube> permutations(const std::vector<size_t>& support) const;
+    std::vector<cube>
+    permutations(const std::vector<size_t>& support,
+                 const std::vector<std::pair<size_t, bool>>& fixed_vars) const;
 
   private:
     cube copy(const cube c) const;
