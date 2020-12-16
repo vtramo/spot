@@ -406,7 +406,7 @@ namespace spot
         if (((PREF_ == Deterministic) && d2_more_det)
             || (s2 < s1)
             || (s2 == s1
-                && ((aut2->num_sets() < aut2->num_sets()) || d2_more_det)))
+                && ((aut2->num_sets() < aut->num_sets()) || d2_more_det)))
           aut = std::move(aut2);
       }
 
