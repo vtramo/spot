@@ -146,7 +146,7 @@ namespace spot
       return mc_rvalue::NOT_EMPTY;
     if ((lhs == mc_rvalue::EMPTY && rhs == mc_rvalue::NOT_EMPTY) ||
         (lhs == mc_rvalue::NOT_EMPTY && rhs == mc_rvalue::EMPTY))
-      return mc_rvalue::EMPTY;
+      return mc_rvalue::NOT_EMPTY;
 
     // Handle Failure / Success
     if (lhs == mc_rvalue::FAILURE && rhs == mc_rvalue::FAILURE)
