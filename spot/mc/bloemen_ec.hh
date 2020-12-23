@@ -520,6 +520,15 @@ namespace spot
 
               auto it_kripke = sys_.succ(v_prime->st_kripke, tid_);
               auto it_prop = twa_->succ(v_prime->st_prop, tid_);
+
+              // This is a dead-end state for the property automaton
+              if (SPOT_UNLIKELY(it_prop->done()))
+                {
+                  uf_.remove_from_list(v_prime);
+                  sys_.recycle(it_kripke, tid_);
+                  continue;
+                }
+
               forward_iterators(sys_, twa_, it_kripke, it_prop, true, tid_);
               while (!it_kripke->done())
                 {
