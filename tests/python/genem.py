@@ -304,3 +304,14 @@ def run_bench(automata):
 
 
 run_bench([a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a360])
+
+
+# accepting_transitions
+
+assert spot.accepting_transitions(a1, a1.acc()) == \
+    (False, False, False, True, True, False, True, True, False)
+assert spot.accepting_transitions(a2, a2.acc()) == (False,) * 19
+assert spot.accepting_transitions(a10, a10.acc()) == \
+    (False, False, True, True, False)
+assert spot.accepting_transitions(a360, a360.acc()) == \
+    (False, False, False, False, True, False, False, False, True)

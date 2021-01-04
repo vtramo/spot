@@ -52,7 +52,7 @@ namespace spot
   /// scc_info::succ() will be restricted to the portion reachable
   /// with "keep" edges.  Additionally SCCs might be created when
   /// edges are cut, but those will not be reachable from
-  /// scc_info::initial()..
+  /// scc_info::initial().
   enum class edge_filter_choice { keep, ignore, cut };
   typedef edge_filter_choice
   (*edge_filter)(const twa_graph::edge_storage_t& e, unsigned dst,
@@ -418,6 +418,8 @@ namespace spot
                                          | static_cast<ut>(right));
   }
 
+  class SPOT_API scc_and_mark_and_vector_filter;
+
   class SPOT_API scc_and_mark_filter;
 
   /// \ingroup twa_misc
@@ -509,6 +511,9 @@ namespace spot
     {
     }
     /// @}
+
+    scc_info(const scc_and_mark_and_vector_filter& filt,
+            scc_info_options options);
 
     const_twa_graph_ptr get_aut() const
     {
@@ -865,6 +870,79 @@ namespace spot
     }
   };
 
+  /// \brief Create a filter for SCC, marks and vector.
+  ///
+  /// An scc_and_mark_filter can be passed to scc_info to explore only
+  /// a specific SCC of the original automaton, and to prevent some
+  /// acceptance sets from being considered as part of SCCs. Transitions are
+  /// also not considered by setting a description of the transitions that are
+  /// removed even if they don't have a set described earlier.
+  class SPOT_API scc_and_mark_and_vector_filter
+  {
+  protected:
+    const scc_info& lower_si_;
+    unsigned lower_scc_;
+    acc_cond::mark_t cut_sets_;
+    const_twa_graph_ptr aut_;
+    const std::vector<bool>& keep_;
+    acc_cond old_acc_;
+    bool restore_old_acc_ = false;
+
+    static scc_info::edge_filter_choice
+    filter_scc_and_mark_and_vector_(const twa_graph::edge_storage_t& e,
+                         unsigned dst, void* data);
+
+  public:
+    /// \brief Specify how to restrict scc_info to some SCC and acceptance sets
+    ///
+    /// \param lower_si the original scc_info that specifies the SCC
+    /// \param lower_scc the SCC number in lower_si
+    /// \param cut_sets the acceptance sets that should not be part of SCCs.
+    /// \param keep a vector such that the transition i is removed if keep[i]
+    /// is false
+    scc_and_mark_and_vector_filter(const scc_info& lower_si,
+                        unsigned lower_scc,
+                        acc_cond::mark_t cut_sets,
+                        const std::vector<bool>& keep)
+      : lower_si_(lower_si), lower_scc_(lower_scc), cut_sets_(cut_sets),
+        aut_(lower_si_.get_aut()), keep_(keep), old_acc_(aut_->get_acceptance())
+    {
+    }
+
+    ~scc_and_mark_and_vector_filter()
+    {
+      restore_acceptance();
+    }
+
+    void override_acceptance(const acc_cond& new_acc)
+    {
+      std::const_pointer_cast<twa_graph>(aut_)->set_acceptance(new_acc);
+      restore_old_acc_ = true;
+    }
+
+    void restore_acceptance()
+    {
+      if (!restore_old_acc_)
+        return;
+      std::const_pointer_cast<twa_graph>(aut_)->set_acceptance(old_acc_);
+      restore_old_acc_ = false;
+    }
+
+    const_twa_graph_ptr get_aut() const
+    {
+      return aut_;
+    }
+
+    unsigned start_state() const
+    {
+      return lower_si_.one_state_of(lower_scc_);
+    }
+
+    scc_info::edge_filter get_filter() const
+    {
+      return filter_scc_and_mark_and_vector_;
+    }
+  };
 
   /// \brief Dump the SCC graph of \a aut on \a out.
   ///

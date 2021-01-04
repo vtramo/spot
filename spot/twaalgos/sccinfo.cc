@@ -82,6 +82,14 @@ namespace spot
   {
   }
 
+  scc_info::scc_info(const scc_and_mark_and_vector_filter& filt,
+    scc_info_options options)
+    : scc_info(filt.get_aut(), filt.start_state(),
+               filt.get_filter(),
+               const_cast<scc_and_mark_and_vector_filter*>(&filt), options)
+  {
+  }
+
   scc_info::scc_info(const_twa_graph_ptr aut,
                      unsigned initial_state,
                      edge_filter filter,
@@ -874,6 +882,32 @@ namespace spot
       if (d.cut_sets_ & e.acc)
         return scc_info::edge_filter_choice::cut;
       return scc_info::edge_filter_choice::keep;
+    }
+
+    scc_info::edge_filter_choice
+    scc_and_mark_and_vector_filter::filter_scc_and_mark_and_vector_
+    (const twa_graph::edge_storage_t& e, unsigned, void* data)
+    {
+      auto& d = *reinterpret_cast<scc_and_mark_and_vector_filter*>(data);
+
+      auto& si = d.lower_si_;
+      auto scc = d.lower_scc_;
+      auto inner_edges = si.inner_edges_of(scc);
+      bool is_inner_edge = std::find(inner_edges.begin(), inner_edges.end(),
+                                     e) != inner_edges.end();
+      if (!is_inner_edge)
+        return edge_filter_choice::ignore;
+
+      auto& aut = d.aut_;
+      auto index = aut->edge_number(e);
+
+      auto& keep = d.keep_;
+      auto& cut_sets = d.cut_sets_;
+      bool has_mark = ((e.acc & cut_sets) != acc_cond::mark_t {});
+      if (keep[index] && !has_mark)
+        return edge_filter_choice::keep;
+      else
+        return edge_filter_choice::cut;
     }
 
 }

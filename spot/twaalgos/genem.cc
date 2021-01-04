@@ -227,4 +227,82 @@ namespace spot
     return scc_split_check(si, scc, forced_acc, nullptr, {});
   }
 
+  // return ⊤ if there exists at least one accepting transition.
+  static bool
+  accepting_transitions_aux(const scc_info &si, unsigned scc,
+                                const acc_cond acc,
+                                acc_cond::mark_t removed_colors,
+                                acc_cond::mark_t tocut,
+                                std::vector<bool> &accepting_transitions,
+                                const std::vector<bool>& kept)
+  {
+    bool result = false;
+    scc_and_mark_and_vector_filter filt(si, scc, tocut, kept);
+    filt.override_acceptance(acc);
+    scc_info upper_si(filt, scc_info_options::ALL);
+    for (unsigned sc = 0; sc < upper_si.scc_count(); ++sc)
+      result |= accepting_transitions_scc(upper_si, sc, acc, removed_colors,
+                                accepting_transitions, kept);
+    return result;
+  }
+
+  bool
+  accepting_transitions_scc(const scc_info &si, unsigned scc,
+                              const acc_cond aut_acc,
+                              acc_cond::mark_t removed_colors,
+                              std::vector<bool>& accepting_transitions,
+                              const std::vector<bool>& kept)
+  {
+    // The idea is the same as in is_scc_empty()
+    bool result = false;
+    acc_cond::mark_t sets = si.acc_sets_of(scc);
+    acc_cond acc = aut_acc.restrict_to(sets);
+    acc = acc.remove(si.common_sets_of(scc), false);
+
+    auto inner_edges = si.inner_edges_of(scc);
+
+    if (si.is_trivial(scc))
+      return false;
+    if (acc.is_t() || acc.accepting(acc.get_acceptance().used_sets()))
+    {
+      for (auto& e : inner_edges)
+        if ((e.acc & removed_colors) == acc_cond::mark_t {})
+          accepting_transitions[si.get_aut()->edge_number(e)] = true;
+      return true;
+    }
+    else if (acc.is_f())
+      return false;
+    acc_cond::acc_code rest = acc_cond::acc_code::f();
+    for (const acc_cond& disjunct: acc.top_disjuncts())
+      if (acc_cond::mark_t fu = disjunct.fin_unit())
+        result |= accepting_transitions_aux(si, scc, acc.remove(fu, true),
+                                  (removed_colors | fu), fu,
+                                  accepting_transitions, kept);
+      else
+        rest |= disjunct.get_acceptance();
+    if (!rest.is_f())
+    {
+      acc_cond::mark_t m = { (unsigned) acc.fin_one() };
+      result |= accepting_transitions_aux(si, scc, acc.remove(m, true),
+                                (removed_colors | m), m, accepting_transitions,
+                                kept);
+      result |= accepting_transitions_scc(si, scc, acc.remove(m, false),
+                                removed_colors, accepting_transitions,
+                                kept);
+    }
+    return result;
+  }
+
+  std::vector<bool>
+  accepting_transitions(const const_twa_graph_ptr aut, acc_cond cond)
+  {
+    auto aut_vector_size = aut->edge_vector().size();
+    std::vector<bool> result(aut_vector_size, false);
+    std::vector<bool> kept(aut_vector_size, true);
+    scc_info si(aut);
+    for (unsigned scc = 0; scc < si.scc_count(); ++scc)
+      accepting_transitions_scc(si, scc, cond, {}, result, kept);
+    return result;
+  }
+
 }
