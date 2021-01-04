@@ -111,9 +111,6 @@ namespace spot
           res_->set_init_state(s);
         }
 
-        // there could be quite a number of unreachable states, prune them
-        res_->purge_unreachable_states();
-
         if (pretty_print_)
         {
           unsigned nstates = res_->num_states();
@@ -138,6 +135,8 @@ namespace spot
           res_->set_named_prop("state-names", names);
         }
 
+        // there could be quite a number of unreachable states, prune them
+        res_->purge_unreachable_states();
         return res_;
       }
 
@@ -304,8 +303,8 @@ namespace spot
             return scc_info::edge_filter_choice::keep;
           };
         scc_info sub_scc(res_, get_state(s0), filter_edge, &leaving_edge);
-        // SCCs are numbered in reverse topological order, so the bottom SCC has
-        // index 0.
+        // SCCs are numbered in reverse topological order, so the bottom SCC
+        // has index 0.
         const unsigned bscc = 0;
         assert(sub_scc.succ(0).empty());
         assert(
