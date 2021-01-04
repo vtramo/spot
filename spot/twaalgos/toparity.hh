@@ -156,4 +156,34 @@ namespace spot
   SPOT_API twa_graph_ptr   // deprecated since Spot 2.9
   iar_maybe(const const_twa_graph_ptr& aut, bool pretty_print = false);
 
+  /// \ingroup twa_acc_transform
+  /// \brief Convert an automaton into a parity automaton preserving structure
+  /// when possible.
+  ///
+  /// Return nullptr if no such automaton is found.
+  /// \param aut Automaton that we want to convert
+  SPOT_API twa_graph_ptr
+  parity_type_to_parity(const const_twa_graph_ptr &aut);
+
+  /// \ingroup twa_acc_transform
+  /// \brief Convert an automaton into a Büchi automaton preserving structure
+  /// when possible.
+  ///
+  /// Return nullptr if no such automaton is found.
+  /// \param aut Automaton that we want to convert
+  SPOT_API twa_graph_ptr
+  buchi_type_to_buchi(const const_twa_graph_ptr &aut);
+
+  /// \ingroup twa_acc_transform
+  /// \brief Convert an automaton into a co-Büchi automaton preserving structure
+  /// when possible.
+  ///
+  /// Return nullptr if no such automaton is found.
+  /// \param aut Automaton that we want to convert
+  SPOT_API twa_graph_ptr
+  co_buchi_type_to_co_buchi(const const_twa_graph_ptr &aut);
+
+  SPOT_API twa_graph_ptr
+  partial_parity_type(const const_twa_graph_ptr &aut, std::vector<int> &status);
+
 } // namespace spot

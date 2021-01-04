@@ -392,3 +392,25 @@ a = spot.translate('!(GFa -> (GFb & GF(!b & !Xb)))', 'gen', 'det')
 b = spot.to_parity_old(a, True)
 assert a.equivalent_to(b)
 test(a, [7, 7, 3, 7, 8, 7, 3])
+
+# Parity-type
+
+a = spot.automaton("""
+HOA: v1
+States: 2
+Start: 0
+AP: 2 "p0" "p1"
+Acceptance: 5 ((Fin(1)|Fin(3)|Fin(4)) | Inf(2) | Inf(0))
+               & (Inf(0) | Inf(1)) & (Inf(2) | Inf(1))
+properties: trans-labels explicit-labels trans-acc deterministic
+--BODY--
+State: 0
+[0&1] 0 {1 3}
+[!0&1] 1 {0}
+State: 1
+[0&1] 1 {2 3 4}
+[!0&!1] 0 {1 2}
+--END--
+""")
+b = spot.parity_type_to_parity(a)
+assert b and spot.are_equivalent(a, b)

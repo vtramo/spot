@@ -26,12 +26,13 @@
 #include <spot/twa/twa.hh>
 #include <spot/twaalgos/cleanacc.hh>
 #include <spot/twaalgos/degen.hh>
-#include <spot/twaalgos/toparity.hh>
 #include <spot/twaalgos/dualize.hh>
+#include <spot/twaalgos/genem.hh>
 #include <spot/twaalgos/isdet.hh>
 #include <spot/twaalgos/parity.hh>
 #include <spot/twaalgos/remfin.hh>
 #include <spot/twaalgos/sccinfo.hh>
+#include <spot/twaalgos/toparity.hh>
 #include <spot/twaalgos/totgba.hh>
 #include <unordered_map>
 
@@ -1865,4 +1866,217 @@ to_parity(const const_twa_graph_ptr &aut, const to_parity_options options)
     return gen.run();
   }
 
+  enum cond_kind
+  {
+      BUCHI,
+      CO_BUCHI,
+      // A parity condition that starts with a Inf
+      INF_PARITY,
+      // A parity condition that starts with a Fin
+      FIN_PARITY
+  };
+
+  static twa_graph_ptr
+  cond_type_main(const const_twa_graph_ptr &aut, const cond_kind kind,
+                 bool need_equivalent, std::vector<int> &status)
+  {
+      auto res = make_twa_graph(aut, twa::prop_set::all());
+      // 0 : not marked, 1 : marked, 2 : impossible to mark,
+      // 3 : link between 2 SCCs.
+      status = std::vector<int>(res->edge_vector().size(), 0);
+      // Used by accepting_transitions_scc.
+      std::vector<bool> keep(aut->edge_vector().size(), true);
+      auto &res_vector = res->edge_vector();
+
+      // We need to say that a transition between 2 SCC doesn't have to get a
+      // color.
+      scc_info si(aut, aut->get_init_state_number());
+      status[0] = 3;
+      for (auto &e : aut->edges())
+      {
+          auto edge_number = aut->edge_number(e);
+          if (si.scc_of(e.src) != si.scc_of(e.dst))
+              status[edge_number] = 3;
+          res_vector[edge_number].acc = {};
+      }
+
+      // If we need to convert to (co-)Büchi, we have to search one accepting
+      // set. With parity there is no limit.
+      bool want_parity = kind == cond_kind::FIN_PARITY ||
+                         kind == cond_kind::INF_PARITY;
+      unsigned max_iter = want_parity ? -1U : 1;
+
+      unsigned color = want_parity ? SPOT_MAX_ACCSETS - 3 : 0;
+      // Do we want always accepting transitions?
+      bool search_inf = kind == cond_kind::BUCHI ||
+                        kind == cond_kind::INF_PARITY;
+
+      using filter_data_t = std::pair<const_twa_graph_ptr, std::vector<int> &>;
+
+      scc_info::edge_filter filter =
+          [](const twa_graph::edge_storage_t &t, unsigned, void *data)
+          -> scc_info::edge_filter_choice {
+          auto &d = *static_cast<filter_data_t *>(data);
+          // We only keep transitions that can be marked
+          if (d.second[d.first->edge_number(t)] == 0)
+              return scc_info::edge_filter_choice::keep;
+          else
+              return scc_info::edge_filter_choice::cut;
+      };
+
+      for (unsigned iter = 0; iter < max_iter && color != -1U; ++iter)
+      {
+          std::vector<bool> not_decidable_transitions(
+              aut->edge_vector().size(), false);
+          auto cond = acc_cond(search_inf ? aut->get_acceptance().complement() :
+                                            aut->get_acceptance());
+          auto filter_data = filter_data_t{aut, status};
+          scc_info si(aut, aut->get_init_state_number(), filter, &filter_data);
+          bool worked = false;
+          for (unsigned scc = 0; scc < si.scc_count(); ++scc)
+          {
+              accepting_transitions_scc(si, scc, cond, {},
+                                        not_decidable_transitions, keep);
+
+              for (auto &e : si.inner_edges_of(scc))
+              {
+                  auto edge_number = aut->edge_number(e);
+                  if (!not_decidable_transitions[edge_number])
+                  {
+                      res_vector[edge_number].acc = {color};
+                      status[edge_number] = 1;
+                      keep[edge_number] = false;
+                      worked = true;
+                  }
+              }
+          }
+          --color;
+          search_inf = !search_inf;
+          // If we were not able to add color, we have to add status 2 to
+          // remaining transitions.
+          if (!worked)
+          {
+              for (unsigned i = 0; i < status.size(); ++i)
+                  if (status[i] == 0)
+                      status[i] = 2;
+              break;
+          }
+      }
+
+      acc_cond::acc_code new_code;
+      switch (kind)
+      {
+      case cond_kind::BUCHI:
+          new_code = acc_cond::acc_code::buchi();
+          break;
+      case cond_kind::CO_BUCHI:
+          new_code = acc_cond::acc_code::cobuchi();
+          break;
+      case cond_kind::INF_PARITY:
+      case cond_kind::FIN_PARITY:
+          new_code = acc_cond::acc_code::parity_max(
+                        kind == cond_kind::INF_PARITY, SPOT_MAX_ACCSETS);
+          break;
+      }
+
+      // We check parity
+      if (need_equivalent)
+      {
+          // For parity, it's equivalent if every transition has a color
+          // (status 1) or links 2 SCCs.
+          if (kind == cond_kind::INF_PARITY || kind == cond_kind::FIN_PARITY)
+          {
+              if (std::find(status.begin(), status.end(), 2) != status.end())
+                  return nullptr;
+          }
+          else
+          {
+              // For Büchi, we remove the transitions that have {0} in res from
+              // aut and if there is an accepting cycle, res is not equivalent
+              // to aut.
+              // For co-Büchi, it's the same but we don't want to find a
+              // rejecting cycle.
+              auto old_cond = aut->get_acceptance();
+              auto cond = acc_cond(kind == cond_kind::BUCHI ?
+                                                old_cond :
+                                                old_cond.complement());
+
+              using filter_data_t = std::pair<const_twa_graph_ptr,
+                                              std::vector<bool> &>;
+
+              scc_info::edge_filter filter =
+                  [](const twa_graph::edge_storage_t &t, unsigned, void *data)
+                  -> scc_info::edge_filter_choice {
+                  auto &d = *static_cast<filter_data_t *>(data);
+                  if (d.second[d.first->edge_number(t)])
+                      return scc_info::edge_filter_choice::keep;
+                  else
+                      return scc_info::edge_filter_choice::cut;
+              };
+
+              filter_data_t filter_data = {aut, keep};
+              scc_info si(aut, aut->get_init_state_number(), filter,
+                          &filter_data);
+
+              si.determine_unknown_acceptance();
+              for (unsigned scc = 0; scc < si.scc_count(); ++scc)
+                  if ((kind == cond_kind::BUCHI && si.is_accepting_scc(scc)) ||
+                      (kind == cond_kind::CO_BUCHI && si.is_rejecting_scc(scc)))
+                      return nullptr;
+          }
+      }
+      res->set_acceptance(acc_cond(new_code));
+      if (want_parity)
+          cleanup_acceptance_here(res, true);
+      return res;
+  }
+
+  twa_graph_ptr
+  parity_type_to_parity(const const_twa_graph_ptr &aut)
+  {
+      bool odd_cond, max_cond;
+      bool parit = aut->acc().is_parity(max_cond, odd_cond);
+      // If it is parity, we just copy
+      if (parit && max_cond)
+          return make_twa_graph(aut, twa::prop_set::all());
+      std::vector<int> status;
+      // If the automaton is parity-type with a condition that starts with a Inf
+      auto res = cond_type_main(aut, cond_kind::INF_PARITY, true, status);
+      if (res != nullptr)
+          return res;
+      // If the previous call to cond_type_main was not able to color any
+      // transition, it is perhaps possible if we begin with rejecting
+      // transitions.
+      if (std::find(status.begin(), status.end(), 1) == status.end())
+          return cond_type_main(aut, cond_kind::FIN_PARITY, true, status);
+      return nullptr;
+  }
+
+  twa_graph_ptr
+  buchi_type_to_buchi(const const_twa_graph_ptr &aut)
+  {
+      std::vector<int> status;
+      return cond_type_main(aut, cond_kind::BUCHI, true, status);
+  }
+
+  twa_graph_ptr
+  co_buchi_type_to_co_buchi(const const_twa_graph_ptr &aut)
+  {
+      std::vector<int> status;
+      return cond_type_main(aut, cond_kind::CO_BUCHI, true, status);
+  }
+
+  twa_graph_ptr
+  partial_parity_type(const const_twa_graph_ptr &aut, std::vector<int> &status)
+  {
+      auto r1 = cond_type_main(aut, cond_kind::INF_PARITY, false, status);
+      // The first element of status is not an edge
+      if (std::find(status.begin() + 1, status.end(), 1) == status.end())
+      {
+          // If the first call did not assign any color, we restart by searching
+          // rejecting transitions
+          return cond_type_main(aut, cond_kind::FIN_PARITY, false, status);
+      }
+      return r1;
+  }
 }
