@@ -79,7 +79,7 @@ apt-get install spot libspot-dev spot-doc python3-spot # Or a subset of those
 Here is how to install the unstable packages:
 
 #+BEGIN_SRC sh
-wget -q -O - https://www.lrde.epita.fr/repo/debian.gpg | apt-key add -
+wget -O /etc/apt/trusted.gpg.d/lrde.gpg https://www.lrde.epita.fr/repo/debian.gpg
 echo 'deb http://www.lrde.epita.fr/repo/debian/ unstable/' >> /etc/apt/sources.list
 apt-get update
 apt-get install spot libspot-dev spot-doc python3-spot # Or a subset of those
