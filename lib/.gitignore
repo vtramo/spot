@@ -1,3 +1,5 @@
+*.alias
+*.sed
 alloca.h
 configmake.h
 dummy.c
@@ -5,8 +7,10 @@ errno.h
 fcntl.h
 getopt-cdefs.h
 getopt.h
+inttypes.h
 libgnu.a
 limits.h
+locale.h
 stdalign.h
 stdint.h
 stdio.h
@@ -19,5 +23,3 @@ time.h
 unistd.h
 wchar.h
 wctype.h
-*.sed
-*.alias
