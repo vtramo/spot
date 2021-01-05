@@ -70,8 +70,19 @@ namespace spot
   /// \param all_outputs  bdd of all output signals
   /// \param unsplit      Whether or not to unsplit the automaton
   /// \param keep_acc     Whether or not keep the acceptance condition
+  /// \param out_mode     Option on how to treat output aps
+  ///                     0: Keep the original out bdd
+  ///                     1: Use the minterm with minimal high in out
+  ///                     2: Use an heuristic reusing outs
+  /// \param sep_out      Whether to store the outcond in the named property
+  ///                     or to and it with the incond on the edge
   /// \return             the resulting twa_graph
+  /// \pre Solved two player game
+  /// \post Strategy automaton. Every edge condition has the form
+  ///       (incond)&(outcond) as needed to transform to an aiger circuit
   SPOT_API spot::twa_graph_ptr
   apply_strategy(const spot::twa_graph_ptr& arena,
-                 bdd all_outputs, bool unsplit, bool keep_acc);
+                 bdd all_outputs, bool unsplit, bool keep_acc,
+                 int out_mode, bool sep_out);
+
 }

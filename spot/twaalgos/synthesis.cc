@@ -24,6 +24,8 @@
 #include <spot/misc/bddlt.hh>
 
 #include <algorithm>
+#include <map>
+#include <unordered_map>
 
 // Helper function/structures for split_2step
 namespace{
@@ -117,6 +119,26 @@ namespace{
              < std::tie(rhs->dst, rhs->acc, r_id);
     }
   }less_info_ptr;
+
+  unsigned count(bdd b)
+  {
+    unsigned high = 0;
+    while (b != bddtrue)
+      {
+        if (bdd_low(b) == bddfalse)
+          {
+            assert(bdd_low(b) == bddfalse);
+            ++high;
+            b = bdd_high(b);
+          }
+        else
+          {
+            assert(bdd_high(b) == bddfalse);
+            b = bdd_low(b);
+          }
+      }
+    return high;
+  }
 }
 
 namespace spot
@@ -360,8 +382,13 @@ namespace spot
   spot::twa_graph_ptr
   apply_strategy(const spot::twa_graph_ptr& arena,
                  bdd all_outputs,
-                 bool unsplit, bool keep_acc)
+                 bool unsplit, bool keep_acc,
+                 int out_mode, bool sep_out)
   {
+    if (sep_out and !unsplit)
+      throw std::runtime_error("Outconditions can only be separated if "
+                               "the automaton is also unsplit.");
+
     std::vector<bool>* w_ptr =
       arena->get_named_prop<std::vector<bool>>("state-winner");
     std::vector<unsigned>* s_ptr =
@@ -391,6 +418,46 @@ namespace spot
     aut->set_init_state(aut->new_state());
     pg2aut[arena->get_init_state_number()] = aut->get_init_state_number();
 
+    std::vector<bdd> used_outc({bddfalse});
+
+    std::function<bdd(bdd)> proc_out = [](bdd out){return out; };
+    switch (out_mode)
+    {
+      case 0:
+        proc_out = [](bdd out){return out; };
+        break;
+      case 1:
+        proc_out = [all_outputs](bdd out)
+            {return bdd_satone(bdd_existcomp(out, all_outputs)); };
+        break;
+      case 2:
+        proc_out = [&all_outputs](bdd out)->bdd
+          {
+            static std::map<unsigned, std::vector<bdd>> ex_map_;
+            // Checks if there exists an out that satisfies out
+            // If so use it, else use this out
+            // We moreover want to use the bdd having the least highs
+            for (const auto& kv : ex_map_)
+              {
+                auto res = std::find_if(kv.second.begin(), kv.second.end(),
+                                        [out](const bdd&aout)
+                                        {
+                                          return bdd_implies(aout, out);
+                                        });
+                if (res != kv.second.end())
+                  return *res;
+              }
+            // No minterm that is already in use satisfies this bdd
+            // Take the minterm with the least highs
+            auto outmin = bdd_satone(bdd_existcomp(out, all_outputs));
+            ex_map_[count(outmin)].push_back(outmin);
+            return outmin;
+          };
+        break;
+      default:
+        throw std::runtime_error("Unknown outcond mode");
+    }
+
     while (!todo.empty())
       {
         unsigned v = todo.back();
@@ -418,11 +485,49 @@ namespace spot
                     pg2aut[e1.dst] = aut->new_state();
                     todo.push_back(e1.dst);
                   }
-                // Create the edge
-                aut->new_edge(pg2aut[v],
-                              pg2aut[e1.dst],
-                              e1.cond,
-                              keep_acc ? e1.acc : spot::acc_cond::mark_t({}));
+                // Create as many edges as necessary to satisfy
+                // Todo this is redundant code with
+                // the one in restore_form. Put in a private file?
+                // (incond)&(outcond)
+                std::map<bdd, bdd, bdd_less_than> edge_map_;
+                bdd old_cond = e1.cond;
+                while (old_cond != bddfalse)
+                {
+                  bdd minterm = bdd_satone(old_cond);
+                  bdd minterm_in = bdd_exist(minterm, all_outputs);
+                  // Get all possible valid outputs
+                  bdd valid_out = bdd_existcomp((minterm_in & e1.cond),
+                                                all_outputs);
+                  // Check if this out already exists
+                  auto it = edge_map_.find(valid_out);
+                  if (it == edge_map_.end())
+                    edge_map_[valid_out] = minterm_in;
+                  else
+                    // Reuse the outs for this in
+                    it->second |= minterm_in;
+                  // Remove this minterm
+                  old_cond -= minterm;
+                }
+                // Add all of these edges
+                auto this_acc = keep_acc ? e1.acc : spot::acc_cond::mark_t({});
+                for (auto it = edge_map_.begin(); it != edge_map_.end(); ++it)
+                  {
+                    // Apply heuristic on out
+                    auto this_out = proc_out(it->first);
+                    if (sep_out)
+                      {
+                        aut->new_edge(pg2aut[v],
+                                      pg2aut[e1.dst],
+                                      it->second, // Only incond
+                                      this_acc);
+                        used_outc.push_back(this_out);
+                      }
+                    else
+                      aut->new_edge(pg2aut[v],
+                                    pg2aut[e1.dst],
+                                    this_out & it->second, // AND the conds
+                                    this_acc);
+                  }
                 // Done
                 continue;
               }
@@ -442,10 +547,20 @@ namespace spot
                 todo.push_back(e2.dst);
               }
 
-            aut->new_edge(unsplit ? pg2aut[v] : pg2aut[e1.dst],
-                          pg2aut[e2.dst],
-                          unsplit ? (e1.cond & e2.cond) : e2.cond,
-                          keep_acc ? e2.acc : spot::acc_cond::mark_t({}));
+            auto this_out = proc_out(e2.cond);
+            if (sep_out)
+              {
+                aut->new_edge(pg2aut[v],
+                              pg2aut[e2.dst],
+                              e1.cond,
+                              keep_acc ? e2.acc : spot::acc_cond::mark_t({}));
+                used_outc.push_back(this_out);
+              }
+            else
+              aut->new_edge(unsplit ? pg2aut[v] : pg2aut[e1.dst],
+                            pg2aut[e2.dst],
+                            unsplit ? (e1.cond & this_out) : this_out,
+                            keep_acc ? e2.acc : spot::acc_cond::mark_t({}));
           }
       }
 
@@ -472,6 +587,13 @@ namespace spot
             "state-winner", new std::vector<bool>(aut->num_states(), true));
         aut->set_named_prop(
             "strategy", new std::vector<unsigned>(std::move(str_aut)));
+      }
+    if (sep_out)
+      {
+//        std::cout << "setting outcond\n";
+        assert(used_outc.size()== aut->num_edges()+1);
+        aut->set_named_prop(
+            "outcond-edge", new std::vector<bdd>(std::move(used_outc)));
       }
     return aut;
 

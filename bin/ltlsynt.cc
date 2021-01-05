@@ -58,6 +58,7 @@ enum
   OPT_OUTPUT,
   OPT_PRINT,
   OPT_PRINT_AIGER,
+  OPT_PRINT_AIGERMODE,
   OPT_PRINT_HOA,
   OPT_REAL,
   OPT_VERBOSE
@@ -96,6 +97,9 @@ static const argp_option options[] =
       "prints a winning strategy as an AIGER circuit.  With argument \"ISOP\""
       " conditions are converted to DNF, while the default \"ITE\" uses the "
       "if-the-else normal form.", 0},
+    { "aigmode", OPT_PRINT_AIGERMODE, "1|2", OPTION_ARG_OPTIONAL,
+      "Determines which out propositions are retained: 1 minimal highs, "
+      "2: reuse heuristic", 0},
     { "verbose", OPT_VERBOSE, nullptr, 0,
       "verbose mode", -1 },
     { "csv", OPT_CSV, "[>>]FILENAME", OPTION_ARG_OPTIONAL,
@@ -134,6 +138,7 @@ static bool opt_print_hoa = false;
 static const char* opt_print_hoa_args = nullptr;
 static bool opt_real = false;
 static const char* opt_print_aiger = nullptr;
+static int opt_print_aigermode = 1;
 static spot::option_map extra_options;
 
 static double trans_time = 0.0;
@@ -486,8 +491,12 @@ namespace
             {
               if (want_time)
                 sw.start();
+              // When creating the aiger, we keep the outcond
+              // separated to avoid double work
               auto strat_aut = apply_strategy(dpa, all_outputs,
-                                              true, false);
+                                              true, false,
+                                              opt_print_aigermode,
+                                              opt_print_aiger);
               if (want_time)
                 strat2aut_time = sw.stop();
 
@@ -564,6 +573,11 @@ parse_opt(int key, char* arg, struct argp_state*)
       break;
     case OPT_PRINT_AIGER:
       opt_print_aiger = arg ? arg : "INF";
+      break;
+    case OPT_PRINT_AIGERMODE:
+      opt_print_aigermode = std::stoi(arg);
+      if (opt_print_aigermode != 1 and opt_print_aigermode != 2)
+        throw std::runtime_error("Currently only mode 1 and 2 is available\n");
       break;
     case OPT_REAL:
       opt_real = true;

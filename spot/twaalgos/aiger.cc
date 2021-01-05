@@ -21,13 +21,13 @@
 #include <spot/twaalgos/aiger.hh>
 
 #include <cmath>
+#include <map>
 #include <unordered_map>
 #include <vector>
 #include <algorithm>
 #include <cstring>
 
 #include <spot/twa/twagraph.hh>
-#include <spot/misc/bddlt.hh>
 #include <spot/misc/minato.hh>
 
 namespace spot
@@ -440,69 +440,27 @@ namespace spot
       return src == init ? 0 : src == 0 ? init : src;
     }
 
-    // Takes a product and returns the
-    // number of highs
-    inline unsigned count_high(bdd b)
-    {
-      unsigned high=0;
-      while (b != bddtrue)
-        {
-          if (bdd_low(b) == bddfalse)
-            {
-              ++high;
-              b = bdd_high(b);
-            }
-          else
-            {
-              assert(bdd_high(b) == bddfalse);
-              b = bdd_low(b);
-            }
-        }
-      return high;
-    }
-
-    // Heuristic to minimize the number of gates
-    // in the resulting aiger
-    // the idea is to take the (valid) output with the
-    // least "highs" for each transition.
-    // Another idea is to chose conditions such that transitions
-    // can share output conditions. Problem this is a combinatorial
-    // problem and suboptimal solutions that can be computed in
-    // reasonable time have proven to be not as good
-    // Stores the outcondition to use in the used_outc vector
-    // for each transition in aut
-    std::vector<bdd> maxlow_outc(const const_twa_graph_ptr& aut,
+    // Find one suitable assignment for the output
+    // propositions
+    std::vector<bdd> determine_outs(const const_twa_graph_ptr& aut,
                                  const bdd& all_inputs)
     {
-      std::vector<bdd> used_outc(aut->num_edges()+1, bddfalse);
-
+      std::vector <bdd> used_outc(aut->num_edges() + 1, bddfalse);
       for (const auto &e : aut->edges())
         {
-          unsigned idx = aut->edge_number(e);
           assert(e.cond != bddfalse);
-          bdd bout = bdd_exist(e.cond, all_inputs);
-          assert(((bout & bdd_existcomp(e.cond, all_inputs)) == e.cond) &&
+          assert(((bdd_exist(e.cond, all_inputs)
+                   & bdd_existcomp(e.cond, all_inputs)) == e.cond) &&
                  "Precondition (in) & (out) == cond violated");
-          unsigned n_high=-1u;
-          while (bout != bddfalse)
-            {
-              bdd nextsat = bdd_satone(bout);
-              bout -= nextsat;
-              unsigned next_high = count_high(nextsat);
-              if (next_high<n_high)
-                {
-                  n_high = next_high;
-                  used_outc[idx] = nextsat;
-                }
-            }
-          assert(used_outc[idx] != bddfalse);
+          used_outc[aut->edge_number(e)] =
+              bdd_satone(bdd_exist(e.cond, all_inputs));
         }
-      //Done
       return used_outc;
     }
 
     // Transforms an automaton into an AIGER circuit
     // using irreducible sums-of-products
+    // or if-then-else form
     static aig
     aut_to_aiger(const const_twa_graph_ptr& aut, const bdd& all_outputs,
                  const char* mode)
@@ -538,12 +496,31 @@ namespace spot
         }
 
       // Decide on which outcond to use
-      // The edges of the automaton all have the form in&out
+      // There are two possibilities:
+      // Either the named property outcond-edge is set.
+      // In this case these outcond will be used and it is assumed
+      // that the conditions on the edges are defined over the inputs
+      // The second option is that
+      // the edges of the automaton all have the form in&out
       // due to the unsplit
       // however we need the edge to be deterministic in out too
       // So we need determinism and we also want the resulting aiger
       // to have as few gates as possible
-      std::vector<bdd> used_outc = maxlow_outc(aut, all_inputs);
+      std::vector<bdd> used_outc;
+      bool econdoverin;
+      if (std::vector<bdd>* outc_ptr =
+          aut->get_named_prop<std::vector<bdd>>("outcond-edge"))
+        {
+          econdoverin = true;
+          used_outc = *outc_ptr;
+          assert(used_outc.size() == aut->num_edges()+1
+                 && "Number of outcond and edges does not match");
+        }
+      else
+        {
+          econdoverin = false;
+          used_outc = determine_outs(aut, all_inputs);
+        }
 
       // Encode state in log2(num_states) latches.
       unsigned log2n = std::ceil(std::log2(aut->num_states()));
@@ -603,7 +580,17 @@ namespace spot
                   // Each isop only contains variables from in
                   // -> directly compute the corresponding
                   // variable and and-gate
-                  bdd incond = bdd_exist(e.cond, all_outputs);
+                  bdd incond;
+                  if (econdoverin)
+                    {
+                      incond = e.cond;
+                      assert(bdd_exist(e.cond, all_outputs) == e.cond
+                             && "Edges conditions have to be defined over "
+                                "inputs if using outcond-edge!");
+                    }
+                  else
+                    incond = bdd_exist(e.cond, all_outputs);
+
                   auto incond_var_it = incond_map.find(incond);
                   if (incond_var_it == incond_map.end())
                     // The incond and its isops have not yet been calculated
@@ -641,7 +628,6 @@ namespace spot
           bdd all_latches = bddtrue;
           for (unsigned i = 0; i < log2n; ++i)
             all_latches &= bdd_ithvar(st0 + i);
-
           for (unsigned s = 0; s < aut->num_states(); ++s)
             {
               // Convert state to bdd
@@ -659,7 +645,16 @@ namespace spot
                   output_to_vec(out_vec, used_outc[aut->edge_number(e)],
                                 bddvar_to_num);
                   // The condition that joins in_cond and src
-                  bdd tot_cond = src_bdd & bdd_exist(e.cond, all_outputs);
+                  bdd tot_cond;
+                  if (econdoverin)
+                    {
+                      tot_cond = src_bdd & e.cond;
+                      assert(bdd_exist(e.cond, all_outputs) == e.cond
+                             && "Edges conditions have to be defined over "
+                                "inputs if using outcond-edge!");
+                    }
+                  else
+                    tot_cond = src_bdd & bdd_exist(e.cond, all_outputs);
 
                   // Add to existing cond
                   for (unsigned i = 0; i < log2n; ++i)
@@ -681,7 +676,6 @@ namespace spot
           throw std::runtime_error
             ("print_aiger(): mode must be \"ISOP\" or \"ITE\"");
         }
-
       return circuit;
     } // aut_to_aiger_isop
   }
@@ -699,5 +693,81 @@ namespace spot
       aut_to_aiger(a, all_outputs ? *all_outputs : bdd(bddfalse), mode);
     circuit.print(os);
     return os;
+  }
+
+  std::string
+  get_aiger_string(const const_twa_ptr& aut,  const char* mode)
+  {
+    std::ostringstream oss;
+    print_aiger(oss, aut, mode);
+    return oss.str();
+  }
+
+    void
+  restore_form(const twa_graph_ptr& aut, bdd all_outputs)
+  {
+    if (all_outputs == bddfalse)
+      {
+        if (bdd* out_ptr = aut->get_named_prop<bdd>("synthesis-outputs"))
+          all_outputs = *out_ptr;
+        else
+          throw std::runtime_error("Needs either all_outputs or "
+                                   "named property synthesis-outputs");
+      }
+    assert(all_outputs != bddfalse && "No aps are defined as outputs");
+
+    bdd all_inputs = bddtrue;
+    for (const auto& ap : aut->ap())
+      {
+        int bddvar = aut->get_dict()->has_registered_proposition(ap, aut);
+        assert(bddvar >= 0);
+        bdd b = bdd_ithvar(bddvar);
+        if (!bdd_implies(all_outputs, b)) // ap is not an output AP
+          all_inputs &= b;
+      }
+
+    // Loop over all edges and split those that do not have the form
+    // (in)&(out)
+    // Note new_edges are always appended at the end
+    unsigned n_old_edges = aut->num_edges();
+    // Temp storage
+    // Output condition to possible input conditions
+    std::map<bdd, bdd, bdd_less_than> edge_map_;
+    for (unsigned i = 1; i <= n_old_edges; ++i)
+      {
+        auto& e = aut->edge_storage(i);
+        // Check if cond already has the correct form
+        if ((bdd_exist(e.cond, all_inputs) &
+            bdd_existcomp(e.cond, all_inputs)) == e.cond)
+          // Nothing to do here
+          continue;
+        // Do the actual split
+        edge_map_.clear();
+        bdd old_cond = e.cond;
+        while (old_cond != bddfalse)
+          {
+            bdd minterm = bdd_satone(old_cond);
+            bdd minterm_in = bdd_exist(minterm, all_outputs);
+            // Get all possible valid outputs
+            bdd valid_out = bdd_exist((minterm_in & e.cond), all_inputs);
+            // Check if this out already exists
+            auto it = edge_map_.find(valid_out);
+            if (it == edge_map_.end())
+              edge_map_[valid_out] = minterm_in;
+            else
+              // Reuse the outs for this in
+              it->second |= minterm_in;
+            // Remove this minterm
+            old_cond -= minterm;
+          }
+        // Computed the splitted edges.
+        // Replace the current edge cond with the first pair
+        auto it = edge_map_.begin();
+        e.cond = (it->first & it->second);
+        ++it;
+        for (; it != edge_map_.end(); ++it)
+          aut->new_edge(e.src, e.dst, it->first & it->second, e.acc);
+      }
+    // Done
   }
 }

@@ -1148,6 +1148,7 @@ Here is a list of named properties currently used inside Spot:
 | ~state-winner~      | ~std::vector<bool>~            | vector indicating the player (0 or 1) winning from this state                                                                                         |
 | ~strategy~          | ~std::vector<unsigned>~        | vector representing the memoryless strategy of the players in a parity game. The value corrsponds to the edge number of the transition to take.       |
 | ~synthesis-outputs~ | ~bdd~                          | conjunction of controllable atomic propositions (used by ~print_aiger()~ to determine which propositions should be encoded as outputs of the circuit) |
+| ~outcond-edge~      | ~std::vector<bdd>~             | bdd minterm over synthesis-outputs defining the outs of each edge (used by ~print_aiger()~ for instance)                                              |
 
 Objects referenced via named properties are automatically destroyed
 when the automaton is destroyed, but this can be altered by passing a
