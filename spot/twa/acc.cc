@@ -1060,79 +1060,194 @@ namespace spot
     return res;
   }
 
-  namespace
+  bool
+  acc_cond::has_parity_prefix(acc_cond& new_cond, std::vector<unsigned>&colors)
+  const
   {
-    bool
-    has_parity_prefix_aux(acc_cond original,
-                          acc_cond &new_cond,
-                          std::vector<unsigned> &colors,
-                          std::vector<acc_cond::acc_code> elements,
-                          acc_cond::acc_op op)
-    {
-      if (elements.size() > 2)
-        {
-          new_cond = original;
-          return false;
-        }
-      if (elements.size() == 2)
-        {
-          unsigned pos = (elements[1].back().sub.op == op
-                          && elements[1][0].mark.is_singleton());
-          if (!(elements[0].back().sub.op == op || pos))
-            {
-              new_cond = original;
-              return false;
-            }
-          if ((elements[1 - pos].used_sets() & elements[pos][0].mark))
-            {
-              new_cond = original;
-              return false;
-            }
-          if (!elements[pos][0].mark.is_singleton())
-            {
-              return false;
-            }
-          colors.push_back(elements[pos][0].mark.min_set() - 1);
-          elements[1 - pos].has_parity_prefix(new_cond, colors);
-          return true;
-        }
+    if (is_t() || is_f())
       return false;
+    new_cond = (*this);
+    bool want_and = true,
+         want_or = true;
+    bool result = false;
+    bool set_result = false;
+    while (true)
+    {
+      acc_cond::acc_code current_code = new_cond.code_;
+      int pos = current_code.size() - 1;
+      int pos_end = 0;
+      auto op = current_code[pos].sub.op;
+      if (op == acc_cond::acc_op::Fin || op == acc_cond::acc_op::Inf)
+      {
+        new_cond = acc_cond(acc_code(&current_code[pos]));
+        assert((pos - 1) == pos_end);
+        return result;
+      }
+      else if (op == acc_cond::acc_op::And && want_and)
+      {
+        want_and = false;
+        want_or = true;
+        int local_pos = pos - 1;
+        acc_cond::acc_code rec_code = acc_cond::acc_code::t();
+        bool found = false;
+        pos_end = pos - current_code[pos].sub.size - 1;
+        unsigned nb_else = 0;
+        while (local_pos > pos_end)
+        {
+          if (current_code[local_pos].sub.op == acc_cond::acc_op::Fin &&
+              current_code[local_pos - 1].mark.count() == 1
+              && !found
+              && std::find(colors.begin(), colors.end(),
+                      current_code[local_pos - 1].mark.min_set() - 1)
+                        == colors.end())
+          {
+            colors.push_back(
+              current_code[local_pos - 1].mark.min_set() - 1);
+            found = true;
+            local_pos -= current_code[local_pos].sub.size + 1;
+          }
+          else
+          {
+            ++nb_else;
+            assert(current_code[local_pos].sub.op != acc_op::And);
+            rec_code = acc_cond::acc_code(&current_code[local_pos]) & rec_code;
+            local_pos -= current_code[local_pos].sub.size + 1;
+          }
+        }
+
+        new_cond = acc_cond(rec_code);
+        if (!found || nb_else > 1)
+          return result;
+        set_result = true;
+      }
+      else if (op == acc_cond::acc_op::Or && want_or)
+      {
+        want_and = true;
+        want_or = false;
+        int local_pos = pos - 1;
+        acc_cond::acc_code rec_code = acc_cond::acc_code::f();
+        bool found = false;
+        pos_end = pos - current_code[pos].sub.size - 1;
+        unsigned nb_else = 0;
+        while (local_pos > pos_end)
+        {
+          if (current_code[local_pos].sub.op == acc_cond::acc_op::Inf &&
+              current_code[local_pos - 1].mark.count() == 1
+              && !found
+              && std::find(colors.begin(), colors.end(),
+                      current_code[local_pos - 1].mark.min_set() - 1)
+                        == colors.end())
+          {
+            colors.push_back(
+              current_code[local_pos - 1].mark.min_set() - 1);
+            found = true;
+            if (!set_result)
+              result = true;
+            set_result = true;
+            local_pos -= current_code[local_pos].sub.size + 1;
+          }
+          else
+          {
+            ++nb_else;
+            assert(current_code[local_pos].sub.op != acc_op::Or);
+            rec_code = acc_cond::acc_code(&current_code[local_pos]) | rec_code;
+            local_pos -= current_code[local_pos].sub.size + 1;
+          }
+        }
+        new_cond = acc_cond(rec_code);
+        if (!found || nb_else > 1)
+          return result;
+      }
+      else
+        return result;
     }
-  }
-
-  bool
-  acc_cond::acc_code::has_parity_prefix(acc_cond &new_cond,
-                                        std::vector<unsigned> &colors) const
-  {
-    auto disj = top_disjuncts();
-    if (!(has_parity_prefix_aux((*this), new_cond, colors,
-            disj, acc_cond::acc_op::Inf) ||
-          has_parity_prefix_aux((*this), new_cond, colors,
-            top_conjuncts(), acc_cond::acc_op::Fin)))
-      new_cond = acc_cond((*this));
-    return disj.size() == 2;
-  }
-
-  bool
-  acc_cond::has_parity_prefix(acc_cond& new_cond,
-                              std::vector<unsigned>& colors) const
-  {
-    return code_.has_parity_prefix(new_cond, colors);
   }
 
   bool
   acc_cond::is_parity_max_equiv(std::vector<int>&permut, bool even) const
   {
+    if (is_t() || is_f())
+      return false;
     if (code_.used_once_sets() != code_.used_sets())
       return false;
-    bool result = code_.is_parity_max_equiv(permut, 0, even);
-    int max_value = *std::max_element(std::begin(permut), std::end(permut));
-    for (unsigned i = 0; i < permut.size(); ++i)
-      if (permut[i] != -1)
-        permut[i] = max_value - permut[i];
-      else
-        permut[i] = i;
-    return result;
+    int pos = code_.size() - 1;
+
+    int pos_end = 0;
+
+    while (true)
+    {
+      auto op = code_[pos].sub.op;
+      switch (op)
+      {
+        case acc_cond::acc_op::Fin:
+        case acc_cond::acc_op::Inf:
+        {
+          // We need to be at the end of the code.
+          if (((pos - 1) != pos_end)
+                || (even != (op == acc_cond::acc_op::Inf))
+                || (!code_[pos - 1].mark.is_singleton()))
+            return false;
+          permut.push_back(code_[pos-1].mark.min_set() - 1);
+          return true;
+        }
+        case acc_cond::acc_op::And:
+        {
+          --pos;
+          if (code_[pos].sub.op == acc_cond::acc_op::Fin
+              && code_[pos - 1].mark.is_singleton())
+          {
+            permut.push_back(code_[pos - 1].mark.min_set() - 1);
+            pos -= 2;
+          }
+          else
+          {
+            auto other_pos = pos - code_[pos].sub.size - 1;
+            if (code_[other_pos].sub.op == acc_cond::acc_op::Fin
+                && code_[other_pos - 1].mark.is_singleton()
+                && other_pos - 1 == pos_end)
+            {
+              pos_end = other_pos + 1;
+              permut.push_back(code_[other_pos - 1].mark.min_set() - 1);
+            }
+            else
+              return false;
+          }
+          if (code_[pos].sub.op != acc_cond::acc_op::Inf
+              && code_[pos].sub.op != acc_cond::acc_op::Or)
+            return false;
+        }
+        break;
+        case acc_cond::acc_op::Or:
+        {
+          --pos;
+          if (code_[pos].sub.op == acc_cond::acc_op::Inf
+              && code_[pos - 1].mark.is_singleton())
+          {
+            permut.push_back(code_[pos - 1].mark.min_set() - 1);
+            pos -= 2;
+          }
+          else
+          {
+            auto other_pos = pos - code_[pos].sub.size - 1;
+            if (code_[other_pos].sub.op == acc_cond::acc_op::Inf
+                && code_[other_pos - 1].mark.is_singleton()
+                && other_pos - 1 == pos_end)
+            {
+              pos_end = other_pos + 1;
+              permut.push_back(code_[other_pos - 1].mark.min_set() - 1);
+            }
+            else
+              return false;
+          }
+          if (code_[pos].sub.op != acc_cond::acc_op::Fin
+              && code_[pos].sub.op != acc_cond::acc_op::And)
+            return false;
+        }
+        break;
+        default:
+          SPOT_UNREACHABLE();
+      }
+    }
   }
 
   bool acc_cond::is_parity(bool& max, bool& odd, bool equiv) const
@@ -1400,111 +1515,6 @@ namespace spot
       }
     return patterns;
   }
-
-  bool
-  acc_cond::acc_code::is_parity_max_equiv(std::vector<int>& permut,
-                                          unsigned new_color,
-                                          bool even) const
-  {
-    auto conj = top_conjuncts();
-    auto disj = top_disjuncts();
-    if (conj.size() == 1)
-      {
-        if (disj.size() == 1)
-          {
-            acc_cond::acc_code elem = conj[0];
-            if ((even && elem.back().sub.op == acc_cond::acc_op::Inf)
-                || (!even && elem.back().sub.op == acc_cond::acc_op::Fin))
-              {
-                for (auto color : disj[0][0].mark.sets())
-                  {
-                    if (permut[color] != -1
-                        && ((unsigned) permut[color]) != new_color)
-                      return false;
-                    permut[color] = new_color;
-                  }
-                return true;
-              }
-            return false;
-          }
-        else
-          {
-            std::sort(disj.begin(), disj.end(),
-                      [](acc_code c1, acc_code c2)
-                      {
-                        return (c1 != c2) &&
-                          c1.back().sub.op == acc_cond::acc_op::Inf;
-                      });
-            unsigned i = 0;
-            for (; i < disj.size() - 1; ++i)
-              {
-                if (disj[i].back().sub.op != acc_cond::acc_op::Inf
-                    || !disj[i][0].mark.is_singleton())
-                  return false;
-                for (auto color : disj[i][0].mark.sets())
-                  {
-                    if (permut[color] != -1
-                        && ((unsigned) permut[color]) != new_color)
-                      return false;
-                    permut[color] = new_color;
-                  }
-              }
-            if (disj[i].back().sub.op == acc_cond::acc_op::Inf)
-              {
-                if (!even || !disj[i][0].mark.is_singleton())
-                  return false;
-                for (auto color : disj[i][0].mark.sets())
-                  {
-                    if (permut[color] != -1
-                        && ((unsigned) permut[color]) != new_color)
-                      return false;
-                    permut[color] = new_color;
-                  }
-                return true;
-              }
-            return disj[i].is_parity_max_equiv(permut, new_color + 1, even);
-          }
-      }
-    else
-      {
-        std::sort(conj.begin(), conj.end(),
-                  [](acc_code c1, acc_code c2)
-                  {
-                    return (c1 != c2)
-                      && c1.back().sub.op == acc_cond::acc_op::Fin;
-                  });
-        unsigned i = 0;
-        for (; i < conj.size() - 1; i++)
-          {
-            if (conj[i].back().sub.op != acc_cond::acc_op::Fin
-                || !conj[i][0].mark.is_singleton())
-              return false;
-            for (auto color : conj[i][0].mark.sets())
-              {
-                if (permut[color] != -1 && permut[color != new_color])
-                  return false;
-                permut[color] = new_color;
-              }
-          }
-        if (conj[i].back().sub.op == acc_cond::acc_op::Fin)
-          {
-            if (even)
-              return 0;
-            if (!conj[i][0].mark.is_singleton())
-              return false;
-            for (auto color : conj[i][0].mark.sets())
-              {
-                if (permut[color] != -1 && permut[color != new_color])
-                  return false;
-                permut[color] = new_color;
-              }
-            return true;
-          }
-
-        return conj[i].is_parity_max_equiv(permut, new_color + 1, even);
-      }
-  }
-
 
   namespace
   {

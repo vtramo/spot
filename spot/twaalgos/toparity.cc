@@ -26,16 +26,17 @@
 #include <spot/twa/twa.hh>
 #include <spot/twaalgos/cleanacc.hh>
 #include <spot/twaalgos/degen.hh>
+#include <spot/twaalgos/toparity.hh>
 #include <spot/twaalgos/dualize.hh>
 #include <spot/twaalgos/genem.hh>
 #include <spot/twaalgos/isdet.hh>
 #include <spot/twaalgos/parity.hh>
+// TODO: Besoin ?
 #include <spot/twaalgos/remfin.hh>
-#include <spot/twaalgos/sccinfo.hh>
-#include <spot/twaalgos/toparity.hh>
 #include <spot/twaalgos/totgba.hh>
-#include <unordered_map>
 
+#include <numeric>
+#include <optional>
 #include <unistd.h>
 namespace spot
 {
@@ -399,7 +400,6 @@ struct node
 
     node(int label_, bool is_leaf_)
         : label(label_)
-        , children(0)
         , is_leaf(is_leaf_){
     }
 
@@ -411,10 +411,11 @@ struct node
 
     // Add a permutation to the tree.
     void
-    add_new_perm(const std::vector<unsigned>& permu, int pos, unsigned state)
+    add_new_perm(const std::vector<unsigned>& permu, int pos,
+                  unsigned res_state)
     {
         if (pos == -1)
-            children.push_back(new node(state, true));
+            children.push_back(new node(res_state, true));
         else
         {
             auto lab = permu[pos];
@@ -426,10 +427,10 @@ struct node
             {
                 node* new_child = new node(lab, false);
                 children.push_back(new_child);
-                new_child->add_new_perm(permu, pos - 1, state);
+                new_child->add_new_perm(permu, pos - 1, res_state);
             }
             else
-                (*child)->add_new_perm(permu, pos - 1, state);
+                (*child)->add_new_perm(permu, pos - 1, res_state);
         }
     }
 
@@ -459,9 +460,8 @@ struct node
                 return -1U;
             return label;
         }
-        if (use_last)
-            return children[children.size() - 1]->get_end(use_last);
-        return children[0]->get_end(use_last);
+        int pos = use_last ? children.size() - 1 : 0;
+        return children[pos]->get_end(use_last);
     }
 
     // Try to find a state compatible with the permu when seen_nb colors are
@@ -486,12 +486,12 @@ struct node
     }
 };
 
-class state_2_car_scc
+class state_2_lar_scc
 {
 std::vector<node> nodes;
 
 public:
-state_2_car_scc(unsigned nb_states)
+state_2_lar_scc(unsigned nb_states)
     : nodes(nb_states, node()){
 }
 
@@ -507,10 +507,11 @@ get_res_state(unsigned state, const std::vector<unsigned>& permu,
 }
 
 void
-add_res_state(unsigned initial, unsigned state,
+add_res_state(unsigned initial, unsigned res_state,
               const std::vector<unsigned>& permu)
 {
-    nodes[initial].add_new_perm(permu, ((int) permu.size()) - 1, state);
+    assert(!permu.empty());
+    nodes[initial].add_new_perm(permu, ((int) permu.size()) - 1, res_state);
 }
 
 node*
@@ -520,99 +521,152 @@ get_sub_tree(const std::vector<unsigned>& elements, unsigned state)
 }
 };
 
-class car_generator
+class to_parity_generator
 {
+  static std::vector<twa_graph_ptr>
+  split_aut(scc_info si, std::vector<bool> keep)
+  {
+    auto aut = si.get_aut();
+    auto aut_acc = aut->acc();
+    unsigned nb_scc = si.scc_count();
+    std::vector<twa_graph_ptr> result(nb_scc);
+    std::vector<unsigned> state2num;
+    std::vector<std::vector<unsigned>*> orig_states(nb_scc);
+    for (unsigned scc = 0; scc < nb_scc; ++scc)
+    {
+      result[scc] = make_twa_graph(aut->get_dict());
+      orig_states[scc] = new std::vector<unsigned>();
+      result[scc]->set_named_prop("original-states", orig_states[scc]);
+      result[scc]->copy_ap_of(aut);
+      result[scc]->prop_state_acc(aut->prop_state_acc());
+      result[scc]->set_acceptance(aut_acc);
+    }
+    const unsigned aut_num_states = aut->num_states();
+    for (unsigned state = 0; state < aut_num_states; ++state)
+    {
+      unsigned scc = si.scc_of(state);
+      unsigned num = result[scc]->new_state();
+      state2num.push_back(num);
+      orig_states[scc]->push_back(state);
+    }
+    for (auto& e : aut->edges())
+    {
+      auto index = aut->edge_number(e);
+      unsigned scc_src = si.scc_of(e.src);
+      unsigned num_src = state2num[e.src];
+      unsigned num_dst = state2num[e.dst];
+      if (scc_src == si.scc_of(e.dst) && keep[index])
+        result[scc_src]->new_edge(num_src, num_dst, e.cond, e.acc);
+    }
+
+    return result;
+  }
+
+
 enum algorithm {
-    // Try to have a Büchi condition if we have Rabin.
-    Rabin_to_Buchi,
-    Streett_to_Buchi,
-    // IAR
-    IAR_Streett,
-    IAR_Rabin,
-    // CAR
-    CAR,
-    // Changing colors transforms acceptance to max even/odd copy.
-    Copy_even,
-    Copy_odd,
-    // If a condition is "t" or "f", we just have to copy the automaton.
-    False_clean,
-    True_clean,
-    None
+  // Try to have a Büchi condition if we have Rabin.
+  Rabin_to_Buchi,
+  Streett_to_co_Buchi,
+  // IAR
+  IAR_Streett,
+  IAR_Rabin,
+  // CAR
+  CAR,
+  TAR,
+  // Changing colors transforms acceptance to max even/odd copy.
+  Copy_even,
+  Copy_odd,
+  // If a condition is "t" or "f", we just have to copy the automaton.
+  False_clean,
+  True_clean,
+  // We don't apply any algorithm (a trivial SCC)
+  None,
+  // Convert a Büchi-type automaton to Büchi
+  Buchi_type_to_Buchi,
+  // Convert a co-Büchi-type automaton to co-Büchi
+  Co_Buchi_type_to_co_Buchi,
+  // Convert a parity-type automaton to parity
+  Parity_type,
+  // Remove a prefix of the condition that is parity.
+  Parity_prefix,
+  // TODO:
+  Parity_prefix_general,
 };
 
 
 static std::string
 algorithm_to_str(algorithm algo)
 {
-    std::string algo_str;
-    switch (algo)
-    {
+  switch (algo)
+  {
     case IAR_Streett:
-        algo_str = "IAR (Streett)";
-        break;
+      return "IAR (Streett)";
     case IAR_Rabin:
-        algo_str = "IAR (Rabin)";
-        break;
+      return "IAR (Rabin)";
     case CAR:
-        algo_str = "CAR";
-        break;
+      return "CAR";
+    case TAR:
+      return "TAR";
     case Copy_even:
-        algo_str = "Copy even";
-        break;
+      return "Copy even";
     case Copy_odd:
-        algo_str = "Copy odd";
-        break;
+      return "Copy odd";
     case False_clean:
-        algo_str = "False clean";
-        break;
+      return "False clean";
     case True_clean:
-        algo_str = "True clean";
-        break;
-    case Streett_to_Buchi:
-        algo_str = "Streett to Büchi";
-        break;
+      return "True clean";
+    case Streett_to_co_Buchi:
+      return "Streett to co-Büchi";
     case Rabin_to_Buchi:
-        algo_str = "Rabin to Büchi";
-        break;
-    default:
-        algo_str = "None";
-        break;
-    }
-    return algo_str;
+      return "Rabin to Büchi";
+    case Buchi_type_to_Buchi:
+      return "Büchi type to Büchi";
+    case Co_Buchi_type_to_co_Buchi:
+      return "Co-Büchi type to Co-Büchi";
+    case None:
+      return "None";
+    case Parity_type:
+      return "Parity type to parity";
+    case Parity_prefix:
+      return "Parity prefix";
+    case Parity_prefix_general:
+      return "Parity prefix general";
+  }
+  SPOT_UNREACHABLE();
 }
 
 using perm_t = std::vector<unsigned>;
 
-struct car_state
+struct to_parity_state
 {
     // State of the original automaton
-    unsigned state;
+    unsigned original_state;
     // We create a new automaton for each SCC of the original automaton
-    // so we keep a link between a car_state and the state of the
+    // so we keep a link between a to_parity_state and the state of the
     // subautomaton.
-    unsigned state_scc;
+    unsigned scc_state;
     // Permutation used by IAR and CAR.
     perm_t perm;
 
     bool
-    operator<(const car_state &other) const
+    operator<(const to_parity_state &other) const
     {
-        if (state < other.state)
+        if (original_state < other.original_state)
             return true;
-        if (state > other.state)
+        if (original_state > other.original_state)
             return false;
         if (perm < other.perm)
             return true;
         if (perm > other.perm)
             return false;
-        return state_scc < other.state_scc;
+        return scc_state < other.scc_state;
     }
 
     std::string
-    to_string(algorithm algo) const
+    to_str(algorithm algo) const
     {
         std::stringstream s;
-        s << state;
+        s << original_state;
         unsigned ps = perm.size();
         if (ps > 0)
         {
@@ -657,7 +711,7 @@ get_inputs_states(const twa_graph_ptr& aut)
 {
     auto used = aut->acc().get_acceptance().used_sets();
     std::vector<std::set<acc_cond::mark_t>> inputs(aut->num_states());
-    for (auto e : aut->edges())
+    for (const auto& e : aut->edges())
     {
         auto elements = e.acc & used;
         if (elements.has_many())
@@ -673,7 +727,7 @@ get_inputs_iar(const twa_graph_ptr& aut, algorithm algo,
                const std::vector<acc_cond::rs_pair>& pairs)
 {
     std::vector<std::set<std::vector<unsigned>>> inputs(aut->num_states());
-    for (auto e : aut->edges())
+    for (const auto& e : aut->edges())
     {
         auto acc = e.acc;
         std::vector<unsigned> new_vect;
@@ -685,6 +739,7 @@ get_inputs_iar(const twa_graph_ptr& aut, algorithm algo,
     }
     return inputs;
 }
+
 // Give an order from the set of marks
 std::vector<unsigned>
 group_to_vector(const std::set<acc_cond::mark_t>& group)
@@ -696,7 +751,7 @@ group_to_vector(const std::set<acc_cond::mark_t>& group)
     // We sort the elements by inclusion. This function is called on a
     // set of marks such that each mark is included or includes the others.
     std::sort(group_vect.begin(), group_vect.end(),
-              [](const acc_cond::mark_t left, const acc_cond::mark_t right)
+              [](const acc_cond::mark_t& left, const acc_cond::mark_t& right)
                 {
                     return (left != right) && ((left & right) == left);
                 });
@@ -704,7 +759,7 @@ group_to_vector(const std::set<acc_cond::mark_t>& group)
     // In order to create the order, we add the elements of the first element.
     // Then we add the elements of the second mark (without duplication), etc.
     std::vector<unsigned> result;
-    for (auto mark : group_vect)
+    for (const auto& mark : group_vect)
     {
         for (unsigned col : mark.sets())
             if (std::find(result.begin(), result.end(), col) == result.end())
@@ -721,8 +776,8 @@ group_to_vector_iar(const std::set<std::vector<unsigned>>& group)
     for (auto& vec : group_vect)
         std::sort(std::begin(vec), std::end(vec));
     std::sort(group_vect.begin(), group_vect.end(),
-              [](const std::vector<unsigned> left,
-                 const std::vector<unsigned> right)
+              [](const std::vector<unsigned>& left,
+                 const std::vector<unsigned>& right)
                 {
                     return (right != left)
                         && std::includes(right.begin(), right.end(),
@@ -752,7 +807,7 @@ get_groups(const std::set<acc_cond::mark_t>& marks_input)
                             [mark](acc_cond::mark_t element)
                             {
                                 return ((element | mark) == mark)
-                                || ((element | mark) == element);
+                                    || ((element | mark) == element);
                             }))
             {
                 groups[group].insert(mark);
@@ -832,17 +887,60 @@ get_iar_to_vector(const twa_graph_ptr& aut, algorithm algo,
     return result;
 }
 
+
+
 public:
-explicit car_generator(const const_twa_graph_ptr &a, to_parity_options options)
+explicit to_parity_generator(const const_twa_graph_ptr& a,
+                           const to_parity_options options)
     : aut_(a)
     , scc_(scc_info(a))
     , is_odd(false)
+    , state2ps(a->num_states(), std::nullopt)
+    , state2nums(a->num_states())
     , options(options)
 {
+  orig_states = new std::vector<unsigned>();
     if (options.pretty_print)
         names = new std::vector<std::string>();
     else
         names = nullptr;
+}
+
+// Add a state to the resulting automaton. Use this function instead
+// of res_->new_state().
+unsigned
+add_res_state(algorithm algo, const std::vector<unsigned>& permu,
+                unsigned scc_state, unsigned initial_state)
+{
+    to_parity_state new_ps = { initial_state, scc_state, permu };
+    auto new_state = res_->new_state();
+    orig_states->push_back(initial_state);
+    ps2num[new_ps] = new_state;
+    num2ps.insert(num2ps.begin() + new_state, new_ps);
+    state2nums[initial_state].push_back(new_state);
+    if (options.pretty_print)
+        names->push_back(new_ps.to_str(algo));
+    // The algorithms that apply LAR can use a bottom-SCC optimisation. That is
+    // why they modify state2ps and we don't do it here.
+    if (algo != CAR && algo != IAR_Streett && algo != IAR_Rabin && algo != TAR)
+      state2ps[initial_state] = new_ps;
+    return new_state;
+}
+
+// Add an edge to the resulting automaton. Use this function instead of
+// res_->new_edge().
+unsigned
+add_res_edge(unsigned src, unsigned dst, bdd cond, acc_cond::mark_t acc)
+{
+    auto result = res_->new_edge(src, dst, cond, acc);
+    auto mark_set = acc.max_set();
+    auto mark_color = mark_set ? mark_set - 1 : 0;
+    // Update the value of the maximum color used to create the
+    // parity automaton.
+    max_used_color = std::max(max_used_color, mark_color);
+    // Update the maximum color of the SCC.
+    current_scc_max_color = std::max(current_scc_max_color, mark_color);
+    return result;
 }
 
 // During the creation of the states, we had to choose between a set of
@@ -851,9 +949,10 @@ explicit car_generator(const const_twa_graph_ptr &a, to_parity_options options)
 // use it.
 void
 change_transitions_destination(twa_graph_ptr& aut,
-const std::vector<unsigned>& states,
-std::map<unsigned, std::vector<unsigned>>& partial_history,
-state_2_car_scc& state_2_car)
+                               const std::vector<unsigned>& states,
+                               std::map<unsigned, std::vector<unsigned>>&
+                                  partial_history,
+                               state_2_lar_scc& state_2_ps)
 {
     for (auto s : states)
         for (auto& edge : aut->out(s))
@@ -864,171 +963,519 @@ state_2_car_scc& state_2_car)
             // We don't change loops
             if (src == dst)
                 continue;
-            unsigned dst_scc = num2car[dst].state_scc;
+            unsigned dst_scc = num2ps[dst].scc_state;
             auto cant_change = partial_history[aut->edge_number(edge)];
-            edge.dst = state_2_car.get_sub_tree(cant_change, dst_scc)
-                                    ->get_end(true);
+            edge.dst = state_2_ps.get_sub_tree(cant_change, dst_scc)
+                                ->get_end(true);
         }
 }
 
+// If an automaton has the acceptance condition ⊤ or ⊥, we just have to copy
+// the automaton and add the correct color to all the transitions.
 unsigned
-apply_false_true_clean(const twa_graph_ptr &sub_automaton, bool is_true,
-                       const std::vector<int>& inf_fin_prefix,
-                       unsigned max_free_color,
-                       std::map<unsigned, car_state>& state2car_local,
-                       std::map<car_state, unsigned>& car2num_local)
+apply_false_true_clean(const twa_graph_ptr& sub_automaton, bool is_true)
 {
-    std::vector<unsigned>* init_states = sub_automaton->
+    assert(sub_automaton->acc().is_f() || sub_automaton->acc().is_t());
+    // The color is 0 if and only if the condition is ⊤ and we are creating an
+    // automaton with a parity max even condition or if the condition is ⊥ and
+    // we are creating a parity max odd automaton.
+    unsigned col = is_true ^ !is_odd;
+
+    auto init_states = sub_automaton->
         get_named_prop<std::vector<unsigned>>("original-states");
 
-    for (unsigned state = 0; state < sub_automaton->num_states(); ++state)
+    const auto sub_automaton_num_states = sub_automaton->num_states();
+
+    // For pretty print
+    auto algo = is_true ? True_clean : False_clean;
+
+    // Associate to each state to sub_automaton a state of the result. Used to
+    // create the edges when all states are added.
+    std::vector<unsigned> sub_state2num;
+
+    for (unsigned state = 0; state < sub_automaton_num_states; ++state)
     {
         unsigned s_aut = (*init_states)[state];
 
-        car_state new_car = { s_aut, state, perm_t() };
-        auto new_state = res_->new_state();
-        car2num_local[new_car] = new_state;
-        num2car.insert(num2car.begin() + new_state, new_car);
-        if (options.pretty_print)
-            names->push_back(
-                new_car.to_string(is_true ? True_clean : False_clean));
-        state2car_local[s_aut] = new_car;
+        sub_state2num.push_back(add_res_state(algo, perm_t(), state, s_aut));
     }
-    for (unsigned state = 0; state < sub_automaton->num_states(); ++state)
+
+    for (auto& e : sub_automaton->edges())
     {
-        unsigned s_aut = (*init_states)[state];
-        car_state src = { s_aut, state, perm_t() };
-        unsigned src_state = car2num_local[src];
-        for (auto e : aut_->out(s_aut))
+        unsigned src_res_state = sub_state2num[e.src];
+        unsigned dst_res_state = sub_state2num[e.dst];
+
+        add_res_edge(src_res_state, dst_res_state, e.cond, { col });
+    }
+    return sub_automaton_num_states;
+}
+
+// If the current res_ has parity max even condition, it is converted to max
+// odd.
+void
+change_to_odd()
+{
+    if (!is_odd)
+    {
+        // We change the parity of res_.
+        res_->set_acceptance(acc_cond(
+                acc_cond::acc_code::parity(true, is_odd, max_used_color + 1)));
+        is_odd = true;
+        change_parity_here(res_, parity_kind::parity_kind_max,
+            parity_style::parity_style_odd);
+
+        // We update the value of the maximum color in a transition of res_.
+        max_used_color = 0;
+        for (auto& edge : res_->edge_vector())
         {
-            auto col = is_true ^ !is_odd;
-            if (((unsigned)col) > max_free_color)
-                throw std::runtime_error("CAR needs more sets");
-            if (scc_.scc_of(s_aut) == scc_.scc_of(e.dst))
-            {
-                for (auto c : e.acc.sets())
-                    if (inf_fin_prefix[c] + is_odd > col)
-                        col = inf_fin_prefix[c] + is_odd;
-                acc_cond::mark_t cond = { (unsigned) col };
-                res_->new_edge(
-                    src_state, car2num_local[state2car_local[e.dst]],
-                    e.cond, cond);
-            }
+            auto max_set = edge.acc.max_set();
+            if (max_set)
+                max_used_color = std::max(max_used_color, max_set - 1);
         }
     }
-    return sub_automaton->num_states();
 }
 
 unsigned
-apply_copy(const twa_graph_ptr &sub_automaton,
-           const std::vector<unsigned> &permut,
-           bool copy_odd,
-           const std::vector<int>& inf_fin_prefix,
-           std::map<unsigned, car_state>& state2car_local,
-           std::map<car_state, unsigned>& car2num_local)
+apply_copy(twa_graph_ptr& sub_automaton, std::vector<int>& permut,
+            bool copy_odd)
 {
-    std::vector<unsigned>* init_states = sub_automaton
+    // If res_ is a max even
+    if (copy_odd)
+        change_to_odd();
+    // If the condition of sub_automaton is parity even and res_ is parity odd
+    // we need to add 1.
+    bool is_even_in_odd_world = !copy_odd && is_odd;
+    auto init_states = sub_automaton
         ->get_named_prop<std::vector<unsigned>>("original-states");
-    for (unsigned state = 0; state < sub_automaton->num_states(); ++state)
+
+    const unsigned sub_automaton_num_states = sub_automaton->num_states();
+    auto algo = copy_odd ? Copy_odd : Copy_even;
+    // Copy the states of the automaton.
+    for (unsigned state = 0; state < sub_automaton_num_states; ++state)
     {
-        car_state new_car = { (*init_states)[state], state, perm_t() };
-        auto new_state = res_->new_state();
-        car2num_local[new_car] = new_state;
-        num2car.insert(num2car.begin() + new_state, new_car);
-        state2car_local[(*init_states)[state]] = new_car;
-        if (options.pretty_print)
-            names->push_back(
-                new_car.to_string(copy_odd ? Copy_odd : Copy_even));
+        auto s_aut = (*init_states)[state];
+        add_res_state(algo, perm_t(), state, s_aut);
     }
+
+    // Used to only copy the useful colors on the transitions.
     auto cond_col = sub_automaton->acc().get_acceptance().used_sets();
-    for (unsigned s = 0; s < sub_automaton->num_states(); ++s)
+
+    // We reverse the order of the color in order to use index as value.
+    // For example with Inf(3) | (Fin(2) & Inf(4)), we reverse in order to get
+    // [4 2 3] and 4 ↦ 0, 2 ↦ 1, 3 ↦ 2.
+    std::reverse(permut.begin(), permut.end());
+
+    for (auto& e : sub_automaton->edges())
     {
-        for (auto e : sub_automaton->out(s))
-        {
-            acc_cond::mark_t mark = { };
-            int max_edge = -1;
+        int max_edge = -1;
+        // Add 0 to a transition without color when we translate it to odd.
+        if (!e.acc.min_set() && is_even_in_odd_world)
+            max_edge = 0;
+        else
             for (auto col : e.acc.sets())
-            {
                 if (cond_col.has(col))
-                    max_edge = std::max(max_edge, (int) permut[col]);
-                if (inf_fin_prefix[col] + (is_odd || copy_odd) > max_edge)
-                    max_edge = inf_fin_prefix[col] + (is_odd || copy_odd);
-            }
-            if (max_edge != -1)
-                mark.set((unsigned) max_edge);
-            car_state src = { (*init_states)[s], s, perm_t() },
-                      dst = { (*init_states)[e.dst], e.dst, perm_t() };
-            unsigned src_state = car2num_local[src],
-                     dst_state = car2num_local[dst];
-            res_->new_edge(src_state, dst_state, e.cond, mark);
-        }
+                {
+                    auto col_it = std::find(permut.begin(), permut.end(), col);
+                    assert(col_it != permut.end());
+                    int index = std::distance(permut.begin(), col_it);
+                    unsigned new_color = index + is_even_in_odd_world;
+                    max_edge = std::max(max_edge, (int) new_color);
+                }
+        auto mark = max_edge != -1 ? acc_cond::mark_t { (unsigned) max_edge } :
+                                acc_cond::mark_t {};
+        to_parity_state src = { (*init_states)[e.src], e.src, perm_t() },
+                  dst = { (*init_states)[e.dst], e.dst, perm_t() };
+        unsigned src_state = ps2num[src],
+                 dst_state = ps2num[dst];
+        add_res_edge(src_state, dst_state, e.cond, mark);
     }
-    return sub_automaton->num_states();
+    return sub_automaton_num_states;
 }
 
 unsigned
-apply_to_Buchi(const twa_graph_ptr& sub_automaton,
-               const twa_graph_ptr& buchi,
-               bool is_streett_to_buchi,
-               const std::vector<int>& inf_fin_prefix,
-               unsigned max_free_color,
-               std::map<unsigned, car_state>& state2car_local,
-               std::map<car_state, unsigned>& car2num_local)
+apply_to_buchi(twa_graph_ptr& sub_automaton,
+               algorithm algo,
+               twa_graph_ptr (*buch_fun)(const const_twa_graph_ptr&))
 {
-    std::vector<unsigned>* init_states = sub_automaton
+    // The version with a co-Büchi condition.
+    auto buchi_version = buch_fun(sub_automaton);
+    if (buchi_version == nullptr)
+        return -1U;
+    const unsigned sub_automaton_num_states = sub_automaton->num_states();
+
+    auto init_states = sub_automaton
         ->get_named_prop<std::vector<unsigned>>("original-states");
 
-    for (unsigned state = 0; state < buchi->num_states(); ++state)
+    std::vector<unsigned> sub_aut2num;
+    for (unsigned state = 0; state < sub_automaton_num_states; ++state)
     {
-        car_state new_car = { (*init_states)[state], state, perm_t() };
-        auto new_state = res_->new_state();
-        car2num_local[new_car] = new_state;
-        num2car.insert(num2car.begin() + new_state, new_car);
-        state2car_local[(*init_states)[state]] = new_car;
-        if (options.pretty_print)
-            names->push_back(new_car.to_string(
-                is_streett_to_buchi ? Streett_to_Buchi : Rabin_to_Buchi));
+        unsigned s_aut = (*init_states)[state];
+        sub_aut2num.push_back(add_res_state(algo, perm_t(), state, s_aut));
     }
-    auto g = buchi->get_graph();
-    for (unsigned s = 0; s < buchi->num_states(); ++s)
+
+    bool odd_algo = algo == Co_Buchi_type_to_co_Buchi
+                    || algo == Streett_to_co_Buchi;
+    if (odd_algo)
+        change_to_odd();
+
+    for (const auto& e : buchi_version->edges())
     {
-        unsigned b = g.state_storage(s).succ;
-        while (b)
-        {
-            auto& e = g.edge_storage(b);
-            auto acc = e.acc;
-            acc <<= (is_odd + is_streett_to_buchi);
-            if ((is_odd || is_streett_to_buchi) && acc == acc_cond::mark_t{ })
-                acc = { (unsigned) (is_streett_to_buchi && is_odd) };
-            car_state src = { (*init_states)[s], s, perm_t() },
-                      dst = { (*init_states)[e.dst], e.dst, perm_t() };
-            unsigned src_state = car2num_local[src],
-                     dst_state = car2num_local[dst];
-            int col = ((int) acc.max_set()) - 1;
-            if (col > (int) max_free_color)
-                throw std::runtime_error("CAR needs more sets");
-            auto& e2 = sub_automaton->get_graph().edge_storage(b);
-            for (auto c : e2.acc.sets())
-            {
-                if (inf_fin_prefix[c] + is_odd > col)
-                    col = inf_fin_prefix[c] + is_odd;
-            }
-            if (col != -1)
-                acc = { (unsigned) col };
-            else
-                acc = {};
-            res_->new_edge(src_state, dst_state, e.cond, acc);
-            b = e.next_succ;
-        }
+        unsigned shift = !odd_algo && is_odd;
+        acc_cond::mark_t mark;
+        unsigned min_set = e.acc.min_set();
+        if (min_set != 0)
+            mark = { min_set - 1 + shift };
+        else if (shift)
+            mark = { 0 };
+        else
+            mark = {};
+
+        auto src_res_num = sub_aut2num[e.src];
+        auto dst_res_num = sub_aut2num[e.dst];
+        add_res_edge(src_res_num, dst_res_num, e.cond, mark);
     }
-    return buchi->num_states();
+    return sub_automaton_num_states;
 }
 
-// Create a permutation for the first state of a SCC (IAR)
+bool
+try_apply_to_parity_type(twa_graph_ptr& sub_automaton)
+{
+  // We can try to get a parity-type automaton with a condition that starts
+  // with Inf or Fin if it does not exist.
+  twa_graph_ptr parit = parity_type_to_parity(sub_automaton);
+  // If the automaton is not parity type, we stop
+  if (parit == nullptr)
+    return false;
+
+  // Did we get a parity odd or even condition ?
+  bool max, is_odd_parit;
+  parit->acc().is_parity(max, is_odd_parit, true);
+
+  // If it is odd, we have to update the current res_.
+  if (is_odd_parit)
+    change_to_odd();
+
+  int shift = is_odd && !is_odd_parit;
+  const unsigned sub_automaton_num_states = sub_automaton->num_states();
+  auto init_states = sub_automaton
+                    ->get_named_prop<std::vector<unsigned>>("original-states");
+
+  std::vector<unsigned> sub_aut2num;
+
+  // If it is parity-type, we just have to copy the states…
+  for (unsigned state = 0; state < sub_automaton_num_states; ++state)
+  {
+    unsigned s_aut = (*init_states)[state];
+    to_parity_state new_ps = { s_aut, state, perm_t() };
+    sub_aut2num.push_back(add_res_state(Parity_type, perm_t(), state, s_aut));
+  }
+
+  // …and the transitions
+  for (auto& e : parit->edges())
+  {
+    unsigned edge_col = e.acc.max_set() - 1 + shift;
+    auto edge_mark = (edge_col == -1U) ? acc_cond::mark_t {} :
+                                         acc_cond::mark_t { edge_col };
+
+    auto src_res_num = sub_aut2num[e.src];
+    auto dst_res_num = sub_aut2num[e.dst];
+    add_res_edge(src_res_num, dst_res_num, e.cond, edge_mark);
+  }
+  return true;
+}
+
+bool
+try_apply_to_buchi(twa_graph_ptr& sub_automaton,
+                        bool general_case,
+                        twa_graph_ptr (*buch_fun)(const const_twa_graph_ptr&))
+{
+  auto algo = general_case ? Buchi_type_to_Buchi : Rabin_to_Buchi;
+  if (apply_to_buchi(sub_automaton, algo, buch_fun) != -1U)
+      return true;
+  auto old_code = sub_automaton->get_acceptance();
+  sub_automaton->set_acceptance(acc_cond(old_code.complement()));
+  algo = general_case ? Co_Buchi_type_to_co_Buchi : Streett_to_co_Buchi;
+
+  unsigned other_test = apply_to_buchi(sub_automaton, algo, buch_fun);
+  sub_automaton->set_acceptance(acc_cond(old_code));
+  return other_test != -1U;
+}
+
+bool
+try_apply_rabin_to_buchi(twa_graph_ptr& sub_automaton)
+{
+    return try_apply_to_buchi(sub_automaton, false,
+                              &rabin_to_buchi_if_realizable);
+}
+
+bool
+try_apply_to_buchi(twa_graph_ptr& sub_automaton)
+{
+  return try_apply_to_buchi(sub_automaton, true, &buchi_type_to_buchi);
+}
+
+// If possible a part of the acceptance condition that is parity is removed.
+// The transitions with a color of this part are removed and the paritization
+// is applied on the resulting SCC.
+// If there is no such prefix, false is returned.
+bool
+try_apply_parity_prefix(twa_graph_ptr& sub_automaton)
+{
+    acc_cond new_acc;
+    // colors contains the colors that are removed from the
+    // acceptance condition.
+    std::vector<unsigned> colors;
+    auto start_inf = sub_automaton->acc().has_parity_prefix(new_acc, colors);
+    auto init_states = sub_automaton->
+                    get_named_prop<std::vector<unsigned> >("original-states");
+    // If there exists a parity prefix, we remove the edges from this
+    // automaton.
+    if (colors.size() > 0)
+    {
+        // We don't want to apply parity prefix recursively
+        options.parity_prefix = false;
+        // We just work on the rest of the acceptance condition.
+        sub_automaton->set_acceptance(new_acc);
+        auto sub_edge_vector = sub_automaton->edge_vector();
+        const auto sub_edge_vector_size = sub_edge_vector.size();
+        // The colors that are in the prefix
+        auto tocut = std::accumulate(colors.begin(), colors.end(),
+          acc_cond::mark_t {}, [](acc_cond::mark_t mark, unsigned value)
+          {
+              return mark | acc_cond::mark_t {value};
+          });
+
+        std::vector<twa_graph::edge_storage_t> removed_edges;
+        for (unsigned i = 0; i < sub_edge_vector_size; ++i)
+        {
+          auto& edge = sub_edge_vector[i];
+          if (edge.acc & tocut)
+            removed_edges.push_back(edge);
+        }
+
+        scc_and_mark_filter filt(sub_automaton, tocut);
+        scc_info si(filt);
+
+        unsigned scc_max_color = 0;
+        const unsigned scc_nb = si.scc_count();
+        std::vector<bool> keep(sub_automaton->edge_vector().size(), true);
+        auto sub_auts = split_aut(si, keep);
+        for (unsigned scc = 0; scc < scc_nb; ++scc)
+        {
+          auto sub_sub = sub_auts[scc];
+          auto init_states_sub_sub = sub_sub->
+                  get_named_prop<std::vector<unsigned> >("original-states");
+          const unsigned sub_sub_num_states = sub_sub->num_states();
+          for (unsigned state = 0; state < sub_sub_num_states; ++state)
+          {
+            // We need a correspondance between a state of sub_sub and a state
+            // of aut_ during the paritization.
+            (*init_states_sub_sub)[state] =
+              (*init_states)[(*init_states_sub_sub)[state]];
+          }
+          if (sub_sub->num_edges() == 0)
+            add_res_state(Parity_prefix, perm_t(), 0,
+                            (*init_states_sub_sub)[0]);
+          else
+            build_scc(sub_sub);
+          scc_max_color = std::max(scc_max_color, current_scc_max_color);
+        }
+
+        options.parity_prefix = true;
+        unsigned max_prefix_color = scc_max_color + colors.size();
+        max_prefix_color += (max_prefix_color % 2) + (is_odd ^ !start_inf);
+        // We add the edges that parity prefix was able to color.
+        for (auto e : removed_edges)
+        {
+          auto src = (*init_states)[e.src];
+          auto dst = (*init_states)[e.dst];
+          unsigned min_index = -1U;
+          for (auto i : e.acc.sets())
+          {
+            auto element = std::find(colors.begin(), colors.end(), i);
+            if (element != colors.end())
+            {
+              unsigned pos = std::distance(colors.begin(), element);
+              min_index = std::min(min_index, pos);
+            }
+          }
+          assert(min_index != -1U);
+          for (auto s : state2nums[src])
+          {
+            auto col = max_prefix_color - min_index;
+            add_res_edge(s, ps2num[state2ps[dst].value()], e.cond, { col });
+          }
+        }
+        // If we have an automaton like 0 -{1}-> 1, 1 -{}-> 0 with tocut = {1},
+        // the first transition is in removed_edges but not the second one but
+        // the transition is removed by scc_info as it links two SCCs. Here we
+        // add this kind of edges.
+        for (auto& e : sub_automaton->edges())
+          if (si.scc_of(e.src) != si.scc_of(e.dst) && !(e.acc & tocut))
+          {
+            auto src = (*init_states)[e.src];
+            auto dst = (*init_states)[e.dst];
+            assert(!state2nums[src].empty());
+            for (auto s : state2nums[src])
+              add_res_edge(s, ps2num[state2ps[dst].value()], e.cond, { });
+          }
+        return true;
+    }
+    return false;
+}
+
+bool
+try_apply_parity_prefix_general(const const_twa_graph_ptr& sub_automaton)
+{
+  // We don't want a recursive call to this function.
+  options.parity_prefix_general = false;
+  std::vector<int> status;
+  auto partially_paritized = partial_parity_type(sub_automaton, status);
+  auto acc_part = partially_paritized->acc();
+  bool odd, max;
+  acc_part.is_parity(max, odd);
+
+  // If all edges are colored, we don't need to paritize
+  // sub-SCCs.
+  if (std::find(status.begin(), status.end(), 2) == status.end())
+  {
+  // We need to associate to each state of sub_automaton the number of the
+  // state of res when we create edges.
+    std::vector<unsigned> state_subaut2num_local;
+    auto init_states = sub_automaton
+            ->get_named_prop<std::vector<unsigned>>("original-states");
+    const unsigned sub_num_states = sub_automaton->num_states();
+    for (unsigned state = 0; state < sub_num_states; ++state)
+    {
+      unsigned num = add_res_state(Parity_prefix_general, {}, state,
+                                    (*init_states)[state]);
+      state_subaut2num_local.push_back(num);
+    }
+
+    bool diff = odd != is_odd;
+    for (auto &e : partially_paritized->edges())
+    {
+      unsigned src = e.src,
+               dst = e.dst;
+      unsigned src_num = state_subaut2num_local[src],
+               dst_num = state_subaut2num_local[dst];
+      acc_cond::mark_t mark;
+      if (!e.acc)
+        mark = diff ? acc_cond::mark_t { 0 } : acc_cond::mark_t {};
+      else
+        mark = { e.acc.min_set() - 1 + diff };
+      add_res_edge(src_num, dst_num, e.cond, mark);
+    }
+    // This option was disabled.
+    options.parity_prefix_general = true;
+    return true;
+  }
+  // If partial_parity_type was not able to assign a color, we can't work.
+  if (std::find(status.begin() + 1, status.end(), 1) == status.end())
+  {
+    options.parity_prefix_general = false;
+    return false;
+  }
+
+  // keep = ⊤ ⇔ partial_parity_type was not able to assign a color.
+  std::vector<bool> keep;
+  std::transform(status.begin(), status.end(), std::back_inserter(keep),
+                  [](int x) { return x == 2; });
+
+  assert(keep.size() == partially_paritized->edge_vector().size());
+
+  using filter_data_t = std::pair<const const_twa_graph_ptr, std::vector<bool>>;
+  auto filter_edge = [](const twa_graph::edge_storage_t& e,
+                        unsigned,
+                        void *filter_data)
+    {
+      auto& d = *static_cast<filter_data_t*>(filter_data);
+      auto& sub_automaton = d.first;
+      auto& keep = d.second;
+      auto edge_number = sub_automaton->edge_number(e);
+      if (keep[edge_number])
+        return scc_info::edge_filter_choice::keep;
+      return scc_info::edge_filter_choice::cut;
+    };
+
+    filter_data_t filter_data { sub_automaton, keep };
+
+    scc_info si(sub_automaton,
+                sub_automaton->get_init_state_number(),
+                filter_edge, &filter_data);
+
+    const unsigned scc_nb = si.scc_count();
+    // We need to know what is the maximum color used during the paritization
+    // of the sub-SCCs.
+    auto init_states = sub_automaton->
+                    get_named_prop<std::vector<unsigned>>("original-states");
+    unsigned scc_max_color = 0;
+    auto sub_auts = split_aut(si, keep);
+    for (unsigned scc = 0; scc < scc_nb; ++scc)
+    {
+      auto sub_sub = sub_auts[scc];
+      auto init_states_sub_sub = sub_sub->
+                    get_named_prop<std::vector<unsigned>>("original-states");
+      const unsigned sub_sub_num_states = sub_sub->num_states();
+      for (unsigned state = 0; state < sub_sub_num_states; ++state)
+      {
+        // We need a correspondance between a state of sub_sub and a state
+        // of aut_ during the paritization.
+        (*init_states_sub_sub)[state] =
+            (*init_states)[(*init_states_sub_sub)[state]];
+      }
+      if (sub_sub->num_edges() == 0)
+        add_res_state(Parity_prefix_general, perm_t(), 0,
+                        (*init_states_sub_sub)[0]);
+      else
+        build_scc(sub_sub);
+      scc_max_color = std::max(scc_max_color, current_scc_max_color);
+    }
+
+    // We add the edges that partial_parity_type was able to color.
+
+    // If the parity prefix is max odd and the current res is odd or the
+    // opposite, we need to add 1 to the transitions of partially_paritized.
+    // We also avoid to get a color used in a recursive paritisation.
+    auto x = ((odd != is_odd) + scc_max_color) % 2;
+    unsigned prefix_shift = x + scc_max_color + 2 * (1 - x);
+    for (auto& e : partially_paritized->edges())
+    {
+      auto edge_number = partially_paritized->edge_number(e);
+      if (status[edge_number] == 1)
+      {
+        unsigned src = (*init_states)[e.src],
+                 dst = (*init_states)[e.dst];
+        auto src_copies = state2nums[src];
+        auto dst_copy = state2nums[dst][0];
+        acc_cond::mark_t mark { e.acc.max_set() - 1 + prefix_shift };
+        for (unsigned st : src_copies)
+          add_res_edge(st, dst_copy, e.cond, mark);
+      }
+    }
+
+    // Some edges are removed by scc_info but are not colored by
+    // partial_parity_type
+    for (auto& e : sub_automaton->edges())
+    {
+      auto edge_number = sub_automaton->edge_number(e);
+      if (si.scc_of(e.src) != si.scc_of(e.dst) && status[edge_number] == 2)
+      {
+        auto src = (*init_states)[e.src];
+        auto dst = (*init_states)[e.dst];
+        assert(!state2nums[src].empty());
+        for (auto s : state2nums[src])
+          add_res_edge(s, ps2num[state2ps[dst].value()], e.cond, { });
+      }
+    }
+    options.parity_prefix_general = true;
+    return true;
+}
+
 void
 initial_perm_iar(std::set<unsigned> &perm_elem, perm_t &p0,
-                 algorithm algo, const acc_cond::mark_t &colors,
-                 const std::vector<acc_cond::rs_pair> &pairs)
+                 algorithm algo, const acc_cond::mark_t& colors,
+                 const std::vector<acc_cond::rs_pair>& pairs)
 {
     for (unsigned k = 0; k != pairs.size(); ++k)
         if (!inf(pairs, k, algo) || (colors & (pairs[k].fin | pairs[k].inf)))
@@ -1097,8 +1544,7 @@ get_acceptance_iar(algorithm algo, const perm_t &current_perm,
     {
         unsigned pk = current_perm[k];
 
-        if (!inf(pairs, pk,
-                 algo)
+        if (!inf(pairs, pk, algo)
             || (e_acc & (pairs[pk].fin | pairs[pk].inf)))
         {
             maxint = k;
@@ -1126,41 +1572,36 @@ get_acceptance_car(const acc_cond &sub_aut_cond, const perm_t &new_perm,
     acc = { value };
 }
 
+// TODO: Doc
 unsigned
-apply_lar(const twa_graph_ptr &sub_automaton,
-          unsigned init, std::vector<acc_cond::rs_pair> &pairs,
-          algorithm algo, unsigned scc_num,
-          const std::vector<int>& inf_fin_prefix,
-          unsigned max_free_color,
-          std::map<unsigned, car_state>& state2car_local,
-          std::map<car_state, unsigned>& car2num_local,
-          unsigned max_states)
+apply_car_iar(twa_graph_ptr sub_automaton, std::vector<acc_cond::rs_pair>
+                   pairs, const algorithm algo)
 {
-    auto maps = get_mark_to_vector(sub_automaton);
-    // For each edge e of res_, we store the elements of the permutation
-    // that are not moved, and we respect the order.
-    std::map<unsigned, std::vector<unsigned>> edge_to_colors;
-    unsigned nb_created_states = 0;
-    auto state_2_car = state_2_car_scc(sub_automaton->num_states());
-    std::vector<unsigned>* init_states = sub_automaton->
-        get_named_prop<std::vector<unsigned>>("original-states");
-    std::deque<car_state> todo;
-    auto get_state =
-        [&](const car_state &s){
-            auto it = car2num_local.find(s);
+    if (algo == IAR_Rabin)
+        change_to_odd();
 
-            if (it == car2num_local.end())
+    std:: vector<unsigned> added_states;
+    unsigned nb_created_states = 0;
+    std::map<unsigned, std::vector<unsigned>> edge_to_colors;
+    // Maps a state of sub_automaton to a parity state
+    auto state_2_lar = state_2_lar_scc(sub_automaton->num_states());
+    auto init_states = sub_automaton->
+        get_named_prop<std::vector<unsigned>>("original-states");
+    std::deque<to_parity_state> todo;
+    auto get_state =
+        [&](const to_parity_state &s){
+            auto it = ps2num.find(s);
+            if (it == ps2num.end())
             {
                 ++nb_created_states;
-                unsigned nb = res_->new_state();
+                unsigned nb = add_res_state(algo, s.perm,
+                                            s.scc_state, s.original_state);
                 if (options.search_ex)
-                    state_2_car.add_res_state(s.state_scc, nb, s.perm);
-                car2num_local[s] = nb;
-                num2car.insert(num2car.begin() + nb, s);
-
+                    state_2_lar.add_res_state(s.scc_state, nb, s.perm);
+                if (!options.bscc && !state2ps[s.original_state].has_value())
+                  state2ps[s.original_state] = s;
+                added_states.push_back(nb);
                 todo.push_back(s);
-                if (options.pretty_print)
-                    names->push_back(s.to_string(algo));
                 return nb;
             }
             return it->second;
@@ -1180,26 +1621,29 @@ apply_lar(const twa_graph_ptr &sub_automaton,
         initial_perm_car(p0, colors);
         break;
     default:
-        assert(false);
+        SPOT_UNREACHABLE();
         break;
     }
 
+    std::vector<std::map<acc_cond::mark_t, std::vector<unsigned>>> maps;
     std::vector<std::map<std::vector<unsigned>, std::vector<unsigned>>>
-    iar_maps;
-    if (algo == IAR_Streett || algo == IAR_Rabin)
+      iar_maps;
+    if (algo == CAR)
+        maps = get_mark_to_vector(sub_automaton);
+    else
         iar_maps = get_iar_to_vector(sub_automaton, algo, perm_elem, pairs);
 
-    car_state s0{ (*init_states)[init], init, p0 };
+    to_parity_state s0{ (*init_states)[0], 0, p0 };
     get_state(s0);         // put s0 in todo
 
     // the main loop
     while (!todo.empty())
     {
-        car_state current = todo.front();
+        to_parity_state current = todo.front();
         todo.pop_front();
 
         unsigned src_num = get_state(current);
-        for (const auto &e : sub_automaton->out(current.state_scc))
+        for (const auto &e : sub_automaton->out(current.scc_state))
         {
             perm_t new_perm = current.perm;
 
@@ -1220,7 +1664,7 @@ apply_lar(const twa_graph_ptr &sub_automaton,
                 find_new_perm_car(new_perm, e.acc, seen_nb, h);
                 break;
             default:
-                assert(false);
+                SPOT_UNREACHABLE();
             }
 
             std::vector<unsigned> not_moved(new_perm.begin() + seen_nb,
@@ -1256,21 +1700,20 @@ apply_lar(const twa_graph_ptr &sub_automaton,
 
             // Optimization: when several indices are seen in the
             // transition, they move at the front of new_perm in any
-            // order. Check whether there already exists an car_state
+            // order. Check whether there already exists a to_parity_state
             // that matches this condition.
-            car_state dst;
+            to_parity_state dst;
             unsigned dst_num = -1U;
 
             if (options.search_ex)
-                dst_num = state_2_car.get_res_state(e.dst, new_perm, seen_nb,
+                dst_num = state_2_lar.get_res_state(e.dst, new_perm, seen_nb,
                             options.use_last);
 
             if (dst_num == -1U)
             {
-                auto dst = car_state{ (*init_states)[e.dst], e.dst, new_perm };
+                auto dst = to_parity_state{ (*init_states)[e.dst],
+                                            e.dst, new_perm };
                 dst_num = get_state(dst);
-                if (nb_created_states > max_states)
-                    return -1U;
             }
 
             acc_cond::mark_t acc = { };
@@ -1285,420 +1728,408 @@ apply_lar(const twa_graph_ptr &sub_automaton,
                 get_acceptance_car(sub_automaton->acc(), new_perm, h, acc);
                 break;
             default:
-                assert(false);
+                SPOT_UNREACHABLE();
             }
 
             unsigned acc_col = acc.min_set() - 1;
-            if (options.parity_prefix)
-            {
-                if (acc_col > max_free_color)
-                    throw std::runtime_error("CAR needs more sets");
-                // parity prefix
-                for (auto col : e.acc.sets())
-                {
-                    if (inf_fin_prefix[col] + is_odd > (int) acc_col)
-                        acc_col = (unsigned) inf_fin_prefix[col] + is_odd;
-                }
-            }
-            auto new_e = res_->new_edge(src_num, dst_num, e.cond, { acc_col });
+            auto new_e = add_res_edge(src_num, dst_num, e.cond, { acc_col });
             edge_to_colors.insert({new_e, not_moved});
         }
     }
     if (options.search_ex && options.use_last)
+        change_transitions_destination(res_, added_states, edge_to_colors,
+                                       state_2_lar);
+
+    if (options.bscc)
     {
-        std::vector<unsigned> added_states;
-        std::transform(car2num_local.begin(), car2num_local.end(),
-                       std::back_inserter(added_states),
-                       [](std::pair<const car_state, unsigned> pair) {
-                           return pair.second;
-                       });
-        change_transitions_destination(
-            res_, added_states, edge_to_colors, state_2_car);
+      scc_info sub_scc(res_, get_state(s0));
+      // SCCs are numbered in reverse topological order, so the bottom SCC has
+      // index 0.
+      const unsigned bscc = 0;
+      assert(sub_scc.scc_count() != 0);
+      assert(sub_scc.succ(0).empty());
+      assert(
+          [&](){
+                      for (unsigned s = 1; s != sub_scc.scc_count(); ++s)
+                          if (sub_scc.succ(s).empty())
+                              return false;
+
+                      return true;
+                  } ());
+
+      assert(sub_scc.states_of(bscc).size() >= sub_automaton->num_states());
+
+      // update state2ps
+      for (unsigned scc_state : sub_scc.states_of(bscc))
+      {
+          to_parity_state &ps = num2ps.at(scc_state);
+
+          if (!state2ps[ps.original_state].has_value())
+              state2ps[ps.original_state] = ps;
+      }
+      return sub_scc.states_of(bscc).size();
     }
-    auto leaving_edge =
-        [&](unsigned d){
-            return scc_.scc_of(num2car.at(d).state) != scc_num;
+    return nb_created_states;
+}
+
+// This function is the same as apply_car_iar but As we cannot apply any
+// optimization as the choice of the order when moving elements, we create
+// an other function.
+unsigned
+apply_tar(twa_graph_ptr sub_automaton)
+{
+    auto& edge_vector = sub_automaton->edge_vector();
+    unsigned nb_created_states = 0;
+    auto init_states = sub_automaton->
+                    get_named_prop<std::vector<unsigned>>("original-states");
+    std::deque<to_parity_state> todo;
+    auto get_state =
+        [&](const to_parity_state &s){
+            auto it = ps2num.find(s);
+
+            if (it == ps2num.end())
+            {
+                ++nb_created_states;
+                unsigned nb = add_res_state(TAR, s.perm,
+                                            s.scc_state, s.original_state);
+                if (!options.bscc && !state2ps[s.original_state].has_value())
+                  state2ps[s.original_state] = s;
+                todo.push_back(s);
+                return nb;
+            }
+            return it->second;
         };
-    auto filter_edge =
-        [](const twa_graph::edge_storage_t &,
-           unsigned dst,
-           void* filter_data){
-            decltype(leaving_edge) *data =
-                static_cast<decltype(leaving_edge)*>(filter_data);
 
-            if ((*data)(dst))
-                return scc_info::edge_filter_choice::ignore;
+    std::vector<unsigned> p0(edge_vector.size() - 1);
+    std::iota(p0.begin(), p0.end(), 1);
 
-            return scc_info::edge_filter_choice::keep;
-        };
-    scc_info sub_scc(res_, get_state(s0), filter_edge, &leaving_edge);
+    to_parity_state s0{ (*init_states)[0], 0, p0 };
+    get_state(s0);
 
-    // SCCs are numbered in reverse topological order, so the bottom SCC has
-    // index 0.
-    const unsigned bscc = 0;
-    assert(sub_scc.scc_count() != 0);
-    assert(sub_scc.succ(0).empty());
-    assert(
-        [&](){
-                    for (unsigned s = 1; s != sub_scc.scc_count(); ++s)
-                        if (sub_scc.succ(s).empty())
-                            return false;
-
-                    return true;
-                } ());
-
-    assert(sub_scc.states_of(bscc).size() >= sub_automaton->num_states());
-
-    // update state2car
-    for (unsigned scc_state : sub_scc.states_of(bscc))
+    // the main loop
+    while (!todo.empty())
     {
-        car_state &car = num2car.at(scc_state);
+        to_parity_state current = todo.front();
+        todo.pop_front();
 
-        if (state2car_local.find(car.state) == state2car_local.end())
-            state2car_local[car.state] = car;
+        unsigned src_num = get_state(current);
+        for (const auto &e : sub_automaton->out(current.scc_state))
+        {
+            auto edge_number = sub_automaton->edge_number(e);
+            perm_t new_perm = current.perm;
+
+            auto pivot = std::find(new_perm.begin(), new_perm.end(),
+                          edge_number);
+            assert(pivot != new_perm.end());
+            unsigned index = std::distance(new_perm.begin(), pivot);
+
+
+            std::rotate(new_perm.begin(), pivot, pivot + 1);
+
+            auto dst = to_parity_state{(*init_states)[e.dst], e.dst, new_perm};
+            auto dst_num = get_state(dst);
+
+
+            acc_cond::mark_t acc = { };
+            for (unsigned i = 0; i <= index; ++i)
+              acc |= edge_vector[new_perm[i]].acc;
+
+            auto is_acc = sub_automaton->acc().accepting(acc);
+
+            unsigned acc_col = 2 * (index + 1) + is_odd + !is_acc;
+            add_res_edge(src_num, dst_num, e.cond, { acc_col });
+        }
     }
-    return sub_scc.states_of(bscc).size();
+
+    if (options.bscc)
+    {
+      scc_info sub_scc(res_, get_state(s0));
+
+      // SCCs are numbered in reverse topological order, so the bottom SCC has
+      // index 0.
+      const unsigned bscc = 0;
+      assert(sub_scc.scc_count() != 0);
+      assert(sub_scc.succ(0).empty());
+      assert(
+          [&](){
+                      for (unsigned s = 1; s != sub_scc.scc_count(); ++s)
+                          if (sub_scc.succ(s).empty())
+                              return false;
+
+                      return true;
+                  } ());
+
+      assert(sub_scc.states_of(bscc).size() >= sub_automaton->num_states());
+
+      // update state2ps
+      for (unsigned scc_state : sub_scc.states_of(bscc))
+      {
+          to_parity_state &car = num2ps.at(scc_state);
+
+          if (!state2ps[car.original_state].has_value())
+            state2ps[car.original_state] = car;
+      }
+      return sub_scc.states_of(bscc).size();
+    }
+    return nb_created_states;
+}
+
+// Given a vector of pairs, remove duplicates. Only the first occurence is kept
+// and the order is not modified.
+static void
+remove_duplicates(std::vector<acc_cond::rs_pair>& elements)
+{
+  std::vector<acc_cond::rs_pair> result;
+  for (auto& value : elements)
+  {
+    if (std::find(result.begin(), result.end(), value) == result.end())
+      result.push_back(value);
+  }
+  elements = result;
 }
 
 algorithm
-chooseAlgo(twa_graph_ptr &sub_automaton,
-           twa_graph_ptr &rabin_aut,
-           std::vector<acc_cond::rs_pair> &pairs,
-           std::vector<unsigned> &permut)
+choose_lar(acc_cond scc_condition, std::vector<acc_cond::rs_pair>& pairs,
+            unsigned num_edges)
 {
-    auto scc_condition = sub_automaton->acc();
-    if (options.parity_equiv)
-    {
-        if (scc_condition.is_f())
-            return False_clean;
-        if (scc_condition.is_t())
-            return True_clean;
-        std::vector<int> permut_tmp(scc_condition.all_sets().max_set(), -1);
-
-        if (!is_odd && scc_condition.is_parity_max_equiv(permut_tmp, true))
-        {
-            for (auto c : permut_tmp)
-                permut.push_back((unsigned) c);
-
-            scc_condition.apply_permutation(permut);
-            sub_automaton->apply_permutation(permut);
-            return Copy_even;
-        }
-        std::fill(permut_tmp.begin(), permut_tmp.end(), -1);
-        if (scc_condition.is_parity_max_equiv(permut_tmp, false))
-        {
-            for (auto c : permut_tmp)
-                permut.push_back((unsigned) c);
-            scc_condition.apply_permutation(permut);
-            sub_automaton->apply_permutation(permut);
-            return Copy_odd;
-        }
-    }
-
-    if (options.rabin_to_buchi)
-    {
-        auto ra = rabin_to_buchi_if_realizable(sub_automaton);
-        if (ra != nullptr)
-        {
-            rabin_aut = ra;
-            return Rabin_to_Buchi;
-        }
-        else
-        {
-            bool streett_buchi = false;
-            auto sub_cond = sub_automaton->get_acceptance();
-            sub_automaton->set_acceptance(sub_cond.complement());
-            auto ra = rabin_to_buchi_if_realizable(sub_automaton);
-            streett_buchi = (ra != nullptr);
-            sub_automaton->set_acceptance(sub_cond);
-            if (streett_buchi)
-            {
-                rabin_aut = ra;
-                return Streett_to_Buchi;
-            }
-        }
-    }
-
-    auto pairs1 = std::vector<acc_cond::rs_pair>();
-    auto pairs2 = std::vector<acc_cond::rs_pair>();
-    std::sort(pairs1.begin(), pairs1.end());
-    pairs1.erase(std::unique(pairs1.begin(), pairs1.end()), pairs1.end());
-    std::sort(pairs2.begin(), pairs2.end());
-    pairs2.erase(std::unique(pairs2.begin(), pairs2.end()), pairs2.end());
+    std::vector<acc_cond::rs_pair> pairs1;
+    std::vector<acc_cond::rs_pair> pairs2;
     bool is_r_like = scc_condition.is_rabin_like(pairs1);
     bool is_s_like = scc_condition.is_streett_like(pairs2);
+    // Avoid to have 2 pairs with the same elements.
+    remove_duplicates(pairs1);
+    remove_duplicates(pairs2);
     unsigned num_cols = scc_condition.get_acceptance().used_sets().count();
-    if (is_r_like)
+
+    // We take the minimum between the number of pairs (Streett/Rabin),
+    // colors, transitions (in this order if equality)
+
+    std::vector<unsigned long> number_elements =
     {
-        if ((is_s_like && pairs1.size() < pairs2.size()) || !is_s_like)
-        {
-            if (pairs1.size() > num_cols)
-                return CAR;
-            pairs = pairs1;
-            return IAR_Rabin;
-        }
-        else if (is_s_like)
-        {
-            if (pairs2.size() > num_cols)
-                return CAR;
-            pairs = pairs2;
-            return IAR_Streett;
-        }
+      (options.iar && is_s_like) ? pairs2.size() : -1UL,
+      (options.iar && is_r_like) ? pairs1.size() : -1UL,
+      num_cols,
+      options.tar ? num_edges : -1UL
+    };
+
+    std::vector<algorithm> algos = { IAR_Streett, IAR_Rabin, CAR, TAR };
+
+    int minElementIndex = std::min_element(
+                              number_elements.begin(),
+                              number_elements.end()) - number_elements.begin();
+    algorithm result = algos[minElementIndex];
+
+    if (result == IAR_Rabin)
+      pairs = pairs1;
+    else if (result == IAR_Streett)
+      pairs = pairs2;
+
+    return result;
+}
+
+
+void
+apply_lar(twa_graph_ptr sub_automaton)
+{
+    std::vector<acc_cond::rs_pair> pairs;
+    algorithm lar_algo = choose_lar(sub_automaton->acc(), pairs,
+                                    sub_automaton->num_edges());
+    if (lar_algo != TAR)
+    {
+      // Here we can only use IAR/CAR. A mark propagation can help CAR/IAR.
+      // The function could have been called before simplify_acceptance but
+      // simplify_acceptance can remove colors on edges.
+      if (options.propagate_col)
+        propagate_marks_here(sub_automaton);
+      apply_car_iar(sub_automaton, pairs, lar_algo);
     }
     else
-    {
-        if (is_s_like)
-        {
-            if (pairs2.size() > num_cols)
-                return CAR;
-            pairs = pairs2;
-            return IAR_Streett;
-        }
-    }
-    return CAR;
+      // This version of LAR can't be optimized with the optimizations based
+      // on the order of the elements so we create a new function to be more
+      // readable.
+      apply_tar(sub_automaton);
 }
 
-unsigned
-build_scc(twa_graph_ptr &sub_automaton,
-          unsigned scc_num,
-          std::map<unsigned, car_state>& state2car_local,
-          std::map<car_state, unsigned>&car2num_local,
-          algorithm& algo,
-          unsigned max_states = -1U)
+// Decide if we keep the result of a partial degeneralization.
+bool keep_deg(twa_graph_ptr original, twa_graph_ptr deg)
 {
+    unsigned nb_col_original = original->get_acceptance().used_sets().count();
+    std::vector<acc_cond::rs_pair> pairs1;
 
-    std::vector<int> parity_prefix_colors (SPOT_MAX_ACCSETS,
-                                            - SPOT_MAX_ACCSETS - 2);
-    unsigned min_prefix_color = SPOT_MAX_ACCSETS + 1;
-    if (options.parity_prefix)
-    {
-        auto new_acc = sub_automaton->acc();
-        auto colors = std::vector<unsigned>();
-        bool inf_start =
-            sub_automaton->acc().has_parity_prefix(new_acc, colors);
-        sub_automaton->set_acceptance(new_acc);
-        for (unsigned i = 0; i < colors.size(); ++i)
-            parity_prefix_colors[colors[i]] =
-                SPOT_MAX_ACCSETS - 4 - i - !inf_start;
-        if (colors.size() > 0)
-            min_prefix_color =
-                SPOT_MAX_ACCSETS - 4 - colors.size() - 1 - !inf_start;
-    }
-    --min_prefix_color;
-
-    unsigned init = 0;
-
-    std::vector<acc_cond::rs_pair> pairs = { };
-    auto permut = std::vector<unsigned>();
-    twa_graph_ptr rabin_aut = nullptr;
-    algo = chooseAlgo(sub_automaton, rabin_aut, pairs, permut);
-    switch (algo)
-    {
-    case False_clean:
-    case True_clean:
-        return apply_false_true_clean(sub_automaton, (algo == True_clean),
-                                      parity_prefix_colors, min_prefix_color,
-                                      state2car_local, car2num_local);
-        break;
-    case IAR_Streett:
-    case IAR_Rabin:
-    case CAR:
-        return apply_lar(sub_automaton, init, pairs, algo, scc_num,
-                         parity_prefix_colors, min_prefix_color,
-                         state2car_local, car2num_local, max_states);
-        break;
-    case Copy_odd:
-    case Copy_even:
-        return apply_copy(sub_automaton, permut, algo == Copy_odd,
-                          parity_prefix_colors, state2car_local,
-                          car2num_local);
-        break;
-    case Rabin_to_Buchi:
-    case Streett_to_Buchi:
-        return apply_to_Buchi(sub_automaton, rabin_aut,
-                              (algo == Streett_to_Buchi),
-                              parity_prefix_colors, min_prefix_color,
-                              state2car_local, car2num_local);
-        break;
-    default:
-        break;
-    }
-    return -1U;
+    // We keep the result if we have less colors or if we create a Rabin/
+    // Streett condition with less pairs than colors.
+    return
+        !options.reduce_col_deg
+    || (deg->get_acceptance().used_sets().count() < nb_col_original)
+    || (deg->acc().is_rabin_like(pairs1) && pairs1.size() < nb_col_original)
+    || (deg->acc().is_streett_like(pairs1) && pairs1.size() < nb_col_original);
 }
 
-public:
+void
+build_scc(twa_graph_ptr& sub_automaton)
+{
+    if (sub_automaton->num_edges() == 0)
+    {
+      auto init_states = sub_automaton->
+          get_named_prop<std::vector<unsigned>>("original-states");
+      add_res_state(None, perm_t {}, 0, (*init_states)[0]);
+    }
+    current_scc_max_color = 0;
+    while (true)
+    {
+        // A propagation + simplification
+        if (options.acc_clean)
+          simplify_acceptance_here(sub_automaton);
+        if (options.propagate_col)
+            propagate_marks_here(sub_automaton);
+        if (options.acc_clean)
+            simplify_acceptance_here(sub_automaton);
+        // We check if the acceptance condition can be renumbered to get parity.
+        if (options.parity_equiv)
+        {
+          auto scc_condition = sub_automaton->acc();
+          std::vector<int> permut_tmp;
+          // Is the condition equivalent to parity ?
+          bool par = false;
+          algorithm copy_kind = None;
+          if (scc_condition.is_parity_max_equiv(permut_tmp, true))
+          {
+            par = true;
+            copy_kind = Copy_even;
+          }
+          else
+          {
+            permut_tmp.clear();
+            if (scc_condition.is_parity_max_equiv(permut_tmp, false))
+            {
+              par = true;
+              copy_kind = Copy_odd;
+            }
+          }
+          if (par)
+          {
+            apply_copy(sub_automaton, permut_tmp, copy_kind == Copy_odd);
+            return;
+          }
+        }
+
+        // We can check if the condition has a parity prefix. In this case,
+        // this function will paritize the SCC created by removing the colors
+        // in the prefix. That is why we don't do anything after this call.
+        if (options.parity_prefix && try_apply_parity_prefix(sub_automaton))
+          return;
+
+        if (options.parity_prefix_general &&
+            try_apply_parity_prefix_general(sub_automaton))
+          return;
+
+        auto sub_aut_acc = sub_automaton->get_acceptance();
+        bool is_true = sub_aut_acc.is_t();
+        if (is_true || sub_aut_acc.is_f() ||
+            (options.generic_emptiness &&
+             generic_emptiness_check(sub_automaton)))
+        {
+          apply_false_true_clean(sub_automaton, is_true);
+          return;
+        }
+        if (!options.buchi_type_to_buchi && options.rabin_to_buchi &&
+              try_apply_rabin_to_buchi(sub_automaton))
+          return;
+        if (options.buchi_type_to_buchi &&
+              try_apply_to_buchi(sub_automaton))
+          return;
+        if (options.parity_type_to_parity &&
+              try_apply_to_parity_type(sub_automaton))
+          return;
+        if (options.use_generalized_rabin)
+        {
+          auto orig = sub_automaton->
+                    get_named_prop<std::vector<unsigned>>("original-states");
+          auto orig_vector = new std::vector<unsigned>(*orig);
+          sub_automaton = to_generalized_rabin(sub_automaton);
+          sub_automaton->set_named_prop("original-states", orig_vector);
+        }
+
+        if (options.partial_degen)
+        {
+            bool is_partially_degen =
+                is_partially_degeneralizable(sub_automaton)
+                != acc_cond::mark_t {};
+            if (is_partially_degen)
+            {
+                twa_graph_ptr deg = partial_degeneralize(sub_automaton);
+                simplify_acceptance_here(deg);
+                if (keep_deg(sub_automaton, deg))
+                {
+                    sub_automaton = deg;
+                    continue;
+                }
+            }
+        }
+        break;
+    }
+    apply_lar(sub_automaton);
+}
+
 twa_graph_ptr
 run()
 {
     res_ = make_twa_graph(aut_->get_dict());
     res_->copy_ap_of(aut_);
-    for (unsigned scc = 0; scc < scc_.scc_count(); ++scc)
+    const unsigned scc_nb = scc_.scc_count();
+    std::vector<bool> keep(aut_->edge_vector().size(), true);
+    auto sub_auts = split_aut(scc_, keep);
+    for (unsigned scc = 0; scc < scc_nb; ++scc)
     {
         if (!scc_.is_useful_scc(scc))
-            continue;
-        auto sub_automata = scc_.split_on_sets(scc, { }, true);
-        if (sub_automata.empty())
-        {
-            for (auto state : scc_.states_of(scc))
-            {
-                auto new_state = res_->new_state();
-                car_state new_car = { state, state, perm_t() };
-                car2num[new_car] = new_state;
-                num2car.insert(num2car.begin() + new_state, new_car);
-                if (options.pretty_print)
-                    names->push_back(new_car.to_string(None));
-                state2car[state] = new_car;
-            }
-            continue;
-        }
-
-        auto sub_automaton = sub_automata[0];
-        auto deg = sub_automaton;
-        if (options.acc_clean)
-            simplify_acceptance_here(sub_automaton);
-        bool has_degeneralized = false;
-        if (options.partial_degen)
-        {
-            std::vector<acc_cond::mark_t> forbid;
-            auto m =
-                is_partially_degeneralizable(sub_automaton, true,
-                                             true, forbid);
-            while (m != acc_cond::mark_t {})
-            {
-                auto tmp = partial_degeneralize(deg, m);
-                simplify_acceptance_here(tmp);
-                if (tmp->get_acceptance().used_sets().count()
-                    < deg->get_acceptance().used_sets().count() ||
-                    !(options.reduce_col_deg))
-                {
-                    deg = tmp;
-                    has_degeneralized = true;
-                }
-                else
-                    forbid.push_back(m);
-                m = is_partially_degeneralizable(deg, true, true, forbid);
-            }
-        }
-
-        if (options.propagate_col)
-        {
-            propagate_marks_here(sub_automaton);
-            if (deg != sub_automaton)
-              propagate_marks_here(deg);
-        }
-
-        std::map<unsigned, car_state> state2car_sub, state2car_deg;
-        std::map<car_state, unsigned> car2num_sub, car2num_deg;
-
-        unsigned nb_states_deg = -1U,
-                 nb_states_sub = -1U;
-
-        algorithm algo_sub, algo_deg;
-        unsigned max_states_sub_car = -1U;
-        // We try with and without degeneralization and we keep the best.
-        if (has_degeneralized)
-        {
-            nb_states_deg =
-                build_scc(deg, scc, state2car_deg, car2num_deg, algo_deg);
-            // We suppose that if we see nb_states_deg + 1000 states when
-            // when construct the version without degeneralization during the
-            // construction, we will not be able to have nb_states_deg after
-            // removing useless states. So we will stop the execution.
-            max_states_sub_car =
-                10000 + nb_states_deg - 1;
-        }
-        if (!options.force_degen || !has_degeneralized)
-            nb_states_sub =
-                build_scc(sub_automaton, scc, state2car_sub, car2num_sub,
-                          algo_sub, max_states_sub_car);
-        if (nb_states_deg < nb_states_sub)
-        {
-            state2car.insert(state2car_deg.begin(), state2car_deg.end());
-            car2num.insert(car2num_deg.begin(), car2num_deg.end());
-            algo_sub = algo_deg;
-        }
-        else
-        {
-            state2car.insert(state2car_sub.begin(), state2car_sub.end());
-            car2num.insert(car2num_sub.begin(), car2num_sub.end());
-        }
-        if ((algo_sub == IAR_Rabin || algo_sub == Copy_odd) && !is_odd)
-        {
-            is_odd = true;
-            for (auto &edge : res_->edges())
-            {
-                if (scc_.scc_of(num2car[edge.src].state) != scc
-                   && scc_.scc_of(num2car[edge.dst].state) != scc)
-                {
-                    if (edge.acc == acc_cond::mark_t{})
-                        edge.acc = { 0 };
-                    else
-                        edge.acc <<= 1;
-                }
-            }
-        }
+          continue;
+        auto sub_automaton = sub_auts[scc];
+        build_scc(sub_automaton);
     }
 
-    for (unsigned state = 0; state < res_->num_states(); ++state)
+    const unsigned res_num_states = res_->num_states();
+    for (unsigned state = 0; state < res_num_states; ++state)
     {
-        unsigned original_state = num2car.at(state).state;
+        unsigned original_state = num2ps.at(state).original_state;
         auto state_scc = scc_.scc_of(original_state);
-        for (auto edge : aut_->out(original_state))
-        {
+        for (auto& edge : aut_->out(original_state))
             if (scc_.scc_of(edge.dst) != state_scc)
             {
-                auto car = state2car.find(edge.dst);
-                if (car != state2car.end())
+                auto ps = state2ps[edge.dst];
+                if (ps.has_value())
                 {
-                    unsigned res_dst = car2num.at(car->second);
-                    res_->new_edge(state, res_dst, edge.cond, { });
+                    unsigned res_dst = ps2num.at(ps.value());
+                    add_res_edge(state, res_dst, edge.cond, {});
                 }
             }
-        }
     }
+
     unsigned initial_state = aut_->get_init_state_number();
-    auto initial_car_ptr = state2car.find(initial_state);
-    car_state initial_car;
+    auto initial_ps_opt = state2ps[initial_state];
+    to_parity_state initial_car;
     // If we take an automaton with one state and without transition,
-    // the SCC was useless so state2car doesn't have initial_state
-    if (initial_car_ptr == state2car.end())
+    // the SCC was useless so state2ps doesn't have initial_state
+    if (!initial_ps_opt.has_value())
     {
-        assert(res_->num_states() == 0);
-        auto new_state = res_->new_state();
-        car_state new_car = {initial_state, 0, perm_t()};
-        state2car[initial_state] = new_car;
-        if (options.pretty_print)
-            names->push_back(new_car.to_string(None));
-        num2car.insert(num2car.begin() + new_state, new_car);
-        car2num[new_car] = new_state;
-        initial_car = new_car;
+      assert(res_->num_states() == 0);
+      auto new_num = add_res_state(None, perm_t(), initial_state, 0);
+      initial_car = num2ps[new_num];
     }
     else
-        initial_car = initial_car_ptr->second;
-    auto initial_state_res = car2num.find(initial_car);
-    if (initial_state_res != car2num.end())
+        initial_car = initial_ps_opt.value();
+    auto initial_state_res = ps2num.find(initial_car);
+    if (initial_state_res != ps2num.end())
         res_->set_init_state(initial_state_res->second);
     else
-        res_->new_state();
+        add_res_state(None, perm_t(), 0, 0);
+
+    res_->set_acceptance(acc_cond(
+            acc_cond::acc_code::parity(true, is_odd, max_used_color + 1)));
+
     if (options.pretty_print)
         res_->set_named_prop("state-names", names);
-
+    res_->set_named_prop("original-states", orig_states);
     res_->purge_unreachable_states();
-    // If parity_prefix is used, we use all available colors by
-    // default: The IAR/CAR are using lower indices, and the prefix is
-    // using the upper indices.  So we use reduce_parity() to clear
-    // the mess.   If parity_prefix is not used,
-    unsigned max_color = SPOT_MAX_ACCSETS;
-    if (!options.parity_prefix)
-      {
-        acc_cond::mark_t all = {};
-        for (auto& e: res_->edges())
-          all |= e.acc;
-        max_color = all.max_set();
-      }
-    res_->set_acceptance(acc_cond::acc_code::parity_max(is_odd, max_color));
-    if (options.parity_prefix)
-      reduce_parity_here(res_);
     return res_;
 }
 
@@ -1708,24 +2139,34 @@ const scc_info scc_;
 twa_graph_ptr res_;
 // Says if we constructing an odd or even max
 bool is_odd;
+unsigned max_used_color = 0;
 
-std::vector<car_state> num2car;
-std::map<unsigned, car_state> state2car;
-std::map<car_state, unsigned> car2num;
+std::vector<to_parity_state> num2ps;
+std::vector<std::optional<to_parity_state>> state2ps;
+std::map<to_parity_state, unsigned> ps2num;
+// Maps for each state of the input a set of states of the result.
+// The opposite of num2state
+std::vector<std::vector<unsigned>> state2nums;
+// The maximum color used for the current SCC. Used by parity prefix
+// to avoid to use big colors
+unsigned current_scc_max_color = 0;
 
 to_parity_options options;
 
 std::vector<std::string>* names;
-}; // car_generator
-
-}// namespace
-
+std::vector<unsigned>* orig_states;
+};
+}
 
 twa_graph_ptr
-to_parity(const const_twa_graph_ptr &aut, const to_parity_options options)
-{
-    return car_generator(aut, options).run();
-}
+to_parity(const const_twa_graph_ptr& aut, const to_parity_options options)
+  {
+    if (!aut->is_existential())
+      throw std::runtime_error("LAR does not handle alternation");
+
+    to_parity_generator gen(aut, options);
+    return gen.run();
+  }
 
   // Old version of CAR.
   namespace

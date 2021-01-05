@@ -488,15 +488,6 @@ namespace spot
       acc_code
       unit_propagation();
 
-      bool
-      has_parity_prefix(acc_cond& new_cond,
-        std::vector<unsigned>& colors) const;
-
-      bool
-      is_parity_max_equiv(std::vector<int>& permut,
-                        unsigned new_color,
-                        bool even) const;
-
      bool operator==(const acc_code& other) const
       {
         unsigned pos = size();
