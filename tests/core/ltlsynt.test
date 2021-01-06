@@ -25,23 +25,23 @@ set -e
 cat >exp <<EOF
 parity 17;
 0 1 0 7,8 "INIT";
-8 3 1 1,2;
+8 1 1 1,2;
 2 1 0 11,12;
-12 5 1 1,4;
+12 3 1 1,4;
 4 1 0 7,15;
-15 3 1 5,6;
+15 1 1 5,6;
 6 1 0 7,15;
-7 3 1 2;
+7 1 1 2;
 5 1 0 16,17;
-17 4 1 5,6;
-16 4 1 2;
+17 2 1 5,6;
+16 1 1 2;
 1 1 0 9,10;
-10 3 1 1,5;
-9 3 1 2,3;
+10 1 1 1,5;
+9 1 1 2,3;
 3 1 0 13,14;
-14 4 1 1,4;
-13 4 1 2,3;
-11 5 1 2,3;
+14 2 1 1,4;
+13 1 1 2,3;
+11 3 1 2,3;
 parity 13;
 0 1 0 1,2 "INIT";
 2 1 1 3;
@@ -59,11 +59,11 @@ parity 13;
 1 1 1 3,6;
 parity 5;
 1 1 0 4,5 "INIT";
-5 5 1 0,1;
+5 3 1 0,1;
 0 1 0 2,3;
-3 3 1 0,0;
-2 5 1 1;
-4 4 1 1,1;
+3 1 1 0,0;
+2 3 1 1;
+4 2 1 1,1;
 EOF
 
 : > out
@@ -196,7 +196,7 @@ automaton has 3 states and 2 colors
 split inputs and outputs done in X seconds
 automaton has 9 states
 determinization done
-DPA has 12 states, 4 colors
+DPA has 12 states, 2 colors
 simplification done
 DPA has 10 states
 determinization and simplification took X seconds
@@ -223,7 +223,7 @@ cat >exp <<EOF
 translating formula done in X seconds
 automaton has 16 states and 2 colors
 LAR construction done in X seconds
-DPA has 16 states, 4 colors
+DPA has 16 states, 2 colors
 split inputs and outputs done in X seconds
 automaton has 47 states
 parity game solved in X seconds

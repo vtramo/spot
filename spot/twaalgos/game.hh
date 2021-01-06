@@ -52,7 +52,6 @@ namespace spot
   // state idx -> global edge number
   typedef std::vector<unsigned> strategy_t;
 
-
   /// \brief solve a parity-game
   ///
   /// The arena is a deterministic max odd parity automaton with a

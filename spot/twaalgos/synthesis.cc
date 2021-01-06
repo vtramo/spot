@@ -420,11 +420,11 @@ namespace spot
 
     std::vector<bdd> used_outc({bddfalse});
 
-    std::function<bdd(bdd)> proc_out = [](bdd out){return out; };
+    std::function<bdd(bdd)> proc_out = [](bdd out)noexcept{return out; };
     switch (out_mode)
     {
       case 0:
-        proc_out = [](bdd out){return out; };
+        proc_out = [](bdd out)noexcept{return out; };
         break;
       case 1:
         proc_out = [all_outputs](bdd out)

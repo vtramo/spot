@@ -228,7 +228,7 @@ else:
 try:
     spot.solve_parity_game(a1)
 except RuntimeError as e:
-    assert "solve_parity_game(): arena must have max-odd acceptance condition" \
+    assert 'solve_parity_game(): automaton should define "state-player"' \
         in str(e)
 else:
     report_missing_exception()
