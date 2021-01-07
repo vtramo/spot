@@ -402,6 +402,7 @@ format.
 #+BEGIN_SRC sh :prologue export SPOT_DOTEXTRA= SPOT_DOTDEFAULT=
 ltl2tgba '(Ga -> Gb) W c' -d
 #+END_SRC
+#+RESULTS:
 #+begin_example
 digraph "(Gb | F!a) W c" {
   rankdir=LR
@@ -436,19 +437,18 @@ This output should be processed with =dot= to be converted into a
 picture.  For instance use =dot -Tpng= or =dot -Tpdf=.  The pictures
 on this page are produced with =dot -Tsvg=.
 
-#+NAME: oaut-dot1
-#+BEGIN_SRC sh :exports code :prologue export SPOT_DOTEXTRA= SPOT_DOTDEFAULT=
+#+BEGIN_SRC sh :results file :file oaut-dot1.svg  :prologue export SPOT_DOTEXTRA= SPOT_DOTDEFAULT=
 ltl2tgba '(Ga -> Gb) W c' -d | dot -Tsvg
-#+END_SRC
-
-#+BEGIN_SRC dot :file oaut-dot1.svg :var txt=oaut-dot1 :exports results
-$txt
 #+END_SRC
 
 #+RESULTS:
 [[file:oaut-dot1.svg]]
 
-However in this documentation simply omit the calls to =dot -Tsvg=.
+In the documentation we display automata using SVG, but the actual
+steps used to obtain those SVG files are usually not relevant to the
+topics being discussed.  So for simplicity we will usually omit the
+calls to =dot -Tsvg=, and will often also omit the use of the =-d=
+option.
 
 ** Customizing the dot output
 
