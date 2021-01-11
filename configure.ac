@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2008-2020, Laboratoire de Recherche et Développement
+# Copyright (C) 2008-2021, Laboratoire de Recherche et Développement
 # de l'Epita (LRDE).
 # Copyright (C) 2003-2007 Laboratoire d'Informatique de Paris 6
 # (LIP6), département Systèmes Répartis Coopératifs (SRC), Université
@@ -79,9 +79,6 @@ AX_CHECK_COMPILE_FLAG([-std=c11], [CFLAGS="$CFLAGS -std=c11"])
 
 gl_INIT
 
-dnl Check if -latomic is required for <std::atomic>
-CHECK_ATOMIC
-
 # Use -Werror since using -fvisibility under MinGW is only a warning.
 # (The option is ignored anyway since this does not make sense under windows).
 AX_CHECK_COMPILE_FLAG([-Werror -fvisibility=hidden],
@@ -144,6 +141,9 @@ else
     AC_ERROR([unable to turn on C++17 mode with this compiler])
   fi
 fi
+
+dnl Check if -latomic is required for <std::atomic>
+CHECK_ATOMIC
 
 AX_CHECK_BUDDY
 

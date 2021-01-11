@@ -10,14 +10,28 @@ dnl warranty.
 # Sourced from http://bugs.debian.org/797228
 
 m4_define([_CHECK_ATOMIC_testbody], [[
-  #include <atomic>
-  #include <cstdint>
-  int main() {
-    std::atomic<int64_t> a{};
-    int64_t v = 5;
-    int64_t r = a.fetch_add(v);
-    return static_cast<int>(r);
-  }
+#include <atomic>
+#include <cstdint>
+
+template< typename T >
+struct Tagged
+{
+    T t;
+    uint32_t _tag;
+    static const int tag_bits = 16;
+    void tag( uint32_t v ) { _tag = v; }
+    uint32_t tag() { return _tag; }
+    Tagged() noexcept : t(), _tag( 0 ) {}
+    Tagged( const T &t ) : t( t ), _tag( 0 ) {}
+};
+
+int main() {
+  std::atomic<int64_t> a{};
+  int64_t v = 5;
+  int64_t r = a.fetch_add(v);
+  std::atomic<Tagged<int>> value;
+  return static_cast<int>(r) + value.load().t;
+}
 ]])
 
 AC_DEFUN([CHECK_ATOMIC], [
