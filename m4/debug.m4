@@ -1,6 +1,6 @@
 AC_DEFUN([adl_ENABLE_DEBUG],
  [AC_ARG_ENABLE([debug],
-  [AC_HELP_STRING([--enable-debug],[enable debugging symbols])])
+  [AS_HELP_STRING([--enable-debug],[enable debugging symbols])])
   case "${enable_debug}" in
     yes)
       AC_DEFINE([DEBUG],1,[Define if you want debugging code.])

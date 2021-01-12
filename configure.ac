@@ -49,12 +49,12 @@ AM_SILENT_RULES([no])
 
 # Option to activate C++20
 AC_ARG_ENABLE([c++20],
-              [AC_HELP_STRING([--enable-c++20],
+              [AS_HELP_STRING([--enable-c++20],
                               [Compile in C++20 mode.])],
               [enable_20=$enableval], [enable_20=no])
 
 AC_ARG_ENABLE([doxygen],
-              [AC_HELP_STRING([--enable-doxygen]),
+              [AS_HELP_STRING([--enable-doxygen]),
   [enable generation of Doxygen documentation (requires Doxygen)])],
   [enable_doxygen=$enableval], [enable_doxygen=no])
 AM_CONDITIONAL([ENABLE_DOXYGEN], [test "x${enable_doxygen:-no}" = xyes])
@@ -62,7 +62,7 @@ AM_CONDITIONAL([ENABLE_DOXYGEN], [test "x${enable_doxygen:-no}" = xyes])
 # Option to indicate the maximal number of acceptance marks
 AC_COMPUTE_INT([default_max_accsets], [8*sizeof(unsigned)])
 AC_ARG_ENABLE([max-accsets],
-              [AC_HELP_STRING([--enable-max-accsets=N],
+              [AS_HELP_STRING([--enable-max-accsets=N],
                               [Support up to N acceptance sets])],
               [enable_max_accsets=$enableval],
               [enable_max_accsets=$default_max_accsets])
@@ -71,7 +71,7 @@ then
   AC_DEFINE_UNQUOTED([MAX_ACCSETS], [$enable_max_accsets],
     [The maximal number of acceptance sets supported (also known as acceptance marks)])
 else
-  AC_ERROR([The argument of --enable-max-accsets must be a multiple of $default_max_accsets])
+  AC_MSG_ERROR([The argument of --enable-max-accsets must be a multiple of $default_max_accsets])
 fi
 
 # Activate C11 for gnulib tests
@@ -128,7 +128,7 @@ if test x"${enable_20}" = xyes; then
     ${stdpass-false} && break
   done
   if ! "${stdpass-false}"; then
-    AC_ERROR([unable to turn on C++20 mode with this compiler])
+    AC_MSG_ERROR([unable to turn on C++20 mode with this compiler])
   fi
 else
   for f in -std=c++17 '-std=c++17 -stdlib=libc++' -std=c++1z
@@ -138,7 +138,7 @@ else
     ${stdpass-false} && break
   done
   if ! "${stdpass-false}"; then
-    AC_ERROR([unable to turn on C++17 mode with this compiler])
+    AC_MSG_ERROR([unable to turn on C++17 mode with this compiler])
   fi
 fi
 
@@ -157,7 +157,7 @@ LTDL_INIT([subproject convenience])
 AX_BSYMBOLIC
 
 AC_ARG_ENABLE([python],
-              [AC_HELP_STRING([--disable-python],
+              [AS_HELP_STRING([--disable-python],
                               [do not compile Python bindings])],
               [], [enable_python=yes])
 

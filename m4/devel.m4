@@ -1,6 +1,6 @@
 AC_DEFUN([adl_ENABLE_DEVEL],
 [AC_ARG_ENABLE([devel],
-	       [AC_HELP_STRING([--enable-devel],
+	       [AS_HELP_STRING([--enable-devel],
 			       [turn on useful developer options])])
 
  # Turn on devel options for development version, unless
@@ -31,7 +31,7 @@ AC_DEFUN([adl_ENABLE_DEVEL],
 
 AC_DEFUN([adl_ENABLE_GLIBCXX_DEBUG],
 [AC_ARG_ENABLE([glibcxx-debug],
-  [AC_HELP_STRING([--enable-glibcxx-debug],
+  [AS_HELP_STRING([--enable-glibcxx-debug],
     [turn on use the libstdc++ debug mode (see README)])])
 if test x$enable_glibcxx_debug = xyes; then
   CPPFLAGS="$CPPFLAGS -D_GLIBCXX_DEBUG"
