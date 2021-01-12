@@ -21,7 +21,7 @@ generally if you plan to regenerate some of the generated files.
 (None of these tools are required by end users installing a tarball
 since the generated files they produce are distributed.)
 
-  GNU Autoconf >= 2.61
+  GNU Autoconf >= 2.69
   GNU Automake >= 1.11
   GNU Libtool >= 2.4
   GNU Flex >= 2.6
