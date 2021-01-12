@@ -20,7 +20,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-AC_PREREQ([2.63])
+AC_PREREQ([2.69])
 AC_INIT([spot], [2.9.5.dev], [spot@lrde.epita.fr])
 AC_CONFIG_AUX_DIR([tools])
 AC_CONFIG_MACRO_DIR([m4])
