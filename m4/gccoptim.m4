@@ -1,7 +1,7 @@
 dnl  Adapted from Akim Demaille <akim@epita.fr> ad_GCC_WARNINGS.
 AC_DEFUN([ad_GCC_OPTIM],
 [AC_ARG_ENABLE([optimizations],
- [AC_HELP_STRING([--disable-optimizations],
+ [AS_HELP_STRING([--disable-optimizations],
   [turn off aggressive optimizations])])
  if test -n "$GCC" && test "${enable_optimizations-yes}" = "yes"; then
   AC_CACHE_CHECK([for gcc optimization options], ac_cv_prog_gcc_opt_flags,
