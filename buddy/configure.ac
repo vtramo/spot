@@ -20,7 +20,7 @@ AC_PROG_CXX
 
 # Option to activate C++20
 AC_ARG_ENABLE([c++20],
-              [AC_HELP_STRING([--enable-c++20],
+              [AS_HELP_STRING([--enable-c++20],
                               [Compile in C++20 mode.])],
               [enable_20=yes], [enable_20=no])
 
@@ -89,7 +89,7 @@ if test x"${enable_20}" = xyes; then
     ${stdpass-false} && break
   done
   if ! "${stdpass-false}"; then
-    AC_ERROR([unable to turn on C++20 mode with this compiler])
+    AC_MSG_ERROR([unable to turn on C++20 mode with this compiler])
   fi
 else
   for f in -std=c++17 '-std=c++17 -stdlib=libc++' -std=c++1z
@@ -99,7 +99,7 @@ else
     ${stdpass-false} && break
   done
   if ! "${stdpass-false}"; then
-    AC_ERROR([unable to turn on C++17 mode with this compiler])
+    AC_MSG_ERROR([unable to turn on C++17 mode with this compiler])
   fi
 fi
 

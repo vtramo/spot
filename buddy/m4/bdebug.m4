@@ -1,6 +1,6 @@
 AC_DEFUN([buddy_DEBUG_FLAGS],
 [AC_ARG_ENABLE([swap-count],
-  [AC_HELP_STRING([--enable-swap-count],
+  [AS_HELP_STRING([--enable-swap-count],
      [Count number of fundamental variable swaps (for debugging)])])
 case $enable_swap_count in
   yes)
@@ -11,7 +11,7 @@ case $enable_swap_count in
 esac
 
 AC_ARG_ENABLE([cache-stats],
-  [AC_HELP_STRING([--enable-cache-stats],
+  [AS_HELP_STRING([--enable-cache-stats],
      [Gather statistical information about operator and unique node caching (for debugging)])])
 case $enable_cache_stats in
   yes)
