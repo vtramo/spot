@@ -127,6 +127,9 @@ def canonicalize(s, type, ignores):
     s = re.sub(r' fill="black"', '', s)
     s = re.sub(r' stroke="transparent"', ' stroke="none"', s)
     s = re.sub(r'><title>', '>\n<title>', s)
+    # At some point Fedora changed the default font-familly from
+    # Times,serif to Times-Roman.
+    s = re.sub(r'"Times[^"]+"', '"Times"', s)
     # tooltips with a ", " are likely to have \n which was not
     # well supported by 2.38.
     s = re.sub(r'<a xlink:title=".*?, .*?">\n', '<a xlink:title="...">\n', s,
