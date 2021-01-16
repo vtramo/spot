@@ -3,6 +3,16 @@ stages:
   - build2
   - publish
 
+default:
+  before_script:
+    # Our build agent are supposed to define these variables to enable
+    # build parallelization using a number of cores appropriate for
+    # the agent.  However we have had cases where they were not
+    # defined, slowing down the builds.  This should help us debug
+    # these situations.
+    - echo "MAKEFLAGS='$MAKEFLAGS' NBPROC='$NBPROC'"
+    - cat /sys/fs/cgroup/cpuset.cpus || cat /sys/fs/cgroup/cpuset/cpuset.cpus
+
 debian-stable-gcc:
   stage: build
   only:
