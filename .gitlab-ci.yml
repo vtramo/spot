@@ -93,7 +93,6 @@ alpine-gcc:
     - autoreconf -vfi
     - ./configure
     - make
-    - make check
     - make distcheck || { chmod -R u+w ./spot-*; false; }
   artifacts:
     when: always
