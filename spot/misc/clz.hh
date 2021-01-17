@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2018 Laboratoire de Recherche et Développement
+// Copyright (C) 2018, 2021 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -25,9 +25,36 @@
 
 namespace spot
 {
-  SPOT_API size_t clz(unsigned n);
+  template<typename Type,
+           typename = std::enable_if_t<std::is_unsigned<Type>::value>>
+  inline constexpr unsigned clz(Type n) noexcept
+  {
+    unsigned res = CHAR_BIT * sizeof(Type);
+    while (n)
+      {
+        --res;
+        n >>= 1;
+      }
+    return res;
+  }
 
-  SPOT_API size_t clz(unsigned long n);
+#if __GNUC__
+  template<>
+  inline constexpr unsigned clz(unsigned n) noexcept
+  {
+    return __builtin_clz(n);
+  }
 
-  SPOT_API size_t clz(unsigned long long n);
+  template<>
+  inline constexpr unsigned clz(unsigned long n) noexcept
+  {
+    return __builtin_clzl(n);
+  }
+
+  template<>
+  inline constexpr unsigned clz(unsigned long long n) noexcept
+  {
+    return __builtin_clzll(n);
+  }
+#endif
 }
