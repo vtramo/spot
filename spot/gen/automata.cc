@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2017-2019 Laboratoire de Recherche et Developpement
-// de l'EPITA (LRDE).
+// Copyright (C) 2017-2019, 2021 Laboratoire de Recherche et
+// Developpement de l'EPITA (LRDE).
 //
 // This file is part of Spot, a model checking library.
 //
@@ -21,6 +21,7 @@
 #include <spot/twa/twagraph.hh>
 #include <spot/gen/automata.hh>
 #include <spot/tl/parse.hh>
+#include <spot/misc/clz.hh>
 
 namespace spot
 {
@@ -177,17 +178,7 @@ namespace spot
     {
       assert(n>0);
       --n;
-#ifdef __GNUC__
-      return 8*sizeof(unsigned) - __builtin_clz(n);
-#else
-      unsigned res = 0;
-      while (n)
-        {
-          ++res;
-          n >>= 1;
-        }
-      return res;
-#endif
+      return CHAR_BIT*sizeof(unsigned) - clz(n);
     }
 
     static twa_graph_ptr
