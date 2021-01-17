@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2019, 2020 Laboratoire de Recherche et Développement de
+# Copyright (C) 2019-2021 Laboratoire de Recherche et Développement de
 # l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -58,5 +58,7 @@ assert str(w2) == 'cycle{!Y1 & !Y2 & x; Y1 & Y2 & x; Y1 & Y2 & x}'
 pos = spot.translate('Xa & XXb')
 w = pos.accepting_word().as_automaton()
 assert w.acc().is_t()
-assert not spot.sl2(w).acc().is_buchi()
-assert not spot.sl(w).acc().is_buchi()
+a = spot.sl2(w)
+assert a.acc().is_buchi()
+a = spot.sl(w)
+assert a.acc().is_buchi()
