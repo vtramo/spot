@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2018 Laboratoire de Recherche et Développement
+// Copyright (C) 2018, 2021 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -268,7 +268,26 @@ namespace spot
                 }
             }
 
-          // No we do the redirection.
+          // No we do the redirections.
+
+          // We will modify most of the edges in place, but some cases
+          // require the addition of new edges.  However we cannot add
+          // edges during the iteration, because that may reallocate
+          // the edge vector.  So we postpone all edge creations by
+          // storing them into this array.  All postponed additions
+          // correspond to Büchi accepting edges, so we do not have to
+          // store the mark_t.
+          struct edge_info {
+            edge_info(unsigned s, unsigned d, bdd c) noexcept
+              : src(s), dst(d), cond(c)
+            {
+            }
+            unsigned src;
+            unsigned dst;
+            bdd cond;
+          };
+          std::vector<edge_info> new_edges;
+
           for (auto& e: aut->edges())
             {
               // Don't bother with terminal states, they won't be
@@ -330,9 +349,7 @@ namespace spot
                               // combination.
                               bool ts = term[si.scc_of(ei.dst)];
                               if (ts)
-                                {
-                                  want_merge_edges = true;
-                                }
+                                want_merge_edges = true;
                               if (first)
                                 {
                                   e.acc = {0};
@@ -351,16 +368,10 @@ namespace spot
                                 }
                               else
                                 {
+                                  unsigned dst = ei.dst;
                                   if (ts)
-                                    {
-                                      aut->new_edge(e.src, init, cond, {0});
-                                      new_init = init;
-                                    }
-                                  else
-                                    {
-                                      aut->new_edge(e.src, ei.dst,
-                                                    cond, {0});
-                                    }
+                                    new_init = dst = init;
+                                  new_edges.emplace_back(e.src, dst, cond);
                                 }
                             }
                         }
@@ -382,7 +393,7 @@ namespace spot
                                 }
                               else
                                 {
-                                  aut->new_edge(e.src, ei.dst, cond, {0});
+                                  new_edges.emplace_back(e.src, ei.dst, cond);
                                 }
                             }
                         }
@@ -394,6 +405,9 @@ namespace spot
                   e.acc = {};
                 }
             }
+          // Now that the iteration is over, commit all new edges.
+          for (auto& e: new_edges)
+            aut->new_edge(e.src, e.dst, e.cond, {0});
           // In a deterministic and suspendable automaton, all states
           // recognize the same language, so we can freely move the
           // initial state.  We decide to use the source of any
