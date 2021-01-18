@@ -1,4 +1,4 @@
-New in spot 2.9.5.dev (not yet released)
+New in spot 2.9.6.dev (not yet released)
 
   Build:
 
@@ -180,6 +180,20 @@ New in spot 2.9.5.dev (not yet released)
 
   Bugs fixed:
 
+  - tgba_determinize() could create parity automata using more colors
+    than necessary.  (Related to issue #298)
+
+New in spot 2.9.6 (2021-01-18)
+
+  Build:
+
+  - Build scripts are now compatible with Autoconf 2.70 (Issue #447)
+    and require at least Autoconf 2.69 (released in 2012).
+
+  - Debian builds use updated standards.
+
+  Bugs fixed:
+
   - twa_graph::merge_edges() could fail to merge two transitions if the
     destination transition was the first of the automaton.  (Issue #441)
 
@@ -187,12 +201,14 @@ New in spot 2.9.5.dev (not yet released)
     performing an (unnecessary) second iteration even when the first
     one failed to reduce the automaton.  (Issue #442)
 
-  - tgba_determinize() could create parity automata using more colors
-    than necessary.
-
   - When passed an incomplete automaton as input, tgba_determinize()
     would sometimes produce a complete automaton but incorrectly mark
-    it as incomplete.
+    it as incomplete.  (Related to issue #298)
+
+  - gf_guarantee_to_ba(), used to translate some specific classes of
+    subformulas, could segfault in some condition (Issue #449).
+
+  - Work around some spurious test suite failures.
 
 New in spot 2.9.5 (2020-11-19)
 
