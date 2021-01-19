@@ -1,6 +1,6 @@
 #!/bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2016-2018, 2020 Laboratoire de Recherche et
+# Copyright (C) 2016-2018, 2020-2021 Laboratoire de Recherche et
 # Développement de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -196,11 +196,12 @@ AP: 1 "a"
 acc-name: Buchi
 Acceptance: 1 Inf(0)
 properties: trans-labels explicit-labels trans-acc complete
+properties: deterministic
 --BODY--
 State: 0
 [t] 1
 State: 1
-[t] 1
+[!0] 1
 [0] 1 {0}
 --END--
 EOF

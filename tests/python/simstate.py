@@ -1,6 +1,6 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2015, 2017-2018, 2020  Laboratoire de Recherche et Développement
-# de l'Epita
+# Copyright (C) 2015, 2017-2018, 2020-2021  Laboratoire de Recherche
+# et Développement de l'Epita
 #
 # This file is part of Spot, a model checking library.
 #
@@ -185,6 +185,6 @@ properties: trans-labels explicit-labels trans-acc complete
 properties: deterministic stutter-invariant
 --BODY--
 State: 0 "[1,7]"
-[!1] 0 {0}
 [1] 0
+[!1] 0 {0}
 --END--"""

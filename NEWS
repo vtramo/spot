@@ -173,6 +173,9 @@ New in spot 2.9.6.dev (not yet released)
     cut the size of the powerset automaton by 2^|sinks| in favorable
     cases.
 
+  - twa_graph::merge_edges() had its two passes swapped.  Doing so
+    improves the determinism of some automata.
+
   Python:
 
   - Bindings for functions related to games.

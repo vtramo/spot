@@ -1,6 +1,6 @@
 #!/bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2009, 2010, 2012, 2014-2020 Laboratoire de
+# Copyright (C) 2009, 2010, 2012, 2014-2021 Laboratoire de
 # Recherche et Développement de l'Epita (LRDE).
 # Copyright (C) 2003, 2004 Laboratoire d'Informatique de Paris 6 (LIP6),
 # département Systèmes Répartis Coopératifs (SRC), Université Pierre
@@ -364,8 +364,8 @@ digraph "G(Fa & Fb)" {
   I -> 0
   0 [label="0"]
   0 -> 0 [label="!a & !b"]
-  0 -> 0 [label="!a & b\n{1}"]
   0 -> 0 [label="a & !b\n{0}"]
+  0 -> 0 [label="!a & b\n{1}"]
   0 -> 0 [label="a & b\n{0,1}"]
 }
 EOF
@@ -383,8 +383,8 @@ digraph "G(Fa & Fb)" {
   I -> 0
   0 [label="0"]
   0 -> 0 [label="!a & !b"]
-  0 -> 0 [label="!a & b\n❶"]
   0 -> 0 [label="a & !b\n⓿"]
+  0 -> 0 [label="!a & b\n❶"]
   0 -> 0 [label="a & b\n⓿❶"]
 }
 EOF
@@ -402,8 +402,8 @@ digraph "G(Fa & Fb)" {
   I -> 0
   0 [label="0"]
   0 -> 0 [label=""]
-  0 -> 0 [label="❶"]
   0 -> 0 [label="⓿"]
+  0 -> 0 [label="❶"]
   0 -> 0 [label="⓿❶"]
 }
 EOF
@@ -428,8 +428,8 @@ digraph "G(Fa & Fb)" {
   I -> 0
   0 [label=<0>]
   0 -> 0 [label=<!a &amp; !b>]
-  0 -> 0 [label=<!a &amp; b<br/>$one>]
   0 -> 0 [label=<a &amp; !b<br/>$zero>]
+  0 -> 0 [label=<!a &amp; b<br/>$one>]
   0 -> 0 [label=<a &amp; b<br/>$zero$one>]
 }
 EOF

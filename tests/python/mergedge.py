@@ -26,3 +26,30 @@ Acceptance: 1 Inf(0) --BODY-- State: 0 [0] 0 [0] 0 {0} --END--""")
 assert aut.num_edges() == 2
 aut.merge_edges()
 assert aut.num_edges() == 1
+
+aut = spot.automaton("""
+HOA: v1
+States: 2
+Start: 0
+AP: 2 "p0" "p1"
+acc-name: Buchi
+Acceptance: 1 Inf(0)
+properties: trans-labels explicit-labels trans-acc complete
+--BODY--
+State: 0
+[!0] 0 {0}
+[0] 1 {0}
+State: 1
+[!0&!1] 0 {0}
+[0 | 1] 1
+[0&!1] 1 {0}
+--END--""")
+assert aut.num_edges() == 5
+aut.merge_edges()
+assert aut.num_edges() == 5
+assert not spot.is_deterministic(aut)
+aut = spot.split_edges(aut)
+assert aut.num_edges() == 9
+aut.merge_edges()
+assert aut.num_edges() == 5
+assert spot.is_deterministic(aut)

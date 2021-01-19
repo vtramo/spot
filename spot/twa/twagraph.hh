@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2014-2020 Laboratoire de Recherche et Développement
+// Copyright (C) 2014-2021 Laboratoire de Recherche et Développement
 // de l'Epita.
 //
 // This file is part of Spot, a model checking library.
@@ -552,14 +552,14 @@ namespace spot
     /// This makes two passes over the automaton to reduce the number
     /// of edges with an identical pair of source and destination.
     ///
-    /// In the first pass, edges that share their source, destination,
-    /// and acceptance marks are merged into a single edge whose condition
-    /// is the conjunction of the conditions of the original edges.
-    ///
-    /// In the second pass, which is performed only on automata with
+    /// In the first pass, which is performed only on automata with
     /// Fin-less acceptance, edges with the same source, destination,
     /// and conditions are merged into a single edge whose set of
     /// acceptance marks is the intersection of the sets of the edges.
+    ///
+    /// In the second pass, edges that share their source, destination,
+    /// and acceptance marks are merged into a single edge whose condition
+    /// is the conjunction of the conditions of the original edges.
     ///
     /// If the automaton uses some universal edges, the method
     /// merge_univ_dests() is also called.

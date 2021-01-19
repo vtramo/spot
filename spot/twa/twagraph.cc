@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2014-2020 Laboratoire de Recherche et Développement
+// Copyright (C) 2014-2021 Laboratoire de Recherche et Développement
 // de l'Epita.
 //
 // This file is part of Spot, a model checking library.
@@ -140,117 +140,153 @@ namespace spot
     if (!is_existential())
       merge_univ_dests();
 
-    typedef graph_t::edge_storage_t tr_t;
-    g_.sort_edges_([](const tr_t& lhs, const tr_t& rhs)
-                   {
-                     if (lhs.src < rhs.src)
-                       return true;
-                     if (lhs.src > rhs.src)
-                       return false;
-                     if (lhs.dst < rhs.dst)
-                       return true;
-                     if (lhs.dst > rhs.dst)
-                       return false;
-                     return lhs.acc < rhs.acc;
-                     // Do not sort on conditions, we'll merge
-                     // them.
-                   });
-
     auto& trans = this->edge_vector();
     unsigned orig_size = trans.size();
     unsigned tend = orig_size;
-    unsigned out = 0;
-    unsigned in = 1;
-    // Skip any leading false edge.
-    while (in < tend && trans[in].cond == bddfalse)
-      ++in;
-    if (in < tend)
+
+    // When two transitions have the same (src,colors,dst),
+    // we can marge their conds.
+    auto merge_conds_and_remove_false = [&]()
+    {
+      typedef graph_t::edge_storage_t tr_t;
+      g_.sort_edges_([](const tr_t& lhs, const tr_t& rhs)
       {
-        ++out;
-        if (out != in)
-          trans[out] = trans[in];
-        for (++in; in < tend; ++in)
-          {
-            if (trans[in].cond == bddfalse) // Unusable edge
-              continue;
-            // Merge edges with the same source, destination, and
-            // acceptance.  (We test the source last, because this is the
-            // most likely test to be true as edges are ordered by
-            // sources and then destinations.)
-            if (trans[out].dst == trans[in].dst
-                && trans[out].acc == trans[in].acc
-                && trans[out].src == trans[in].src)
-              {
-                trans[out].cond |= trans[in].cond;
-              }
-            else
-              {
-                ++out;
-                if (in != out)
-                  trans[out] = trans[in];
-              }
-          }
-      }
-    if (++out != tend)
-      trans.resize(out);
+        if (lhs.src < rhs.src)
+          return true;
+        if (lhs.src > rhs.src)
+          return false;
+        if (lhs.dst < rhs.dst)
+          return true;
+        if (lhs.dst > rhs.dst)
+          return false;
+        return lhs.acc < rhs.acc;
+        // Do not sort on conditions, we'll merge
+        // them.
+      });
 
-    tend = out;
-    out = 1;
-    in = 2;
+      unsigned out = 0;
+      unsigned in = 1;
 
+      // Skip any leading false edge.
+      while (in < tend && trans[in].cond == bddfalse)
+        ++in;
+      if (in < tend)
+        {
+          ++out;
+          if (out != in)
+            trans[out] = trans[in];
+          for (++in; in < tend; ++in)
+            {
+              if (trans[in].cond == bddfalse) // Unusable edge
+                continue;
+              // Merge edges with the same source, destination, and
+              // colors.  (We test the source last, because this is the
+              // most likely test to be true as edges are ordered by
+              // sources and then destinations.)
+              if (trans[out].dst == trans[in].dst
+                  && trans[out].acc == trans[in].acc
+                  && trans[out].src == trans[in].src)
+                {
+                  trans[out].cond |= trans[in].cond;
+                }
+              else
+                {
+                  ++out;
+                  if (in != out)
+                    trans[out] = trans[in];
+                }
+            }
+        }
+      if (++out != tend)
+        {
+          tend = out;
+          trans.resize(tend);
+        }
+    };
+
+    // When two transitions have the same (src,cond,dst), we can marge
+    // their colors.  This only works for Fin-less acceptance.
+    //
     // FIXME: We could should also merge edges when using
     // fin_acceptance, but the rule for Fin sets are different than
     // those for Inf sets, (and we need to be careful if a set is used
     // both as Inf and Fin)
-    if ((in < tend) && !acc().uses_fin_acceptance())
+    auto merge_colors = [&]()
+    {
+      if (tend < 2 || acc().uses_fin_acceptance())
+        return;
+      typedef graph_t::edge_storage_t tr_t;
+      g_.sort_edges_([](const tr_t& lhs, const tr_t& rhs)
       {
-        typedef graph_t::edge_storage_t tr_t;
-        g_.sort_edges_([](const tr_t& lhs, const tr_t& rhs)
-                       {
-                         if (lhs.src < rhs.src)
-                           return true;
-                         if (lhs.src > rhs.src)
-                           return false;
-                         if (lhs.dst < rhs.dst)
-                           return true;
-                         if (lhs.dst > rhs.dst)
-                           return false;
-                         bdd_less_than_stable lt;
-                         return lt(lhs.cond, rhs.cond);
-                         // Do not sort on acceptance, we'll merge
-                         // them.
-                       });
+        if (lhs.src < rhs.src)
+          return true;
+        if (lhs.src > rhs.src)
+          return false;
+        if (lhs.dst < rhs.dst)
+          return true;
+        if (lhs.dst > rhs.dst)
+          return false;
+        bdd_less_than_stable lt;
+        return lt(lhs.cond, rhs.cond);
+        // Do not sort on acceptance, we'll merge them.
+      });
 
-        for (; in < tend; ++in)
-          {
-            // Merge edges with the same source, destination,
-            // and conditions.  (We test the source last, for the
-            // same reason as above.)
-            if (trans[out].dst == trans[in].dst
-                && trans[out].cond.id() == trans[in].cond.id()
-                && trans[out].src == trans[in].src)
-              {
-                trans[out].acc |= trans[in].acc;
-              }
-            else
-              {
-                ++out;
-                if (in != out)
-                  trans[out] = trans[in];
-              }
-          }
-        if (++out != tend)
-          trans.resize(out);
-      }
+      // Start on the second position and try to merge it into the
+      // first one
+      unsigned out = 1;
+      unsigned in = 2;
 
+      for (; in < tend; ++in)
+        {
+          // Merge edges with the same source, destination,
+          // and conditions.  (We test the source last, for the
+          // same reason as above.)
+          if (trans[out].dst == trans[in].dst
+              && trans[out].cond.id() == trans[in].cond.id()
+              && trans[out].src == trans[in].src)
+            {
+              trans[out].acc |= trans[in].acc;
+            }
+          else
+            {
+              ++out;
+              if (in != out)
+                trans[out] = trans[in];
+            }
+        }
+      if (++out != tend)
+        {
+          tend = out;
+          trans.resize(tend);
+        }
+    };
+
+    // These next two lines used to be done in the opposite order in
+    // 2.9.x and before.
+    //
+    // However merging colors first is more likely to
+    // make parallel non-deterministic transition disappear.
+    //
+    // Consider:
+    //           (1)--a-{1}--->(2)
+    //           (1)--a-{2}--->(2)
+    //           (1)--!a-{1}-->(2)
+    // If colors are merged first, the first two transitions become one,
+    // and the result is more deterministic:
+    //           (1)--a-{1,2}->(2)
+    //           (1)--!a-{1}-->(2)
+    // If conditions were merged first, we would get the following
+    // non-deterministic transitions instead:
+    //           (1)--1-{1}--->(2)
+    //           (1)--a-{2}--->(2)
+    merge_colors();
+    merge_conds_and_remove_false();
+
+    // Merging some edges may turn a non-deterministic automaton
+    // into a deterministic one.
+    if (prop_universal().is_false() && tend != orig_size)
+      prop_universal(trival::maybe());
     g_.chain_edges_();
-
-    // Did we actually reduce the number of edges?
-    if (trans.size() != orig_size)
-      // Merging some edges may turn a non-deterministic automaton
-      // into a deterministic one.
-      if (prop_universal().is_false())
-        prop_universal(trival::maybe());
   }
 
   void twa_graph::merge_states()
