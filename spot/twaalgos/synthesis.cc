@@ -1251,7 +1251,7 @@ namespace spot
       f_equiv = f;
     if (!f_equiv.is(op::Equiv))
       return {nullptr, 0};
-    stopwatch sw;
+//    stopwatch sw;
     twa_graph_ptr res;
 
     formula left = f_equiv[0],
