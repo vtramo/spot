@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2014-2018, 2020 Laboratoire de Recherche et
+// Copyright (C) 2014-2018, 2020, 2021 Laboratoire de Recherche et
 // Développement de l'Epita.
 //
 // This file is part of Spot, a model checking library.
@@ -1290,7 +1290,8 @@ namespace spot
     /// \brief Rename and remove states.
     ///
     /// \param newst A vector indicating how each state should be renumbered.
-    /// Use -1U to erase a state.
+    /// Use -1U to erase a state.  All other numbers are expected to
+    /// satisfy newst[i] ≤ i for all i.
     /// \param used_states the number of states used (after renumbering)
     void defrag_states(std::vector<unsigned>&& newst, unsigned used_states)
     {
