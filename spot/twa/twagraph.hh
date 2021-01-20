@@ -695,9 +695,12 @@ namespace spot
     /// digraph::defrag_state() that additionally deals with universal
     /// branching.
     ///
-    /// \param newst A vector indicating how each state should be renumbered.
-    /// Use -1U to erase a state.
-    /// \param used_states the number of states used (after renumbering)
+    /// \param newst A vector indicating how each state should be
+    /// renumbered.  Use -1U to erase a state.  Ignoring the
+    /// occurrences of -1U, the renumbering is expected to
+    /// satisfy newst[i] ≤ i for all i.
+    /// \param used_states the number of states used
+    /// (after renumbering)
     void defrag_states(std::vector<unsigned>&& newst, unsigned used_states);
 
     /// \brief Print the data structures used to represent the
