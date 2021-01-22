@@ -24,6 +24,7 @@
 #include <spot/misc/bddlt.hh>
 
 #include <algorithm>
+#include <map>
 
 namespace spot
 {
@@ -39,6 +40,8 @@ namespace spot
     internal::univ_dest_mapper<twa_graph::graph_t> uniq(out->get_graph());
 
     bdd all = aut->ap_vars();
+    std::map<unsigned, std::pair<unsigned, unsigned>> split_cond;
+
     for (auto& e: aut->edges())
       {
         bdd cond = e.cond;
@@ -50,11 +53,26 @@ namespace spot
             auto d = aut->univ_dests(dst);
             dst = uniq.new_univ_dests(d.begin(), d.end());
           }
-        while (cond != bddfalse)
+
+        auto& [begin, end] = split_cond[cond.id()];
+        if (begin == end)
           {
-            bdd cube = bdd_satoneset(cond, all, bddfalse);
-            cond -= cube;
-            out->new_edge(e.src, dst, cube, e.acc);
+            begin = aut->num_edges();
+
+            while (cond != bddfalse)
+              {
+                bdd cube = bdd_satoneset(cond, all, bddfalse);
+                cond -= cube;
+                out->new_edge(e.src, dst, cube, e.acc);
+              }
+
+            end = aut->num_edges();
+          }
+        else
+          {
+            auto& g = aut->get_graph();
+            for (unsigned i = begin; i < end; ++i)
+              out->new_edge(e.src, dst, g.edge_storage(i).cond, e.acc);
           }
       }
     return out;
