@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2018-2020 Laboratoire de Recherche et Développement de
+# Copyright (C) 2018-2021 Laboratoire de Recherche et Développement de
 # l'EPITA.
 #
 # This file is part of Spot, a model checking library.
@@ -112,7 +112,7 @@ def test(aut, expected_num_states=[], full=True):
             spot.reduce_parity_here(p1)
         assert spot.are_equivalent(aut, p1)
         if expected_num is not None:
-            # print(p1.num_states(), expected_num)
+            print(p1.num_states(), expected_num)
             assert p1.num_states() == expected_num
         if full:
             # Make sure passing opt is the same as setting
@@ -391,4 +391,4 @@ for f in spot.randltl(5, 2000):
 a = spot.translate('!(GFa -> (GFb & GF(!b & !Xb)))', 'gen', 'det')
 b = spot.to_parity_old(a, True)
 assert a.equivalent_to(b)
-test(a, [7, 7, 3, 7, 8, 7, 3])
+test(a, [7, 7, 3, 7, 7, 7, 3])

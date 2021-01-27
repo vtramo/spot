@@ -1,7 +1,7 @@
 #!/bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2015, 2017, 2018 Laboratoire de Recherche et Développement
-# de l'Epita (LRDE).
+# Copyright (C) 2015, 2017-2018, 2021 Laboratoire de Recherche et
+# Développement de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
 #
@@ -63,21 +63,21 @@ properties: trans-labels explicit-labels trans-acc complete
 properties: stutter-invariant
 --BODY--
 State: 0
-[!0] 0
 [0] 0 {0}
+[!0] 0
+[0&1] 1 {0}
 [!0&1] 1
-[0&1] 1 {0}
 State: 1
-[!0&1] 1 {0}
 [0&1] 1 {0}
-[!0&!1] 2 {0}
+[!0&1] 1 {0}
 [0&!1] 2 {0}
+[!0&!1] 2 {0}
 State: 2
-[!0] 2
 [0] 2 {0}
+[!0] 2
 --END--
 EOF
-diff por.hoa exp
+diff -u por.hoa exp
 
 test 2 = `autfilt -c --intersect por.hoa gfa.hoa fgb.hoa`
 
@@ -94,13 +94,13 @@ Acceptance: 1 Inf(0)
 properties: trans-labels explicit-labels trans-acc stutter-invariant
 --BODY--
 State: 0
-[!0] 0
 [0] 0
-[!0&1] 1
+[!0] 0
 [0&1] 1
-State: 1
 [!0&1] 1
+State: 1
 [0&1] 1 {0}
+[!0&1] 1
 --END--
 EOF
 diff pand.hoa exp

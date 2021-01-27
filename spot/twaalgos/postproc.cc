@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2012-2020 Laboratoire de Recherche et Développement
+// Copyright (C) 2012-2021 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -208,6 +208,8 @@ namespace spot
   twa_graph_ptr
   postprocessor::finalize(twa_graph_ptr tmp) const
   {
+    if (PREF_ != Any && level_ != Low)
+      tmp->remove_unused_ap();
     if (COMP_)
       tmp = complete(tmp);
     bool want_parity = type_ & Parity;
@@ -364,7 +366,6 @@ namespace spot
                 if (m->num_states() <= a->num_states())
                   a = m;
               }
-            a->remove_unused_ap();
           }
         return finalize(a);
       }
@@ -665,8 +666,6 @@ namespace spot
       }
 
     sim = dba ? dba : sim;
-
-    sim->remove_unused_ap();
 
     if (type_ == CoBuchi)
       {

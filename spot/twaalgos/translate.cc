@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2013-2018, 2020 Laboratoire de Recherche et Développement
-// de l'Epita (LRDE).
+// Copyright (C) 2013-2018, 2020-2021 Laboratoire de Recherche et
+// Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
 //
@@ -383,17 +383,14 @@ namespace spot
                      || type_ == GeneralizedBuchi)
                   aut2 = gf_guarantee_to_ba_maybe(r, simpl_->get_dict(),
                                                   det, state_based_);
-                if (aut2 && (type_ & (Buchi | Parity))
-                    && (pref_ & Deterministic))
+                if (aut2 && (pref_ & Deterministic))
                   return finalize(aut2);
                 if (!aut2 && (type_ == Generic
                               || type_ & (Parity | CoBuchi)))
                   {
                     aut2 = fg_safety_to_dca_maybe(r, simpl_->get_dict(),
                                                   state_based_);
-                    if (aut2
-                        && (type_ & (CoBuchi | Parity))
-                        && (pref_ & Deterministic))
+                    if (aut2 && (pref_ & Deterministic))
                       return finalize(aut2);
                   }
               }

@@ -1,6 +1,6 @@
 #!/bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2009-2020 Laboratoire de Recherche et Développement de
+# Copyright (C) 2009-2021 Laboratoire de Recherche et Développement de
 # l'Epita (LRDE).
 # Copyright (C) 2003, 2004 Laboratoire d'Informatique de Paris 6 (LIP6),
 # département Systèmes Répartis Coopératifs (SRC), Université Pierre
@@ -376,8 +376,8 @@ cat >formulas <<EOF
 GF((a & XXa) | (!a & XX!a)), 4,8, 4,8, 6,14, 7,14, 4,8
 GF((a & XXXa) | (!a & XXX!a)), 7,14, 8,16, 8,18, 15,30, 8,16
 GF(((a & Xb) | XXc) & Xd), 3,58, 4,64, 3,58, 5,80, 4,64
-GF((b | Fa) & (b R Xb)), 2,4, 2,4, 3,6, 3,12, 2,4
-G(F(a & Xa) & F(a & X!a)), 2,4, 2,4, 4,8, 4,8, 3,6
+GF((b | Fa) & (b R Xb)), 2,4, 2,4, 3,6, 3,6, 2,4
+G(F(a & Xa) & F(a & X!a)), 2,4, 2,4, 4,8, 4,8, 2,4
 G(!p0 & F(p1 & XG!p1)), 1,0, 1,0, 1,0, 1,0, 1,0
 FG(a | Fb), 3,15, 3,15, 3,15, 3,15, 1,4
 FG(a & Fb), 2,7, 2,7, 3,9, 3,9, 1,4
