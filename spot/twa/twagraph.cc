@@ -932,9 +932,14 @@ namespace spot
 
             if (!named_prop_.empty())
               {
-                out << "namedprops [label=\"named properties:\n";
+                // GraphiViz 2.46.0 has a bug where plain newlines in
+                // quoted strings are ignored.  See
+                // https://gitlab.com/graphviz/graphviz/-/issues/1931
+                // A workaround is to use emit \n instead of the
+                // actual new line.
+                out << "namedprops [label=\"named properties:\\n";
                 for (auto p: named_prop_)
-                  escape_html(out, p.first) << '\n';
+                  escape_html(out, p.first) << "\\n";
                 out << "\"]\n";
               }
           }
