@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2015-2019 Laboratoire de Recherche et Développement
-// de l'Epita (LRDE).
+// Copyright (C) 2015-2019, 2021 Laboratoire de Recherche et
+// Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
 //
@@ -1283,8 +1283,8 @@ namespace spot
       case op::Xor:
       case op::Equiv:
         props = children[0]->props & children[1]->props;
-        is_.eventual = false;
-        is_.universal = false;
+        // Preserve suspendable property
+        is_.eventual = is_.universal = is_.eventual && is_.universal;
         is_.sere_formula = is_.boolean;
         is_.sugar_free_boolean = false;
         is_.in_nenoform = false;
@@ -1310,8 +1310,10 @@ namespace spot
         break;
       case op::Implies:
         props = children[0]->props & children[1]->props;
-        is_.eventual = false;
-        is_.universal = false;
+        is_.eventual =
+          children[0]->is_universal() && children[1]->is_eventual();
+        is_.universal =
+          children[0]->is_eventual() && children[1]->is_universal();
         is_.sere_formula = (children[0]->is_boolean()
                             && children[1]->is_sere_formula());
         is_.sugar_free_boolean = false;

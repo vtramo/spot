@@ -507,3 +507,12 @@ med.hoa:4,14
 high.hoa:4,14
 EOF
 diff exp out
+
+# This used to fail because ltl-split would not detect
+# the (GFa <-> (GFb & GFc & GFd & GFe & GFf & GFg & GFh)) part
+# as suspendable.
+f='G((a -> X((!a U b) | G!a)) & (a -> X(G!a | (!a U c))) & (a -> X(G!a
+| (!a U d))) & (a -> X(G!a | (!a U e))) & (a -> X(G!a | (!a U f))) &
+(a -> X(G!a | (!a U g))) & (a -> X(G!a | (!a U h)))) & (GFa <-> (GFb &
+GFc & GFd & GFe & GFf & GFg & GFh))'
+test 128 = `ltl2tgba -G -D "$f" --stats=%s`

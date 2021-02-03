@@ -186,6 +186,9 @@ New in spot 2.9.6.dev (not yet released)
   - tgba_determinize() could create parity automata using more colors
     than necessary.  (Related to issue #298)
 
+  - Some formulas using ->, <->, or xor were not properly detected as
+    purely universal or pure eventualities.
+
 New in spot 2.9.6 (2021-01-18)
 
   Build:
