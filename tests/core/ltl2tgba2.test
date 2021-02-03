@@ -1,6 +1,6 @@
 #!/bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2009-2020 Laboratoire de Recherche et Développement de
+# Copyright (C) 2009-2021 Laboratoire de Recherche et Développement de
 # l'Epita (LRDE).
 # Copyright (C) 2003, 2004 Laboratoire d'Informatique de Paris 6 (LIP6),
 # département Systèmes Répartis Coopératifs (SRC), Université Pierre
@@ -469,4 +469,11 @@ test "4,1" = `ltl2tgba -D -x wdba-minimize=2 "$f" --stats=%s,%d`
 test "4,0" = `ltl2tgba -D -x wdba-minimize=0 "$f" --stats=%s,%d`
 test "4,1" = `ltl2tgba -D --med "$f" --stats=%s,%d`
 
-:
+# This used to fail because ltl-split would not detect
+# the (GFa <-> (GFb & GFc & GFd & GFe & GFf & GFg & GFh)) part
+# as suspendable.
+f='G((a -> X((!a U b) | G!a)) & (a -> X(G!a | (!a U c))) & (a -> X(G!a
+| (!a U d))) & (a -> X(G!a | (!a U e))) & (a -> X(G!a | (!a U f))) &
+(a -> X(G!a | (!a U g))) & (a -> X(G!a | (!a U h)))) & (GFa <-> (GFb &
+GFc & GFd & GFe & GFf & GFg & GFh))'
+test 128 = `ltl2tgba -G -D "$f" --stats=%s`

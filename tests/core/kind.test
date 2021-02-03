@@ -1,7 +1,7 @@
 #! /bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2010-2012, 2015, 2017, 2019 Laboratoire de Recherche
-# et Développement de l'Epita (LRDE).
+# Copyright (C) 2010-2012, 2015, 2017, 2019, 2021 Laboratoire de
+# Recherche et Développement de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
 #
@@ -47,8 +47,8 @@ a U (b U (c U d)),&!xfLPgopra
 a W (b W (c W d)),&!xfLPsopra
 a M (b M (c M d)),&!xfLPgopra
 Fa -> Fb,xLPopra
-Ga -> Fb,xLPgopra
-Fa -> Gb,xLPsopra
+Ga -> Fb,xLPegopra
+Fa -> Gb,xLPusopra
 (Ga|Fc) -> Fb,xLPopra
 (Ga|Fa) -> Gb,xLPopra
 {a;c*;b}|->!Xb,&fPsopra
