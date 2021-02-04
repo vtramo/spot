@@ -527,7 +527,7 @@ namespace spot
       unsigned st0 = aut->get_dict()->register_anonymous_variables(log2n, aut);
 
       unsigned num_outputs = output_names.size();
-      unsigned init = aut->get_init_state_number();
+      unsigned init{aut->get_init_state_number()};
       assert(num_outputs == (unsigned) bdd_nodecount(all_outputs));
       aig circuit(input_names, output_names, log2n);
 

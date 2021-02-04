@@ -476,6 +476,7 @@ namespace std {
   %template(vectorstring) vector<string>;
   %template(atomic_prop_set) set<spot::formula>;
   %template(relabeling_map) map<spot::formula, spot::formula>;
+  %template(vectorint) vector<int>;
 }
 
 %include <spot/tl/environment.hh>

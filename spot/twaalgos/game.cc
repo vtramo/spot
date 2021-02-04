@@ -19,6 +19,8 @@
 
 #include "config.h"
 
+#include <string>
+
 #include <spot/twaalgos/game.hh>
 #include <spot/misc/bddlt.hh>
 #include <spot/twaalgos/sccinfo.hh>
@@ -37,10 +39,10 @@ namespace spot
     constexpr strat_t no_strat_mark = std::numeric_limits<strat_t>::min();
 
 
-    static const std::vector<bool>*
+    static const region_t*
     ensure_game(const const_twa_graph_ptr& arena, const char* fnname)
     {
-      auto owner = arena->get_named_prop<std::vector<bool>>("state-player");
+      auto owner = arena->get_named_prop<region_t>("state-player");
       if (!owner)
         throw std::runtime_error
           (std::string(fnname) + ": automaton should define \"state-player\"");
@@ -827,7 +829,632 @@ namespace spot
       // and after that zielonka can be called as if max odd
       std::vector<par_t> all_edge_par_;
     };
+
+    template<class ACCFUN>
+    void add_transposed_here_impl(const twa_graph_ptr& arena,
+                                  ACCFUN accfun)
+    {
+
+      auto* gt = new transposed_graph_t();
+      gt->new_states(arena->num_states());
+      for (unsigned e_idx = 1; e_idx < arena->num_edges()+1; ++e_idx)
+      {
+        const auto& e = arena->edge_storage(e_idx);
+        gt->new_edge(e.dst, e.src, accfun(e.acc));
+      }
+      // This destroys old one
+      arena->set_named_prop<transposed_graph_t>("transposed", gt);
+    }
+
+    twa_graph_ptr
+    highlight_strategy_false_impl_(twa_graph_ptr& aut,
+                       int player0_color,
+                       int player1_color)
+    {
+      auto owner = ensure_game(aut, "highlight_strategy()");
+      region_t* w = aut->get_named_prop<region_t>("state-winner");
+      strategy_t* s = aut->get_named_prop<strategy_t>("strategy");
+      if (!w)
+        throw std::runtime_error
+            ("highlight_strategy(): "
+             "winning region unavailable, solve the game first");
+      if (!s)
+        throw std::runtime_error
+            ("highlight_strategy(): strategy unavailable, "
+             "solve the game first");
+
+      unsigned ns = aut->num_states();
+      auto* hl_edges =
+          aut->get_or_set_named_prop<std::map<unsigned, unsigned>>
+          ("highlight-edges");
+      auto* hl_states =
+          aut->get_or_set_named_prop<std::map<unsigned, unsigned>>
+          ("highlight-states");
+
+      if (unsigned sz = std::min(w->size(), s->size()); sz < ns)
+        ns = sz;
+
+      for (unsigned n = 0; n < ns; ++n)
+      {
+        int color = (*w)[n] ? player1_color : player0_color;
+        if (color == -1)
+          continue;
+        (*hl_states)[n] = color;
+        if ((*w)[n] == (*owner)[n])
+          (*hl_edges)[(*s)[n]] = color;
+      }
+
+      return aut;
+    }
+
+    twa_graph_ptr
+    highlight_strategy_true_impl_(twa_graph_ptr& aut,
+                                  int player0_color,
+                                  int player1_color)
+    {
+      auto owner = ensure_game(aut, "highlight_strategy()");
+      region_t* w = aut->get_named_prop<region_t>("state-winner");
+      attr_strategy_t* as =
+          aut->get_named_prop<attr_strategy_t>("attr-strategy");
+      if (!w)
+        throw std::runtime_error
+            ("highlight_strategy(): "
+             "winning region unavailable, solve the game first");
+      if (!as)
+        throw std::runtime_error
+            ("highlight_strategy(): "
+             "attractor strategy unavailable");
+
+      std::vector<std::string>* snames =
+          aut->get_or_set_named_prop<std::vector<std::string>>("state-names");
+
+      unsigned ns = aut->num_states();
+
+      if (snames->empty())
+        for (unsigned i = 0; i < ns; ++i)
+          snames->emplace_back(std::to_string(i));
+
+      // Note:
+      // If env wins a state there has to be an edge to
+      // another state won by env
+      // If player wins a state there has to be an edge to a lower lvl
+      // or if lvl == 0 then there has to be an edge to another winning state
+      // independent of its lvl
+      auto* hl_edges =
+          aut->get_or_set_named_prop<std::map<unsigned, unsigned>>
+          ("highlight-edges");
+      auto* hl_states =
+          aut->get_or_set_named_prop<std::map<unsigned, unsigned>>
+          ("highlight-states");
+
+      if (ns != w->size())
+        throw std::runtime_error("Winning region does not "
+                                 "have the correct size");
+      if (ns != as->size())
+        throw std::runtime_error("Attractor strat does not "
+                                 "have the correct size");
+
+      for (unsigned n = 0; n < ns; ++n)
+        {
+          int color = (*w)[n] ? player1_color : player0_color;
+          if (color == -1)
+            continue;
+          (*hl_states)[n] = color;
+          if ((*w)[n])
+            (*snames)[n] += std::string("-") + std::to_string((*as)[n]);
+          if ((*w)[n] != (*owner)[n])
+            continue;
+          if ((*w)[n])
+            {
+              for (const auto&e : aut->out(n))
+                if (((*as)[e.src] > (*as)[e.dst])
+                    or ((*as)[e.src] == 0 and (*w)[n]))
+                  (*hl_edges)[aut->edge_number(e)] = color;
+            }
+          else
+            for (const auto& e : aut->out(n))
+              if (not (*w)[e.dst])
+                (*hl_edges)[aut->edge_number(e)] = color;
+        }
+
+      return aut;
+    }
+
+    // fp0 are called with lvl src, lvl dst and edge
+    template <class FP0, class FP1>
+    void attractor_strat_to_concrete_(const twa_graph_ptr& arena,
+                                      bool do_p0, FP0 fp0,
+                                      bool do_p1, FP1 fp1)
+    {
+      // A strategy for "most" games can be derived the following way for both
+      // players:
+      // Player 1: Either lvl > best_lvl_p1, then take an edge leading you
+      //           to a lower lvl. If at the lowest lvl: take an edge back
+      //           to the winning region. All edges taken must verify fp1.
+      // Player 0 : Either lvl < best_lvl_p1, then take an edge leading you
+      //            to a higher lvl. If at the highest lvl (best_lvl_p0):
+      //            take any edge WITHIN the best lvl.
+      //            All edges must verify fp0
+      //            This ensures that no "accepting edge" is taken
+      //            infinitely often in the best_lvl_p0.
+
+      // #todo parity games
+
+      using lvl_t = decltype(best_lvl_p0());
+
+      auto* sp_ptr =
+          arena->get_named_prop<region_t>("state-player");
+      if (!sp_ptr)
+        throw std::runtime_error("Needs state-player");
+      auto& sp = *sp_ptr;
+
+      auto* as_ptr =
+          arena->get_named_prop<attr_strategy_t>("attr-strategy");
+      if (!as_ptr)
+        throw std::runtime_error("Needs attr-strategy");
+      auto& as = *as_ptr;
+      // There should be no 0 in the attr strategy as the games are determined
+      // so the arena has to be split between the two players
+
+      auto* strat_ptr =
+          arena->get_or_set_named_prop<strategy_t>("strategy");
+      strat_ptr->resize(arena->num_states());
+      std::fill(strat_ptr->begin(), strat_ptr->end(), -1u);
+      auto& strat = *strat_ptr;
+
+      auto* w_ptr =
+          arena->get_or_set_named_prop<region_t>("state-winner");
+      w_ptr->resize(arena->num_states());
+      auto& w = *w_ptr;
+
+      // We only need a strategy for states
+      // that are won and owned by the same player
+      auto ns = arena->num_states();
+      for (unsigned s = 0; s < ns; ++s)
+        {
+          // Winning if attracted
+          w[s] = best_lvl_p1() <= as[s];
+          // Need strat?
+          if (w[s] != sp[s])
+            continue;
+          if (not sp[s] and do_p0)
+            {
+              // Descend if not at best lvl
+              lvl_t w_lvl = as[s] - (as[s] != best_lvl_p0());
+              for (const auto&e : arena->out(s))
+                if (w_lvl <= as[e.dst] and as[e.dst] <= best_lvl_p0()
+                    and fp0(as[e.src], as[e.dst], e))
+                {
+                  w_lvl = as[e.dst];
+                  strat[s] = arena->edge_number(e);
+                }
+            }
+          if (sp[s] and do_p1)
+            {
+              lvl_t w_lvl = as[s] == best_lvl_p1()
+                                ? std::numeric_limits<lvl_t>::max()
+                                : as[s];
+              for (const auto&e : arena->out(s))
+                if (best_lvl_p1() <= as[e.dst] and as[e.dst] < w_lvl
+                    and fp1(as[e.src], as[e.dst], e))
+                  {
+                    w_lvl = as[e.dst];
+                    strat[s] = arena->edge_number(e);
+                  }
+            }
+
+        }
+    }
+
+    bool solve_deadlock_game_detailed(const twa_graph_ptr& arena)
+    {
+      // A deadlock game is won for player 1 if it can
+      // attract the initial state to any state without outgoing edges
+      // Therefore it will only accept finite words
+      // Note that this is abusing the attractor
+      // computation as 'arena' is not a proper arena in the
+      // case
+      auto* as_ptr =
+          arena->get_or_set_named_prop<attr_strategy_t>("attr-strategy");
+      as_ptr->resize(arena->num_states());
+      std::fill(as_ptr->begin(), as_ptr->end(), game_unseen_lvl());
+
+      attractor(arena, *as_ptr, true);
+      // The complement of an attractor is a trap
+      // Therefore all states not in the attractor win for player 0
+      std::for_each(as_ptr->begin(), as_ptr->end(),
+                    [](auto& val)->void
+                      {val = (val == game_unseen_lvl()) ? best_lvl_p0()
+                                                        : val; });
+
+      // Deduce the winning regions and an actual strategy
+      // for both players, all edges are allowed
+      auto nofilt = [](const auto&...)noexcept{return true; };
+      attractor_strat_to_concrete_(arena, true, nofilt,
+                                          true, nofilt);
+
+      return (*as_ptr)[arena->get_init_state_number()] >= best_lvl_p1();
+    }
+
+    bool solve_liveliness_game_detailed(const twa_graph_ptr& arena)
+    {
+      dualize_arena_here(arena);
+      bool dual_player_win =
+          solve_deadlock_game_detailed(arena);
+      dualize_arena_here(arena);
+      return not dual_player_win;
+    }
+
+    bool solve_reach_detailed(const twa_graph_ptr& arena)
+    {
+      // Here we want to see a (0) at least once
+      // Attention, to get valid results we need to have
+      // a proper arena
+      // todo add check?
+      auto* sp_ptr =
+          arena->get_named_prop<region_t>("state-player");
+      if (!sp_ptr)
+        throw std::runtime_error("Needs state-player");
+
+      transposed_graph_t * gt =
+          arena->get_named_prop<transposed_graph_t>("transposed");
+      if (not gt)
+        throw std::runtime_error("Needs transposed graph");
+
+      attr_strategy_t* astrat_ptr =
+          arena->get_or_set_named_prop<attr_strategy_t>("attr-strategy");
+      astrat_ptr->resize(arena->num_states());
+      std::fill(astrat_ptr->begin(), astrat_ptr->end(), game_unseen_lvl());
+
+      auto ffa = [](const auto& e, const auto&...)
+          {
+            return e.acc == acc_cond::mark_t({0});
+          };
+
+      attractor_filt<true>(arena, *sp_ptr, *gt, *astrat_ptr,
+                           [](const auto&...)noexcept{return true; },
+                           ffa);
+      // Again, all that have not been attracted form a trap
+      std::transform(astrat_ptr->cbegin(), astrat_ptr->cend(),
+                     astrat_ptr->begin(), [](const auto& lvl)
+                     {
+                       return lvl == game_unseen_lvl() ? best_lvl_p0()
+                                                       : lvl;
+                     });
+      // Deduce the winning regions and an actual strategy
+      // Note that here, the best level for player has to go
+      // through an accepting edge
+      // On the other hand, in order to enforce (0) free circles,
+      // env is forbidden to take (0) transitions on best lvl
+      // These functions will be called with lvl src, lvl dst and edge
+      auto fp0_best =
+          [sp_ptr, ffa](const auto& lvl_src,
+                         const auto&,
+                         const auto& e)
+          {
+            assert(lvl_src <= best_lvl_p0()
+                   and not (*sp_ptr)[e.src]
+                   && "P0 filter called on an invalid state");
+            return (lvl_src < best_lvl_p0())
+                   or not ffa(e);
+          };
+      auto fp1_best =
+          [sp_ptr, ffa](const auto& lvl_src,
+                        const auto&,
+                        const auto& e)
+          {
+            assert(lvl_src >= best_lvl_p1()
+                   && (*sp_ptr)[e.src]
+                   && "P1 filter called on an invalid state");
+            // Note all player states with accepting edge
+            // are in the best lvl
+            return (lvl_src > best_lvl_p1())
+                   or ffa(e);
+          };
+      // we can deduce a strat for both players
+      attractor_strat_to_concrete_(arena, true, fp0_best,
+                                          true, fp1_best);
+
+      return (*astrat_ptr)[arena->get_init_state_number()] >= best_lvl_p1();
+    }
+
+    bool solve_avoid_detailed(const twa_graph_ptr& arena)
+    {
+      // This is the dual of reach
+      dualize_arena_here(arena);
+      bool dual_player_win =
+          solve_reach_detailed(arena);
+      dualize_arena_here(arena);
+      return not dual_player_win;
+    }
+
+    // Todo there are better ways to do this (I think), but they have to be
+    // adapted for transition based acceptance
+    // Like https://arxiv.org/pdf/1109.5018.pdf
+    // Another idea is to initialize by computing the attractor
+    // of (0) and then add the condition of leading back to winning.
+    // caveat: Keep the lvls in order!
+    bool solve_buechi_detailed(const twa_graph_ptr& arena)
+    {
+      // To compute buechi acceptance we do the following:
+      // In the first round we declare all transitions
+      // accepting which have (0).
+      // In all further iterations we only accept transitions
+      // that lead back to the winning region of the last iteration
+      // This is repeated until a fix point is reached
+      // Note that this only gives rise to a strategy for
+      // player not env, env needs additional computation
+      // that is not done by default
+      auto* sp_ptr =
+          arena->get_named_prop<region_t>("state-player");
+      if (!sp_ptr)
+        throw std::runtime_error("Needs state-player");
+
+      transposed_graph_t * gt =
+          arena->get_named_prop<transposed_graph_t>("transposed");
+      if (not gt)
+        throw std::runtime_error("Needs transposed graph");
+
+      attr_strategy_t attr_lvl(arena->num_states(), game_unseen_lvl());
+
+      auto finalize = [&attr_lvl]()
+        {
+          std::transform(attr_lvl.cbegin(), attr_lvl.cend(),
+                         attr_lvl.begin(), [](const auto& lvl)
+                         {
+                           return lvl == game_unseen_lvl() ? best_lvl_p0()
+                                                           : lvl;
+                         });
+        };
+
+      // init
+      unsigned n_attr_new, n_attr_old;
+      {
+        auto ffai = [](const auto& e, const auto&...)
+          {
+            return e.acc == acc_cond::mark_t({0});
+          };
+        n_attr_new =
+            attractor_filt<true>(arena, *sp_ptr, *gt, attr_lvl,
+                           [](const auto&...)noexcept{return true; },
+                           ffai);
+        if (n_attr_new == 0)
+          // No additional vertices could be attracted ->
+          // unseen vertices got to env
+          {
+            finalize();
+            return 0;
+          }
+      }
+      // We could attract at least one additional vertex
+      // -> Iterate
+      attr_strategy_t& attr_lvl_new = attr_lvl;
+      attr_strategy_t attr_lvl_old(arena->num_states());
+      // Define a new acceptance criteria
+      auto ffa = [&attr_lvl_old](const auto& e, const auto&...)
+        {
+          return e.acc == acc_cond::mark_t({0})
+                 and (best_lvl_p1() <= attr_lvl_old[e.dst]);
+        };
+
+      while (true)
+        {
+          n_attr_old = n_attr_new;
+          std::swap(attr_lvl_new, attr_lvl_old);
+          n_attr_new =
+              attractor_filt<true>(arena, *sp_ptr, *gt, attr_lvl_new,
+                             [](const auto&...)noexcept{return true; },
+                             ffa);
+          if (n_attr_new == n_attr_old)
+            break;
+        }
+
+      // Solving done
+      finalize();
+      bool p1wins = best_lvl_p1()
+                    <= attr_lvl_new[arena->get_init_state_number()];
+      arena->set_named_prop<attr_strategy_t>("attr-strategy",
+          new attr_strategy_t(std::move(attr_lvl)));
+      // Deduce the winning regions and an actual strategy
+      // Note that here, the best level for player has to go
+      // through an accepting edge
+      // On the other hand, in order to enforce (0) free circles,
+      // env is forbidden to take (0) transitions on best lvl
+      // These functions will be called with lvl src, lvl dst and edge
+      auto fp0_best =
+          [sp_ptr, ffa](const auto& lvl_src,
+                         const auto&,
+                         const auto& e)
+          {
+            assert(lvl_src <= best_lvl_p0()
+                   and not (*sp_ptr)[e.src]
+                   && "P0 filter called on an invalid state");
+            return (lvl_src < best_lvl_p0())
+                   or not ffa(e);
+          };
+      auto fp1_best =
+          [sp_ptr, &ffa](const auto& lvl_src,
+                         const auto&,
+                         const auto& e)
+          {
+            assert(lvl_src >= best_lvl_p1()
+                   && (*sp_ptr)[e.src]
+                   && "P1 filter called on an invalid state");
+            // Note all player states with accepting edge
+            // are in the best lvl
+            return (lvl_src > best_lvl_p1())
+                   or ffa(e);
+          };
+      // we can deduce a strat for both players
+      attractor_strat_to_concrete_(arena, true, fp0_best,
+                                          true, fp1_best);
+      return p1wins;
+    }
+
+    bool solve_co_buechi_detailed(const twa_graph_ptr& arena)
+    {
+      // This is the dual of reach
+      dualize_arena_here(arena);
+      bool dual_player_win =
+          solve_buechi_detailed(arena);
+      dualize_arena_here(arena);
+      return not dual_player_win;
+    }
+
   } // anonymous
+
+  void add_transposed_here(const twa_graph_ptr& arena)
+  {
+
+    if (arena->acc().is_f())
+      {
+        auto facc = [](acc_cond::mark_t)
+          {
+            return std::make_pair(acc_cond::mark_t({}), 0);
+          };
+        return add_transposed_here_impl(arena, facc);
+      }
+    else if (arena->acc().is_t() or
+             arena->acc().is_buchi())
+      return add_transposed_here_impl(arena,
+                                      [](acc_cond::mark_t acc)
+                                        {
+                                           return std::make_pair(acc, 0);
+                                        });
+    else if (arena->acc().is_parity())
+      {
+        bool max, odd;
+        arena->acc().is_parity(max, odd, true);
+        int max_abs_par = arena->acc().all_sets().max_set()-1;
+        // Make it the next larger odd
+        par_t next_max_par_odd = max_abs_par&1 ? max_abs_par+2
+                                                : max_abs_par+1;
+
+        if (max && odd)
+          {
+            auto facc = [](acc_cond::mark_t m)
+              {
+                return std::make_pair(m, (par_t)m.max_set() - 1);
+              };
+            return add_transposed_here_impl(arena, facc);
+          }
+        else if (max && !odd)
+          {
+            // "Add 1" so even becomes odd
+            auto facc = [](acc_cond::mark_t m)
+              {
+                return std::make_pair(m, (par_t)m.max_set());
+              };
+            return add_transposed_here_impl(arena, facc);
+          }
+        else if (!max && odd)
+          {
+            // Make sure no-color is the weakest
+            auto facc = [next_max_par_odd](acc_cond::mark_t m)
+              {
+                par_t p = (par_t)m.min_set() - 1;
+                return std::make_pair(m, p == -1 ? -next_max_par_odd : -p);
+              };
+            return add_transposed_here_impl(arena, facc);
+          }
+        else if (!max && !odd)
+          {
+            // Make sure no-color is the weakest
+            auto facc = [next_max_par_odd](spot::acc_cond::mark_t m)
+              {
+                par_t p = (par_t)m.min_set();
+                return std::make_pair(m, p == 0 ? -next_max_par_odd : -p);
+              };
+            return add_transposed_here_impl(arena, facc);
+          }
+        else
+          throw std::runtime_error("Unreachable!");
+      }
+    throw std::runtime_error("Acceptance cond is not implemented yet");
+  }
+
+  void dualize_arena_here(const twa_graph_ptr& arena)
+  {
+    if (auto* owner_ptr =
+        arena->get_named_prop<std::vector<bool>>("state-player"))
+      owner_ptr->flip();
+    else
+      throw std::runtime_error("Arena has no \"state-player\"");
+
+    // We also need to flip winners and and attractor strategies
+    // if given to keep results consistent
+    // Note that flipping attractors might then not be compatible with
+    //attractor_strat_to_concrete_!
+    if (auto* w_ptr =
+        arena->get_named_prop<region_t>("state-winner"))
+      w_ptr->flip();
+    if (auto* as_ptr =
+        arena->get_named_prop<attr_strategy_t>("attr-strategy"))
+      std::transform(as_ptr->cbegin(),
+                     as_ptr->cend(),
+                     as_ptr->begin(),
+                     std::negate<attr_strategy_t::value_type>());
+  }
+
+  unsigned cpre(const const_twa_graph_ptr& arena, const region_t& s_player,
+                const transposed_graph_t& gt, attr_strategy_t& attr_strat,
+                bool player,
+                attr_strategy_t::value_type new_num)
+  {
+    // This is the "basic" version with no filters applies
+    auto ffe = [](const auto&...){return true; };
+    auto ffa = [](const auto&...){return false; };
+    if (player)
+      return cpre_filt<true>(arena, s_player, gt, attr_strat,
+                             new_num, ffe, ffa);
+    else
+      return cpre_filt<false>(arena, s_player, gt, attr_strat,
+                              new_num, ffe, ffa);
+  }
+
+  unsigned cpre(const const_twa_graph_ptr& arena, attr_strategy_t& attr_strat,
+                bool player, attr_strategy_t::value_type new_num)
+  {
+    const region_t* const s_player =
+        arena->get_named_prop<region_t>("state-player");
+    if (!s_player)
+      throw std::runtime_error("Arena does not have state-player!");
+    const transposed_graph_t* gt =
+        arena->get_named_prop<transposed_graph_t>("transposed");
+    if (!gt)
+      throw std::runtime_error("Arena has no transposed graph!");
+    return cpre(arena, *s_player, *gt, attr_strat, player, new_num);
+  }
+
+  unsigned attractor(const const_twa_graph_ptr& arena,
+                     const region_t& s_player,
+                     transposed_graph_t& gt,
+                     attr_strategy_t& attr_strat, bool player)
+  {
+    auto ffe = [](const auto&...)noexcept{return true; };
+    auto ffa = [](const auto&...)noexcept{return false; };
+    if (player)
+      return attractor_filt<true>(arena, s_player, gt, attr_strat,
+                                  ffe, ffa);
+    else
+      return attractor_filt<false>(arena, s_player, gt, attr_strat,
+                                   ffe, ffa);
+  }
+
+  unsigned attractor(const const_twa_graph_ptr& arena,
+                     attr_strategy_t& attr_strat, bool player)
+  {
+    const region_t* const s_player =
+        arena->get_named_prop<region_t>("state-player");
+    if (!s_player)
+      throw std::runtime_error("Arena does not have state-player!");
+    transposed_graph_t* gt =
+        arena->get_named_prop<transposed_graph_t>("transposed");
+    if (!gt)
+      throw std::runtime_error("Arena has no transposed graph!");
+    return attractor(arena, *s_player, *gt, attr_strat, player);
+  }
+
 
   bool solve_parity_game(const twa_graph_ptr& arena)
   {
@@ -934,67 +1561,42 @@ namespace spot
   twa_graph_ptr
   highlight_strategy(twa_graph_ptr& aut,
                      int player0_color,
-                     int player1_color)
+                     int player1_color,
+                     bool use_attractor)
   {
-    auto owner = ensure_game(aut, "highlight_strategy()");
-    region_t* w = aut->get_named_prop<region_t>("state-winner");
-    strategy_t* s = aut->get_named_prop<strategy_t>("strategy");
-    if (!w)
-      throw std::runtime_error
-        ("highlight_strategy(): "
-         "winning region unavailable, solve the game first");
-    if (!s)
-      throw std::runtime_error
-        ("highlight_strategy(): strategy unavailable, solve the game first");
-
-    unsigned ns = aut->num_states();
-    auto* hl_edges = aut->get_or_set_named_prop<std::map<unsigned, unsigned>>
-      ("highlight-edges");
-    auto* hl_states = aut->get_or_set_named_prop<std::map<unsigned, unsigned>>
-      ("highlight-states");
-
-    if (unsigned sz = std::min(w->size(), s->size()); sz < ns)
-      ns = sz;
-
-    for (unsigned n = 0; n < ns; ++n)
-      {
-        int color = (*w)[n] ? player1_color : player0_color;
-        if (color == -1)
-          continue;
-        (*hl_states)[n] = color;
-        if ((*w)[n] == (*owner)[n])
-          (*hl_edges)[(*s)[n]] = color;
-      }
-
-    return aut;
+    if (use_attractor)
+      return highlight_strategy_true_impl_(aut, player0_color, player1_color);
+    else
+      return highlight_strategy_false_impl_(aut, player0_color, player1_color);
   }
 
-  void set_state_players(twa_graph_ptr arena, std::vector<bool> owners)
+  void set_state_players(twa_graph_ptr arena, region_t owners)
   {
-    std::vector<bool>* owners_ptr = new std::vector<bool>(owners);
+    std::vector<bool>* owners_ptr = new std::vector<bool>(std::move(owners));
     set_state_players(arena, owners_ptr);
   }
 
-  void set_state_players(twa_graph_ptr arena, std::vector<bool>* owners)
+  void set_state_players(twa_graph_ptr arena, region_t* owners)
   {
     if (owners->size() != arena->num_states())
       throw std::runtime_error
         ("set_state_players(): There must be as many owners as states");
 
-    arena->set_named_prop<std::vector<bool>>("state-player", owners);
+    arena->set_named_prop<region_t>("state-player", owners);
   }
 
-  void set_state_player(twa_graph_ptr arena, unsigned state, unsigned owner)
+  void set_state_player(twa_graph_ptr arena, unsigned state,
+                        region_t::value_type owner)
   {
     if (state >= arena->num_states())
       throw std::runtime_error("set_state_player(): invalid state number");
 
-    std::vector<bool> *owners = arena->get_named_prop<std::vector<bool>>
+    std::vector<bool> *owners = arena->get_named_prop<region_t>
       ("state-player");
     if (!owners)
       {
-        owners = new std::vector<bool>(arena->num_states(), false);
-        arena->set_named_prop<std::vector<bool>>("state-player", owners);
+        owners = new region_t(arena->num_states(), p0_val());
+        arena->set_named_prop<region_t>("state-player", owners);
       }
 
     (*owners)[state] = owner;
@@ -1011,7 +1613,8 @@ namespace spot
     return *owners;
   }
 
-  unsigned get_state_player(const_twa_graph_ptr arena, unsigned state)
+  region_t::value_type
+  get_state_player(const_twa_graph_ptr arena, unsigned state)
   {
     if (state >= arena->num_states())
       throw std::runtime_error("get_state_player(): invalid state number");
@@ -1022,7 +1625,61 @@ namespace spot
       throw std::runtime_error
         ("get_state_player(): state-player property not defined, not a game");
 
-    return (*owners)[state] ? 1 : 0;
+    return (*owners)[state];
+  }
+
+  const strategy_t& get_strategy(const_twa_graph_ptr arena)
+  {
+    auto* strat = arena->get_named_prop<strategy_t>("strategy");
+    if (not strat)
+      throw std::runtime_error
+          ("get_strategy(): strategy property not defined, not solved?");
+
+    return *strat;
+  }
+
+  auto get_strategy_of(const_twa_graph_ptr arena,
+                       unsigned state) -> strategy_t::value_type
+  {
+    if (state >= arena->num_states())
+      throw std::runtime_error("get_strategy_of(): invalid state number");
+    return get_strategy(arena)[state];
+  }
+
+  const attr_strategy_t& get_attractor_strategy(const_twa_graph_ptr arena)
+  {
+    auto* astrat = arena->get_named_prop<attr_strategy_t>("attr-strategy");
+    if (not astrat)
+      throw std::runtime_error
+          ("get_attractor_strategy(): "
+           "strategy property not defined, not solved?");
+
+    return *astrat;
+  }
+
+  attr_strategy_t::value_type
+  get_attractor_strategy_of(const_twa_graph_ptr arena, unsigned state)
+  {
+    if (state >= arena->num_states())
+      throw std::runtime_error("get_attractor_strategy_of(): "
+                               "invalid state number");
+    return get_attractor_strategy(arena)[state];
+  }
+
+  const region_t& get_state_winner(const const_twa_graph_ptr& arena)
+  {
+    if (const region_t* reg =
+        arena->get_named_prop<region_t>("state-winner"))
+      return *reg;
+    else
+      throw std::runtime_error("get_state_winner: state-winner"
+                               " property not defined! Game not solved?");
+  }
+
+  region_t::value_type
+  get_state_winner_of(const const_twa_graph_ptr& arena, unsigned state)
+  {
+    return get_state_winner(arena).at(state);
   }
 
   bool solve_safety_game(twa_graph_ptr game)
@@ -1112,5 +1769,42 @@ namespace spot
             }
 
     return (*winners)[game->get_init_state_number()];
+  }
+
+  bool solve(const twa_graph_ptr& arena,
+             bool use_buechi_as_reach)
+  {
+    // Check if transposed graph is given
+    if (not arena->get_named_prop<transposed_graph_t>("transposed"))
+        add_transposed_here(arena);
+    assert((arena->num_edges()
+               == arena->get_named_prop<transposed_graph_t>("transposed")
+                   ->num_edges())
+           && (arena->num_states()
+                  == arena->get_named_prop<transposed_graph_t>("transposed")
+                      ->num_states())
+           && "Original and transposed graph are not consistent."
+              "Called add_transpose_here()?");
+
+    if (arena->acc().is_f())
+      return solve_deadlock_game_detailed(arena);
+    else if (arena->acc().is_t())
+      return solve_liveliness_game_detailed(arena);
+    else if (arena->acc().is_buchi())
+      {
+        if (use_buechi_as_reach)
+          return solve_reach_detailed(arena);
+        else
+          return solve_buechi_detailed(arena);
+      }
+    else if (arena->acc().is_co_buchi())
+      {
+        if (use_buechi_as_reach)
+          return solve_avoid_detailed(arena);
+        else
+          return solve_co_buechi_detailed(arena);
+      }
+
+    throw std::runtime_error("Not implemented!");
   }
 }

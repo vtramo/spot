@@ -124,7 +124,7 @@ except RuntimeError as e:
 else:
   report_missing_exception()
 
-spot.set_state_player(a, 1, 1)
+spot.set_state_player(a, 1, True)
 assert spot.get_state_players(a) == (False, True, False)
 assert spot.get_state_player(a, 0) == 0
 assert spot.get_state_player(a, 1) == 1
@@ -144,7 +144,7 @@ else:
   report_missing_exception()
 
 try:
-	spot.set_state_player(a, 4, 1)
+	spot.set_state_player(a, 4, True)
 except RuntimeError as e:
   assert "invalid state number" in str(e)
 else:
