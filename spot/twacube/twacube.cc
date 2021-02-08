@@ -21,6 +21,8 @@
 #include "twacube.hh"
 #include <iostream>
 
+#include "spot/priv/merge_edges.hh"
+
 namespace spot
 {
   cstate::cstate(cstate&&) noexcept
@@ -132,6 +134,15 @@ namespace spot
         i = itmp;
       }
     return true;
+  }
+
+  void twacube::merge_edges()
+  {
+    theg_.remove_dead_edges_();
+
+    twa_merge_edges(*this);
+
+    // FIXME add properties.
   }
 
   std::ostream&

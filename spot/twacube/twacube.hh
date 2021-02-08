@@ -179,7 +179,11 @@ namespace spot
     typedef digraph<cstate, transition> graph_t;
 
     /// \brief Returns the underlying graph for this automaton.
-    const graph_t& get_graph()
+    const graph_t& get_graph() const
+    {
+      return theg_;
+    }
+    graph_t& get_graph()
     {
       return theg_;
     }
@@ -205,6 +209,8 @@ namespace spot
     {
       return std::make_shared<trans_index>(i, theg_);
     }
+
+    void merge_edges();
 
     friend SPOT_API std::ostream& operator<<(std::ostream& os,
                                              const twacube& twa);

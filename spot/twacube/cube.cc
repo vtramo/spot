@@ -22,6 +22,7 @@
 #include <iostream>
 #include <spot/twacube/cube.hh>
 #include <assert.h>
+#include <cstring>
 
 namespace spot
 {
@@ -38,6 +39,14 @@ namespace spot
   {
     return new unsigned int[2*uint_size_]();
   }
+
+  cube cubeset::copy(const cube c) const
+  {
+    cube n = new unsigned int[2*uint_size_]();
+    memcpy(n, c, sizeof(unsigned)*uint_size_*2);
+    return n;
+  }
+
 
   void cubeset::set_true_var(cube c, unsigned int x) const
   {
@@ -92,6 +101,14 @@ namespace spot
     return res;
   }
 
+  bool cubeset::implies(const cube lhs, const cube rhs) const
+  {
+    bool implies = true;
+    for (unsigned int i = 0; i < uint_size_*2 && implies; ++i)
+      implies &= (*(rhs+i) & *(lhs+i)) == *(rhs+i);
+    return implies;
+  }
+
   bool cubeset::is_valid(const cube lhs) const
   {
     bool incompatible = false;
@@ -108,6 +125,23 @@ namespace spot
   void cubeset::release(cube c) const
   {
     delete[] c;
+  }
+
+  bool cubeset::eq(const cube lhs, const cube rhs) const
+  {
+    bool is_equal = true;
+    for (unsigned int i = 0; i < uint_size_*2 && is_equal; ++i)
+      is_equal &= (*(lhs+i) == *(rhs+i));
+    return is_equal;
+  }
+
+  bool cubeset::lt(const cube lhs, const cube rhs) const
+  {
+    bool is_equal = true;
+    unsigned int i = 0;
+    for (; i < uint_size_*2 && is_equal; ++i)
+      is_equal &= (*(lhs+i) == *(rhs+i));
+    return !is_equal && *(lhs+i) < *(rhs+i);
   }
 
   void cubeset::display(const cube c) const

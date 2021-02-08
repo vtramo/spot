@@ -32,6 +32,8 @@
 #include <spot/twaalgos/dot.hh>
 #include <spot/tl/defaultenv.hh>
 
+#include <spot/twaalgos/hoa.hh>
+
 static void checkit(std::string f_str)
 {
   spot::default_environment& env = spot::default_environment::instance();
@@ -43,6 +45,9 @@ static void checkit(std::string f_str)
 
   auto propcube = spot::twa_to_twacube(prop);
   assert(spot::are_equivalent(propcube, prop));
+
+  //propcube->merge_edges();
+  //assert(spot::are_equivalent(propcube, prop));
 
   auto propcubeback = spot::twacube_to_twa(propcube, dict);
   assert(spot::are_equivalent(propcube, propcubeback));

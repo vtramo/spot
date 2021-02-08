@@ -33,6 +33,8 @@
 #include <spot/misc/bddlt.hh>
 #include <spot/twaalgos/cleanacc.hh>
 
+#include "spot/priv/common.hh"
+
 //  Simulation-based reduction, implemented using bdd-based signatures.
 //
 //  The signature of a state is a Boolean function (implemented as a
@@ -956,48 +958,116 @@ namespace spot
     return wrap_simul(iterated_simulations_<true>, t);
   }
 
+  template <typename ConstAutPtr, bool Cosimulation, bool Sba>
+  class data_acc
+  {
+  };
+
+  template <typename ConstAutPtr>
+  class data_acc<ConstAutPtr, true, true>
+  {
+  protected:
+    std::vector<acc_cond::mark_t> acc_;
+  };
+
+  template <typename ConstAutPtr, bool Cosimulation, bool Sba>
+  class cond_proxy;
+
   template <bool Cosimulation, bool Sba>
-  class reduce_sim
+  class cond_proxy<const_twa_graph_ptr, Cosimulation, Sba>
+  {
+    typedef twa_graph_edge_data edge;
+
+  protected:
+    cond_proxy(const const_twa_graph_ptr&)
+    {}
+
+    inline bool cond_implies(const twa_graph_edge_data& lhs,
+                              const twa_graph_edge_data& rhs) const
+    {
+      return bdd_implies(lhs.cond, rhs.cond);
+    }
+
+    inline bdd new_cond_from(const edge& e) const
+    {
+      return e.cond;
+    }
+  };
+
+  template <bool Cosimulation, bool Sba>
+  class cond_proxy<const_twacube_ptr, Cosimulation, Sba>
+  {
+  protected:
+    cond_proxy(const const_twacube_ptr& a)
+      : cs_(a->get_cubeset())
+    {
+    }
+
+    inline bool cond_implies(const transition& lhs,
+                              const transition& rhs) const
+    {
+      return cs_.implies(lhs.cube_, rhs.cube_);
+    }
+
+    inline cube new_cond_from(const transition& e) const
+    {
+      return cs_.copy(e.cube_);
+    }
+
+    const cubeset& cs_;
+  };
+
+  template <typename ConstAutPtr, bool Cosimulation, bool Sba>
+  class reduce_sim : data_acc<ConstAutPtr, Cosimulation, Sba>
+                     , cond_proxy<ConstAutPtr, Cosimulation, Sba>
   {
   public:
-    reduce_sim(const const_twa_graph_ptr& aut);
+    typedef std::shared_ptr<
+      typename std::remove_const<
+        typename ConstAutPtr::element_type>::type> aut_ptr_t;
 
-    twa_graph_ptr run();
+    reduce_sim(const ConstAutPtr& aut);
+
+    auto run();
 
   private:
     // If aut_ is deterministic, only the lower left triangle is set.
     std::vector<bool> compute_simulation();
 
-    const_twa_graph_ptr aut_;
-    const_twa_graph_ptr original_;
+    static constexpr bool is_twa_graph =
+                        std::is_same<ConstAutPtr, const_twa_graph_ptr>::value;
 
-    // Only use if Sba && Cosimulation
-    std::vector<acc_cond::mark_t> acc_;
+    ConstAutPtr aut_;
+    ConstAutPtr original_;
   };
 
-  template <bool Cosimulation, bool Sba>
-  reduce_sim<Cosimulation, Sba>::reduce_sim(const const_twa_graph_ptr& aut)
-    : original_(aut)
+  template <typename ConstAutPtr, bool Cosimulation, bool Sba>
+  reduce_sim<ConstAutPtr, Cosimulation, Sba>::reduce_sim(const ConstAutPtr& aut)
+    : cond_proxy<ConstAutPtr, Cosimulation, Sba>(aut)
+    , original_(aut)
   {
     unsigned n = aut->num_states();
 
-    twa_graph_ptr a = make_twa_graph(aut->get_dict());
-    a->copy_ap_of(aut);
-    a->new_states(n);
+    aut_ptr_t a = create_twa_from(aut);
+    for (unsigned i = 0; i < n; ++i)
+      a->new_state();
     a->set_init_state(aut->get_init_state_number());
 
     // Whether we simulate or cosimulate, we transform the acceptance into all
     // fin. If we cosimulate, we also reverse all the edges.
-    const auto all_inf = aut->get_acceptance().used_inf_fin_sets().first;
+    const auto all_inf = aut->acc().get_acceptance().used_inf_fin_sets().first;
+
+    const auto& ga = aut->get_graph();
+    auto& gr = a->get_graph();
 
     for (unsigned s = 0; s < n; ++s)
-      for (const auto& e : aut->out(s))
-        if (Cosimulation)
-          a->new_edge(e.dst, e.src, e.cond, e.acc ^ all_inf);
+      for (const auto& e : ga.out(s))
+        if constexpr(Cosimulation)
+          gr.new_edge(e.dst, e.src, this->new_cond_from(e), e.acc ^ all_inf);
         else
-          a->new_edge(e.src, e.dst, e.cond, e.acc ^ all_inf);
+          gr.new_edge(e.src, e.dst, this->new_cond_from(e), e.acc ^ all_inf);
 
-    if (!Sba)
+    if constexpr(!Sba)
       {
         bool state_acc = true;
 
@@ -1007,7 +1077,7 @@ namespace spot
         for (unsigned s = 0; s < n; ++s)
           {
             bool first = true;
-            for (auto& e : a->out(s))
+            for (auto& e : gr.out(s))
               if (first)
                 {
                   common_out[s] = e.acc;
@@ -1027,22 +1097,23 @@ namespace spot
       // edges.  Doing so seems to favor cases where states
       // can be merged.
       if (state_acc)
-        for (auto& e : a->edges())
+        for (auto& e : gr.edges())
           e.acc = (e.acc - common_out[e.src]) | common_out[e.dst];
       }
 
-    if (Sba && Cosimulation)
+    if constexpr(Sba && Cosimulation)
       {
-        acc_.reserve(n);
+        this->acc_.reserve(n);
         for (unsigned s = 0; s < n; ++s)
-          acc_.push_back(original_->state_acc_sets(s) ^ all_inf);
+          this->acc_.push_back(original_->state_acc_sets(s) ^ all_inf);
       }
 
     aut_ = std::move(a);
   }
 
-  template <bool Cosimulation, bool Sba>
-  std::vector<bool> reduce_sim<Cosimulation, Sba>::compute_simulation()
+  template <typename ConstAutPtr, bool Cosimulation, bool Sba>
+  std::vector<bool>
+  reduce_sim<ConstAutPtr, Cosimulation, Sba>::compute_simulation()
   {
     // At the start, we consider that all the pairs of vertices are simulating
     // each other. At each iteration we detect which ones are not simulating
@@ -1052,14 +1123,18 @@ namespace spot
     // reverse topological order.
 
     const size_t n = aut_->num_states();
-    const bool only_bisimu = is_deterministic(aut_);
+    bool only_bisimu = false;
+    if constexpr(is_twa_graph)
+      only_bisimu = is_deterministic(aut_);
+
+    const auto& ga = aut_->get_graph();
 
     // We need to have the predecessors of a state for the backward propagation.
     digraph<void, void> reverse(n, aut_->num_edges());
     reverse.new_states(n);
 
     for (unsigned s = 0; s < n; ++s)
-      for (const auto& e : aut_->out(s))
+      for (const auto& e : ga.out(s))
         reverse.new_edge(e.dst, e.src);
 
     reverse.sort_edges_([](const auto& e1, const auto& e2)
@@ -1084,6 +1159,8 @@ namespace spot
     unsigned init = aut_->get_init_state_number();
 
     {
+      const auto& go = original_->get_graph();
+
       unsigned i = Cosimulation ? 0 : n - 1;
       std::vector<bool> seen(n, false);
       todo.push_back(init);
@@ -1095,7 +1172,7 @@ namespace spot
           order[i] = cur;
           i += Cosimulation ? 1 : -1;
 
-          for (const auto& e : original_->out(cur))
+          for (const auto& e : go.out(cur))
             {
               if (!seen[e.dst])
                 {
@@ -1111,8 +1188,8 @@ namespace spot
     // Test if s1 simulates s2.
     const auto test_sim = [&](size_t s1, size_t s2) -> bool
       {
-        auto s_edges = aut_->out(s1);
-        auto d_edges = aut_->out(s2);
+        auto s_edges = ga.out(s1);
+        auto d_edges = ga.out(s2);
 
         // s1 simulates s2 only if for all the edges of s2 there is an edges s1
         // with compatible condition, acceptance and the destinations simulate
@@ -1130,24 +1207,25 @@ namespace spot
                     if (!can_sim[i + static_cast<size_t>(d_edge.dst)])
                       return false;
 
-                    if (Sba && Cosimulation)
+                    if constexpr(Sba && Cosimulation)
                       {
-                        if (!(acc_[d_edge.src]).subset(acc_[s_edge.src]))
-                        return false;
+                        if (!(this->acc_[d_edge.src])
+                            .subset(this->acc_[s_edge.src]))
+                          return false;
                       }
                     else
                       {
-                        if (!(d_edge.acc).subset(s_edge.acc))
+                        if (!d_edge.acc.subset(s_edge.acc))
                           return false;
                       }
 
-                    if (Cosimulation)
+                    if constexpr(Cosimulation)
                       {
                         if (s_edge.dst == init && d_edge.dst != init)
                           return false;
                       }
 
-                    return bdd_implies(s_edge.cond, d_edge.cond);
+                    return this->cond_implies(s_edge, d_edge);
                   });
             });
       };
@@ -1211,9 +1289,9 @@ namespace spot
       }
     while (has_changed);
 
-    if (Cosimulation)
+    if constexpr(Cosimulation)
       {
-        if (!aut_->out(init).begin())
+        if (!ga.out(init).begin())
           {
             for (unsigned i = 0; i < n; ++i)
               {
@@ -1233,19 +1311,13 @@ namespace spot
   }
 
 
-  template <bool Cosimulation, bool Sba>
-  twa_graph_ptr reduce_sim<Cosimulation, Sba>::run()
+  template <typename ConstAutPtr, bool Cosimulation, bool Sba>
+  auto reduce_sim<ConstAutPtr, Cosimulation, Sba>::run()
   {
     std::vector<bool> can_sim = compute_simulation();
 
-    twa_graph_ptr res = std::make_shared<twa_graph>(original_->get_dict());
-    res->copy_ap_of(original_);
-    res->copy_acceptance_of(original_);
-
-    twa_graph_ptr no_mark = std::make_shared<twa_graph>(original_->get_dict());
-    no_mark->copy_ap_of(original_);
-    no_mark->copy_acceptance_of(original_);
-
+    aut_ptr_t res = create_twa_from(original_);
+    aut_ptr_t no_mark = create_twa_from(original_);
     unsigned init = original_->get_init_state_number();
 
     size_t n = original_->num_states();
@@ -1253,12 +1325,15 @@ namespace spot
 
     // If the automaton is deterministic, there is no simple simulation only
     // bisimulation.
-    bool is_deter = is_deterministic(original_);
+    bool is_deter = false;
+    //TODO
+    if constexpr(is_twa_graph)
+      is_deter = is_deterministic(original_);
 
     // The number of states in the reduced automaton.
     // There is at least an initial state.
-    unsigned nr = 1;
-    equiv_states[0] = 0;
+    equiv_states[0] = res->new_state();
+    no_mark->new_state();
 
     std::vector<unsigned> old;
     old.reserve(n);
@@ -1283,14 +1358,14 @@ namespace spot
 
         if (!found)
           {
-            equiv_states[i] = nr++;
+            equiv_states[i] = res->new_state();
+            no_mark->new_state();
             old.push_back(i);
           }
       }
-    res->new_states(nr);
-    no_mark->new_states(nr);
+    unsigned nr = res->num_states();
 
-    const auto& gr = aut_->get_graph();
+    const auto& ga = aut_->get_graph();
 
     // Test if the language recognized by taking e1 is included in e2 (in this
     // case e2 dominates e1).
@@ -1301,14 +1376,14 @@ namespace spot
             if (Cosimulation && e2.dst == init && e1.dst != init)
               return false;
 
-            if (Sba && Cosimulation)
+            if constexpr(Sba && Cosimulation)
               {
-                if (!(acc_[e1.src]).subset(acc_[e2.src]))
+                if (!(this->acc_[e1.src]).subset(this->acc_[e2.src]))
                   return false;
               }
             else
               {
-                if (!(e1.acc).subset(e2.acc))
+                if (!e1.acc.subset(e2.acc))
                   return false;
               }
 
@@ -1318,17 +1393,21 @@ namespace spot
               // index is the dominator (this is arbitrary, but without that
               // we would remove both edges)
               && (!can_sim[e1.dst * n + e2.dst]
-                  || gr.index_of_edge(e1) > gr.index_of_edge(e2))
+                  || ga.index_of_edge(e1) > ga.index_of_edge(e2))
               // of course the condition of e2 should implies that of e1, but
               // this we test this last because it is slow.
-              && bdd_implies(e2.cond, e1.cond);
+              && this->cond_implies(e2, e1);
           };
       };
 
-    const auto all_inf = original_->get_acceptance().used_inf_fin_sets().first;
+    const auto all_inf = original_->acc().get_acceptance()
+      .used_inf_fin_sets().first;
+    auto& gr = res->get_graph();
+    auto& g_no_mark = no_mark->get_graph();
+
     for (unsigned i = 0; i < nr; ++i)
       {
-        auto out = aut_->out(old[i]);
+        auto out = ga.out(old[i]);
 
         for (const auto& e : out)
           {
@@ -1339,13 +1418,21 @@ namespace spot
             if (is_deter
                 || std::none_of(out.begin(), out.end(), dominates_edge(e)))
               {
-                auto acc = e.acc ^ all_inf;
                 if (Cosimulation)
-                  res->new_edge(equiv_states[e.dst], i, e.cond, acc);
+                  gr.new_edge(equiv_states[e.dst],
+                      i,
+                      this->new_cond_from(e),
+                      e.acc ^ all_inf);
                 else
-                  res->new_edge(i, equiv_states[e.dst], e.cond, acc);
+                  gr.new_edge(i,
+                      equiv_states[e.dst],
+                      this->new_cond_from(e),
+                      e.acc ^ all_inf);
 
-                no_mark->new_edge(i, equiv_states[e.dst], e.cond);
+                g_no_mark.new_edge(i, 
+                    equiv_states[e.dst],
+                    this->new_cond_from(e),
+                    acc_cond::mark_t());
               }
           }
       }
@@ -1354,110 +1441,122 @@ namespace spot
     no_mark->set_init_state(equiv_states[init]);
     no_mark->merge_edges();
 
-    scc_info si_no_mark(no_mark, scc_info_options::NONE);
-    unsigned nscc = si_no_mark.scc_count();
-
-    std::vector<unsigned> redirect(no_mark->num_states());
-    std::iota(redirect.begin(), redirect.end(), 0);
-
-    // Same as in compute_simulation(), but since we are between two sccs, we
-    // can ignore the colors.
-    const auto test_sim = [&](size_t s1, size_t s2) -> bool
+    //TODO adapt for twacube (need scc_info)
+    if constexpr(is_twa_graph)
       {
-        auto s_edges = no_mark->out(s1);
-        auto d_edges = no_mark->out(s2);
+        std::vector<unsigned> redirect(no_mark->num_states());
+        std::iota(redirect.begin(), redirect.end(), 0);
 
-        return std::all_of(s_edges.begin(), s_edges.end(),
-          [&](const auto& s_edge) -> bool
+        scc_info si_no_mark(no_mark, scc_info_options::NONE);
+        unsigned nscc = si_no_mark.scc_count();
+
+        // Same as in compute_simulation(), but since we are between two sccs, we
+        // can ignore the colors.
+        const auto test_sim = [&](size_t s1, size_t s2) -> bool
+          {
+            auto s_edges = no_mark->out(s1);
+            auto d_edges = no_mark->out(s2);
+
+            return std::all_of(s_edges.begin(), s_edges.end(),
+              [&](const auto& s_edge) -> bool
+                {
+                  size_t idx = static_cast<size_t>(old[s_edge.dst]) * n;
+
+                  return std::find_if(d_edges.begin(), d_edges.end(),
+                    [&](const auto& d_edge) -> bool
+                      {
+                        if (!can_sim[idx + static_cast<size_t>(old[d_edge.dst])])
+                          return false;
+                      return this->cond_implies(s_edge, d_edge);
+                      });
+                });
+          };
+
+        // Attempt to merge trivial sccs.
+        for (unsigned scc = 0; scc < nscc; ++scc)
+          {
+            if (!si_no_mark.is_trivial(scc))
+              continue;
+
+            unsigned s = si_no_mark.one_state_of(scc);
+
+            for (unsigned i = 0; i < nr; ++i)
+              {
+                if (si_no_mark.reachable_state(i)
+                    && !si_no_mark.is_trivial(si_no_mark.scc_of(i)))
+                  {
+                    if (test_sim(i, s) && test_sim(s, i))
+                      {
+                        can_sim[old[i] * n + old[s]] = true;
+                        can_sim[old[s] * n + old[i]] = true;
+
+                        if (Cosimulation)
+                          redirect[i] = s;
+                        else
+                          redirect[s] = i;
+                        break;
+                      }
+                  }
+              }
+          }
+
+        for (auto& e: res->edges())
+          e.dst = redirect[e.dst];
+        res->set_init_state(redirect[res->get_init_state_number()]);
+      }
+
+    //TODO no prop yet for cube
+    if constexpr(is_twa_graph)
+    {
+      if (!Sba && !Cosimulation && original_->prop_state_acc())
+        {
+          // common_in[i] is the set of acceptance set numbers
+          // common to all incoming edges of state i.  Only edges
+          // inside one SCC matter.
+          //
+          // ns = nr
+          std::vector<acc_cond::mark_t> common_in(nr);
+          scc_info si(res, scc_info_options::NONE);
+
+          for (unsigned s = 0; s < nr; ++s)
             {
-              size_t idx = static_cast<size_t>(old[s_edge.dst]) * n;
-
-              return std::find_if(d_edges.begin(), d_edges.end(),
-                [&](const auto& d_edge) -> bool
-                  {
-                    if (!can_sim[idx + static_cast<size_t>(old[d_edge.dst])])
-                      return false;
-
-                    return bdd_implies(s_edge.cond, d_edge.cond);
-                  });
-            });
-      };
-
-    // Attempt to merge trivial sccs.
-    for (unsigned scc = 0; scc < nscc; ++scc)
-      {
-        if (!si_no_mark.is_trivial(scc))
-          continue;
-
-        unsigned s = si_no_mark.one_state_of(scc);
-
-        for (unsigned i = 0; i < nr; ++i)
-          {
-            if (si_no_mark.reachable_state(i)
-                && !si_no_mark.is_trivial(si_no_mark.scc_of(i)))
-              {
-                if (test_sim(i, s) && test_sim(s, i))
-                  {
-                    can_sim[old[i] * n + old[s]] = true;
-                    can_sim[old[s] * n + old[i]] = true;
-
-                    if (Cosimulation)
-                      redirect[i] = s;
-                    else
-                      redirect[s] = i;
-
-                    break;
-                  }
-              }
-          }
-      }
-
-    for (auto& e: res->edges())
-      e.dst = redirect[e.dst];
-
-    if (!Sba && !Cosimulation && original_->prop_state_acc())
-      {
-        // common_in[i] is the set of acceptance set numbers
-        // common to all incoming edges of state i.  Only edges
-        // inside one SCC matter.
-        //
-        // ns = nr
-        std::vector<acc_cond::mark_t> common_in(nr);
-        scc_info si(res, scc_info_options::NONE);
-
-        for (unsigned s = 0; s < nr; ++s)
-          {
-            unsigned s_scc = si.scc_of(s);
-            bool first = true;
-            for (auto& e: res->out(s))
-              {
-                if (si.scc_of(e.dst) != s_scc)
-                  continue;
-                if (first)
-                  {
-                    common_in[s] = e.acc;
-                    first = false;
-                  }
-                else
-                  {
-                    common_in[s] &= e.acc;
-                  }
-              }
-          }
-        for (auto& e : res->edges())
-          e.acc = (e.acc - common_in[e.dst]) | common_in[e.src];
-      }
+              unsigned s_scc = si.scc_of(s);
+              bool first = true;
+              for (auto& e: res->out(s))
+                {
+                  if (si.scc_of(e.dst) != s_scc)
+                    continue;
+                  if (first)
+                    {
+                      common_in[s] = e.acc;
+                      first = false;
+                    }
+                  else
+                    {
+                      common_in[s] &= e.acc;
+                    }
+                }
+            }
+          for (auto& e : res->edges())
+            e.acc = (e.acc - common_in[e.dst]) | common_in[e.src];
+        }
+    }
 
     res->merge_edges();
-    res->set_init_state(redirect[res->get_init_state_number()]);
-    res->purge_unreachable_states();
-    res->prop_copy(original_,
-        { Sba,          // state-based acc
-          true,         // weakness preserved,
-          false, true,  // determinism improved
-          true,         // completeness preserved
-          true,         // stutter inv.
-        });
+
+    if constexpr(is_twa_graph)
+    {
+      res->purge_unreachable_states();
+
+      // FIXME if no change keep all original_ prop
+      res->prop_copy(original_,
+          { Sba,          // state-based acc
+            true,         // weakness preserved,
+            false, true,  // determinism improved
+            true,         // completeness preserved
+            true,         // stutter inv.
+          });
+    }
 
     return res;
   }
@@ -1465,59 +1564,81 @@ namespace spot
   twa_graph_ptr reduce_direct_sim(const const_twa_graph_ptr& aut)
   {
     // The automaton must not have dead or unreachable states.
-    reduce_sim<false, false> r(scc_filter(aut));
+    reduce_sim<const_twa_graph_ptr, false, false> r(scc_filter(aut));
+    return r.run();
+  }
+
+  twacube_ptr reduce_direct_sim(const const_twacube_ptr& aut)
+  {
+    // The automaton must not have dead or unreachable states.
+    // FIXME
+    reduce_sim<const_twacube_ptr, false, false> r(aut);
     return r.run();
   }
 
   twa_graph_ptr reduce_direct_sim_sba(const const_twa_graph_ptr& aut)
   {
     // The automaton must not have dead or unreachable states.
-    reduce_sim<false, true> r(scc_filter_states(aut));
+    reduce_sim<const_twa_graph_ptr, false, true> r(scc_filter_states(aut));
     return r.run();
   }
 
   twa_graph_ptr reduce_direct_cosim(const const_twa_graph_ptr& aut)
   {
     // The automaton must not have dead or unreachable states.
-    reduce_sim<true, false> r(scc_filter(aut));
+    reduce_sim<const_twa_graph_ptr, true, false> r(scc_filter(aut));
+    return r.run();
+  }
+
+  twacube_ptr reduce_direct_cosim(const const_twacube_ptr& aut)
+  {
+    // The automaton must not have dead or unreachable states.
+    // FIXME
+    reduce_sim<const_twacube_ptr, true, false> r(aut);
     return r.run();
   }
 
   twa_graph_ptr reduce_direct_cosim_sba(const const_twa_graph_ptr& aut)
   {
     // The automaton must not have dead or unreachable states.
-    reduce_sim<true, true> r(scc_filter_states(aut));
+    reduce_sim<const_twa_graph_ptr, true, true> r(scc_filter_states(aut));
     return r.run();
   }
 
-  template <bool Sba>
-  twa_graph_ptr reduce_iterated_(const const_twa_graph_ptr& aut)
+  template <typename ConstAutPtr, bool Sba>
+  auto reduce_iterated_(const ConstAutPtr& aut)
   {
     unsigned last_states = aut->num_states();
     unsigned last_edges = aut->num_edges();
 
-    auto a = Sba ? scc_filter_states(aut) : scc_filter(aut);
+    ConstAutPtr a;
+    //FIXME
+    if constexpr(std::is_same<ConstAutPtr, const_twa_graph_ptr>::value)
+      a = Sba ? scc_filter_states(aut) : scc_filter(aut);
+    else
+      a = aut;
 
-    reduce_sim<false, Sba> r(a);
-    twa_graph_ptr res = r.run();
+    reduce_sim<ConstAutPtr, false, Sba> r(a);
+    auto res = r.run();
 
     bool cosim = true;
     do
       {
-        if (is_deterministic(res))
-          break;
+        if constexpr(std::is_same<ConstAutPtr, const_twa_graph_ptr>::value)
+          if (is_deterministic(res))
+            break;
 
         last_states = res->num_states();
         last_edges = res->num_edges();
 
         if (cosim)
           {
-            reduce_sim<true, Sba> r(res);
+            reduce_sim<ConstAutPtr, true, Sba> r(res);
             res = r.run();
           }
         else
           {
-            reduce_sim<false, Sba> r(res);
+            reduce_sim<ConstAutPtr, false, Sba> r(res);
             res = r.run();
           }
 
@@ -1531,11 +1652,18 @@ namespace spot
 
   twa_graph_ptr reduce_iterated(const const_twa_graph_ptr& aut)
   {
-    return reduce_iterated_<false>(aut);
+    return reduce_iterated_<const_twa_graph_ptr, false>(aut);
+  }
+
+  twacube_ptr reduce_iterated(const const_twacube_ptr& aut)
+  {
+    // The automaton must not have dead or unreachable states.
+    // FIXME
+    return reduce_iterated_<const_twacube_ptr, false>(aut);
   }
 
   twa_graph_ptr reduce_iterated_sba(const const_twa_graph_ptr& aut)
   {
-    return reduce_iterated_<true>(aut);
+    return reduce_iterated_<const_twa_graph_ptr, true>(aut);
   }
 } // End namespace spot.

@@ -29,7 +29,6 @@
 
 namespace spot
 {
-
   /// \ingroup twa_representation
   /// \brief Graph-based representation of a TωA
   ///

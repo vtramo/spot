@@ -20,6 +20,7 @@
 #pragma once
 
 #include <spot/misc/common.hh>
+#include <spot/twacube/twacube.hh>
 #include <spot/twa/twagraph.hh>
 
 namespace spot
@@ -137,6 +138,8 @@ namespace spot
   SPOT_API
   twa_graph_ptr reduce_direct_sim(const const_twa_graph_ptr& aut);
   SPOT_API
+  twacube_ptr reduce_direct_sim(const const_twacube_ptr& aut);
+  SPOT_API
   twa_graph_ptr reduce_direct_sim_sba(const const_twa_graph_ptr& aut);
   /// @}
 
@@ -154,6 +157,8 @@ namespace spot
   /// one
   SPOT_API
   twa_graph_ptr reduce_direct_cosim(const const_twa_graph_ptr& aut);
+  SPOT_API
+  twacube_ptr reduce_direct_cosim(const const_twacube_ptr& aut);
   SPOT_API
   twa_graph_ptr reduce_direct_cosim_sba(const const_twa_graph_ptr& aut);
   /// @}
@@ -173,6 +178,8 @@ namespace spot
   /// one
   SPOT_API
   twa_graph_ptr reduce_iterated(const const_twa_graph_ptr& aut);
+  SPOT_API
+  twacube_ptr reduce_iterated(const const_twacube_ptr& aut);
   SPOT_API
   twa_graph_ptr reduce_iterated_sba(const const_twa_graph_ptr& aut);
   /// @}

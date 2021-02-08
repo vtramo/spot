@@ -87,6 +87,9 @@ namespace spot
     /// \brief Allocate a new cube
     cube alloc() const;
 
+    /// \brief Allocate and copy a new cube.
+    cube copy(const cube c) const;
+
     /// \brief Set the variable at position \a x to true.
     void set_true_var(cube c, unsigned int x) const;
 
@@ -105,6 +108,9 @@ namespace spot
     /// \brief return a cube resulting from the intersection of the  two cubes
     cube intersection(const cube lhs, const cube rhs) const;
 
+    /// \brief return true if lhs implies rhs.
+    bool implies(const cube lhs, const cube rhs) const;
+
     /// \brief Check wether \a lhs is valid, is there is not variable
     /// that is true and false at the same time.
     bool is_valid(const cube lhs) const;
@@ -114,6 +120,11 @@ namespace spot
 
     /// \brief Release a cube.
     void release(cube lhs) const;
+
+    /// \brief Check equality.
+    bool eq(const cube lhs, const cube rhs) const;
+
+    bool lt(const cube lhs, const cube rhs) const;
 
     /// \brief Raw display cube
     void display(const cube c) const;
