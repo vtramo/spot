@@ -1,0 +1,437 @@
+# -*- coding: utf-8 -*-
+#+TITLE: Using games to compute simulation
+#+DESCRIPTION: Code example for iterating over ω-automata in Spot
+#+INCLUDE: setup.org
+#+HTML_LINK_UP: tut.html
+#+PROPERTY: header-args:sh :results verbatim :exports both
+#+PROPERTY: header-args:python :results output :exports both
+#+PROPERTY: header-args:C+++ :results verbatim :exports both
+
+This example demonstrates how to find the simulations between states using
+games in C++ and python. This algorithm is describe in Fair Simulation
+Relations, Parity Games, and State Space Reduction for Büchi Automata by R.
+Schuller Borbely, Kousha Etessami and Thomas Wilke.
+
+The simulation based reduction (spot.simuation() and spot.reduce_direct_sim())
+does not use this method as is it slower.
+
+When all the moves are in the game, we check if the spoiler has a winning
+strategy from a pair of state. If yes, there is simulation otherwise there are
+no.
+
+We will compute the simulation between 4 and 0 in the following automaton.
+
+#+NAME: tut40in
+#+BEGIN_SRC hoa
+HOA: v1
+States: 6
+Start: 0
+AP: 2 "a" "b"
+acc-name: co-Buchi
+Acceptance: 1 Fin(0)
+properties: trans-labels explicit-labels state-acc very-weak
+--BODY--
+State: 0
+[1] 1
+[1] 2
+State: 1 {0}
+[0&1] 1
+State: 2
+[0] 3
+State: 3
+[1] 3
+State: 4
+[1] 5
+State: 5
+[0] 5
+--END--
+#+END_SRC
+
+#+NAME: tut40dot
+#+BEGIN_SRC sh :exports none :noweb yes
+cat >tut40.hoa <<EOF
+<<tut40in>>
+EOF
+autfilt --dot tut40.hoa
+#+END_SRC
+
+#+RESULTS: tut40dot
+#+begin_example
+digraph "" {
+  rankdir=LR
+  label=<<br/>[co-Büchi]>
+  labelloc="t"
+  node [shape="circle"]
+  node [style="filled", fillcolor="#ffffa0"]
+  fontname="Lato"
+  node [fontname="Lato"]
+  edge [fontname="Lato"]
+  node[fontsize=12] fontsize=12 stylesheet="spot.css" edge[arrowhead=vee, arrowsize=.7, fontsize=12]
+  I [label="", style=invis, width=0]
+  I -> 0
+  0 [label=<0>]
+  0 -> 1 [label=<b>]
+  0 -> 2 [label=<b>]
+  1 [label=<1>, peripheries=2]
+  1 -> 1 [label=<a &amp; b>]
+  2 [label=<2>]
+  2 -> 3 [label=<a>]
+  3 [label=<3>]
+  3 -> 3 [label=<b>]
+  4 [label=<4>]
+  4 -> 5 [label=<b>]
+  5 [label=<5>]
+  5 -> 5 [label=<a>]
+}
+#+end_example
+
+#+BEGIN_SRC dot :file tut40in.svg :var txt=tut40dot :exports results
+  $txt
+#+END_SRC
+
+#+RESULTS:
+[[file:tut40in.svg]]
+
+* Python
+
+
+
+
+
+
+First a need to create a game. The game is build by alternating the possible
+moves of the two players: the spoiler (even) and the duplicator (odd). The
+spoiler starts from its state and chose a transition and move to the
+destination. Then, the duplicator search for a transition from its state with a
+compatible condition and acceptance.
+
+#+NAME: build_game
+#+BEGIN_SRC python :exports code
+import spot
+from spot import buddy
+def direct_sim_game(aut, s1, s2):
+    if s1 >= aut.num_states() or s2 >= aut.num_states():
+        raise ValueError('invalid state number')
+
+    game = spot.make_twa_graph(aut.get_dict())
+
+    # The names are a pair of int. If even owns the state, the first integer
+    # is the number of the edge that spoiler has taken during this turn (so
+    # we have the current position of the spoiler (the destination of the
+    # edge), the condition and acceptance that duplicator must find). If
+    # it is an odd state, the first integer is the state where the spoiler
+    # is. In either case, the second is always the duplicator's state.
+    names = []
+    owners = []
+
+    # Keep the game's state from its name. We need two maps as two states can
+    # have the same name (but not the same owner). For example (0, 1) can
+    # describe a spoiler state (the edge 0, the state 1) and a duplicator
+    # state (the states 0 and 1).
+    s_orig_states = {}
+    d_orig_states = {}
+
+    todo = []
+
+    # Create the state (i, j) for a player if it does not exist yet and
+    # returns its state's number in the game.
+    def get_and_create_game_state(player, i, j):
+        orig_state = s_orig_states if player else d_orig_states
+
+        if not (i, j) in orig_state:
+            s = game.new_state()
+
+            names.append((i, j))
+            owners.append(player)
+            orig_state[(i, j)] = s
+
+            # If it is the duplicator turn and the state does not exist
+            # yet, we need to process it.
+            if not player:
+                todo.append(s)
+
+            return s
+        else:
+            return orig_state[(i, j)]
+
+    get_and_create_game_state(False, s1, s2);
+    (all_inf, _) = aut.get_acceptance().used_inf_fin_sets()
+
+    while todo:
+        cur = todo.pop()
+        (s_src, d_src) = names[cur]
+
+        # Spoiler starts by picking an edge from s_src. If it does not exist
+        # yet, we add a new edge in the game from (s_src,d_src) to
+        # (edge_idx,d_src).
+        for s_edge in aut.out(s_src):
+            edge_idx = aut.edge_number(s_edge)
+            cur2 = get_and_create_game_state(True, edge_idx, d_src)
+
+            game.new_edge(cur, cur2, buddy.bddtrue)
+
+            # Duplicator try to find an edge with the same condition from d_src.
+            # If it does not exist yet, it adds a new edge from
+            # (s_edge.dst,d_src) to (s_edge.dst, d_edge.dst).
+            for d_edge in aut.out(d_src):
+                if buddy.bdd_implies(d_edge.cond, s_edge.cond) \
+                        and (s_edge.acc ^ all_inf).subset(d_edge.acc ^ all_inf):
+
+                    cur3 = get_and_create_game_state(False, s_edge.dst, d_edge.dst)
+                    game.new_edge(cur2, cur3, buddy.bddtrue)
+
+    spot.set_state_players(game, owners)
+    names = [s for s in map(str, names)]
+    game.set_state_names(names)
+
+    return game
+#+END_SRC
+
+Then we solve it. This game is a safety game, the odd player tries to block
+the even player into a dead end. Even win if it has a winning strategy, aka
+there is no dead end in the game.
+
+#+BEGIN_SRC :export code
+spot.solve_safety_game(g)
+#+END_SRC
+
+Next, we get the winners for each state. We only check the even's state as it
+is the only ones that describe states pairs (the odd's ones describe the
+edge taken and a state). If odd wins from this state, then the first state
+simulates the second.
+
+#+NAME: computesim_tut40
+#+BEGIN_SRC python :exports code
+def compute_simulation(aut, i, j):
+    g = direct_sim_game(aut, i, j)
+    spot.solve_safety_game(g)
+
+    winners = spot.get_state_winners(g)
+    owners = spot.get_state_players(g)
+    names = g.get_state_names()
+
+    simulations = []
+    for i in range(0, g.num_states()):
+        if winners[i] and not owners[i]:
+            simulations.append(tuple(map(int, names[i][1:-1].split(', '))))
+
+    return simulations
+#+END_SRC
+
+#+RESULTS: computesim_tut40
+
+Compute all simulations found when checking if 4 simulates 0.
+
+#+BEGIN_SRC python :exports code
+print(compute_simulation(aut, 4, 0))
+#+END_SRC
+
+#+RESULTS:
+
+#+BEGIN_SRC python :exports results :results verbatim :noweb yes
+import spot
+from spot import buddy
+
+aut = spot.automaton('''
+<<tut40in>>
+''')
+
+<<build_game>>
+
+<<computesim_tut40>>
+
+print(compute_simulation(aut, 4, 0))
+
+#+END_SRC
+
+#+RESULTS:
+: [(4, 0), (5, 1)]
+
+* C++
+
+
+The equivalent code in C++:
+
+#+NAME: cppCompute
+#+BEGIN_SRC C++ :exports code
+#include <spot/twaalgos/game.hh>
+#include <spot/twa/twagraph.hh>
+
+spot::twa_graph_ptr direct_sim_game(spot::const_twa_graph_ptr aut,
+                                unsigned s1, unsigned s2)
+{
+  if (s1 >= aut->num_states() || s2 >= aut->num_states())
+    throw std::runtime_error("direct_sim_game(): invalid state number");
+
+  auto game = spot::make_twa_graph(aut->get_dict());
+  game->copy_ap_of(aut);
+
+  auto names = new std::vector<std::pair<unsigned, unsigned>>();
+  game->set_named_prop("product-states", names);
+  names->reserve(aut->num_states());
+
+  auto owners = new std::vector<bool>();
+  game->set_named_prop("state-player", owners);
+  owners->reserve(aut->num_states());
+
+  std::map<std::pair<unsigned, unsigned>, unsigned> s_orig_states;
+  std::map<std::pair<unsigned, unsigned>, unsigned> d_orig_states;
+  std::vector<unsigned> todo;
+  todo.reserve(aut->num_states());
+  auto& g = game->get_graph();
+
+  auto all_inf = aut->get_acceptance().used_inf_fin_sets().first;
+
+  auto new_state = [&](bool player, unsigned s1, unsigned s2)
+  {
+    unsigned s;
+    auto& m = player ? s_orig_states : d_orig_states;
+
+    auto it = std::find_if(m.begin(), m.end(), [s1, s2](auto elm)
+      { return s1 == elm.first.first && s2 == elm.first.second; });
+
+    if (it == m.end())
+      {
+        s = game->new_state();
+        names->emplace_back(s1, s2);
+        owners->push_back(player);
+        m.insert({{s1, s2}, s});
+
+        if (!player)
+          todo.push_back(s);
+      }
+    else
+      {
+         s = it->second;
+      }
+
+    return s;
+  };
+
+  new_state(false, s1, s2);
+
+  while (!todo.empty())
+    {
+      unsigned cur = todo.back();
+      unsigned s_src = (*names)[cur].first;
+      unsigned d_src = (*names)[cur].second;
+      todo.pop_back();
+
+      for (const auto& s_edge : aut->out(s_src))
+        {
+          unsigned edge_idx = g.index_of_edge(s_edge);
+          unsigned cur2 = new_state(true, edge_idx, d_src);
+
+          game->new_edge(cur, cur2, bddtrue);
+
+          for (const auto& d_edge : aut->out(d_src))
+            {
+              if (bdd_implies(d_edge.cond, s_edge.cond)
+                  && (s_edge.acc ^ all_inf).subset(d_edge.acc ^ all_inf))
+                {
+                  unsigned cur3 = new_state(false, s_edge.dst, d_edge.dst);
+                  game->new_edge(cur2, cur3, bddtrue);
+                }
+            }
+        }
+    }
+
+  return game;
+}
+
+bool compute_simulation(spot::const_twa_graph_ptr aut,
+                          unsigned i, unsigned j,
+                          std::vector<bool>& can_sim)
+{
+  auto g = direct_sim_game(aut, i, j);
+  bool i_simulates_j = spot::solve_safety_game(g);
+
+  std::vector<bool> winners = spot::get_state_winners(g);
+  std::vector<bool> owners = spot::get_state_players(g);
+
+  typedef std::vector<std::pair<unsigned, unsigned>> names_t;
+  auto names = *g->get_named_prop<names_t>("product-states");
+
+  unsigned n = g->num_states();
+  unsigned n_aut = aut->num_states();
+
+  for (unsigned i = 0; i < n; ++i)
+    if (winners[i] && !owners[i])
+      {
+        auto [u, v] = names[i];
+        can_sim[u * n_aut + v] = true;
+      }
+
+return i_simulates_j;
+}
+#+END_SRC
+
+#+RESULTS: cppCompute
+
+Computes and print the simulations found when checking if 4 simulates 0.
+
+#+NAME: cppCallCompute
+#+BEGIN_SRC text :exports none
+  unsigned n = aut->num_states();
+  std::vector<bool> can_sim(n*n);
+
+  compute_simulation(aut, 4, 0, can_sim);
+
+  for (unsigned i = 0; i < n; ++i)
+    for (unsigned j = 0; j < n; ++j)
+      if (can_sim[i * n + j])
+        std::cout << i << " simulates " << j << '\n';
+#+END_SRC
+
+#+BEGIN_SRC C++ :exports code :noweb yes
+<<cppCallCompute>>
+#+END_SRC
+
+#+RESULTS: cppCallCompute
+
+#+NAME: finalcpp
+#+BEGIN_SRC C++ :results verbatim :exports results :noweb yes
+#include <iostream>
+#include <spot/twa/twagraph.hh>
+
+<<cppCompute>>
+
+int main()
+{
+  spot::bdd_dict_ptr dict = spot::make_bdd_dict();
+  spot::twa_graph_ptr aut = make_twa_graph(dict);
+
+  bdd p1 = bdd_ithvar(aut->register_ap("p1"));
+  bdd p2 = bdd_ithvar(aut->register_ap("p2"));
+
+  aut->set_acceptance(1, "t");
+  aut->prop_state_acc(true);
+
+  aut->new_states(6);
+  aut->set_init_state(0U);
+
+  aut->new_edge(0, 1, p2);
+  aut->new_edge(1, 1, p1 & p2, {0});
+  aut->new_edge(0, 2, p2);
+  aut->new_edge(2, 3, p1);
+  aut->new_edge(3, 3, p2);
+  aut->new_edge(4, 5, p2);
+  aut->new_edge(5, 5, p1);
+
+  unsigned n = aut->num_states();
+  std::vector<bool> can_sim(n*n);
+
+  compute_simulation(aut, 4, 0, can_sim);
+
+  for (unsigned i = 0; i < n; ++i)
+    for (unsigned j = 0; j < n; ++j)
+      if (can_sim[i * n + j])
+        std::cout << i << " simulates " << j << '\n';
+
+  return 0;
+}
+#+END_SRC
+
+#+RESULTS: finalcpp
+: 4 simulates 0
+: 5 simulates 1
