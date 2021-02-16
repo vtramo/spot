@@ -42,7 +42,8 @@
  * unit testsuite is being built). */
 
 #ifndef TEST
-#define TEST(n)         template< bool > void n()
+// FIX HERE: set default bool value to false
+#define TEST(n)         template< bool = false > void n()
 #endif
 
 #define BRICK_SHARP_FIRST(x, ...) #x

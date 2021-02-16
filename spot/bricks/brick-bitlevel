@@ -459,6 +459,12 @@ namespace brick::bitlevel
         struct Virtual : BitPointer
         {
             T set( T t ) { bitcopy( BitPointer( &t ), *this, bitwidth ); return t; }
+
+            // FIX HERE: add defaults to remove "implicitly-declared operator= is deprecated" error
+            Virtual() = default;
+            Virtual(const Virtual& other) = default;
+            ~Virtual() = default;
+
             Virtual operator=( T t )
             {
                 set( t );
