@@ -552,7 +552,11 @@ namespace spot
     /// This makes two passes over the automaton to reduce the number
     /// of edges with an identical pair of source and destination.
     ///
-    /// In the first pass, which is performed only on automata with
+    /// In the first pass, edges that share their source, destination,
+    /// and acceptance marks are merged into a single edge whose condition
+    /// is the disjunction of the conditions of the original edges.
+    ///
+    /// In the second pass, which is performed only on automata with
     /// Fin-less acceptance, edges with the same source, destination,
     /// and conditions are merged into a single edge whose set of
     /// acceptance marks is the intersection of the sets of the edges.
@@ -699,12 +703,20 @@ namespace spot
     /// digraph::defrag_state() that additionally deals with universal
     /// branching.
     ///
+    /// This method is used to remove some states that have been
+    /// previously detected to be unreachable in order to "defragment"
+    /// the state vector.  When a state is removed, all its outgoing
+    /// transition are removed as well.  Removing reachable states
+    /// should NOT be attempted, because the incoming edges will be
+    /// dangling.
+    ///
     /// \param newst A vector indicating how each state should be
-    /// renumbered.  Use -1U to erase a state.  Ignoring the
-    /// occurrences of -1U, the renumbering is expected to
-    /// satisfy newst[i] ≤ i for all i.
-    /// \param used_states the number of states used
-    /// (after renumbering)
+    /// renumbered.  Use -1U to mark an unreachable state for removal.
+    /// Ignoring the occurrences of -1U, the renumbering is expected
+    /// to satisfy newst[i] ≤ i for all i.
+    ///
+    /// \param used_states the number of states used after
+    /// renumbering.
     void defrag_states(std::vector<unsigned>&& newst, unsigned used_states);
 
     /// \brief Print the data structures used to represent the
