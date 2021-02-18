@@ -20,6 +20,7 @@
 #pragma once
 
 #include <spot/kripke/kripke.hh>
+#include <spot/mc/mc_instanciator.hh>
 #include <spot/mc/deadlock.hh>
 #include <spot/mc/deadlock_bitstate.hh>
 #include <spot/misc/memusage.hh>
@@ -42,18 +43,12 @@ static void print_stats(deadlock_stats stats, int mem_used)
 
 template<typename kripke_ptr, typename State,
          typename Iterator, typename Hash, typename Equal>
-deadlock_stats run_deadlock_ref(kripke_ptr sys)
+ec_stats run_deadlock_ref(kripke_ptr sys)
 {
-  using algo_name = swarmed_deadlock<State, Iterator, Hash, Equal>;
-  typename algo_name::shared_map map;
-  std::atomic<bool> stop(false);
-
-  auto ref = new algo_name(*sys, map, 0, stop);
-  ref->run();
-
-  auto stats = ref->stats();
-  delete ref;
-  return stats;
+  auto prop = nullptr;
+  auto trace = false;
+  return instanciate<swarmed_deadlock<State, Iterator, Hash, Equal, std::true_type>,
+        kripke_ptr, State, Iterator, Hash, Equal> (sys, prop, trace);
 }
 
 template<typename kripke_ptr, typename State,
@@ -72,8 +67,8 @@ void bench_deadlock(kripke_ptr sys, std::vector<size_t> mem_sizes)
        spot::cspins_state_equal>
        (sys);
   mem_used_ref = spot::memusage() - mem_used_ref;
-  std::cout << "Reference:\n";
-  print_stats(ref, mem_used_ref);
+  std::cout << "Reference:\n" << ref << "\n";
+  std::cout << "mem_used (nb pages): " << mem_used_ref << "\n";
 
   for (size_t mem_size : mem_sizes)
   {

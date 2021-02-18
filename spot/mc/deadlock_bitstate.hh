@@ -34,6 +34,17 @@
 
 namespace spot
 {
+  // FIXME: use ec_stats instead
+  /// \brief This object is returned by the algorithm below
+  struct SPOT_API deadlock_stats
+  {
+    unsigned states;            ///< \brief Number of states visited
+    unsigned transitions;       ///< \brief Number of transitions visited
+    unsigned instack_dfs;       ///< \brief Maximum DFS stack
+    bool has_deadlock;          ///< \brief Does the model contains a deadlock
+    unsigned walltime;          ///< \brief Walltime for this thread in ms
+  };
+
   /// \brief This class aims to explore a model to detect wether it contains a
   /// deadlock. However, unlike the classical swarmed_deadlock class, it is
   /// using bitstate hashing and a Bloom filter to store persistent information.
