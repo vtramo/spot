@@ -309,6 +309,7 @@ doc/              Documentation for Spot.
    userdoc/       HTML documentation about command-line tools, and examples.
    spot.html/     HTML doc for C++ API (not distributed, use --enable-doxygen).
 bench/            Benchmarks for ...
+   bitstate/      ... bitstate hashing benchmarking tools
    dtgbasat/      ... SAT-based minimization of DTGBA,
    emptchk/       ... emptiness-check algorithms,
    ltl2tgba/      ... LTL-to-Büchi translation algorithms,
