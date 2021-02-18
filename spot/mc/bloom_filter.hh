@@ -22,6 +22,9 @@
 #include <spot/misc/hashfunc.hh>
 
 #include <atomic>
+#include <climits>
+#include <stdexcept>
+#include <vector>
 
 /* Lock-free concurrent Bloom Filter implementation */
 
