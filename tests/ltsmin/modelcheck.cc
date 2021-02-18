@@ -75,10 +75,6 @@ struct mc_options_
   bool csv = false;
   spot::mc_algorithm algorithm = spot::mc_algorithm::BLOEMEN_EC;
   bool force_parallel = false;
-  bool has_deadlock = false;
-  bool bloemen = false;
-  bool bloemen_ec = false;
-  bool cndfs = false;
 } mc_options;
 
 
