@@ -328,7 +328,7 @@ namespace spot
       else
         s = -1U;
 
-    defrag_states(std::move(remap), st);
+    defrag_states(remap, st);
   }
 
   void twa_graph::purge_unreachable_states(shift_action* f, void* action_data)
@@ -383,7 +383,7 @@ namespace spot
     if (f)
       (*f)(todo, action_data);
 
-    defrag_states(std::move(todo), current);
+    defrag_states(todo, current);
   }
 
   void twa_graph::purge_dead_states()
@@ -580,13 +580,13 @@ namespace spot
     if (prop_complete().is_false())
       prop_complete(trival::maybe());
 
-    defrag_states(std::move(useful), current);
+    defrag_states(useful, current);
 
     if (purge_unreachable_needed)
       purge_unreachable_states();
   }
 
-  void twa_graph::defrag_states(std::vector<unsigned>&& newst,
+  void twa_graph::defrag_states(std::vector<unsigned>& newst,
                                 unsigned used_states)
   {
     if (!is_existential())
@@ -660,7 +660,7 @@ namespace spot
                   }
                 else
                   {
-                    // register this new destination group, add et two
+                    // register this new destination group, add it to
                     // newst, and use the index in newst to relabel
                     // the state so that graph::degrag_states() will
                     // eventually update it to the correct value.
@@ -738,7 +738,7 @@ namespace spot
           }
       }
     init_number_ = newst[init_number_];
-    g_.defrag_states(std::move(newst), used_states);
+    g_.defrag_states(newst, used_states);
   }
 
   void twa_graph::remove_unused_ap()

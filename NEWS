@@ -189,6 +189,13 @@ New in spot 2.9.6.dev (not yet released)
   - Some formulas using ->, <->, or xor were not properly detected as
     purely universal or pure eventualities.
 
+  Deprecation notices:
+
+  - twa_graph::defrag_states() and digraph::defrag_states() now take
+    the renaming vector by reference instead of rvalue reference.  The
+    old prototype is still supported but will emit a deprecation
+    warning.
+
 New in spot 2.9.6 (2021-01-18)
 
   Build:

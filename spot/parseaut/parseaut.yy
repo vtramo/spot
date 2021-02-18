@@ -1,5 +1,5 @@
 /* -*- coding: utf-8 -*-
-** Copyright (C) 2014-2020 Laboratoire de Recherche et Développement
+** Copyright (C) 2014-2021 Laboratoire de Recherche et Développement
 ** de l'Epita (LRDE).
 **
 ** This file is part of Spot, a model checking library.
@@ -2077,7 +2077,7 @@ lbtt: lbtt-header lbtt-body ENDAUT
 	    assert(s == (unsigned) res.states);
 	    for (auto& i: res.start)
 	      i.second.front() = rename[i.second.front()];
-	    res.h->aut->get_graph().defrag_states(std::move(rename), s);
+	    res.h->aut->get_graph().defrag_states(rename, s);
 	  }
 	 res.info_states.resize(res.h->aut->num_states());
 	 for (auto& s: res.info_states)
