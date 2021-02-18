@@ -1289,10 +1289,19 @@ namespace spot
 
     /// \brief Rename and remove states.
     ///
-    /// \param newst A vector indicating how each state should be renumbered.
-    /// Use -1U to erase a state.  All other numbers are expected to
-    /// satisfy newst[i] ≤ i for all i.
-    /// \param used_states the number of states used (after renumbering)
+    /// This method is used to remove some states that have been
+    /// previously detected to be unreachable in order to "defragment"
+    /// the state vector.  When a state is removed, all its outgoing
+    /// transition are removed as well.  Removing reachable states
+    /// should NOT be attempted, because the incoming edges will be
+    /// dangling.
+    ///
+    /// \param newst A vector indicating how each state should be
+    /// renumbered.  Use -1U to erase an unreachable state.  All other
+    /// numbers are expected to satisfy newst[i] ≤ i for all i.
+    ///
+    /// \param used_states the number of states used (after
+    /// renumbering)
     void defrag_states(std::vector<unsigned>&& newst, unsigned used_states)
     {
       SPOT_ASSERT(newst.size() >= states_.size());
