@@ -189,6 +189,9 @@ New in spot 2.9.6.dev (not yet released)
   - Some formulas using ->, <->, or xor were not properly detected as
     purely universal or pure eventualities.
 
+  - autfilt --keep-states=... could incorrectly mention --mask-acc
+    when diagnosing errors.
+
   Deprecation notices:
 
   - twa_graph::defrag_states() and digraph::defrag_states() now take

@@ -1,6 +1,6 @@
 #!/bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2015, 2016 Laboratoire de Recherche et Développement
+# Copyright (C) 2015, 2016, 2021 Laboratoire de Recherche et Développement
 # de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -109,5 +109,9 @@ run 0 autfilt --keep-states=1,2,0 input1 -H >output
 diff output expect4
 
 # Errors
-run 2 autfilt --keep-states=a3 input1
-run 2 autfilt --keep-states=3-2 input1
+run 2 autfilt --keep-states=a3 input1 2> error
+cat error
+grep 'failed to parse' error
+run 2 autfilt --keep-states=3-2 input1 2> error
+cat error
+grep 'non-negative: --keep-states' error

@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2013-2020 Laboratoire de Recherche et Développement
+// Copyright (C) 2013-2021 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -1011,7 +1011,7 @@ parse_opt(int key, char* arg, struct argp_state*)
           {
             if (res < 0)
               error(2, 0, "state ids should be non-negative:"
-                    " --mask-acc=%ld", res);
+                    " --keep-states=%ld", res);
             // We don't know yet how many states the automata contain.
             if (opt_keep_states.size() <= static_cast<unsigned long>(res))
               opt_keep_states.resize(res + 1, false);
