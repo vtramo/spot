@@ -74,6 +74,7 @@ namespace spot
         det_max_states_ = opt->get("det-max-states", -1);
         det_max_edges_ = opt->get("det-max-edges", -1);
         simul_ = opt->get("simul", -1);
+        simul_method_ = opt->get("simul-method", -1);
         scc_filter_ = opt->get("scc-filter", -1);
         ba_simul_ = opt->get("ba-simul", -1);
         tba_determinisation_ = opt->get("tba-det", 0);
@@ -115,19 +116,39 @@ namespace spot
     if (simul_max_ > 0 && static_cast<unsigned>(simul_max_) < a->num_states())
       return a;
 
+    if (opt == 0)
+      return a;
+
+    static unsigned sim = [&]()
+    {
+      if (simul_method_ != -1)
+        return simul_method_;
+
+      char* s = getenv("SPOT_SIMULATION_REDUCTION");
+      return s ? *s - '0' : 0;
+    }();
+
+    if (sim == 2)
+      opt += 3;
+
     // FIXME: simulation-based reduction how have work-arounds for
     // non-separated sets, so we can probably try them.
     if (!has_separate_sets(a))
       return a;
     switch (opt)
       {
-      case 0:
-        return a;
       case 1:
         return simulation(a);
       case 2:
         return cosimulation(a);
       case 3:
+        return iterated_simulations(a);
+      case 4:
+        return reduce_direct_sim(a);
+      case 5:
+        return reduce_direct_cosim(a);
+      case 6:
+        return reduce_iterated(a);
       default:
         return iterated_simulations(a);
       }

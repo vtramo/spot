@@ -211,7 +211,11 @@ sets sat-minimize to 1 if not set differently.") },
           "Set to 1 to instruct the SAT-minimization procedure to produce \
 a TGBA where all outgoing transition of a state have the same acceptance \
 sets.  By default this is only enabled when option -B is used.") },
-    { nullptr, 0, nullptr, 0, nullptr, 0 }
+    { DOC("simul-method",
+          "Chose which simulation based reduction to use: 1 force the \
+signature-based BDD implementation, 2 force matrix-based and 0, the default, \
+is a heristic wich choose which implementation to use.") },
+    { nullptr, 0, nullptr, 0, nullptr, 0 },
   };
 
 const struct argp_child children[] =

@@ -182,6 +182,15 @@ New in spot 2.9.6.dev (not yet released)
     outgoing edge of some state.  It can be used together with
     purge_dead_states() to remove selected states.
 
+  - Add reduce_direct_sim(), reduce_direct_cosim() and reduce_iterated()
+    (and their state based acceptance version, reduce_direct_sim_sba(),
+    reduce_direct_cosim_sba() and reduce_iterated_sba()), a new reduction
+    based simulation using a matrix-based implementation. This new version
+    should be faster than the signature-based BDD implementation in most
+    cases. By default, the old one is used. This behavior can be changed by
+    setting SPOT_SIMULATION_REDUCTION environment variable or using the
+    "-x simul-method=..." option (see spot-x(7)).
+
   Python:
 
   - Bindings for functions related to games.

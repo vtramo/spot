@@ -235,6 +235,12 @@ This variable is used by the \fB--check=stutter-invariance\fR and
 \fB--check=stutter-sensitive-example\fR.
 
 .TP
+\fBSPOT_SIMULATION_REDUCTION\fR
+Choose which simulation based reduction to use: 1 force signature-based
+BDD implementation, 2 force matrix-based implementation and 0 is default, a
+heuristic is used to choose which implementation to use.
+
+.TP
 \fBSPOT_TMPDIR\fR, \fBTMPDIR\fR
 These variables control in which directory temporary files (e.g.,
 those who contain the input and output when interfacing with
