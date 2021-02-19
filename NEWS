@@ -176,6 +176,15 @@ New in spot 2.9.6.dev (not yet released)
   - twa_graph::merge_edges() had its two passes swapped.  Doing so
     improves the determinism of some automata.
 
+  - Add reduce_direct_sim(), reduce_direct_cosim() and reduce_iterated()
+    (and their state based acceptance version, reduce_direct_sim_sba(),
+    reduce_direct_cosim_sba() and reduce_iterated_sba()), a new reduction
+    based simulation using a matrix-based implementation. This new version
+    should be faster than the signature-based BDD implementation in most
+    cases. By default, the old one is used. This behavior can be changed by
+    setting SPOT_SIMULATION_REDUCTION variable or using the fine-tuning
+    option simul-method.
+
   Python:
 
   - Bindings for functions related to games.
