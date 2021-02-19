@@ -31,6 +31,8 @@ New in spot 2.9.6.dev (not yet released)
     --sbacc (an alias for --state-based-acceptance) cannot be
     abbreviated as --sba anymore.
 
+  - autfilt learned a --kill-states=NUM[,NUM...] option.
+
   Library:
 
   - Historically, Spot labels automata by Boolean formulas over
@@ -175,6 +177,10 @@ New in spot 2.9.6.dev (not yet released)
 
   - twa_graph::merge_edges() had its two passes swapped.  Doing so
     improves the determinism of some automata.
+
+  - twa_graph::kill_state(num) is a new method that removes the
+    outgoing edge of some state.  It can be used together with
+    purge_dead_states() to remove selected states.
 
   Python:
 

@@ -100,13 +100,37 @@ State: 1
 --END--
 EOF
 
+cat >expect5 <<EOF
+HOA: v1
+States: 1
+Start: 0
+AP: 2 "a" "b"
+acc-name: generalized-Buchi 2
+Acceptance: 2 Inf(0)&Inf(1)
+properties: trans-labels explicit-labels state-acc deterministic
+properties: stutter-invariant weak
+--BODY--
+State: 0
+--END--
+EOF
+
 run 0 autfilt --keep-states=0,1,2 input1 -H >output
 diff output expect3
 run 0 autfilt --keep-states=0,9999,1,2 input1 -H >output
 diff output expect3
+run 0 autfilt --kill-states=99,3 input1 -H >output
+diff output expect3
 
 run 0 autfilt --keep-states=1,2,0 input1 -H >output
 diff output expect4
+
+run 0 autfilt --kill-states=1,2 --kill-states=0 input1 -H >output
+diff output expect5
+run 0 autfilt --kill-states=0 input1 -H >output
+diff output expect5
+
+# make sure the complete property is reset
+ltl2tgba 'GF(a<->Xa)' | autfilt --kill-state=1 | grep -v complete
 
 # Errors
 run 2 autfilt --keep-states=a3 input1 2> error
@@ -115,3 +139,10 @@ grep 'failed to parse' error
 run 2 autfilt --keep-states=3-2 input1 2> error
 cat error
 grep 'non-negative: --keep-states' error
+
+run 2 autfilt --kill-states=a3 input1 2> error
+cat error
+grep 'failed to parse' error
+run 2 autfilt --kill-states=3-2 input1 2> error
+cat error
+grep 'non-negative: --kill-states' error

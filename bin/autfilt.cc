@@ -130,6 +130,7 @@ enum {
   OPT_IS_VERY_WEAK,
   OPT_IS_WEAK,
   OPT_KEEP_STATES,
+  OPT_KILL_STATES,
   OPT_MASK_ACC,
   OPT_MERGE,
   OPT_NONDET_STATES,
@@ -297,6 +298,9 @@ static const argp_option options[] =
     { "keep-states", OPT_KEEP_STATES, "NUM[,NUM...]", 0,
       "only keep specified states.  The first state will be the new "\
       "initial state.  Implies --remove-unreachable-states.", 0 },
+    { "kill-states", OPT_KILL_STATES, "NUM[,NUM...]", 0,
+      "mark the specified states as dead (no successor), and remove"
+      " them.  Implies --remove-dead-states.", 0 },
     { "dnf-acceptance", OPT_DNF_ACC, nullptr, 0,
       "put the acceptance condition in Disjunctive Normal Form", 0 },
     { "streett-like", OPT_STREETT_LIKE, nullptr, 0,
@@ -656,6 +660,7 @@ static spot::acc_cond::mark_t opt_partial_degen = {};
 static spot::acc_cond::mark_t opt_mask_acc = {};
 static std::vector<bool> opt_keep_states = {};
 static unsigned int opt_keep_states_initial = 0;
+static std::vector<unsigned> opt_kill_states = {};
 static bool opt_simpl_acc = false;
 static bool opt_simplify_exclusive_ap = false;
 static bool opt_rem_dead = false;
@@ -1017,6 +1022,19 @@ parse_opt(int key, char* arg, struct argp_state*)
               opt_keep_states.resize(res + 1, false);
             opt_keep_states[res] = true;
           }
+        break;
+      }
+    case OPT_KILL_STATES:
+      {
+        std::vector<long> values = to_longs(arg);
+        for (auto res : values)
+          {
+            if (res < 0)
+              error(2, 0, "state ids should be non-negative:"
+                    " --kill-states=%ld", res);
+            opt_kill_states.push_back(res);
+          }
+        opt_rem_dead = true;
         break;
       }
     case OPT_MERGE:
@@ -1527,6 +1545,13 @@ namespace
       else if (opt_instut == 2)
         aut = spot::sl2_inplace(std::move(aut));
 
+      if (!opt_kill_states.empty())
+        {
+          unsigned ns = aut->num_states();
+          for (unsigned s: opt_kill_states)
+            if (s < ns)
+              aut->kill_state(s);
+        }
       if (!opt_keep_states.empty())
         aut = mask_keep_accessible_states(aut, opt_keep_states,
                                           opt_keep_states_initial);

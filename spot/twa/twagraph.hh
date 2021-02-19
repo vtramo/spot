@@ -726,6 +726,15 @@ namespace spot
     ///@}
 #endif // SWIG
 
+    /// \brief Make a state dead.
+    ///
+    /// A state is dead if it has no successors.  So this function
+    /// simply erases all edges leaving \a state.
+    ///
+    /// It can be used together with purge_dead_states() to remove a
+    /// set of states from an automaton.
+    void kill_state(unsigned state);
+
     /// \brief Print the data structures used to represent the
     /// automaton in dot's format.
     ///

@@ -822,6 +822,35 @@ namespace spot
     set_named_prop("state-names", names.release());
   }
 
+  void twa_graph::kill_state(unsigned state)
+  {
+    auto t = g_.out_iteraser(state);
+    while (t)
+      t.erase();
+    // A complete automaton is unlikely to stay
+    // complete after killing a state.
+    if (prop_complete().is_true())
+      prop_complete(trival::maybe());
+    prop_stutter_invariant(trival::maybe());
+    // Many properties are preserved by state removal, and may even
+    // become true if they were false before and the appropriate
+    // states are removed.
+    if (prop_universal().is_false())
+      prop_universal(trival::maybe());
+    if (prop_inherently_weak().is_false())
+      prop_inherently_weak(trival::maybe());
+    if (prop_weak().is_false())
+      prop_weak(trival::maybe());
+    if (prop_very_weak().is_false())
+      prop_very_weak(trival::maybe());
+    if (prop_terminal().is_false())
+      prop_terminal(trival::maybe());
+    if (prop_unambiguous().is_false())
+      prop_unambiguous(trival::maybe());
+    if (prop_semi_deterministic().is_false())
+      prop_semi_deterministic(trival::maybe());
+  }
+
   void twa_graph::dump_storage_as_dot(std::ostream& out,
                                       const char* opt) const
   {
