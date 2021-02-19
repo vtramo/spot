@@ -1,9 +1,12 @@
 New in spot 2.9.6.dev  (not yet released)
 
-  Nothing yet.
+  Bugs fixed:
 
   - Some formulas using ->, <->, or xor were not properly detected as
     purely universal or pure eventualities.
+
+  - autfilt --keep-states=... could incorrectly mention --mask-acc
+    when diagnosing errors.
 
 New in spot 2.9.6 (2021-01-18)
 
