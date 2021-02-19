@@ -264,9 +264,6 @@ New in spot 2.9.7 (2021-05-12)
 
   - Miscelaneous documentation fixes.
 
-  - Some formulas using ->, <->, or xor were not properly detected as
-    purely universal or pure eventualities.
-
 New in spot 2.9.6 (2021-01-18)
 
   Build:
