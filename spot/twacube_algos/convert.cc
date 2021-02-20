@@ -84,7 +84,7 @@ namespace spot
       st_binder.insert({n, tg->new_state()});
 
     // Fix the initial state
-    tg->set_initial(st_binder[aut->get_init_state_number()]);
+    tg->set_init_state(st_binder[aut->get_init_state_number()]);
 
     // Get the cubeset
     auto cs = tg->get_cubeset();
@@ -175,11 +175,11 @@ namespace spot
           }
 
         res->new_edge(theg.edge_storage(i).src, theg.edge_storage(i).dst,
-                      cond, theg.edge_data(i).acc_);
+                      cond, theg.edge_data(i).acc);
       }
 
     // Fix the initial state
-    res->set_init_state(twacube->get_initial());
+    res->set_init_state(twacube->get_init_state_number());
 
     return res;
   }

@@ -498,7 +498,7 @@ namespace spot
     {
       setup();
       State init_kripke = sys_.initial(tid_);
-      unsigned init_twa = twa_->get_initial();
+      unsigned init_twa = twa_->get_init_state_number();
       auto pair = uf_.make_claim(init_kripke, init_twa);
       todo_.push_back(pair.second);
       Rp_.push_back(pair.second);
@@ -526,7 +526,7 @@ namespace spot
                   auto w = uf_.make_claim(it_kripke->state(),
                                           twa_->trans_storage(it_prop, tid_)
                                           .dst);
-                  auto trans_acc = twa_->trans_storage(it_prop, tid_).acc_;
+                  auto trans_acc = twa_->trans_storage(it_prop, tid_).acc;
                   ++transitions_;
                   if (w.first == uf::claim_status::CLAIM_NEW)
                     {

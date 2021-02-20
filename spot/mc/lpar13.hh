@@ -105,7 +105,8 @@ namespace spot
     bool run()
     {
       setup();
-      product_state initial = {sys_.initial(tid_), twa_->get_initial()};
+      product_state initial = {sys_.initial(tid_),
+                                twa_->get_init_state_number()};
       if (SPOT_LIKELY(push_state(initial, dfs_number+1, {})))
         {
           todo.push_back({initial, sys_.succ(initial.st_kripke, tid_),
@@ -151,7 +152,7 @@ namespace spot
                  todo.back().it_kripke->state(),
                  twa_->trans_storage(todo.back().it_prop, tid_).dst
                 };
-              auto acc = twa_->trans_data(todo.back().it_prop, tid_).acc_;
+              auto acc = twa_->trans_data(todo.back().it_prop, tid_).acc;
               forward_iterators(sys_, twa_, todo.back().it_kripke,
                                 todo.back().it_prop, false, 0);
               auto it  = map.find(dst);
@@ -339,7 +340,7 @@ namespace spot
                       // is the one we are looking for, update the counter-
                       // -example and flush the bfs queue.
                       auto mark = twa_->trans_data(front->it_prop,
-                                                         tid_).acc_;
+                                                         tid_).acc;
                       if (!(acc & mark))
                         {
                           ctrx_element* current = front;

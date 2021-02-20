@@ -217,7 +217,7 @@ namespace spot
     bool run()
     {
       setup();
-      product_state initial = {sys_.initial(0), twa_->get_initial()};
+      product_state initial = {sys_.initial(0), twa_->get_init_state_number()};
       if (SPOT_LIKELY(push_state(initial, dfs_number_+1, {})))
         {
           todo_.push_back({initial, sys_.succ(initial.st_kripke, 0),
@@ -256,7 +256,7 @@ namespace spot
                 todo_.back().it_kripke->state(),
                 twa_->trans_storage(todo_.back().it_prop, 0).dst
               };
-              auto acc = twa_->trans_data(todo_.back().it_prop, 0).acc_;
+              auto acc = twa_->trans_data(todo_.back().it_prop, 0).acc;
               forward_iterators(sys_, twa_, todo_.back().it_kripke,
                                 todo_.back().it_prop, false, 0);
               auto it  = map.find(dst);
@@ -316,7 +316,7 @@ namespace spot
           twa_->get_cubeset().release(c);
           res_->new_edge(map[todo_.back().st]-1, st, x,
                          twa_->trans_data
-                         (todo_.back().it_prop).acc_);
+                         (todo_.back().it_prop).acc);
         }
 
 

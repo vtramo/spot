@@ -49,8 +49,10 @@ namespace spot
     transition(const cube& cube, acc_cond::mark_t acc);
     ~transition() = default;
 
+    transition& operator=(transition&& t);
+
     cube cube_;
-    acc_cond::mark_t acc_;
+    acc_cond::mark_t acc;
   };
 
   /// \brief Class for iterators over transitions
@@ -132,6 +134,9 @@ namespace spot
     /// \brief Returns the acceptance condition associated to the automaton.
     acc_cond& acc();
 
+    /// \brief Returns the acceptance condition associated to the automaton.
+    acc_cond acc() const;
+
     /// \brief Returns the names of the atomic properties.
     std::vector<std::string> ap() const;
 
@@ -139,10 +144,10 @@ namespace spot
     unsigned new_state();
 
     /// \brief Updates the initial state to \a init
-    void set_initial(unsigned init);
+    void set_init_state(unsigned init);
 
     /// \brief Returns the id of the initial state in the automaton.
-    unsigned get_initial() const;
+    unsigned get_init_state_number() const;
 
     /// \brief Accessor for a state from its id.
     cstate* state_from_int(unsigned i);

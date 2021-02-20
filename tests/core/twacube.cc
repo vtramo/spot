@@ -84,7 +84,7 @@ int main()
       auto& d = aut->trans_data(it, seed);
       std::cout << t.src << ' ' << t.dst << ' '
                 << ' ' << aut->get_cubeset().dump(d.cube_, aps)
-                << ' ' << d.acc_
+                << ' ' << d.acc
                 << std::endl;
     }
   spot::print_dot(std::cout, spot::twacube_to_twa(aut), "A");

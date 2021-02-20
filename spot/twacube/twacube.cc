@@ -27,12 +27,12 @@ namespace spot
   { }
 
   transition::transition(transition&& t) noexcept:
-  cube_(std::move(t.cube_)), acc_(std::move(t.acc_))
+  cube_(std::move(t.cube_)), acc(std::move(t.acc))
   { }
 
   transition::transition(const cube& cube,
                          acc_cond::mark_t acc):
-    cube_(cube),  acc_(acc)
+    cube_(cube),  acc(acc)
   { }
 
   twacube::twacube(const std::vector<std::string> aps):
@@ -46,7 +46,21 @@ namespace spot
       cs.release(theg_.edge_data(i).cube_);
   }
 
+  transition& transition::operator=(transition&& t)
+    {
+      //FIXME this == t
+      cube_ = t.cube_;
+      t.cube_ = nullptr;
+      acc = t.acc;
+      return *this;
+    }
+
   acc_cond& twacube::acc()
+  {
+    return acc_;
+  }
+
+  acc_cond twacube::acc() const
   {
     return acc_;
   }
@@ -61,12 +75,12 @@ namespace spot
     return theg_.new_state();
   }
 
-  void twacube::set_initial(unsigned init)
+  void twacube::set_init_state(unsigned init)
   {
     init_ = init;
   }
 
-  unsigned twacube::get_initial() const
+  unsigned twacube::get_init_state_number() const
   {
     if (theg_.num_states() == 0)
       throw std::runtime_error("automaton has no state at all");
@@ -129,7 +143,7 @@ namespace spot
        os << twa.theg_.edge_storage(i).src << "->"
           << twa.theg_.edge_storage(i).dst <<  " : "
           << cs.dump(twa.theg_.edge_data(i).cube_, twa.aps_)
-          << ' ' << twa.theg_.edge_data(i).acc_
+          << ' ' << twa.theg_.edge_data(i).acc
           << '\n';
     return os;
   }

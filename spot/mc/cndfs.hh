@@ -329,7 +329,7 @@ namespace spot
     void blue_dfs()
     {
       product_state initial = {sys_.initial(tid_),
-                               twa_->get_initial(),
+                               twa_->get_init_state_number(),
                                nullptr};
       if (!push_blue(initial, false).first)
         return;
@@ -354,7 +354,7 @@ namespace spot
                                  nullptr
               };
 
-              bool acc = (bool) twa_->trans_storage(current.it_prop, tid_).acc_;
+              bool acc = (bool) twa_->trans_storage(current.it_prop, tid_).acc;
               forward_iterators(sys_, twa_, todo_blue_.back().it_kripke,
                         todo_blue_.back().it_prop, false, tid_);
 
@@ -443,7 +443,7 @@ namespace spot
                                  twa_->trans_storage(current.it_prop, tid_).dst,
                                  nullptr
               };
-              bool acc = (bool) twa_->trans_storage(current.it_prop, tid_).acc_;
+              bool acc = (bool) twa_->trans_storage(current.it_prop, tid_).acc;
               forward_iterators(sys_, twa_, todo_red_.back().it_kripke,
                                 todo_red_.back().it_prop, false, tid_);
 
