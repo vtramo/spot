@@ -35,6 +35,12 @@ namespace spot
     /// \brief Identifiers for automaton patterns
     enum aut_pattern_id {
       AUT_BEGIN = 256,
+      /// \brief A deterministic automaton that leads to the worst case of IAR.
+      //
+      /// Build a deterministic Streett automaton with 2n states and k pairs
+      /// such that an equivalent deterministic parity automaton
+      /// has at least 2n⋅k! states.
+      AUT_IAR_DSA_2N = AUT_BEGIN,
       /// \brief A family of co-Büchi automata.
       ///
       /// Builds a co-Büchi automaton of size 2n+1 that is
@@ -43,7 +49,7 @@ namespace spot
       /// \cite kuperberg.15.icalp
       ///
       /// Only defined for n>0.
-      AUT_KS_NCA = AUT_BEGIN,
+      AUT_KS_NCA,
       /// \brief Hard-to-complement non-deterministic Büchi automata
       ///
       /// Build a non-deterministic Büchi automaton with 3n+1 states
@@ -82,6 +88,9 @@ namespace spot
       AUT_END
     };
 
+    SPOT_API int
+    aut_pattern_argc(aut_pattern_id pattern);
+
     /// \brief generate an automaton from a known pattern
     ///
     /// The pattern is specified using one value from the aut_pattern_id
@@ -92,7 +101,7 @@ namespace spot
     /// automata, pass the bdd_dict to use to make sure that all share
     /// the same.
     SPOT_API twa_graph_ptr
-    aut_pattern(aut_pattern_id pattern, int n,
+    aut_pattern(aut_pattern_id pattern, int n, int k = 2,
                 spot::bdd_dict_ptr dict = make_bdd_dict());
 
     /// \brief convert an aut_pattern_it value into a name

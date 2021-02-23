@@ -50,6 +50,9 @@ static const argp_option options[] =
     /**************************************************/
     // Keep this alphabetically sorted (expect for aliases).
     { nullptr, 0, nullptr, 0, "Pattern selection:", 1},
+    { "iar-dsa-2n", gen::AUT_IAR_DSA_2N, "RANGE[,RANGE]", 0,
+      "A deterministic Streett automaton with 2N states and K pairs such that "
+      "any equivalent parity automaton has at least 2N⋅K! states.", 0},
     { "ks-nca", gen::AUT_KS_NCA, "RANGE", 0,
       "A co-Büchi automaton with 2N+1 states for which any equivalent "
       "deterministic co-Büchi automaton has at least 2^N/(2N+1) states.", 0},
@@ -71,7 +74,8 @@ static const argp_option options[] =
 struct job
 {
   gen::aut_pattern_id pattern;
-  struct range range;
+  struct range range_states;
+  struct range range_colors;
 };
 
 typedef std::vector<job> jobs_t;
@@ -90,7 +94,36 @@ enqueue_job(int pattern, const char* range_str)
 {
   job j;
   j.pattern = static_cast<gen::aut_pattern_id>(pattern);
-  j.range = parse_range(range_str);
+  j.range_colors.min = -1;
+  j.range_colors.max = -1;
+  if (range_str)
+  {
+    if (gen::aut_pattern_argc(j.pattern) == 2)
+    {
+      const char *comma = strchr(range_str, ',');
+      if (!comma)
+      {
+        j.range_states = j.range_colors = parse_range(range_str);
+        j.range_colors.min = std::max(j.range_colors.min, 2);
+        j.range_colors.max = std::max(j.range_colors.min, 2);
+      }
+      else
+      {
+        std::string range(range_str, comma);
+        j.range_states = parse_range(range.c_str());
+        j.range_colors = parse_range(comma + 1);
+      }
+    }
+    else
+      j.range_states = parse_range(range_str);
+  }
+  else
+  {
+    j.range_states.min = 1;
+    j.range_states.max = 20;
+    j.range_colors.min = 2;
+    j.range_colors.max = MAX_ACCSETS / 2 - 1;
+  }
   jobs.push_back(j);
 }
 
@@ -109,11 +142,11 @@ parse_opt(int key, char* arg, struct argp_state*)
 }
 
 static void
-output_pattern(gen::aut_pattern_id pattern, int n)
+output_pattern(gen::aut_pattern_id pattern, int n, int k)
 {
   process_timer timer;
   timer.start();
-  twa_graph_ptr aut = spot::gen::aut_pattern(pattern, n);
+  twa_graph_ptr aut = spot::gen::aut_pattern(pattern, n, k);
   timer.stop();
   automaton_printer printer;
   printer.print(aut, timer, nullptr, aut_pattern_name(pattern), n);
@@ -124,14 +157,22 @@ run_jobs()
 {
   for (auto& j: jobs)
     {
-      int inc = (j.range.max < j.range.min) ? -1 : 1;
-      int n = j.range.min;
+      int inc = (j.range_states.max < j.range_states.min) ? -1 : 1;
+      int inc_k = (j.range_colors.max < j.range_colors.min) ? -1 : 1;
+      int n = j.range_states.min;
+      int k = j.range_colors.min;
       for (;;)
         {
-          output_pattern(j.pattern, n);
-          if (n == j.range.max)
+          output_pattern(j.pattern, n, k);
+          if (n == j.range_states.max && k == j.range_colors.max)
             break;
-          n += inc;
+          if (k == j.range_colors.max)
+          {
+            n += inc;
+            k = j.range_colors.min;
+          }
+          else
+            k += inc_k;
         }
     }
 }

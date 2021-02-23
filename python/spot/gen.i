@@ -121,9 +121,9 @@ def ltl_patterns(*args):
 
 # Override aut_pattern now(), because %feature("shadow") does not
 # seem to work correctly.  See https://github.com/swig/swig/issues/980
-def aut_pattern(pattern: 'spot::gen::aut_pattern_id', n: 'int',
+def aut_pattern(pattern: 'spot::gen::aut_pattern_id', n: 'int', k: 'int' = 2,
                 dict: 'spot::bdd_dict_ptr' = None) -> "spot::twa_graph_ptr":
-  return _gen.aut_pattern(pattern, n, dict or spot._bdd_dict)
+  return _gen.aut_pattern(pattern, n, k, dict or spot._bdd_dict)
 
 
 def aut_patterns(*args):

@@ -33,6 +33,10 @@ New in spot 2.9.6.dev (not yet released)
 
   - autfilt learned a --kill-states=NUM[,NUM...] option.
 
+  - genaut has a new option --iar-dsa-2n. It gives a set of Streett automata
+    with n (even) states and k pairs such that any equivalent Rabin automaton
+    has at least n⋅k! states.
+
   Library:
 
   - Historically, Spot labels automata by Boolean formulas over

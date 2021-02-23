@@ -220,7 +220,53 @@ namespace spot
       return aut;
     }
 
-    twa_graph_ptr aut_pattern(aut_pattern_id pattern, int n, bdd_dict_ptr dict)
+    static twa_graph_ptr
+    iar_dsa_2n(unsigned n, unsigned k, bdd_dict_ptr dict)
+    {
+      n *= 2;
+      std::stringstream string_error;
+      string_error << "iar expects ";
+      bool error = false;
+      if (n == 0)
+      {
+        string_error << "a positive number of states";
+        error = true;
+      }
+      if (k <= 1)
+      {
+        if (error)
+          string_error << " and ";
+        string_error << "at least 2 pairs";
+        error = true;
+      }
+      if (error)
+        throw std::runtime_error(string_error.str());
+      auto aut = make_twa_graph(dict);
+      aut->set_acceptance(2 * k, acc_cond::acc_code::streett(k));
+      aut->new_states(n);
+      aut->set_init_state(0);
+      unsigned nap = ulog2(k * n / 2);
+      std::vector<int> apvars(nap);
+      for (unsigned a = 0; a < nap; ++a)
+        apvars[a] = aut->register_ap("p" + std::to_string(a));
+      for (unsigned i = 0; i < n; i += 2)
+        for (unsigned color = 0; color < 2 * k; color += 2)
+        {
+          unsigned index = (i * k + color) / 2;
+          bdd cond = bdd_ibuildcube(index, nap, apvars.data());
+          aut->new_edge(i, i + 1, cond, {color});
+          aut->new_edge(i + 1, (i + 2) % n, cond, {color + 1});
+        }
+      aut->prop_state_acc(false);
+      aut->prop_complete((1U << nap) == k);
+      aut->prop_universal(true);
+      aut->prop_inherently_weak(false);
+      aut->prop_stutter_invariant(false);
+      return aut;
+
+    }
+    twa_graph_ptr aut_pattern(aut_pattern_id pattern, int n, int k,
+                              bdd_dict_ptr dict)
     {
       if (n < 0)
         {
@@ -233,6 +279,8 @@ namespace spot
       switch (pattern)
         {
           // Keep this alphabetically-ordered!
+        case AUT_IAR_DSA_2N:
+          return iar_dsa_2n(n, k, dict);
         case AUT_KS_NCA:
           return ks_nca(n, dict);
         case AUT_L_NBA:
@@ -247,10 +295,28 @@ namespace spot
       throw std::runtime_error("unsupported pattern");
     }
 
+    int
+    aut_pattern_argc(aut_pattern_id pattern)
+    {
+      switch (pattern)
+      {
+        case AUT_IAR_DSA_2N :
+          return 2;
+        case AUT_KS_NCA :
+        case AUT_L_NBA :
+        case AUT_L_DSA :
+        case AUT_M_NBA :
+          return 1;
+        default:
+          SPOT_UNREACHABLE();
+      }
+    }
+
     const char* aut_pattern_name(aut_pattern_id pattern)
     {
       static const char* const class_name[] =
         {
+          "iar-dsa-2n",
           "ks-nca",
           "l-nba",
           "l-dsa",
