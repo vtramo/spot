@@ -34,22 +34,14 @@
 
 namespace spot
 {
-  // FIXME: use ec_stats instead
-  /// \brief This object is returned by the algorithm below
-  struct SPOT_API deadlock_stats
-  {
-    unsigned states;            ///< \brief Number of states visited
-    unsigned transitions;       ///< \brief Number of transitions visited
-    unsigned instack_dfs;       ///< \brief Maximum DFS stack
-    bool has_deadlock;          ///< \brief Does the model contains a deadlock
-    unsigned walltime;          ///< \brief Walltime for this thread in ms
-  };
-
   /// \brief This class aims to explore a model to detect wether it contains a
   /// deadlock. However, unlike the classical swarmed_deadlock class, it is
   /// using bitstate hashing and a Bloom filter to store persistent information.
+  /// If Deadlock equals std::true_type performs dealock algorithm,
+  /// otherwise perform a simple reachability.
   template<typename State, typename SuccIterator,
-           typename StateHash, typename StateEqual>
+           typename StateHash, typename StateEqual,
+           typename Deadlock>
   class swarmed_deadlock_bitstate
   {
     /// \brief Describes the status of a state
@@ -97,13 +89,24 @@ namespace spot
       }
     };
 
+    static constexpr bool compute_deadlock =
+       std::is_same<std::true_type, Deadlock>::value;
+
   public:
 
     ///< \brief Shortcut to ease shared map manipulation
     using shared_map = brq::concurrent_hash_set<deadlock_pair>;
+    using shared_struct = shared_map;
+
+    static shared_struct* make_shared_structure(shared_map, unsigned)
+    {
+      return nullptr; // Useless
+    }
 
     swarmed_deadlock_bitstate(kripkecube<State, SuccIterator>& sys,
+                              twacube_ptr, /* useless here */
                               shared_map& map, size_t mem_size,
+                              shared_struct* /* useless here */,
                               unsigned tid, std::atomic<bool>& stop):
       sys_(sys), tid_(tid), map_(map),
       bloom_filter_(mem_size),
@@ -114,6 +117,7 @@ namespace spot
       static_assert(spot::is_a_kripkecube_ptr<decltype(&sys),
                                              State, SuccIterator>::value,
                     "error: does not match the kripkecube requirements");
+      SPOT_ASSERT(nb_th_ > tid);
     }
 
     virtual ~swarmed_deadlock_bitstate()
@@ -225,8 +229,17 @@ namespace spot
 
     void finalize()
     {
-      stop_ = true;
+      bool tst_val = false;
+      bool new_val = true;
+      bool exchanged = stop_.compare_exchange_strong(tst_val, new_val);
+      if (exchanged)
+        finisher_ = true;
       tm_.stop("DFS thread " + std::to_string(tid_));
+    }
+
+    bool finisher()
+    {
+      return finisher_;
     }
 
     unsigned states()
@@ -296,9 +309,31 @@ namespace spot
       return tm_.timer("DFS thread " + std::to_string(tid_)).walltime();
     }
 
-    deadlock_stats stats()
+    std::string name()
     {
-      return {states(), transitions(), dfs_, has_deadlock(), walltime()};
+      if (compute_deadlock)
+        return "deadlock_bitstate";
+      return "reachability";
+    }
+
+    int sccs()
+    {
+      return -1;
+    }
+
+    mc_rvalue result()
+    {
+      if (compute_deadlock)
+        return deadlock_ ? mc_rvalue::DEADLOCK : mc_rvalue::NO_DEADLOCK;
+      return mc_rvalue::SUCCESS;
+    }
+
+    std::string trace()
+    {
+      std::string result;
+      for (auto& e: todo_)
+        result += sys_.to_string(e.s, tid_);
+      return result;
     }
 
   private:
@@ -326,5 +361,6 @@ namespace spot
     /// \brief Stack that grows according to the todo stack. It avoid multiple
     /// concurent access to the shared map.
     std::vector<int*> refs_;
+    bool finisher_ = false;
   };
 }

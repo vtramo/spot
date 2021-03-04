@@ -31,12 +31,13 @@ namespace spot
   /// \brief The list of parallel model-checking algorithms available
   enum class SPOT_API mc_algorithm
     {
-     BLOEMEN_EC,    ///< \brief Bloemen.16.hvc emptiness check
-     BLOEMEN_SCC,   ///< \brief Bloemen.16.ppopp SCC computation
-     CNDFS,         ///< \brief Evangelista.12.atva emptiness check
-     DEADLOCK,      ///< \brief Check wether there is a deadlock
-     REACHABILITY,  ///< \brief Only perform a reachability algorithm
-     SWARMING,      ///< \brief Holzmann.11.ieee applied to renault.13.lpar
+     BLOEMEN_EC,        ///< \brief Bloemen.16.hvc emptiness check
+     BLOEMEN_SCC,       ///< \brief Bloemen.16.ppopp SCC computation
+     CNDFS,             ///< \brief Evangelista.12.atva emptiness check
+     DEADLOCK,          ///< \brief Check wether there is a deadlock
+     DEADLOCK_BITSTATE, ///< \brief Deadlock algo with bitstate hashing
+     REACHABILITY,      ///< \brief Only perform a reachability algorithm
+     SWARMING,          ///< \brief Holzmann.11.ieee applied to renault.13.lpar
     };
 
   enum class SPOT_API mc_rvalue
@@ -75,6 +76,8 @@ namespace spot
         os << "cndfs";  break;
       case mc_algorithm::DEADLOCK:
         os << "deadlock";  break;
+      case mc_algorithm::DEADLOCK_BITSTATE:
+        os << "deadlock_bitstate";  break;
       case mc_algorithm::REACHABILITY:
         os << "reachability";  break;
       case mc_algorithm::SWARMING:

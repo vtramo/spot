@@ -31,24 +31,20 @@
 
 using namespace spot;
 
-static void print_stats(deadlock_stats stats, int mem_used)
-{
-  std::cout << "\tstates: " << stats.states << "\n"
-            << "\ttransitions: " << stats.transitions << "\n"
-            << "\tinstack_dfs: " << stats.instack_dfs << "\n"
-            << "\thas_deadlock: " << stats.has_deadlock << "\n"
-            << "\twalltime (seconds): " << stats.walltime << "\n"
-            << "\tmem_used (nb pages): " << mem_used << "\n";
-}
-
 template<typename kripke_ptr, typename State,
          typename Iterator, typename Hash, typename Equal>
 ec_stats run_deadlock_ref(kripke_ptr sys)
 {
-  auto prop = nullptr;
-  auto trace = false;
   return instanciate<swarmed_deadlock<State, Iterator, Hash, Equal, std::true_type>,
-        kripke_ptr, State, Iterator, Hash, Equal> (sys, prop, trace);
+        kripke_ptr, State, Iterator, Hash, Equal> (sys);
+}
+
+template<typename kripke_ptr, typename State,
+         typename Iterator, typename Hash, typename Equal>
+ec_stats run_deadlock_bitstate(kripke_ptr sys)
+{
+  return instanciate<swarmed_deadlock_bitstate<State, Iterator, Hash, Equal, std::true_type>,
+        kripke_ptr, State, Iterator, Hash, Equal> (sys);
 }
 
 template<typename kripke_ptr, typename State,
@@ -57,7 +53,6 @@ void bench_deadlock(kripke_ptr sys, std::vector<size_t> mem_sizes)
 {
   spot::timer_map timer;
   int mem_used;
-  using algo_name = swarmed_deadlock_bitstate<State, Iterator, Hash, Equal>;
 
   int mem_used_ref = spot::memusage();
   auto ref = run_deadlock_ref<spot::ltsmin_kripkecube_ptr,
@@ -74,19 +69,21 @@ void bench_deadlock(kripke_ptr sys, std::vector<size_t> mem_sizes)
   {
     const std::string round = "Using " + std::to_string(mem_size) + " bits";
 
-    typename algo_name::shared_map map;
-    std::atomic<bool> stop(false);
-    auto bitstate = new algo_name(*sys, map, mem_size, 0, stop);
     timer.start(round);
     mem_used = spot::memusage();
-    bitstate->run();
+    // TODO: pass mem_size parameter
+    auto res = run_deadlock_bitstate<spot::ltsmin_kripkecube_ptr,
+       spot::cspins_state,
+       spot::cspins_iterator,
+       spot::cspins_state_hash,
+       spot::cspins_state_equal>
+       (sys);
     mem_used = spot::memusage() - mem_used;
     timer.stop(round);
 
     std::cout << "\n" << round << "\n";
-    print_stats(bitstate->stats(), mem_used);
-
-    delete bitstate;
+    std::cout << "Bitstate version:\n" << res << "\n";
+    std::cout << "mem_used (nb pages): " << mem_used_ref << "\n";
   }
 
   std::cout << "\n";

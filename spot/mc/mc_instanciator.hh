@@ -27,6 +27,7 @@
 #include <spot/mc/mc.hh>
 #include <spot/mc/lpar13.hh>
 #include <spot/mc/deadlock.hh>
+#include <spot/mc/deadlock_bitstate.hh>
 #include <spot/mc/cndfs.hh>
 #include <spot/mc/bloemen.hh>
 #include <spot/mc/bloemen_ec.hh>
@@ -98,7 +99,13 @@ namespace spot
     for (unsigned i = 0; i < nbth; ++i)
       {
         ss[i] = algo_name::make_shared_structure(map, i);
-        swarmed[i] = new algo_name(*sys, prop, map, ss[i], i, stop);
+
+        if constexpr (std::is_same_v<algo_name,
+            spot::swarmed_deadlock_bitstate<State, Iterator, Hash, Equal, std::true_type>>)
+            // TODO: bitstate version with size as parameter
+            swarmed[i] = new algo_name(*sys, prop, map, 1000000, ss[i], i, stop);
+        else
+            swarmed[i] = new algo_name(*sys, prop, map, ss[i], i, stop);
 
         static_assert(spot::is_a_mc_algorithm<decltype(&*swarmed[i])>::value,
                     "error: does not match the kripkecube requirements");
@@ -233,6 +240,11 @@ namespace spot
       case mc_algorithm::DEADLOCK:
         return instanciate
          <spot::swarmed_deadlock<State, Iterator, Hash, Equal, std::true_type>,
+           kripke_ptr, State, Iterator, Hash, Equal> (sys, prop, trace);
+
+      case mc_algorithm::DEADLOCK_BITSTATE:
+        return instanciate
+         <spot::swarmed_deadlock_bitstate<State, Iterator, Hash, Equal, std::true_type>,
            kripke_ptr, State, Iterator, Hash, Equal> (sys, prop, trace);
 
       case mc_algorithm::REACHABILITY:
