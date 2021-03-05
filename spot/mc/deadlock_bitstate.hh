@@ -197,25 +197,22 @@ namespace spot
 
     bool pop()
     {
-      // Track maximum dfs size
-      dfs_ = todo_.size()  > dfs_ ? todo_.size() : dfs_;
-
-      // Clear bitstate metadata
-      State st = todo_.back().s;
-      int* unbox_s = sys_.unbox_bitstate_metadata(st);
-      int cnt = __atomic_load_n(&unbox_s[0], __ATOMIC_RELAXED);
-      while (cnt & (1 << tid_))
-      {
-        cnt = __atomic_fetch_and(unbox_s, ~(1 << tid_), __ATOMIC_RELAXED);
-      }
-
       // Insert the state into the filter
+      State st = todo_.back().s;
       bloom_filter_.insert(state_hash_(st));
 
       // Don't avoid pop but modify the status of the state
       // during backtrack
       refs_.back()[tid_] = CLOSED;
       refs_.pop_back();
+
+      // Clear bitstate metadata
+      int* unbox_s = sys_.unbox_bitstate_metadata(st);
+      int cnt = __atomic_load_n(&unbox_s[0], __ATOMIC_RELAXED);
+      while (cnt & (1 << tid_))
+      {
+        cnt = __atomic_fetch_and(unbox_s, ~(1 << tid_), __ATOMIC_RELAXED);
+      }
 
       // Release memory if no thread is using the state
       if (cnt == 0)
@@ -224,6 +221,10 @@ namespace spot
         map_.erase(p, pair_hasher());
         sys_.recycle_state(st);
       }
+
+      // Track maximum dfs size
+      dfs_ = todo_.size()  > dfs_ ? todo_.size() : dfs_;
+
       return true;
     }
 
