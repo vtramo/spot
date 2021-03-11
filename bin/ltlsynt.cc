@@ -63,6 +63,7 @@ enum
   OPT_VERBOSE
 };
 
+// TODO: Une option "tlsf"
 static const argp_option options[] =
   {
     /**************************************************/
@@ -144,15 +145,6 @@ static double strat2aut_time = 0.0;
 static unsigned nb_states_dpa = 0;
 static unsigned nb_states_parity_game = 0;
 
-enum solver
-{
-  DET_SPLIT,
-  SPLIT_DET,
-  DPA_SPLIT,
-  LAR,
-  LAR_OLD,
-};
-
 static char const *const solver_names[] =
   {
    "ds",
@@ -194,32 +186,14 @@ namespace
       return s;
     };
 
-  static spot::twa_graph_ptr
-  to_dpa(const spot::twa_graph_ptr& split)
-  {
-    // if the input automaton is deterministic, degeneralize it to be sure to
-    // end up with a parity automaton
-    auto dpa = spot::tgba_determinize(spot::degeneralize_tba(split),
-                                      false, true, true, false);
-    dpa->merge_edges();
-    if (opt_print_pg)
-      dpa = spot::sbacc(dpa);
-    spot::reduce_parity_here(dpa, true);
-    spot::change_parity_here(dpa, spot::parity_kind_max,
-                             spot::parity_style_odd);
-    assert((
-      [&dpa]() -> bool
-        {
-          bool max, odd;
-          dpa->acc().is_parity(max, odd);
-          return max && odd;
-        }()));
-    assert(spot::is_deterministic(dpa));
-    return dpa;
-  }
-
+  // bench_var est une struct qui stocke les infos comme la durée de traduction,
+  // le nombre d'états du DPA et qui seront affichées par ltlsynt. Voir
+  // synthesis.hh.
+  // TODO: Un point à régler sur le CSV est que lorsque l'on va découper
+  // la formule, il va y avoir plusieurs temps de traduction. On se contente
+  // d'en faire la somme ?
   static void
-  print_csv(spot::formula f, bool realizable)
+  print_csv(spot::formula f, bool realizable, bench_var bv)
   {
     if (verbose)
       std::cerr << "writing CSV to " << opt_csv << '\n';
@@ -247,18 +221,18 @@ namespace
     os << f;
     spot::escape_rfc4180(out << '"', os.str());
     out << "\",\"" << solver_names[opt_solver]
-        << "\"," << trans_time
-        << ',' << split_time
-        << ',' << paritize_time;
+        << "\"," << bv.trans_time
+        << ',' << bv.split_time
+        << ',' << bv.paritize_time;
     if (!opt_print_pg && !opt_print_hoa)
       {
-        out << ',' << solve_time;
+        out << ',' << bv.solve_time;
         if (!opt_real)
-          out << ',' << strat2aut_time;
-        out << ',' << realizable;
+          out << ',' << bv.strat2aut_time;
+        out << ',' << bv.realizable;
       }
-    out << ',' << nb_states_dpa
-        << ',' << nb_states_parity_game
+    out << ',' << bv.nb_states_dpa
+        << ',' << bv.nb_states_parity_game
         << '\n';
     outf.close(opt_csv);
   }
@@ -267,6 +241,9 @@ namespace
   {
   private:
     spot::translator& trans_;
+    // TODO: Ces trucs là j'ai l'impression qu'il n'y a pas d'intérêt à
+    // les avoir en vecteur de string. Pourquoi ne pas avoir des vector de
+    // formula ? Au pire il y a formula::ap_name()
     std::vector<std::string> input_aps_;
     std::vector<std::string> output_aps_;
 
@@ -279,8 +256,14 @@ namespace
     {
     }
 
+    // TODO: Ca part vers synthesis.cc. Il faudra penser au bench_var associé.
+    // Le fait d'avoir découpé la synthèse en create_strategy(),
+    // create_aiger_circuit(), … permettra à ltlsynt de choisir ce qu'il veut.
+    // Par exemple opt_print_pg va faire qu'il va appeler create_game et
+    // l'afficher lui même.
     int solve_formula(spot::formula f)
     {
+      // Le trans_ est un argument passé aux create_XX().
       spot::process_timer timer;
       timer.start();
       spot::stopwatch sw;
@@ -328,6 +311,7 @@ namespace
                     << " states and " << aut->num_sets() << " colors\n";
         }
 
+      // Partie gérée par create_game()
       spot::twa_graph_ptr dpa = nullptr;
       switch (opt_solver)
         {
@@ -408,6 +392,7 @@ namespace
                           << dpa->num_states() << " states\n"
                           << "determinization and simplification took "
                           << paritize_time << " seconds\n";
+              // FIXME: La valeur est assignée après avoir été affichée.
               if (want_time)
                 paritize_time = sw.stop();
               // The named property "state-player" is set in split_2step
@@ -455,6 +440,7 @@ namespace
               break;
             }
         }
+      // Partie gérée par ltlsynt
       nb_states_dpa = dpa->num_states();
 
       if (opt_print_pg)
@@ -470,6 +456,7 @@ namespace
           return 0;
         }
 
+      // partie gérée par create_strategy()
       if (want_time)
         sw.start();
       bool player1winning = solve_parity_game(dpa);
@@ -490,7 +477,8 @@ namespace
                                               true, false);
               if (want_time)
                 strat2aut_time = sw.stop();
-
+              // A ce moment la stratégie est retournée par create_strategy et
+              // le print est géré par ltlsynt.
               // output the winning strategy
               if (opt_print_aiger)
                 spot::print_aiger(std::cout, strat_aut, opt_print_aiger);
