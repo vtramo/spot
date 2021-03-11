@@ -20,6 +20,7 @@
 #pragma once
 
 #include <spot/twa/twagraph.hh>
+#include <spot/twaalgos/translate.hh>
 #include <bddx.h>
 
 namespace spot
@@ -62,7 +63,7 @@ namespace spot
   unsplit_2step(const const_twa_graph_ptr& aut);
 
 
-  /// \brief Takes a solved game and restricts the automat to the
+  /// \brief Takes a solved game and restricts the automaton to the
   ///        winning strategy of the player
   ///
   /// \param arena        twa_graph with named properties "state-player",
@@ -74,4 +75,50 @@ namespace spot
   SPOT_API spot::twa_graph_ptr
   apply_strategy(const spot::twa_graph_ptr& arena,
                  bdd all_outputs, bool unsplit, bool keep_acc);
+
+  // Dans ltlsynt on mesure les temps, nb d'états,…
+  // J'en fais une structure qui est remplie si besoin.
+  typedef struct bench_var
+  {
+    double trans_time = 0.0;
+    double split_time = 0.0;
+    double paritize_time = 0.0;
+    double solve_time = 0.0;
+    double strat2aut_time = 0.0;
+    unsigned nb_states_dpa = 0;
+    unsigned nb_states_parity_game = 0;
+  } bench_var;
+
+  enum solver
+  {
+    DET_SPLIT,
+    SPLIT_DET,
+    DPA_SPLIT,
+    LAR,
+    LAR_OLD,
+  };
+
+  spot::twa_graph_ptr
+  create_game(spot::formula f, std::vector<spot::formula> ins,
+              std::vector<spot::formula> outs,
+              spot::translator trans,
+              bench_var *bv = nullptr);
+
+  spot::twa_graph_ptr
+  create_strategy(spot::formula f, std::vector<spot::formula> ins,
+                  std::vector<spot::formula> outs,
+                  spot::translator trans,
+                  bench_var *bv = nullptr);
+
+  // TODO: Passer la structure aiger en public.
+  // Actuellement aiger est un truc utilisé uniquement dans print_aiger
+  // qui fait plus que printer un aiger : il transforme une stratégie en aiger
+  // avant de l'afficher.
+  class aiger;
+
+  std::optional<spot::aiger>
+  create_aiger_circuit(spot::formula f, std::vector<spot::formula> ins,
+                       std::vector<spot::formula> outs,
+                       spot::translator trans,
+                       bench_var *bv = nullptr);
 }
