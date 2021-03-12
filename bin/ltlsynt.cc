@@ -136,6 +136,7 @@ static bool opt_real = false;
 static const char* opt_print_aiger = nullptr;
 static spot::option_map extra_options;
 
+static spot::game_info gi;
 
 static char const *const solver_names[] =
   {
@@ -165,7 +166,6 @@ static spot::solver const solver_types[] =
 };
 ARGMATCH_VERIFY(solver_args, solver_types);
 
-static spot::solver opt_solver = spot::SPLIT_DET;
 static bool verbose = false;
 
 namespace
@@ -178,18 +178,18 @@ namespace
       return s;
     };
 
-  // bench_var est une struct qui stocke les infos comme la durée de traduction,
-  // le nombre d'états du DPA et qui seront affichées par ltlsynt. Voir
-  // synthesis.hh.
   // TODO: Un point à régler sur le CSV est que lorsque l'on va découper
   // la formule, il va y avoir plusieurs temps de traduction. On se contente
   // d'en faire la somme ?
   static void
-  print_csv(spot::formula f, bool realizable, spot::bench_var bv)
+  print_csv(spot::formula f, bool realizable)
   {
-    (void) realizable;
-    if (verbose)
-      std::cerr << "writing CSV to " << opt_csv << '\n';
+    auto& vs = gi.verbose_stream;
+    auto& bv = gi.bv;
+    if (not bv)
+      raise std::runtime_error("No information available for csv!");
+    if (vs)
+      vs << "writing CSV to " << opt_csv << '\n';
 
     output_file outf(opt_csv);
     std::ostream& out = outf.ostream();
@@ -214,18 +214,18 @@ namespace
     os << f;
     spot::escape_rfc4180(out << '"', os.str());
     out << "\",\"" << solver_names[opt_solver]
-        << "\"," << bv.trans_time
-        << ',' << bv.split_time
-        << ',' << bv.paritize_time;
+        << "\"," << bv->trans_time
+        << ',' << bv->split_time
+        << ',' << bv->paritize_time;
     if (!opt_print_pg && !opt_print_hoa)
       {
-        out << ',' << bv.solve_time;
+        out << ',' << bv->solve_time;
         if (!opt_real)
-          out << ',' << bv.strat2aut_time;
-        out << ',' << bv.realizable;
+          out << ',' << bv->strat2aut_time;
+        out << ',' << bv->realizable;
       }
-    out << ',' << bv.nb_states_dpa
-        << ',' << bv.nb_states_parity_game
+    out << ',' << bv->nb_states_arena
+        << ',' << bv->nb_states_parity_game
         << '\n';
     outf.close(opt_csv);
   }
@@ -284,8 +284,11 @@ namespace
   private:
     spot::translator &trans_;
     // TODO: Ces trucs là j'ai l'impression qu'il n'y a pas d'intérêt à
-    // les avoir en vecteur de string. Pourquoi ne pas avoir des vector de
-    // formula ? Au pire il y a formula::ap_name()
+    // les avoir en vecteur de string.
+    // Gardons le pour le moment, c'est quoi l'advantage des les avoir
+    // comme formule? Après je vais faire
+    // aut.register_ap(af.ap_name())
+    // ce n'est pas plus pratique
     std::vector<std::string> input_aps_;
     std::vector<std::string> output_aps_;
 
@@ -297,14 +300,55 @@ namespace
     {
     }
 
-    int process_formula(spot::formula f, const char *, int) override
+    int solve_formula(spot::formula f)
     {
-      unsigned res = solve_formula(f, input_aps_, output_aps_, trans_);
-      // TODO: Tous les trucs ne sont pas encore gérés proprement. Voir les
-      // fonction create_XXX
-      (void) print_csv;
-      // if (opt_csv)
-      //   print_csv(f, res == 0);
+      // Le trans_ est un argument passé aux create_XX().
+      spot::process_timer timer;
+      timer.start();
+
+      auto arena = spot::create_game(f, input_aps_, output_aps_, trans_, gi);
+
+      if (cgi.bv)
+        cgi.bv->nb_states_arena = dpa->num_states();
+
+      if (opt_print_pg)
+        {
+          timer.stop();
+          pg_print(std::cout, dpa);
+          return 0;
+        }
+      if (opt_print_hoa)
+        {
+          timer.stop();
+          spot::print_hoa(std::cout, dpa, opt_print_hoa_args) << '\n';
+          return 0;
+        }
+
+      auto [winning, strat] = spot::create_strategy(arena, gi);
+
+      if (winning)
+        {
+          if (opt_print_aiger)
+            spot::print_aiger(std::cout, strat_aut, opt_print_aiger);
+          else
+            {
+              automaton_printer printer;
+              printer.print(strat_aut, timer);
+            }
+          return 0;
+        }
+      else
+        {
+          std::cout << "UNREALIZABLE\n";
+          return 1;
+        }
+    }
+
+    int process_formula(spot::formula f, const char*, int) override
+    {
+      unsigned res = solve_formula(f);
+      if (opt_csv)
+        print_csv(f, res == 0);
       return res;
     }
   };
@@ -318,10 +362,12 @@ namespace
   switch (key)
     {
     case OPT_ALGO:
-      opt_solver = XARGMATCH("--algo", arg, solver_args, solver_types);
+      gi.s = XARGMATCH("--algo", arg, solver_args, solver_types);
       break;
     case OPT_CSV:
       opt_csv = arg ? arg : "-";
+      if (not gi.bv)
+        gi.bv = spot::bench_var()
       break;
     case OPT_INPUT:
       {
@@ -347,6 +393,7 @@ namespace
       }
     case OPT_PRINT:
       opt_print_pg = true;
+      gi.force_sbacc = true;
       break;
     case OPT_PRINT_HOA:
       opt_print_hoa = true;
@@ -357,9 +404,12 @@ namespace
       break;
     case OPT_REAL:
       opt_real = true;
+      gi.apply_strat = false;
       break;
     case OPT_VERBOSE:
-      verbose = true;
+      gi.verbose_stream = std::cerr;
+      if (not gi.bv)
+        gi.bv = spot::bench_var()
       break;
     case 'x':
       {

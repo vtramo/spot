@@ -82,20 +82,18 @@ namespace spot
 
   // TODO: Dans ltlsynt on mesure les temps, nb d'états,…
   // J'en fais une structure qui est remplie si besoin.
-  typedef struct bench_var
+  struct bench_var
   {
     double trans_time = 0.0;
     double split_time = 0.0;
     double paritize_time = 0.0;
     double solve_time = 0.0;
     double strat2aut_time = 0.0;
-    unsigned nb_states_dpa = 0;
+    unsigned nb_states_arena = 0;
     unsigned nb_states_parity_game = 0;
+  };
 
-    bool realizable;
-  } bench_var;
-
-  enum solver
+  enum class solver
   {
     DET_SPLIT,
     SPLIT_DET,
@@ -104,22 +102,28 @@ namespace spot
     LAR_OLD,
   };
 
-  // TODO: L'interface est pas super, les bv sont des copies,…
-  SPOT_API spot::twa_graph_ptr
-  create_game(spot::formula& f, std::vector<spot::formula> ins,
-              std::vector<spot::formula> outs,
-              spot::translator& trans,
-              spot::solver sol = SPLIT_DET,
-              bool verbose = false,
-              bench_var bv = bench_var());
+  struct game_info
+  {
+    bool force_sbacc = false;
+    bool apply_strat = true;
+    solver s = solver::DET_SPLIT;
+    std::optional<bench_var> bv = {};
+    std::optional<std::ostream&> verbose_stream = {};
+  };
 
   SPOT_API spot::twa_graph_ptr
-  create_strategy(spot::formula& f, std::vector<spot::formula> ins,
-                  std::vector<spot::formula> outs,
-                  spot::translator& trans,
-                  bool verbose = false,
-                  solver sol = SPLIT_DET,
-                  bench_var bv = bench_var());
+  create_game(const formula& f,
+              const std::vector<std::string>& ins,
+              const std::vector<std::string>& outs,
+              spot::translator& trans,
+              game_info& gi);
+
+  SPOT_API bool
+  solve_game(twa_graph_ptr arena, game_info& gi);
+
+
+  SPOT_API std::pair<bool, twa_graph_ptr>
+  create_strategy(twa_graph_ptr arena, game_info& gi)
 
   SPOT_API bool
   is_realizable(spot::formula& f, std::vector<spot::formula> ins,
