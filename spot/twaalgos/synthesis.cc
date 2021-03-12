@@ -122,6 +122,29 @@ namespace{
              < std::tie(rhs->dst, rhs->acc, r_id);
     }
   }less_info_ptr;
+
+  static spot::twa_graph_ptr
+  ntgba2dpa(const spot::twa_graph_ptr &split, bool force_sbacc = false)
+  {
+    // if the input automaton is deterministic, degeneralize it to be sure to
+    // end up with a parity automaton
+    auto dpa = spot::tgba_determinize(spot::degeneralize_tba(split),
+                                      false, true, true, false);
+    dpa->merge_edges();
+    if (force_sbacc)
+      dpa = spot::sbacc(dpa);
+    spot::reduce_parity_here(dpa, true);
+    spot::change_parity_here(dpa, spot::parity_kind_max,
+                             spot::parity_style_odd);
+    assert((
+               [&dpa]() -> bool {
+                 bool max, odd;
+                 dpa->acc().is_parity(max, odd);
+                 return max && odd;
+               }()));
+    assert(spot::is_deterministic(dpa));
+    return dpa;
+  }
 }
 
 namespace spot
@@ -482,222 +505,222 @@ namespace spot
 
   }
 
-  static spot::twa_graph_ptr
-  to_dpa(const spot::twa_graph_ptr &split)
-  {
-    // if the input automaton is deterministic, degeneralize it to be sure to
-    // end up with a parity automaton
-    auto dpa = spot::tgba_determinize(spot::degeneralize_tba(split),
-                                      false, true, true, false);
-    dpa->merge_edges();
-    // TODO: Dans ltlsynt, s'il y a opt_print_pg, il faudra en faire un sbacc
-    // if (opt_print_pg)
-    //   dpa = spot::sbacc(dpa);
-    spot::reduce_parity_here(dpa, true);
-    spot::change_parity_here(dpa, spot::parity_kind_max,
-                             spot::parity_style_odd);
-    assert((
-        [&dpa]() -> bool {
-          bool max, odd;
-          dpa->acc().is_parity(max, odd);
-          return max && odd;
-        }()));
-    assert(spot::is_deterministic(dpa));
-    return dpa;
-  }
-
   spot::twa_graph_ptr
-  create_game(spot::formula& f, std::vector<spot::formula> ins,
-              std::vector<spot::formula> outs,
+  create_game(const spot::formula& f,
+              const std::vector<std::string>& ins,
+              const std::vector<std::string>& outs,
               spot::translator& trans,
-              spot::solver sol,
-              bool verbose,
-              bench_var bv)
+              create_game_info& gi)
   {
+    // Shortcuts
+    using tstr = std::to_string;
+    auto& bv = gi.bv;
+    auto& vs = gi.verbose_stream;
+
     auto aut = trans.run(&f);
-    // TODO: Ne sera plus géré comme ça
-    bdd all_inputs = bddtrue, all_outputs = bddtrue;
-    for (auto& x : ins)
-    {
-      auto y = aut->register_ap(x.ap_name());
-      all_inputs &= bdd_ithvar(y);
-    }
-    for (auto& x : outs)
-    {
-      auto y = aut->register_ap(x.ap_name());
-      all_outputs &= bdd_ithvar(y);
-    }
+
+    // Collect the ap's actually used in the automaton
+    auto used = aut.ap_vars()
+    // Register all and check which are actually used
+    auto ins = bddtrue;
+    auto outs = bddtrue;
+    auto unused_ins = bddtrue;
+    auto unused_outs = bddtrue;
+    for (auto&& ain : ins)
+      {
+        ainbdd = bdd_ithvar(aut.register_ap(ain));
+        if (ainbdd & used == used)
+          ins &= ainbdd;
+        else
+          unused_ins &= ainbdd;
+      }
+    for (auto&& aout : outs)
+      {
+        aoutbdd = bdd_ithvar(aut.register_ap(aout));
+        if (aoutbdd & used == used)
+          outs &= aoutbdd;
+        else
+          unused_outs &= aoutbdd;
+      }
+
     spot::twa_graph_ptr dpa = nullptr;
     spot::stopwatch sw;
-    switch (sol)
+
+    switch (s)
     {
-      case DET_SPLIT:
+      case solver::DET_SPLIT:
       {
-        sw.start();
-        auto tmp = to_dpa(aut);
-        if (verbose)
-          std::cerr << "determinization done\nDPA has "
-                    << tmp->num_states() << " states, "
-                    << tmp->num_sets() << " colors\n";
+        if (bv)
+          sw.start();
+        auto tmp = ntgba2dpa(aut, gi.force_sbacc);
+        if (vs)
+          vs << "determinization done\nDPA has "
+             << tmp->num_states() << " states, "
+             << tmp->num_sets() << " colors\n";
         tmp->merge_states();
-        bv.paritize_time = sw.stop();
-        if (verbose)
-          std::cerr << "simplification done\nDPA has "
-                    << tmp->num_states() << " states\n"
-                    << "determinization and simplification took "
-                    << bv.paritize_time << " seconds\n";
-        sw.start();
-        dpa = split_2step(tmp, all_inputs, all_outputs, true, true);
+        if (bv)
+          bv->paritize_time = sw.stop();
+        if (vs)
+          vs << "simplification done\nDPA has "
+             << tmp->num_states() << " states\n"
+             << "determinization and simplification took "
+             << bv->paritize_time << " seconds\n";
+        if (bv)
+          sw.start();
+        dpa = split_2step(tmp, ins, outs, true, true);
         spot::colorize_parity_here(dpa, true);
-        bv.split_time = sw.stop();
-        if (verbose)
-          std::cerr << "split inputs and outputs done in " << bv.split_time
-                    << " seconds\nautomaton has "
-                    << tmp->num_states() << " states\n";
+        if (bv)
+          bv->split_time = sw.stop();
+        if (vs)
+          vs << "split inputs and outputs done in " << bv->split_time
+             << " seconds\nautomaton has "
+             << tmp->num_states() << " states\n";
         break;
       }
-      case DPA_SPLIT:
+      case solver::DPA_SPLIT:
       {
-        // TODO: Y a un "beug" sur la gestion des durées là,
-        // simplification != parit.
-        sw.start();
+        if (bv)
+          sw.start();
         aut->merge_states();
-        bv.paritize_time = sw.stop();
-        if (verbose)
-          std::cerr << "simplification done in " << bv.paritize_time
-                    << " seconds\nDPA has " << aut->num_states()
-                    << " states\n";
-        sw.start();
-        dpa = split_2step(aut, all_inputs, all_outputs, true, true);
+        if (bv)
+          bv->paritize_time = sw.stop();
+        if (vs)
+          vs << "simplification done in " << bv->paritize_time
+             << " seconds\nDPA has " << aut->num_states()
+             << " states\n";
+        if (bv)
+          sw.start();
+        dpa = split_2step(aut, ins, outs, true, true);
         spot::colorize_parity_here(dpa, true);
-        bv.split_time = sw.stop();
-        if (verbose)
-          std::cerr << "split inputs and outputs done in " << bv.split_time
-                    << " seconds\nautomaton has "
-                    << dpa->num_states() << " states\n";
+        if (bv)
+          bv->split_time = sw.stop();
+        if (vs)
+          vs << "split inputs and outputs done in " << bv->split_time
+             << " seconds\nautomaton has "
+             << dpa->num_states() << " states\n";
         break;
       }
-      case SPLIT_DET:
+      case solver::SPLIT_DET:
       {
         sw.start();
         auto split = split_2step(aut, all_inputs, all_outputs,
                                 true, false);
-        bv.split_time = sw.stop();
-        if (verbose)
-          std::cerr << "split inputs and outputs done in " << bv.split_time
-                    << " seconds\nautomaton has "
-                    << split->num_states() << " states\n";
-        sw.start();
-        dpa = to_dpa(split);
-        if (verbose)
-          std::cerr << "determinization done\nDPA has "
-                    << dpa->num_states() << " states, "
-                    << dpa->num_sets() << " colors\n";
+        if (bv)
+          bv->split_time = sw.stop();
+        if (vs)
+          vs << "split inputs and outputs done in " << bv->split_time
+             << " seconds\nautomaton has "
+             << split->num_states() << " states\n";
+        if (bv)
+          sw.start();
+        dpa = ntgba2dpa(split);
+        if (vs)
+          vs << "determinization done\nDPA has "
+             << dpa->num_states() << " states, "
+             << dpa->num_sets() << " colors\n";
         dpa->merge_states();
-        if (verbose)
-          std::cerr << "simplification done\nDPA has "
-                    << dpa->num_states() << " states\n"
-                    << "determinization and simplification took "
-                    << bv.paritize_time << " seconds\n";
-        // TODO: paritize_time affiché avant fait
-        bv.paritize_time = sw.stop();
+        if (vs)
+          vs << "simplification done\nDPA has "
+             << dpa->num_states() << " states\n"
+             << "determinization and simplification took "
+             << bv->paritize_time << " seconds\n";
+        if (bv)
+          bv->paritize_time = sw.stop();
         // The named property "state-player" is set in split_2step
-        // but not propagated by to_dpa
+        // but not propagated by ntgba2dpa
         alternate_players(dpa);
         break;
       }
-      case LAR:
-      case LAR_OLD:
+      case solver::LAR:
+        SPOT_FALLTHROUGH;
+      case solver::LAR_OLD:
       {
-        sw.start();
-        if (sol == LAR)
-        {
-          dpa = spot::to_parity(aut);
-          // reduce_parity is called by to_parity(),
-          // but with colorization turned off.
-          spot::colorize_parity_here(dpa, true);
-        }
+        if (bv)
+          sw.start();
+        if (opt_solver == solver::LAR)
+          {
+            dpa = spot::to_parity(aut);
+            // reduce_parity is called by to_parity(),
+            // but with colorization turned off.
+            spot::colorize_parity_here(dpa, true);
+          }
         else
-        {
-          dpa = spot::to_parity_old(aut);
-          dpa = reduce_parity_here(dpa, true);
-        }
+          {
+            dpa = spot::to_parity_old(aut);
+            dpa = reduce_parity_here(dpa, true);
+          }
         spot::change_parity_here(dpa, spot::parity_kind_max,
-                                spot::parity_style_odd);
-        bv.paritize_time = sw.stop();
-        if (verbose)
-          std::cerr << "LAR construction done in " << bv.paritize_time
-                    << " seconds\nDPA has "
-                    << dpa->num_states() << " states, "
-                    << dpa->num_sets() << " colors\n";
+                                 spot::parity_style_odd);
+        if (bv)
+          bv->paritize_time = sw.stop();
+        if (vs)
+          vs << "LAR construction done in " << bv->paritize_time
+             << " seconds\nDPA has "
+             << dpa->num_states() << " states, "
+             << dpa->num_sets() << " colors\n";
 
-        sw.start();
-        dpa = split_2step(dpa, all_inputs, all_outputs, true, false);
+        if (bv)
+          sw.start();
+        dpa = split_2step(dpa, all_inputs, all_outputs, true, true);
         spot::colorize_parity_here(dpa, true);
-        bv.split_time = sw.stop();
-        if (verbose)
-          std::cerr << "split inputs and outputs done in " << bv.split_time
-                    << " seconds\nautomaton has "
-                    << dpa->num_states() << " states\n";
+        if (bv)
+          bv->split_time = sw.stop();
+        if (vs)
+          vs << "split inputs and outputs done in " << bv->split_time
+             << " seconds\nautomaton has "
+             << dpa->num_states() << " states\n";
         break;
       }
-    }
+    } //end switch solver
+    // Set the named properties
+    assert(dpa.get_named_prop<std::vector<bool>>("state-player")
+           && "DPA has no state-players");
+    dpa.set_named_prop<bdd>("synthesis-inputs", new bdd(ins));
+    dpa.set_named_prop<bdd>("synthesis-outputs", new bdd(outs));
+    dpa.set_named_prop<bdd>("synthesis-unused-ins", new bdd(unused_inss));
+    dpa.set_named_prop<bdd>("synthesis-unused-outs", new bdd(unused_outs));
     return dpa;
   }
 
-  static twa_graph_ptr
-  create_solved_game(spot::formula& f, std::vector<spot::formula>& ins,
-                  std::vector<spot::formula>& outs,
-                  spot::translator& trans,
-                  bool verbose,
-                  solver sol,
-                  bench_var bv)
+  bool solve_game(twa_graph_ptr arena)
   {
-    // Dans ce bloc il y aura le découpage de formule LTL
-    auto dpa = create_game(f, ins, outs, trans, sol, verbose, bv);
-    spot::stopwatch sw;
-    sw.start();
-    bool player1winning = solve_parity_game(dpa);
-    bv.solve_time = sw.stop();
-    if (verbose)
-      std::cerr << "parity game solved in " << bv.solve_time << " seconds\n";
-    bv.nb_states_parity_game = dpa->num_states();
-    // TODO: Ca sert à quoi ça ? c'était utilisé dans ltlsynt mais je n'en vois
-    // pas l'utilité.
-    // timer.stop();
-    bv.realizable = player1winning;
-    if (player1winning)
-      return dpa;
-    else
-      return nullptr;
+    // todo adapt to new interface
+    return solve_
   }
 
-  spot::twa_graph_ptr
-  create_strategy(spot::formula& f, std::vector<spot::formula> ins,
-                  std::vector<spot::formula> outs,
-                  spot::translator& trans,
-                  bool verbose,
-                  solver sol,
-                  bench_var bv)
+  // Besoin d'une version qui prend en arg une stratégie ?
+  // TODO: Là on prend un dpa et on créé strat_aut. Peut être qu'il faut encore
+  // découper la fonction car ltlsynt peut simplement demander s'il existe une
+  // stratégie. Dans ce cas pas besoin d'appel à apply_strategy.
+  std::pair<bool, twa_graph_ptr>
+  create_strategy(twa_graph_ptr arena, game_info& gi)
   {
-    auto dpa = create_solved_game(f, ins, outs, trans, verbose, sol, bv);
-    if (dpa != nullptr)
-    {
-      bdd all_outputs = bddtrue;
-      for (auto x : outs)
-      {
-        unsigned v = dpa->register_ap(x.ap_name());
-        all_outputs &= bdd_ithvar(v);
-      }
-      spot::stopwatch sw;
+    auto& bv = gi.bv;
+    auto& vs = gi.verbose_stream;
+    spot::stopwatch sw;
+
+    twa_graph_ptr strat_aut = nullptr;
+
+    if (bv)
       sw.start();
-      auto strat_aut = apply_strategy(dpa, all_outputs,
-                                      true, false);
-      bv.strat2aut_time = sw.stop();
-      return strat_aut;
-    }
-    else
-      return nullptr;
+    bool player1winning = solve_parity_game(arena);
+    if (bv)
+      bv->solve_time = sw.stop();
+    if (vs)
+      vs << "parity game solved in " << bv->solve_time << " seconds\n";
+    if (player1winning and gi.appy_strat)
+      {
+         if (bv)
+           sw.start();
+         if (bdd* outs = arena.get_named_property<bdd>("synthesis-outputs"))
+           strat_aut = apply_strategy(dpa, *outs, true, false);
+         else
+           throw std::runtime_error("create_strategy relies on the named prop"
+                                    "\"synthesis-outputs\"!");
+        if (bv)
+          bv->strat2aut_time = sw.stop();
+      }
+    return std::make_pair(player1winning, strat_aut);
   }
 
   bool
