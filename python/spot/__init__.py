@@ -136,6 +136,17 @@ def __om_init_new(self, str=None):
 
 option_map.__init__ = __om_init_new
 
+@_extend(aig)
+class aig:
+    def _repr_svg_(self):
+        "TODO: Voir http://fmv.jku.at/aiger/FORMAT.aiger"
+        ostr = ostringstream()
+        print_aiger(ostr, self, 'd')
+        return _ostream_to_svg(ostr)
+
+    def show(self):
+        from spot.jupyter import SVG
+        return SVG(self._repr_svg_())
 
 @_extend(twa, ta)
 class twa:
