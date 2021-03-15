@@ -139,9 +139,8 @@ option_map.__init__ = __om_init_new
 @_extend(aig)
 class aig:
     def _repr_svg_(self):
-        "TODO: Voir http://fmv.jku.at/aiger/FORMAT.aiger"
         ostr = ostringstream()
-        print_aiger(ostr, self, 'd')
+        print_aiger(ostr, self, 'dot')
         return _ostream_to_svg(ostr)
 
     def show(self):
