@@ -603,6 +603,7 @@ namespace spot
   {
     if (strcasecmp(mode, "dot") == 0)
     {
+      print_aiger(std::cout, circuit, "circuit");
       auto add_edge = [](std::ostream& stream, const unsigned i, const unsigned j)
       {
         auto negate_i = i % 2U;
@@ -612,63 +613,81 @@ namespace spot
           stream << " [arrowhead=dot]";
         stream << "\n";
       };
-      os << "digraph G {\nrankdir = TB;\n";
+      std::cout << "digraph G {\nrankdir = BT;\n";
 
-      os << "# inputs\n";
+      std::cout << "# latches left\n";
+      for (unsigned i = 0; i < circuit.num_latches_; ++i)
+      {
+        auto first = (1 + circuit.num_inputs_ + i) * 2;
+        auto first_m_mod = first - (first % 2);
+        std::cout << "node[shape=box, label=\"" << first_m_mod << "\"] " << first_m_mod << ";\n";
+      }
+
+      std::cout << "# inputs\n";
       for (unsigned i = 0; i < circuit.num_inputs_; ++i)
-        os << "node [shape=triangle, label=\""
+        std::cout << "node [shape=triangle, label=\""
                   << circuit.input_names_[i] << "\"] "
                   << (i + 1) * 2 << ";\n";
 
-      os << "# And\n";
+      std::cout << "# And\n";
       for (unsigned i = 0; i < circuit.and_gates_.size(); ++i)
         if ((circuit.and_gates_[i].first != 0) && (circuit.and_gates_[i].second != 0))
         {
           auto gate_var = circuit.gate_var(i);
-          os << "node [shape=circle, label =\"" << gate_var
+          std::cout << "node [shape=circle, label =\"" << gate_var
                     << "\"] " << gate_var << ";\n";
-          add_edge(os, circuit.and_gates_[i].first, gate_var);
-          add_edge(os, circuit.and_gates_[i].second, gate_var);
+          add_edge(std::cout, circuit.and_gates_[i].first, gate_var);
+          add_edge(std::cout, circuit.and_gates_[i].second, gate_var);
         }
 
-      os << "# Latches\n";
+      std::cout << "# Latches\n";
       for (unsigned i = 0; i < circuit.num_latches_; ++i)
       {
-        auto src = i - i % 2;
-        os << "node[shape=box] L" << i << ";\n";
-        os << "L" << i << " -> "
-                  << (1 + circuit.num_inputs_ + i) * 2 << "\n";
-        os << circuit.latches_[i] << " -> L" << src;
+        auto first = (1 + circuit.num_inputs_ + i) * 2;
+        auto first_m_mod = first - (first % 2);
+        auto second = circuit.latches_[i];
+        std::cout << "node[shape=box, label=\"L" << i << "\"] L" << i << ";\n";
+        std::cout << "L" << i << " -> "
+                  << first_m_mod << "\n";
+        std::cout << second - (second % 2) << " -> L" << i;
         if (i % 2)
-          os << "[arrowhead=dot]";
-        os << "\n";
+          std::cout << "[arrowhead=dot]";
+        std::cout << "\n";
       }
 
-      os << "# Outs\n";
+      std::cout << "# Outs\n";
       for (unsigned i = 0; i < circuit.num_outputs_; ++i)
       {
-        os << "node [shape=triangle, orientation=180, label=\""
+        std::cout << "node [shape=triangle, orientation=180, label=\""
                   << circuit.output_names_[i] << "\"] "
                   << circuit.output_names_[i] << ";\n";
         auto z = circuit.outputs_[i];
         if (z != 0)
         {
-          os << (z - (z % 2)) << "->" << circuit.output_names_[i];
+          std::cout << (z - (z % 2)) << "->" << circuit.output_names_[i];
           if (circuit.outputs_[i] % 2 == 1)
-            os << " [arrowhead=dot]";
-          os << "\n";
+            std::cout << " [arrowhead=dot]";
+          std::cout << "\n";
         }
       }
 
-      os << "{rank = max; ";
+      std::cout << "{rank = source; ";
       for (unsigned i = 0; i < circuit.num_inputs_; ++i)
-        os << (i + 1) * 2 << "; ";
-      os << "}\n{rank = min; ";
+        std::cout << (i + 1) * 2 << "; ";
+      std::cout << "}\n{rank = sink; ";
       for (unsigned i = 0; i < circuit.num_outputs_; ++i)
-        os << circuit.output_names_[i] << "; ";
-      os << "}\n";
-
-      os << "}\n";
+        std::cout << circuit.output_names_[i] << "; ";
+      std::cout << "}\n{rank = same; ";
+      for (unsigned i = 0; i < circuit.num_latches_; ++i)
+        std::cout << "L" << i << "; ";
+      std::cout << "}\n{rank = same; ";
+      for (unsigned i = 0; i < circuit.num_latches_; ++i)
+      {
+        auto first = (1 + circuit.num_inputs_ + i) * 2;
+        auto first_m_mod = first - (first % 2);
+        std::cout << first_m_mod << "; ";
+      }
+      std::cout << "}\n}\n";
     }
     else if (strcasecmp(mode, "circuit") == 0)
     {
