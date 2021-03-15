@@ -20,11 +20,16 @@
 #pragma once
 
 #include <iosfwd>
+#include <spot/misc/bddlt.hh>
 #include <spot/misc/common.hh>
+#include <spot/misc/minato.hh>
 #include <spot/twa/fwd.hh>
+#include <unordered_map>
+#include <vector>
 
 namespace spot
 {
+  // TODO: Déplacer cette doc.
   /// \ingroup twa_io
   /// \brief Encode and print an automaton as an AIGER circuit.
   ///
@@ -50,7 +55,115 @@ namespace spot
   /// \param mode         Determines how the automaton is encoded.
   ///                     "ISOP" Uses DNF.
   ///                     "ITE" Uses the "if-then-else" normal-form
+  // SPOT_API std::ostream&
+  // print_aiger(std::ostream& os, const const_twa_ptr& aut,
+  //             const char* mode);
+
+  namespace
+  {
+    static std::vector<std::string>
+    name_vector(unsigned n, const std::string &prefix)
+    {
+      std::vector<std::string> res(n);
+      for (unsigned i = 0; i != n; ++i)
+        res[i] = prefix + std::to_string(i);
+      return res;
+    }
+  }
+
+
+  // A class to represent an AIGER circuit
+  // TODO: On garde ce nom ou "aiger" ?
+  class aig
+  {
+  public:
+    unsigned max_var_;
+    unsigned num_inputs_;
+    unsigned num_latches_;
+    unsigned num_outputs_;
+
+    std::vector<unsigned> latches_;
+    std::vector<unsigned> outputs_;
+    std::vector<std::string> input_names_;
+    std::vector<std::string> output_names_;
+    std::vector<std::pair<unsigned, unsigned>> and_gates_;
+    // Cache the function computed by each variable as a bdd.
+    std::unordered_map<unsigned, bdd> var2bdd_;
+    std::unordered_map<bdd, unsigned, bdd_hash> bdd2var_;
+
+    aig(const std::vector<std::string> &inputs,
+        const std::vector<std::string> &outputs,
+        unsigned num_latches)
+        : max_var_((inputs.size() + num_latches) * 2),
+          num_inputs_(inputs.size()),
+          num_latches_(num_latches),
+          num_outputs_(outputs.size()),
+          latches_(num_latches),
+          outputs_(outputs.size()),
+          input_names_(inputs),
+          output_names_(outputs)
+    {
+      bdd2var_[bddtrue] = 1;
+      var2bdd_[1] = bddtrue;
+      bdd2var_[bddfalse] = 0;
+      var2bdd_[0] = bddfalse;
+
+      bdd2var_.reserve(4 * (num_inputs_ + num_latches_));
+      var2bdd_.reserve(4 * (num_inputs_ + num_latches_));
+    }
+
+    aig(unsigned num_inputs, unsigned num_latches, unsigned num_outputs)
+        : aig(name_vector(num_inputs, "in"), name_vector(num_outputs, "out"),
+              num_latches)
+    {
+    }
+
+    // register the bdd corresponding the an
+    // aig literal
+    SPOT_API void register_new_lit(unsigned v, const bdd &b);
+
+    SPOT_API unsigned input_var(unsigned i) const;
+
+    SPOT_API unsigned latch_var(unsigned i);
+
+    SPOT_API unsigned gate_var(unsigned i) const;
+
+    SPOT_API void set_output(unsigned i, unsigned v);
+
+    SPOT_API void set_latch(unsigned i, unsigned v);
+
+    SPOT_API unsigned aig_true() const;
+
+    SPOT_API unsigned aig_false() const;
+
+    SPOT_API unsigned aig_not(unsigned v);
+
+    SPOT_API unsigned aig_and(unsigned v1, unsigned v2);
+
+    SPOT_API unsigned aig_and(std::vector<unsigned> vs);
+
+    SPOT_API unsigned aig_or(unsigned v1, unsigned v2);
+
+    SPOT_API unsigned aig_or(std::vector<unsigned> vs);
+
+    SPOT_API unsigned aig_pos(unsigned v);
+
+    SPOT_API void remove_unused();
+
+    // Takes a bdd, computes the corresponding literal
+    // using its DNF
+    SPOT_API unsigned bdd2DNFvar(const bdd &b,
+                                const std::unordered_map<unsigned, unsigned> &
+                                    bddvar_to_num);
+
+    // Takes a bdd, computes the corresponding literal
+    // using its INF
+    SPOT_API unsigned bdd2INFvar(bdd b);
+  };
+
   SPOT_API std::ostream&
-  print_aiger(std::ostream& os, const const_twa_ptr& aut,
-              const char* mode);
+  print_aiger(std::ostream &os, aig circuit, const char *mode);
+
+  SPOT_API aig
+  strategy_to_aig(const const_twa_ptr &aut, const char *mode);
 }

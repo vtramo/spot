@@ -19,9 +19,13 @@
 
 #pragma once
 
-#include <spot/twa/twagraph.hh>
-#include <spot/twaalgos/translate.hh>
 #include <bddx.h>
+#include <spot/misc/common.hh>
+#include <spot/twa/fwd.hh>
+#include <vector>
+#include <spot/twaalgos/aiger.hh>
+#include <spot/twaalgos/translate.hh>
+#include <spot/tl/formula.hh>
 
 namespace spot
 {
@@ -76,7 +80,7 @@ namespace spot
   apply_strategy(const spot::twa_graph_ptr& arena,
                  bdd all_outputs, bool unsplit, bool keep_acc);
 
-  // Dans ltlsynt on mesure les temps, nb d'états,…
+  // TODO: Dans ltlsynt on mesure les temps, nb d'états,…
   // J'en fais une structure qui est remplie si besoin.
   typedef struct bench_var
   {
@@ -87,6 +91,8 @@ namespace spot
     double strat2aut_time = 0.0;
     unsigned nb_states_dpa = 0;
     unsigned nb_states_parity_game = 0;
+
+    bool realizable;
   } bench_var;
 
   enum solver
@@ -98,27 +104,37 @@ namespace spot
     LAR_OLD,
   };
 
-  spot::twa_graph_ptr
-  create_game(spot::formula f, std::vector<spot::formula> ins,
+  // TODO: L'interface est pas super, les bv sont des copies,…
+  SPOT_API spot::twa_graph_ptr
+  create_game(spot::formula& f, std::vector<spot::formula> ins,
               std::vector<spot::formula> outs,
-              spot::translator trans,
-              bench_var *bv = nullptr);
+              spot::translator& trans,
+              spot::solver sol = SPLIT_DET,
+              bool verbose = false,
+              bench_var bv = bench_var());
 
-  spot::twa_graph_ptr
-  create_strategy(spot::formula f, std::vector<spot::formula> ins,
+  SPOT_API spot::twa_graph_ptr
+  create_strategy(spot::formula& f, std::vector<spot::formula> ins,
                   std::vector<spot::formula> outs,
-                  spot::translator trans,
-                  bench_var *bv = nullptr);
+                  spot::translator& trans,
+                  bool verbose = false,
+                  solver sol = SPLIT_DET,
+                  bench_var bv = bench_var());
 
-  // TODO: Passer la structure aiger en public.
-  // Actuellement aiger est un truc utilisé uniquement dans print_aiger
-  // qui fait plus que printer un aiger : il transforme une stratégie en aiger
-  // avant de l'afficher.
-  class aiger;
+  SPOT_API bool
+  is_realizable(spot::formula& f, std::vector<spot::formula> ins,
+                     std::vector<spot::formula> outs,
+                     spot::translator& trans,
+                     bool verbose = false,
+                     solver sol = SPLIT_DET,
+                     bench_var bv = bench_var());
 
-  std::optional<spot::aiger>
-  create_aiger_circuit(spot::formula f, std::vector<spot::formula> ins,
+  SPOT_API spot::aig
+  create_aiger_circuit(spot::formula& f, std::vector<spot::formula> ins,
                        std::vector<spot::formula> outs,
-                       spot::translator trans,
-                       bench_var *bv = nullptr);
+                       spot::translator& trans,
+                       const char *mode = "ITE",
+                       bool verbose = false,
+                       solver sol = SPLIT_DET,
+                       bench_var bv = bench_var());
 }

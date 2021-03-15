@@ -19,13 +19,13 @@
 #include "config.h"
 
 #include <spot/twaalgos/synthesis.hh>
-#include <spot/misc/minato.hh>
-#include <spot/twaalgos/aiger.hh>
+#include <spot/twa/fwd.hh>
+#include <spot/twaalgos/determinize.hh>
+#include <spot/twaalgos/degen.hh>
 #include <spot/twaalgos/game.hh>
-#include <spot/twaalgos/totgba.hh>
+#include <spot/twaalgos/isdet.hh>
+#include <spot/twaalgos/parity.hh>
 #include <spot/twaalgos/toparity.hh>
-#include <spot/twaalgos/translate.hh>
-#include <spot/misc/bddlt.hh>
 #include <spot/misc/timer.hh>
 
 #include <algorithm>
@@ -490,8 +490,9 @@ namespace spot
     auto dpa = spot::tgba_determinize(spot::degeneralize_tba(split),
                                       false, true, true, false);
     dpa->merge_edges();
-    if (opt_print_pg)
-      dpa = spot::sbacc(dpa);
+    // TODO: Dans ltlsynt, s'il y a opt_print_pg, il faudra en faire un sbacc
+    // if (opt_print_pg)
+    //   dpa = spot::sbacc(dpa);
     spot::reduce_parity_here(dpa, true);
     spot::change_parity_here(dpa, spot::parity_kind_max,
                              spot::parity_style_odd);
@@ -505,89 +506,88 @@ namespace spot
     return dpa;
   }
 
-  // TODO: Il n'y a pas assez d'infos pour créer le jeu : il manque l'algo
-  // (lar, ds, sd, …). Faudrait lister tout ce qu'il faut.
-  // Il faut un mode verbose
   spot::twa_graph_ptr
-  create_game(spot::formula f, std::vector<spot::formula> ins,
+  create_game(spot::formula& f, std::vector<spot::formula> ins,
               std::vector<spot::formula> outs,
-              spot::translator trans,
-              bench_var *bv = nullptr)
+              spot::translator& trans,
+              spot::solver sol,
+              bool verbose,
+              bench_var bv)
   {
     auto aut = trans.run(&f);
-    // TODO: La partie register_ap
+    // TODO: Ne sera plus géré comme ça
+    bdd all_inputs = bddtrue, all_outputs = bddtrue;
+    for (auto& x : ins)
+    {
+      auto y = aut->register_ap(x.ap_name());
+      all_inputs &= bdd_ithvar(y);
+    }
+    for (auto& x : outs)
+    {
+      auto y = aut->register_ap(x.ap_name());
+      all_outputs &= bdd_ithvar(y);
+    }
     spot::twa_graph_ptr dpa = nullptr;
     spot::stopwatch sw;
-    // TODO:
-    bool want_time = false && bv != nullptr;
-    switch (opt_solver)
+    switch (sol)
     {
       case DET_SPLIT:
       {
-        if (want_time)
-          sw.start();
+        sw.start();
         auto tmp = to_dpa(aut);
         if (verbose)
           std::cerr << "determinization done\nDPA has "
                     << tmp->num_states() << " states, "
                     << tmp->num_sets() << " colors\n";
         tmp->merge_states();
-        if (want_time)
-          bv->paritize_time = sw.stop();
+        bv.paritize_time = sw.stop();
         if (verbose)
           std::cerr << "simplification done\nDPA has "
                     << tmp->num_states() << " states\n"
                     << "determinization and simplification took "
-                    << bv->paritize_time << " seconds\n";
-        if (want_time)
-          sw.start();
+                    << bv.paritize_time << " seconds\n";
+        sw.start();
         dpa = split_2step(tmp, all_inputs, all_outputs, true, true);
         spot::colorize_parity_here(dpa, true);
-        if (want_time)
-          bv->split_time = sw.stop();
+        bv.split_time = sw.stop();
         if (verbose)
-          std::cerr << "split inputs and outputs done in " << bv->split_time
+          std::cerr << "split inputs and outputs done in " << bv.split_time
                     << " seconds\nautomaton has "
                     << tmp->num_states() << " states\n";
         break;
       }
       case DPA_SPLIT:
       {
-        if (want_time)
-          sw.start();
+        // TODO: Y a un "beug" sur la gestion des durées là,
+        // simplification != parit.
+        sw.start();
         aut->merge_states();
-        if (want_time)
-          bv->paritize_time = sw.stop();
+        bv.paritize_time = sw.stop();
         if (verbose)
-          std::cerr << "simplification done in " << bv->paritize_time
+          std::cerr << "simplification done in " << bv.paritize_time
                     << " seconds\nDPA has " << aut->num_states()
                     << " states\n";
-        if (want_time)
-          sw.start();
+        sw.start();
         dpa = split_2step(aut, all_inputs, all_outputs, true, true);
         spot::colorize_parity_here(dpa, true);
-        if (want_time)
-          bv->split_time = sw.stop();
+        bv.split_time = sw.stop();
         if (verbose)
-          std::cerr << "split inputs and outputs done in " << bv->split_time
+          std::cerr << "split inputs and outputs done in " << bv.split_time
                     << " seconds\nautomaton has "
                     << dpa->num_states() << " states\n";
         break;
       }
       case SPLIT_DET:
       {
-        if (want_time)
-          sw.start();
+        sw.start();
         auto split = split_2step(aut, all_inputs, all_outputs,
                                 true, false);
-        if (want_time)
-          bv->split_time = sw.stop();
+        bv.split_time = sw.stop();
         if (verbose)
-          std::cerr << "split inputs and outputs done in " << bv->split_time
+          std::cerr << "split inputs and outputs done in " << bv.split_time
                     << " seconds\nautomaton has "
                     << split->num_states() << " states\n";
-        if (want_time)
-          sw.start();
+        sw.start();
         dpa = to_dpa(split);
         if (verbose)
           std::cerr << "determinization done\nDPA has "
@@ -598,9 +598,9 @@ namespace spot
           std::cerr << "simplification done\nDPA has "
                     << dpa->num_states() << " states\n"
                     << "determinization and simplification took "
-                    << bv->paritize_time << " seconds\n";
-        if (want_time)
-          bv->paritize_time = sw.stop();
+                    << bv.paritize_time << " seconds\n";
+        // TODO: paritize_time affiché avant fait
+        bv.paritize_time = sw.stop();
         // The named property "state-player" is set in split_2step
         // but not propagated by to_dpa
         alternate_players(dpa);
@@ -609,9 +609,8 @@ namespace spot
       case LAR:
       case LAR_OLD:
       {
-        if (want_time)
-          sw.start();
-        if (opt_solver == LAR)
+        sw.start();
+        if (sol == LAR)
         {
           dpa = spot::to_parity(aut);
           // reduce_parity is called by to_parity(),
@@ -625,86 +624,108 @@ namespace spot
         }
         spot::change_parity_here(dpa, spot::parity_kind_max,
                                 spot::parity_style_odd);
-        if (want_time)
-          bv->paritize_time = sw.stop();
+        bv.paritize_time = sw.stop();
         if (verbose)
-          std::cerr << "LAR construction done in " << bv->paritize_time
+          std::cerr << "LAR construction done in " << bv.paritize_time
                     << " seconds\nDPA has "
                     << dpa->num_states() << " states, "
                     << dpa->num_sets() << " colors\n";
 
-        if (want_time)
-          sw.start();
-        dpa = split_2step(dpa, all_inputs, all_outputs, true, true);
+        sw.start();
+        dpa = split_2step(dpa, all_inputs, all_outputs, true, false);
         spot::colorize_parity_here(dpa, true);
-        if (want_time)
-          bv->split_time = sw.stop();
+        bv.split_time = sw.stop();
         if (verbose)
-          std::cerr << "split inputs and outputs done in " << bv->split_time
+          std::cerr << "split inputs and outputs done in " << bv.split_time
                     << " seconds\nautomaton has "
                     << dpa->num_states() << " states\n";
         break;
       }
     }
+    return dpa;
   }
 
-  // Besoin d'une version qui prend en arg une stratégie ?
-  // TODO: Là on prend un dpa et on créé strat_aut. Peut être qu'il faut encore
-  // découper la fonction car ltlsynt peut simplement demander s'il existe une
-  // stratégie. Dans ce cas pas besoin d'appel à apply_strategy.
-  spot::twa_graph_ptr
-  create_strategy(spot::formula f, std::vector<spot::formula> ins,
-                  std::vector<spot::formula> outs,
-                  spot::translator trans,
-                  bench_var *bv = nullptr)
+  static twa_graph_ptr
+  create_solved_game(spot::formula& f, std::vector<spot::formula>& ins,
+                  std::vector<spot::formula>& outs,
+                  spot::translator& trans,
+                  bool verbose,
+                  solver sol,
+                  bench_var bv)
   {
-    auto dpa = create_game(f, ins, outs, trans, bv);
-    if (want_time)
-      sw.start();
+    // Dans ce bloc il y aura le découpage de formule LTL
+    auto dpa = create_game(f, ins, outs, trans, sol, verbose, bv);
+    spot::stopwatch sw;
+    sw.start();
     bool player1winning = solve_parity_game(dpa);
-    if (want_time)
-      bv->solve_time = sw.stop();
+    bv.solve_time = sw.stop();
     if (verbose)
-      std::cerr << "parity game solved in " << bv->solve_time << " seconds\n";
-    bv->nb_states_parity_game = dpa->num_states();
-    timer.stop();
+      std::cerr << "parity game solved in " << bv.solve_time << " seconds\n";
+    bv.nb_states_parity_game = dpa->num_states();
+    // TODO: Ca sert à quoi ça ? c'était utilisé dans ltlsynt mais je n'en vois
+    // pas l'utilité.
+    // timer.stop();
+    bv.realizable = player1winning;
     if (player1winning)
-    {
-      if (!opt_real)
-        {
-          if (want_time)
-            sw.start();
-          auto strat_aut = apply_strategy(dpa, all_outputs,
-                                          true, false);
-          if (want_time)
-            bv->strat2aut_time = sw.stop();
-        }
-    }
-    // TODO:
-    return nullptr;
+      return dpa;
+    else
+      return nullptr;
   }
 
-  // TODO: Passer la structure aiger en public.
-  // Actuellement aiger est un truc utilisé uniquement dans print_aiger
-  // qui fait plus que printer un aiger : il transforme une stratégie en aiger
-  // avant de l'afficher.
-  // TODO: Une fois que la classe est publique on peut en faire un affichage
-  // (voir __init__.py l.151)
-  class aiger;
+  spot::twa_graph_ptr
+  create_strategy(spot::formula& f, std::vector<spot::formula> ins,
+                  std::vector<spot::formula> outs,
+                  spot::translator& trans,
+                  bool verbose,
+                  solver sol,
+                  bench_var bv)
+  {
+    auto dpa = create_solved_game(f, ins, outs, trans, verbose, sol, bv);
+    if (dpa != nullptr)
+    {
+      bdd all_outputs = bddtrue;
+      for (auto x : outs)
+      {
+        unsigned v = dpa->register_ap(x.ap_name());
+        all_outputs &= bdd_ithvar(v);
+      }
+      spot::stopwatch sw;
+      sw.start();
+      auto strat_aut = apply_strategy(dpa, all_outputs,
+                                      true, false);
+      bv.strat2aut_time = sw.stop();
+      return strat_aut;
+    }
+    else
+      return nullptr;
+  }
+
+  bool
+  is_realizable(spot::formula& f, std::vector<spot::formula> ins,
+                     std::vector<spot::formula> outs,
+                     spot::translator& trans,
+                     bool verbose,
+                     solver sol,
+                     bench_var bv)
+  {
+    return create_solved_game(f, ins, outs, trans, verbose, sol, bv) != nullptr;
+  }
 
   // Là create_aiger_circuit prend une formule et va utiliser les trucs au
   // dessus. Je sais pas s'il y a besoin d'un équivalent qui prend en
   // argument une stratégie.
-  std::optional<spot::aiger>
-  create_aiger_circuit(spot::formula f, std::vector<spot::formula> ins,
+  spot::aig
+  create_aiger_circuit(spot::formula& f, std::vector<spot::formula> ins,
                        std::vector<spot::formula> outs,
-                       spot::translator trans,
-                       bench_var *bv = nullptr)
+                       spot::translator& trans,
+                       const char* mode,
+                       bool verbose,
+                       solver sol,
+                       bench_var bv)
   {
-    auto strategy = create_strategy(f, ins, outs, trans, bv);
+    auto strategy = create_strategy(f, ins, outs, trans, verbose, sol, bv);
     if (strategy == nullptr)
-      return {};
-    // TODO: appel à aiger_to_circuit.
-    return {};
+      return aig(0, 0, 0);
+    return strategy_to_aig(strategy, mode);
   }
 } // spot

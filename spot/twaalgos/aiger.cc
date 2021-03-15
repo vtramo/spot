@@ -32,362 +32,261 @@
 
 namespace spot
 {
-  namespace
+
+  // register the bdd corresponding the an
+  // aig literal
+  void aig::register_new_lit(unsigned v, const bdd &b)
   {
-    static std::vector<std::string>
-    name_vector(unsigned n, const std::string& prefix)
+    assert(!var2bdd_.count(v) || var2bdd_.at(v) == b);
+    assert(!bdd2var_.count(b) || bdd2var_.at(b) == v);
+    var2bdd_[v] = b;
+    bdd2var_[b] = v;
+    // Also store negation
+    // Do not use aig_not as tests will fail
+    var2bdd_[v ^ 1] = !b;
+    bdd2var_[!b] = v ^ 1;
+  }
+
+  unsigned aig::input_var(unsigned i) const
+  {
+    assert(i < num_inputs_);
+    return (1 + i) * 2;
+  }
+
+  unsigned aig::latch_var(unsigned i)
+  {
+    assert(i < latches_.size());
+    return (1 + num_inputs_ + i) * 2;
+  }
+
+  unsigned aig::gate_var(unsigned i) const
+  {
+    assert(i < and_gates_.size());
+    return (1 + num_inputs_ + num_latches_ + i) * 2;
+  }
+
+  void aig::set_output(unsigned i, unsigned v)
+  {
+    assert(v <= max_var_ + 1);
+    outputs_[i] = v;
+  }
+
+  void aig::set_latch(unsigned i, unsigned v)
+  {
+    assert(v <= max_var_ + 1);
+    latches_[i] = v;
+  }
+
+  unsigned aig::aig_true() const
+  {
+    return 1;
+  }
+
+  unsigned aig::aig_false() const
+  {
+    return 0;
+  }
+
+  unsigned aig::aig_not(unsigned v)
+  {
+    unsigned not_v = v ^ 1;
+    assert(var2bdd_.count(v) && var2bdd_.count(not_v));
+    return not_v;
+  }
+
+  unsigned aig::aig_and(unsigned v1, unsigned v2)
+  {
+    assert(var2bdd_.count(v1));
+    assert(var2bdd_.count(v2));
+    bdd b = var2bdd_[v1] & var2bdd_[v2];
+    auto it = bdd2var_.find(b);
+    if (it != bdd2var_.end())
+      return it->second;
+    max_var_ += 2;
+    and_gates_.emplace_back(v1, v2);
+    register_new_lit(max_var_, b);
+    return max_var_;
+  }
+
+  unsigned aig::aig_and(std::vector<unsigned> vs)
+  {
+    if (vs.empty())
+      return aig_true();
+    if (vs.size() == 1)
+      return vs[0];
+    if (vs.size() == 2)
+      return aig_and(vs[0], vs[1]);
+
+    do
     {
-      std::vector<std::string> res(n);
-      for (unsigned i = 0; i != n; ++i)
-        res[i] = prefix + std::to_string(i);
-      return res;
-    }
+      if (vs.size() & 1)
+        // Odd size -> make even
+        vs.push_back(aig_true());
+      // Sort to increase reusage gates
+      std::sort(vs.begin(), vs.end());
+      // Reduce two by two inplace
+      for (unsigned i = 0; i < vs.size() / 2; ++i)
+        vs[i] = aig_and(vs[2 * i], vs[2 * i + 1]);
+      vs.resize(vs.size() / 2);
+    } while (vs.size() > 1);
+    return vs[0];
+  }
 
-    // A class to represent an AIGER circuit
-    class aig
-    {
-    private:
-      unsigned max_var_;
-      unsigned num_inputs_;
-      unsigned num_latches_;
-      unsigned num_outputs_;
+  unsigned aig::aig_or(unsigned v1, unsigned v2)
+  {
+    unsigned n1 = aig_not(v1);
+    unsigned n2 = aig_not(v2);
+    return aig_not(aig_and(n1, n2));
+  }
 
-      std::vector<unsigned> latches_;
-      std::vector<unsigned> outputs_;
-      std::vector<std::string> input_names_;
-      std::vector<std::string> output_names_;
-      std::vector<std::pair<unsigned, unsigned>> and_gates_;
-      // Cache the function computed by each variable as a bdd.
-      std::unordered_map<unsigned, bdd> var2bdd_;
-      std::unordered_map<bdd, unsigned, bdd_hash> bdd2var_;
+  unsigned aig::aig_or(std::vector<unsigned> vs)
+  {
+    for (unsigned i = 0; i < vs.size(); ++i)
+      vs[i] = aig_not(vs[i]);
+    return aig_not(aig_and(vs));
+  }
 
-    public:
-      aig(const std::vector<std::string>& inputs,
-          const std::vector<std::string>& outputs,
-          unsigned num_latches)
-        : max_var_((inputs.size() + num_latches)*2),
-          num_inputs_(inputs.size()),
-          num_latches_(num_latches),
-          num_outputs_(outputs.size()),
-          latches_(num_latches),
-          outputs_(outputs.size()),
-          input_names_(inputs),
-          output_names_(outputs)
+  unsigned aig::aig_pos(unsigned v)
+  {
+    return v & ~1;
+  }
+
+  void aig::remove_unused()
+  {
+    // Run a DFS on the gates to collect
+    // all nodes connected to the output.
+    std::vector<unsigned> todo;
+    std::vector<bool> used(and_gates_.size(), false);
+
+    // The variables are numbered by first enumerating
+    // inputs, latches and finally the and-gates
+    // v_latch = (1+n_i+i)*2 if latch is in positive form
+    // if v/2 < 1+n_i -> v is an input
+    // v_gate = (1+n_i+n_l+i)*2 if gate is in positive form
+    // if v/2 < 1+n_i_nl -> v is a latch
+    auto v2idx = [&](unsigned v) -> unsigned {
+      assert(!(v & 1));
+      const unsigned Nlatch_min = 1 + num_inputs_;
+      const unsigned Ngate_min = 1 + num_inputs_ + num_latches_;
+
+      // Note: this will at most run twice
+      while (true)
       {
-        bdd2var_[bddtrue] = 1;
-        var2bdd_[1] = bddtrue;
-        bdd2var_[bddfalse] = 0;
-        var2bdd_[0] = bddfalse;
-
-        bdd2var_.reserve(4 * (num_inputs_ + num_latches_));
-        var2bdd_.reserve(4 * (num_inputs_ + num_latches_));
-      }
-
-      aig(unsigned num_inputs, unsigned num_latches, unsigned num_outputs)
-        : aig(name_vector(num_inputs, "in"), name_vector(num_outputs, "out"),
-              num_latches)
-      {
-      }
-
-      // register the bdd corresponding the an
-      // aig literal
-      inline void register_new_lit(unsigned v, const bdd& b)
-      {
-        assert(!var2bdd_.count(v) || var2bdd_.at(v) == b);
-        assert(!bdd2var_.count(b) || bdd2var_.at(b) == v);
-        var2bdd_[v] = b;
-        bdd2var_[b] = v;
-        // Also store negation
-        // Do not use aig_not as tests will fail
-        var2bdd_[v ^ 1] = !b;
-        bdd2var_[!b] = v ^ 1;
-      }
-
-      inline unsigned input_var(unsigned i) const
-      {
-        assert(i < num_inputs_);
-        return (1 + i) * 2;
-      }
-
-      inline unsigned latch_var(unsigned i)
-      {
-        assert(i < latches_.size());
-        return (1 + num_inputs_ + i) * 2;
-      }
-
-      inline unsigned gate_var(unsigned i)const
-      {
-        assert(i < and_gates_.size());
-        return (1 + num_inputs_ + num_latches_ + i) * 2;
-      }
-
-      void set_output(unsigned i, unsigned v)
-      {
-        assert(v <= max_var_+1);
-        outputs_[i] = v;
-      }
-
-      void set_latch(unsigned i, unsigned v)
-      {
-        assert(v <= max_var_+1);
-        latches_[i] = v;
-      }
-
-      unsigned aig_true() const
-      {
-        return 1;
-      }
-
-      unsigned aig_false() const
-      {
-        return 0;
-      }
-
-      unsigned aig_not(unsigned v)
-      {
-        unsigned not_v = v ^ 1;
-        assert(var2bdd_.count(v)
-               && var2bdd_.count(not_v));
-        return not_v;
-      }
-
-      unsigned aig_and(unsigned v1, unsigned v2)
-      {
-        assert(var2bdd_.count(v1));
-        assert(var2bdd_.count(v2));
-        bdd b = var2bdd_[v1] & var2bdd_[v2];
-        auto it = bdd2var_.find(b);
-        if (it != bdd2var_.end())
-          return it->second;
-        max_var_ += 2;
-        and_gates_.emplace_back(v1, v2);
-        register_new_lit(max_var_, b);
-        return max_var_;
-      }
-
-      unsigned aig_and(std::vector<unsigned> vs)
-      {
-        if (vs.empty())
-          return aig_true();
-        if (vs.size() == 1)
-          return vs[0];
-        if (vs.size() == 2)
-          return aig_and(vs[0], vs[1]);
-
-        do
-          {
-            if (vs.size()&1)
-              // Odd size -> make even
-              vs.push_back(aig_true());
-            // Sort to increase reusage gates
-            std::sort(vs.begin(), vs.end());
-            // Reduce two by two inplace
-            for (unsigned i = 0; i < vs.size()/2; ++i)
-              vs[i] = aig_and(vs[2*i], vs[2*i + 1]);
-            vs.resize(vs.size()/2);
-          }while (vs.size() > 1);
-        return vs[0];
-      }
-
-      unsigned aig_or(unsigned v1, unsigned v2)
-      {
-        unsigned n1 = aig_not(v1);
-        unsigned n2 = aig_not(v2);
-        return aig_not(aig_and(n1, n2));
-      }
-
-      unsigned aig_or(std::vector<unsigned> vs)
-      {
-        for (unsigned i = 0; i < vs.size(); ++i)
-          vs[i] = aig_not(vs[i]);
-        return aig_not(aig_and(vs));
-      }
-
-      unsigned aig_pos(unsigned v)
-      {
-        return v & ~1;
-      }
-
-      void remove_unused()
-      {
-        // Run a DFS on the gates to collect
-        // all nodes connected to the output.
-        std::vector<unsigned> todo;
-        std::vector<bool> used(and_gates_.size(), false);
-
-        // The variables are numbered by first enumerating
-        // inputs, latches and finally the and-gates
-        // v_latch = (1+n_i+i)*2 if latch is in positive form
-        // if v/2 < 1+n_i -> v is an input
-        // v_gate = (1+n_i+n_l+i)*2 if gate is in positive form
-        // if v/2 < 1+n_i_nl -> v is a latch
-        auto v2idx = [&](unsigned v)->unsigned
-        {
-          assert(!(v & 1));
-          const unsigned Nlatch_min = 1 + num_inputs_;
-          const unsigned Ngate_min = 1 + num_inputs_ + num_latches_;
-
-          // Note: this will at most run twice
-          while (true)
-            {
-              unsigned i = v / 2;
-              if (i >= Ngate_min)
-                // v is a gate
-                return i - Ngate_min;
-              else if (i >= Nlatch_min)
-                // v is a latch -> get gate
-                v = aig_pos(latches_.at(i - Nlatch_min));
-              else
-                // v is a input -> nothing to do
-                return -1U;
-            }
-        };
-
-        auto mark = [&](unsigned v)
-        {
-          unsigned idx = v2idx(aig_pos(v));
-          if ((idx == -1U) || used[idx])
-            return;
-          used[idx] = true;
-          todo.push_back(idx);
-        };
-
-        for (unsigned v : outputs_)
-          mark(v);
-
-        while (!todo.empty())
-          {
-            unsigned idx = todo.back();
-            todo.pop_back();
-
-            mark(and_gates_[idx].first);
-            mark(and_gates_[idx].second);
-          }
-        // Erase and_gates that were not seen in the above
-        // exploration.
-        // To avoid renumbering all gates, erasure is done
-        // by setting both inputs to "false"
-        for (unsigned idx = 0; idx < used.size(); ++idx)
-          if (!used[idx])
-            {
-              and_gates_[idx].first = 0;
-              and_gates_[idx].second = 0;
-            }
-      }
-
-      // Takes a bdd, computes the corresponding literal
-      // using its DNF
-      unsigned bdd2DNFvar(const bdd& b,
-                          const std::unordered_map<unsigned, unsigned>&
-                          bddvar_to_num)
-      {
-        std::vector<unsigned> plus_vars;
-        std::vector<unsigned> prod_vars(num_inputs_);
-
-        minato_isop cond(b);
-        bdd prod;
-
-        while ((prod = cond.next()) != bddfalse)
-          {
-            prod_vars.clear();
-            // Check if existing
-            auto it = bdd2var_.find(prod);
-            if (it != bdd2var_.end())
-              plus_vars.push_back(it->second);
-            else
-              {
-                // Create
-                while (prod != bddfalse && prod != bddtrue)
-                  {
-                    unsigned v =
-                      input_var(bddvar_to_num.at(bdd_var(prod)));
-                    if (bdd_high(prod) == bddfalse)
-                      {
-                        v = aig_not(v);
-                        prod = bdd_low(prod);
-                      }
-                    else
-                      prod = bdd_high(prod);
-                    prod_vars.push_back(v);
-                  }
-                plus_vars.push_back(aig_and(prod_vars));
-              }
-          }
-
-        // Done building
-        return aig_or(plus_vars);
-      }
-
-      // Takes a bdd, computes the corresponding literal
-      // using its INF
-      unsigned bdd2INFvar(bdd b)
-      {
-        // F = !v&low | v&high
-        // De-morgan
-        // !(!v&low | v&high) = !(!v&low) & !(v&high)
-        // !v&low | v&high = !(!(!v&low) & !(v&high))
-        auto b_it = bdd2var_.find(b);
-        if (b_it != bdd2var_.end())
-          return b_it->second;
-
-        unsigned v_var = bdd2var_.at(bdd_ithvar(bdd_var(b)));
-
-        bdd b_branch[2] = {bdd_low(b), bdd_high(b)};
-        unsigned b_branch_var[2];
-
-        for (unsigned i: {0, 1})
-          {
-            auto b_branch_it = bdd2var_.find(b_branch[i]);
-            if (b_branch_it == bdd2var_.end())
-              b_branch_var[i] = bdd2INFvar(b_branch[i]);
-            else
-              b_branch_var[i] = b_branch_it->second;
-          }
-
-        unsigned r = aig_not(aig_and(v_var, b_branch_var[1]));
-        unsigned l = aig_not(aig_and(aig_not(v_var), b_branch_var[0]));
-        return aig_not(aig_and(l, r));
-      }
-
-      void
-      print(std::ostream& os) const
-      {
-        // Writing gates to formatted buffer speed-ups output
-        // as it avoids "<<" calls
-        // vars are unsigned -> 10 digits at most
-        char gate_buffer[3*10+5];
-        auto write_gate = [&](unsigned o, unsigned i0, unsigned i1)
-        {
-          std::sprintf(gate_buffer, "%u %u %u\n", o, i0, i1);
-          os << gate_buffer;
-        };
-        // Count active gates
-        unsigned n_gates=0;
-        for (auto& g : and_gates_)
-          if ((g.first != 0) && (g.second != 0))
-            ++n_gates;
-        // Note max_var_ is now an upper bound
-        os << "aag " << max_var_ / 2
-           << ' ' << num_inputs_
-           << ' ' << num_latches_
-           << ' ' << num_outputs_
-           << ' ' << n_gates << '\n';
-        for (unsigned i = 0; i < num_inputs_; ++i)
-          os << (1 + i) * 2 << '\n';
-        for (unsigned i = 0; i < num_latches_; ++i)
-          os << (1 + num_inputs_ + i) * 2 << ' ' << latches_[i] << '\n';
-        for (unsigned i = 0; i < outputs_.size(); ++i)
-          os << outputs_[i] << '\n';
-        for (unsigned i=0; i<and_gates_.size(); ++i)
-          if ((and_gates_[i].first != 0) && (and_gates_[i].second != 0))
-            write_gate(gate_var(i), and_gates_[i].first, and_gates_[i].second);
-        for (unsigned i = 0; i < num_inputs_; ++i)
-          os << 'i' << i << ' ' << input_names_[i] << '\n';
-        for (unsigned i = 0; i < outputs_.size(); ++i)
-          os << 'o' << i << ' ' << output_names_[i] << '\n';
+        unsigned i = v / 2;
+        if (i >= Ngate_min)
+          // v is a gate
+          return i - Ngate_min;
+        else if (i >= Nlatch_min)
+          // v is a latch -> get gate
+          v = aig_pos(latches_.at(i - Nlatch_min));
+        else
+          // v is a input -> nothing to do
+          return -1U;
       }
     };
 
+    auto mark = [&](unsigned v) {
+      unsigned idx = v2idx(aig_pos(v));
+      if ((idx == -1U) || used[idx])
+        return;
+      used[idx] = true;
+      todo.push_back(idx);
+    };
+
+    for (unsigned v : outputs_)
+      mark(v);
+
+    while (!todo.empty())
+    {
+      unsigned idx = todo.back();
+      todo.pop_back();
+
+      mark(and_gates_[idx].first);
+      mark(and_gates_[idx].second);
+    }
+    // Erase and_gates that were not seen in the above
+    // exploration.
+    // To avoid renumbering all gates, erasure is done
+    // by setting both inputs to "false"
+    for (unsigned idx = 0; idx < used.size(); ++idx)
+      if (!used[idx])
+      {
+        and_gates_[idx].first = 0;
+        and_gates_[idx].second = 0;
+      }
+  }
+
+  unsigned aig::bdd2DNFvar(const bdd &b,
+                           const std::unordered_map<unsigned, unsigned> &
+                               bddvar_to_num)
+  {
+    std::vector<unsigned> plus_vars;
+    std::vector<unsigned> prod_vars(num_inputs_);
+
+    minato_isop cond(b);
+    bdd prod;
+
+    while ((prod = cond.next()) != bddfalse)
+    {
+      prod_vars.clear();
+      // Check if existing
+      auto it = bdd2var_.find(prod);
+      if (it != bdd2var_.end())
+        plus_vars.push_back(it->second);
+      else
+      {
+        // Create
+        while (prod != bddfalse && prod != bddtrue)
+        {
+          unsigned v =
+              input_var(bddvar_to_num.at(bdd_var(prod)));
+          if (bdd_high(prod) == bddfalse)
+          {
+            v = aig_not(v);
+            prod = bdd_low(prod);
+          }
+          else
+            prod = bdd_high(prod);
+          prod_vars.push_back(v);
+        }
+        plus_vars.push_back(aig_and(prod_vars));
+      }
+    }
+    // Done building
+    return aig_or(plus_vars);
+  }
+
+  unsigned aig::bdd2INFvar(bdd b)
+  {
+    // F = !v&low | v&high
+    // De-morgan
+    // !(!v&low | v&high) = !(!v&low) & !(v&high)
+    // !v&low | v&high = !(!(!v&low) & !(v&high))
+    auto b_it = bdd2var_.find(b);
+    if (b_it != bdd2var_.end())
+      return b_it->second;
+
+    unsigned v_var = bdd2var_.at(bdd_ithvar(bdd_var(b)));
+
+    bdd b_branch[2] = {bdd_low(b), bdd_high(b)};
+    unsigned b_branch_var[2];
+
+    for (unsigned i : {0, 1})
+    {
+      auto b_branch_it = bdd2var_.find(b_branch[i]);
+      if (b_branch_it == bdd2var_.end())
+        b_branch_var[i] = bdd2INFvar(b_branch[i]);
+      else
+        b_branch_var[i] = b_branch_it->second;
+    }
+
+    unsigned r = aig_not(aig_and(v_var, b_branch_var[1]));
+    unsigned l = aig_not(aig_and(aig_not(v_var), b_branch_var[0]));
+    return aig_not(aig_and(l, r));
+  }
+
+   namespace
+  {
     static void
     state_to_vec(std::vector<bool>& v, unsigned s)
     {
@@ -686,18 +585,129 @@ namespace spot
     } // aut_to_aiger_isop
   }
 
-  std::ostream&
-  print_aiger(std::ostream& os, const const_twa_ptr& aut, const char* mode)
+  aig
+  strategy_to_aig(const const_twa_ptr& aut, const char* mode)
   {
     auto a = down_cast<const_twa_graph_ptr>(aut);
     if (!a)
       throw std::runtime_error("aiger output is only for twa_graph");
 
-    bdd* all_outputs = aut->get_named_prop<bdd>("synthesis-outputs");
+    bdd *all_outputs = aut->get_named_prop<bdd>("synthesis-outputs");
 
-    aig circuit =
-      aut_to_aiger(a, all_outputs ? *all_outputs : bdd(bddfalse), mode);
-    circuit.print(os);
+    return
+        aut_to_aiger(a, all_outputs ? *all_outputs : bdd(bddfalse), mode);
+  }
+
+  std::ostream &
+  print_aiger(std::ostream &os, aig circuit, const char* mode)
+  {
+    if (strcasecmp(mode, "dot") == 0)
+    {
+      auto add_edge = [](std::ostream& stream, const unsigned i, const unsigned j)
+      {
+        auto negate_i = i % 2U;
+        unsigned i_node = i - negate_i;
+        stream << i_node << " -> " << j;
+        if (negate_i)
+          stream << " [arrowhead=dot]";
+        stream << "\n";
+      };
+      os << "digraph G {\nrankdir = TB;\n";
+
+      os << "# inputs\n";
+      for (unsigned i = 0; i < circuit.num_inputs_; ++i)
+        os << "node [shape=triangle, label=\""
+                  << circuit.input_names_[i] << "\"] "
+                  << (i + 1) * 2 << ";\n";
+
+      os << "# And\n";
+      for (unsigned i = 0; i < circuit.and_gates_.size(); ++i)
+        if ((circuit.and_gates_[i].first != 0) && (circuit.and_gates_[i].second != 0))
+        {
+          auto gate_var = circuit.gate_var(i);
+          os << "node [shape=circle, label =\"" << gate_var
+                    << "\"] " << gate_var << ";\n";
+          add_edge(os, circuit.and_gates_[i].first, gate_var);
+          add_edge(os, circuit.and_gates_[i].second, gate_var);
+        }
+
+      os << "# Latches\n";
+      for (unsigned i = 0; i < circuit.num_latches_; ++i)
+      {
+        auto src = i - i % 2;
+        os << "node[shape=box] L" << i << ";\n";
+        os << "L" << i << " -> "
+                  << (1 + circuit.num_inputs_ + i) * 2 << "\n";
+        os << circuit.latches_[i] << " -> L" << src;
+        if (i % 2)
+          os << "[arrowhead=dot]";
+        os << "\n";
+      }
+
+      os << "# Outs\n";
+      for (unsigned i = 0; i < circuit.num_outputs_; ++i)
+      {
+        os << "node [shape=triangle, orientation=180, label=\""
+                  << circuit.output_names_[i] << "\"] "
+                  << circuit.output_names_[i] << ";\n";
+        auto z = circuit.outputs_[i];
+        if (z != 0)
+        {
+          os << (z - (z % 2)) << "->" << circuit.output_names_[i];
+          if (circuit.outputs_[i] % 2 == 1)
+            os << " [arrowhead=dot]";
+          os << "\n";
+        }
+      }
+
+      os << "{rank = max; ";
+      for (unsigned i = 0; i < circuit.num_inputs_; ++i)
+        os << (i + 1) * 2 << "; ";
+      os << "}\n{rank = min; ";
+      for (unsigned i = 0; i < circuit.num_outputs_; ++i)
+        os << circuit.output_names_[i] << "; ";
+      os << "}\n";
+
+      os << "}\n";
+    }
+    else if (strcasecmp(mode, "circuit") == 0)
+    {
+      // Writing gates to formatted buffer speed-ups output
+      // as it avoids "<<" calls
+      // vars are unsigned -> 10 digits at most
+      char gate_buffer[3 * 10 + 5];
+      auto write_gate = [&](unsigned o, unsigned i0, unsigned i1) {
+        std::sprintf(gate_buffer, "%u %u %u\n", o, i0, i1);
+        os << gate_buffer;
+      };
+      // Count active gates
+      unsigned n_gates = 0;
+      for (auto &g : circuit.and_gates_)
+        if ((g.first != 0) && (g.second != 0))
+          ++n_gates;
+      // Note max_var_ is now an upper bound
+      os << "aag " << circuit.max_var_ / 2
+          << ' ' << circuit.num_inputs_
+          << ' ' << circuit.num_latches_
+          << ' ' << circuit.num_outputs_
+          << ' ' << n_gates << '\n';
+      for (unsigned i = 0; i < circuit.num_inputs_; ++i)
+        os << (1 + i) * 2 << '\n';
+      for (unsigned i = 0; i < circuit.num_latches_; ++i)
+        os << (1 + circuit.num_inputs_ + i) * 2 << ' ' << circuit.latches_[i] << '\n';
+      for (unsigned i = 0; i < circuit.outputs_.size(); ++i)
+        os << circuit.outputs_[i] << '\n';
+      for (unsigned i = 0; i < circuit.and_gates_.size(); ++i)
+        if ((circuit.and_gates_[i].first != 0) && (circuit.and_gates_[i].second != 0))
+          write_gate(circuit.gate_var(i), circuit.and_gates_[i].first, circuit.and_gates_[i].second);
+      for (unsigned i = 0; i < circuit.num_inputs_; ++i)
+        os << 'i' << i << ' ' << circuit.input_names_[i] << '\n';
+      for (unsigned i = 0; i < circuit.outputs_.size(); ++i)
+        os << 'o' << i << ' ' << circuit.output_names_[i] << '\n';
+    }
+    else
+      throw std::runtime_error
+          ("print_aiger(): mode must be \"dot\" or \"circuit\"");
     return os;
   }
 }
