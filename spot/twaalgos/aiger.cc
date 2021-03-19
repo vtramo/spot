@@ -402,7 +402,7 @@ namespace spot
 
     // Transforms an automaton into an AIGER circuit
     // using irreducible sums-of-products
-    static aig
+    static aig_ptr
     aut_to_aiger(const const_twa_graph_ptr& aut, const bdd& all_outputs,
                  const char* mode)
     {
@@ -451,7 +451,9 @@ namespace spot
       unsigned num_outputs = output_names.size();
       unsigned init = aut->get_init_state_number();
       assert(num_outputs == (unsigned) bdd_nodecount(all_outputs));
-      aig circuit(input_names, output_names, log2n);
+      aig_ptr circuit_ptr =
+          std::make_shared<aig>(input_names, output_names, log2n);
+      aig& circuit = *circuit_ptr;
 
       // Register
       // latches
@@ -581,109 +583,161 @@ namespace spot
             ("print_aiger(): mode must be \"ISOP\" or \"ITE\"");
         }
 
-      return circuit;
+      return circuit_ptr;
     } // aut_to_aiger_isop
   }
 
-  aig
+  aig_ptr
   strategy_to_aig(const const_twa_ptr& aut, const char* mode)
   {
     auto a = down_cast<const_twa_graph_ptr>(aut);
     if (!a)
       throw std::runtime_error("aiger output is only for twa_graph");
 
-    bdd *all_outputs = aut->get_named_prop<bdd>("synthesis-outputs");
+    if (bdd* all_outputs = aut->get_named_prop<bdd>("synthesis-outputs"))
+      return aut_to_aiger(a, *all_outputs, mode);
+    else
+      throw std::runtime_error("strategy_to_aig relies on the named property"
+                               "\"synthesis-outputs\".\n");
+  }
 
-    return
-        aut_to_aiger(a, all_outputs ? *all_outputs : bdd(bddfalse), mode);
+  aig_ptr
+  strategy_to_aig(const twa_ptr &aut, const char *mode,
+                  const std::set<std::string>& ins,
+                  const std::set<std::string>& outs)
+  {
+    auto a = down_cast<const_twa_graph_ptr>(aut);
+    if (!a)
+      throw std::runtime_error("aiger output is only for twa_graph");
+
+    if (bdd* used_outputs = aut->get_named_prop<bdd>("synthesis-outputs"))
+      {
+        // Make sure ins and outs are disjoint
+        {
+          std::vector<std::string> inter;
+          std::set_intersection(ins.begin(), ins.end(),
+                                outs.begin(), outs.end(),
+                                std::back_inserter(inter));
+          if (not inter.empty())
+            {
+              for (auto&& e : inter)
+                std::cerr << e << '\n';
+              throw std::runtime_error("The above aps appear in \"ins\" and"
+                                       "\"outs\"");
+            }
+        }
+        // Register all to make sure they exist in the aut
+        bdd all_outputs = *used_outputs;
+        for (auto&& aap : ins)
+          aut->register_ap(aap);
+        for (auto&& aap : outs)
+          {
+            all_outputs &= bdd_ithvar(aut->register_ap(aap));
+            if (all_outputs == bddfalse)
+              throw std::runtime_error("Inconsistency between all outputs and"
+                                       "the ones defined in the strategy.\n");
+          }
+        // todo Some additional checks?
+        return aut_to_aiger(a, all_outputs, mode);
+      }
+    else
+      throw std::runtime_error("strategy_to_aig relies on the named property"
+                               "\"synthesis-outputs\".\n");
+
   }
 
   std::ostream &
-  print_aiger(std::ostream &os, aig circuit, const char* mode)
+  print_aiger(std::ostream &os, const_aig_ptr circuit, const char* mode)
   {
+    if (not circuit)
+      return os;//Print nothing in case of nullptr
+
     if (strcasecmp(mode, "dot") == 0)
     {
       print_aiger(std::cout, circuit, "circuit");
-      auto add_edge = [](std::ostream& stream, const unsigned i, const unsigned j)
+      auto add_edge = [](std::ostream& stream,
+                         const unsigned i, const unsigned j)
       {
         auto negate_i = i % 2U;
         unsigned i_node = i - negate_i;
         stream << i_node << " -> " << j;
         if (negate_i)
           stream << " [arrowhead=dot]";
-        stream << "\n";
+        stream << '\n';
       };
       std::cout << "digraph G {\nrankdir = BT;\n";
 
       std::cout << "# latches left\n";
-      for (unsigned i = 0; i < circuit.num_latches_; ++i)
+      for (unsigned i = 0; i < circuit->num_latches_; ++i)
       {
-        auto first = (1 + circuit.num_inputs_ + i) * 2;
+        auto first = (1 + circuit->num_inputs_ + i) * 2;
         auto first_m_mod = first - (first % 2);
-        std::cout << "node[shape=box, label=\"" << first_m_mod << "\"] " << first_m_mod << ";\n";
+        std::cout << "node[shape=box, label=\"" << first_m_mod
+                  << "\"] " << first_m_mod << ";\n";
       }
 
       std::cout << "# inputs\n";
-      for (unsigned i = 0; i < circuit.num_inputs_; ++i)
+      for (unsigned i = 0; i < circuit->num_inputs_; ++i)
         std::cout << "node [shape=triangle, label=\""
-                  << circuit.input_names_[i] << "\"] "
+                  << circuit->input_names_[i] << "\"] "
                   << (i + 1) * 2 << ";\n";
 
       std::cout << "# And\n";
-      for (unsigned i = 0; i < circuit.and_gates_.size(); ++i)
-        if ((circuit.and_gates_[i].first != 0) && (circuit.and_gates_[i].second != 0))
+      for (unsigned i = 0; i < circuit->and_gates_.size(); ++i)
+        if ((circuit->and_gates_[i].first != 0)
+            && (circuit->and_gates_[i].second != 0))
         {
-          auto gate_var = circuit.gate_var(i);
+          auto gate_var = circuit->gate_var(i);
           std::cout << "node [shape=circle, label =\"" << gate_var
                     << "\"] " << gate_var << ";\n";
-          add_edge(std::cout, circuit.and_gates_[i].first, gate_var);
-          add_edge(std::cout, circuit.and_gates_[i].second, gate_var);
+          add_edge(std::cout, circuit->and_gates_[i].first, gate_var);
+          add_edge(std::cout, circuit->and_gates_[i].second, gate_var);
         }
 
       std::cout << "# Latches\n";
-      for (unsigned i = 0; i < circuit.num_latches_; ++i)
+      for (unsigned i = 0; i < circuit->num_latches_; ++i)
       {
-        auto first = (1 + circuit.num_inputs_ + i) * 2;
+        auto first = (1 + circuit->num_inputs_ + i) * 2;
         auto first_m_mod = first - (first % 2);
-        auto second = circuit.latches_[i];
+        auto second = circuit->latches_[i];
         std::cout << "node[shape=box, label=\"L" << i << "\"] L" << i << ";\n";
         std::cout << "L" << i << " -> "
-                  << first_m_mod << "\n";
+                  << first_m_mod << '\n';
         std::cout << second - (second % 2) << " -> L" << i;
         if (i % 2)
           std::cout << "[arrowhead=dot]";
-        std::cout << "\n";
+        std::cout << '\n';
       }
 
       std::cout << "# Outs\n";
-      for (unsigned i = 0; i < circuit.num_outputs_; ++i)
+      for (unsigned i = 0; i < circuit->num_outputs_; ++i)
       {
         std::cout << "node [shape=triangle, orientation=180, label=\""
-                  << circuit.output_names_[i] << "\"] "
-                  << circuit.output_names_[i] << ";\n";
-        auto z = circuit.outputs_[i];
+                  << circuit->output_names_[i] << "\"] "
+                  << circuit->output_names_[i] << ";\n";
+        auto z = circuit->outputs_[i];
         if (z != 0)
         {
-          std::cout << (z - (z % 2)) << "->" << circuit.output_names_[i];
-          if (circuit.outputs_[i] % 2 == 1)
+          std::cout << (z - (z % 2)) << "->" << circuit->output_names_[i];
+          if (circuit->outputs_[i] % 2 == 1)
             std::cout << " [arrowhead=dot]";
-          std::cout << "\n";
+          std::cout << '\n';
         }
       }
 
       std::cout << "{rank = source; ";
-      for (unsigned i = 0; i < circuit.num_inputs_; ++i)
+      for (unsigned i = 0; i < circuit->num_inputs_; ++i)
         std::cout << (i + 1) * 2 << "; ";
       std::cout << "}\n{rank = sink; ";
-      for (unsigned i = 0; i < circuit.num_outputs_; ++i)
-        std::cout << circuit.output_names_[i] << "; ";
+      for (unsigned i = 0; i < circuit->num_outputs_; ++i)
+        std::cout << circuit->output_names_[i] << "; ";
       std::cout << "}\n{rank = same; ";
-      for (unsigned i = 0; i < circuit.num_latches_; ++i)
+      for (unsigned i = 0; i < circuit->num_latches_; ++i)
         std::cout << "L" << i << "; ";
       std::cout << "}\n{rank = same; ";
-      for (unsigned i = 0; i < circuit.num_latches_; ++i)
+      for (unsigned i = 0; i < circuit->num_latches_; ++i)
       {
-        auto first = (1 + circuit.num_inputs_ + i) * 2;
+        auto first = (1 + circuit->num_inputs_ + i) * 2;
         auto first_m_mod = first - (first % 2);
         std::cout << first_m_mod << "; ";
       }
@@ -701,28 +755,32 @@ namespace spot
       };
       // Count active gates
       unsigned n_gates = 0;
-      for (auto &g : circuit.and_gates_)
+      for (auto &g : circuit->and_gates_)
         if ((g.first != 0) && (g.second != 0))
           ++n_gates;
       // Note max_var_ is now an upper bound
-      os << "aag " << circuit.max_var_ / 2
-          << ' ' << circuit.num_inputs_
-          << ' ' << circuit.num_latches_
-          << ' ' << circuit.num_outputs_
+      os << "aag " << circuit->max_var_ / 2
+          << ' ' << circuit->num_inputs_
+          << ' ' << circuit->num_latches_
+          << ' ' << circuit->num_outputs_
           << ' ' << n_gates << '\n';
-      for (unsigned i = 0; i < circuit.num_inputs_; ++i)
+      for (unsigned i = 0; i < circuit->num_inputs_; ++i)
         os << (1 + i) * 2 << '\n';
-      for (unsigned i = 0; i < circuit.num_latches_; ++i)
-        os << (1 + circuit.num_inputs_ + i) * 2 << ' ' << circuit.latches_[i] << '\n';
-      for (unsigned i = 0; i < circuit.outputs_.size(); ++i)
-        os << circuit.outputs_[i] << '\n';
-      for (unsigned i = 0; i < circuit.and_gates_.size(); ++i)
-        if ((circuit.and_gates_[i].first != 0) && (circuit.and_gates_[i].second != 0))
-          write_gate(circuit.gate_var(i), circuit.and_gates_[i].first, circuit.and_gates_[i].second);
-      for (unsigned i = 0; i < circuit.num_inputs_; ++i)
-        os << 'i' << i << ' ' << circuit.input_names_[i] << '\n';
-      for (unsigned i = 0; i < circuit.outputs_.size(); ++i)
-        os << 'o' << i << ' ' << circuit.output_names_[i] << '\n';
+      for (unsigned i = 0; i < circuit->num_latches_; ++i)
+        os << (1 + circuit->num_inputs_ + i) * 2
+           << ' ' << circuit->latches_[i] << '\n';
+      for (unsigned i = 0; i < circuit->outputs_.size(); ++i)
+        os << circuit->outputs_[i] << '\n';
+      for (unsigned i = 0; i < circuit->and_gates_.size(); ++i)
+        if ((circuit->and_gates_[i].first != 0)
+            && (circuit->and_gates_[i].second != 0))
+          write_gate(circuit->gate_var(i),
+                     circuit->and_gates_[i].first,
+                     circuit->and_gates_[i].second);
+      for (unsigned i = 0; i < circuit->num_inputs_; ++i)
+        os << 'i' << i << ' ' << circuit->input_names_[i] << '\n';
+      for (unsigned i = 0; i < circuit->outputs_.size(); ++i)
+        os << 'o' << i << ' ' << circuit->output_names_[i] << '\n';
     }
     else
       throw std::runtime_error
