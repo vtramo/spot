@@ -26,6 +26,8 @@
 #include <spot/twa/fwd.hh>
 #include <unordered_map>
 #include <vector>
+#include <set>
+#include <memory>
 
 namespace spot
 {
@@ -70,6 +72,11 @@ namespace spot
       return res;
     }
   }
+
+  class aig;
+
+  using aig_ptr = std::shared_ptr<aig>;
+  using const_aig_ptr = std::shared_ptr<const aig>;
 
 
   // A class to represent an AIGER circuit
@@ -162,8 +169,13 @@ namespace spot
   };
 
   SPOT_API std::ostream&
-  print_aiger(std::ostream &os, aig circuit, const char *mode);
+  print_aiger(std::ostream &os, const_aig_ptr circuit, const char *mode);
 
-  SPOT_API aig
+  SPOT_API aig_ptr
   strategy_to_aig(const const_twa_ptr &aut, const char *mode);
+
+  SPOT_API aig_ptr
+  strategy_to_aig(const twa_ptr &aut, const char *mode,
+                  const std::set<std::string>& ins,
+                  const std::set<std::string>& outs);
 }

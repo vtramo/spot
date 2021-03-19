@@ -26,9 +26,11 @@
 #include <spot/twaalgos/isdet.hh>
 #include <spot/twaalgos/parity.hh>
 #include <spot/twaalgos/toparity.hh>
+#include <spot/twaalgos/sbacc.hh>
 #include <spot/misc/timer.hh>
 
 #include <algorithm>
+#include <string>
 
 // Helper function/structures for split_2step
 namespace{
@@ -124,7 +126,7 @@ namespace{
   }less_info_ptr;
 
   static spot::twa_graph_ptr
-  ntgba2dpa(const spot::twa_graph_ptr &split, bool force_sbacc = false)
+  ntgba2dpa(const spot::twa_graph_ptr &split, bool force_sbacc)
   {
     // if the input automaton is deterministic, degeneralize it to be sure to
     // end up with a parity automaton
@@ -149,8 +151,41 @@ namespace{
 
 namespace spot
 {
+  std::ostream& operator<<(std::ostream& os, solver s)
+  {
+    switch (s)
+    {
+    case (solver::DET_SPLIT):
+      os << "ds";
+      break;
+    case (solver::SPLIT_DET):
+      os << "sd";
+      break;
+    case (solver::DPA_SPLIT):
+      os << "ps";
+      break;
+    case (solver::LAR):
+      os << "lar";
+      break;
+    case (solver::LAR_OLD):
+      os << "lar.old";
+      break;
+    }
+    return os;
+  }
+
+  std::ostream&
+  operator<<(std::ostream& os, const game_info& gi)
+  {
+    os << "force sbacc: " << gi.force_sbacc << '\n'
+      << "solver: " << gi.s << '\n'
+      << (gi.verbose_stream ? "Is verbose\n" : "Is not verbose\n");
+    return os;
+  }
+
+
   twa_graph_ptr
-  split_2step(const const_twa_graph_ptr& aut, const bdd& input_bdd,
+  split_2step(const const_twa_graph_ptr& aut,
               const bdd& output_bdd, bool complete_env,
               bool do_simplify)
   {
@@ -159,6 +194,21 @@ namespace spot
     split->copy_acceptance_of(aut);
     split->new_states(aut->num_states());
     split->set_init_state(aut->get_init_state_number());
+    split->set_named_prop<bdd>("synthesis-output", new bdd(output_bdd));
+
+    bdd input_bdd = bddtrue;
+    {
+      bdd allbdd = aut->ap_vars();
+      while (allbdd != bddtrue)
+        {
+          bdd l = bdd_ithvar(bdd_var(allbdd));
+          if (not bdd_implies(output_bdd, l))
+            // Input
+            input_bdd &= l;
+          allbdd = bdd_high(allbdd);
+          assert(allbdd != bddfalse);
+        }
+    }
 
     // The environment has all states
     // with num <= aut->num_states();
@@ -387,7 +437,6 @@ namespace spot
 
   spot::twa_graph_ptr
   apply_strategy(const spot::twa_graph_ptr& arena,
-                 bdd all_outputs,
                  bool unsplit, bool keep_acc)
   {
     std::vector<bool>* w_ptr =
@@ -408,16 +457,17 @@ namespace spot
     std::vector<bool>& w = *w_ptr;
     std::vector<unsigned>& s = *s_ptr;
 
-    auto aut = spot::make_twa_graph(arena->get_dict());
-    aut->copy_ap_of(arena);
+    auto strat_aut = spot::make_twa_graph(arena->get_dict());
+    strat_aut->copy_ap_of(arena);
     if (keep_acc)
-      aut->copy_acceptance_of(arena);
+      strat_aut->copy_acceptance_of(arena);
 
     constexpr unsigned unseen_mark = std::numeric_limits<unsigned>::max();
     std::vector<unsigned> todo{arena->get_init_state_number()};
     std::vector<unsigned> pg2aut(arena->num_states(), unseen_mark);
-    aut->set_init_state(aut->new_state());
-    pg2aut[arena->get_init_state_number()] = aut->get_init_state_number();
+    strat_aut->set_init_state(strat_aut->new_state());
+    pg2aut[arena->get_init_state_number()] =
+        strat_aut->get_init_state_number();
 
     while (!todo.empty())
       {
@@ -443,11 +493,12 @@ namespace spot
                 // If so we do not need to unsplit
                 if (pg2aut[e1.dst] == unseen_mark)
                   {
-                    pg2aut[e1.dst] = aut->new_state();
+                    pg2aut[e1.dst] = strat_aut->new_state();
                     todo.push_back(e1.dst);
                   }
                 // Create the edge
-                aut->new_edge(pg2aut[v],
+                strat_aut->new_edge(
+                              pg2aut[v],
                               pg2aut[e1.dst],
                               e1.cond,
                               keep_acc ? e1.acc : spot::acc_cond::mark_t({}));
@@ -458,34 +509,41 @@ namespace spot
             if (!unsplit)
               {
                 if (pg2aut[e1.dst] == unseen_mark)
-                  pg2aut[e1.dst] = aut->new_state();
-                aut->new_edge(pg2aut[v], pg2aut[e1.dst], e1.cond,
+                  pg2aut[e1.dst] = strat_aut->new_state();
+                strat_aut->new_edge(
+                              pg2aut[v], pg2aut[e1.dst], e1.cond,
                               keep_acc ? e1.acc : spot::acc_cond::mark_t({}));
               }
             // Player strat
             auto &e2 = arena->edge_storage(s[e1.dst]);
             if (pg2aut[e2.dst] == unseen_mark)
               {
-                pg2aut[e2.dst] = aut->new_state();
+                pg2aut[e2.dst] = strat_aut->new_state();
                 todo.push_back(e2.dst);
               }
 
-            aut->new_edge(unsplit ? pg2aut[v] : pg2aut[e1.dst],
+            strat_aut->new_edge(
+                          unsplit ? pg2aut[v] : pg2aut[e1.dst],
                           pg2aut[e2.dst],
                           unsplit ? (e1.cond & e2.cond) : e2.cond,
                           keep_acc ? e2.acc : spot::acc_cond::mark_t({}));
           }
       }
 
-    aut->set_named_prop("synthesis-outputs", new bdd(all_outputs));
+      if (bdd* obdd = arena->get_named_prop<bdd>("synthesis-outputs"))
+        strat_aut->set_named_prop("synthesis-outputs", new bdd(*obdd));
+      else
+        throw std::runtime_error("Missing named property "
+                                 "\"synthesis-outputs\".\n");
+
     // If no unsplitting is demanded, it remains a two-player arena
     // We do not need to track winner as this is a
     // strategy automaton
     if (!unsplit)
       {
         const std::vector<bool>& sp_pg = * sp_ptr;
-        std::vector<bool> sp_aut(aut->num_states());
-        std::vector<unsigned> str_aut(aut->num_states());
+        std::vector<bool> sp_aut(strat_aut->num_states());
+        std::vector<unsigned> str_aut(strat_aut->num_states());
         for (unsigned i = 0; i < arena->num_states(); ++i)
           {
             if (pg2aut[i] == unseen_mark)
@@ -494,59 +552,64 @@ namespace spot
             sp_aut[pg2aut[i]] = sp_pg[i];
             str_aut[pg2aut[i]] = s[i];
           }
-        aut->set_named_prop(
+        strat_aut->set_named_prop(
             "state-player", new std::vector<bool>(std::move(sp_aut)));
-        aut->set_named_prop(
-            "state-winner", new std::vector<bool>(aut->num_states(), true));
-        aut->set_named_prop(
+        strat_aut->set_named_prop(
+            "state-winner", new std::vector<bool>(strat_aut->num_states(),
+                                                  true));
+        strat_aut->set_named_prop(
             "strategy", new std::vector<unsigned>(std::move(str_aut)));
       }
-    return aut;
+    return strat_aut;
 
   }
 
   spot::twa_graph_ptr
   create_game(const spot::formula& f,
-              const std::vector<std::string>& ins,
-              const std::vector<std::string>& outs,
+              const std::set<std::string>& all_outs,
               spot::translator& trans,
-              create_game_info& gi)
+              game_info& gi)
   {
     // Shortcuts
-    using tstr = std::to_string;
     auto& bv = gi.bv;
     auto& vs = gi.verbose_stream;
 
-    auto aut = trans.run(&f);
+    spot::stopwatch sw;
 
-    // Collect the ap's actually used in the automaton
-    auto used = aut.ap_vars()
-    // Register all and check which are actually used
+    if (bv)
+      sw.start();
+    auto aut = trans.run(f);
+    if (bv)
+      bv->trans_time = sw.stop();
+
+    if (vs)
+      {
+        assert(bv);
+        *vs << "translating formula done in "
+            << bv->trans_time << " seconds\n";
+        *vs << "automaton has " << aut->num_states()
+            << " states and " << aut->num_sets() << " colors\n";
+      }
+    auto tobdd = [&aut](const std::string& ap_name)
+      {
+        return bdd_ithvar(aut->register_ap(ap_name));
+      };
+
+    // Check for each ap that actually appears in the graph
+    // whether its an in or out
     auto ins = bddtrue;
     auto outs = bddtrue;
-    auto unused_ins = bddtrue;
-    auto unused_outs = bddtrue;
-    for (auto&& ain : ins)
+    for (auto&& aap : aut->ap())
       {
-        ainbdd = bdd_ithvar(aut.register_ap(ain));
-        if (ainbdd & used == used)
-          ins &= ainbdd;
+        if (all_outs.count(aap.ap_name()) != 0)
+          outs &= tobdd(aap.ap_name());
         else
-          unused_ins &= ainbdd;
-      }
-    for (auto&& aout : outs)
-      {
-        aoutbdd = bdd_ithvar(aut.register_ap(aout));
-        if (aoutbdd & used == used)
-          outs &= aoutbdd;
-        else
-          unused_outs &= aoutbdd;
+          ins &= tobdd(aap.ap_name());
       }
 
     spot::twa_graph_ptr dpa = nullptr;
-    spot::stopwatch sw;
 
-    switch (s)
+    switch (gi.s)
     {
       case solver::DET_SPLIT:
       {
@@ -554,27 +617,27 @@ namespace spot
           sw.start();
         auto tmp = ntgba2dpa(aut, gi.force_sbacc);
         if (vs)
-          vs << "determinization done\nDPA has "
-             << tmp->num_states() << " states, "
-             << tmp->num_sets() << " colors\n";
+          *vs << "determinization done\nDPA has "
+              << tmp->num_states() << " states, "
+              << tmp->num_sets() << " colors\n";
         tmp->merge_states();
         if (bv)
           bv->paritize_time = sw.stop();
         if (vs)
-          vs << "simplification done\nDPA has "
-             << tmp->num_states() << " states\n"
-             << "determinization and simplification took "
-             << bv->paritize_time << " seconds\n";
+          *vs << "simplification done\nDPA has "
+              << tmp->num_states() << " states\n"
+              << "determinization and simplification took "
+              << bv->paritize_time << " seconds\n";
         if (bv)
           sw.start();
-        dpa = split_2step(tmp, ins, outs, true, true);
+        dpa = split_2step(tmp, outs, true, true);
         spot::colorize_parity_here(dpa, true);
         if (bv)
           bv->split_time = sw.stop();
         if (vs)
-          vs << "split inputs and outputs done in " << bv->split_time
-             << " seconds\nautomaton has "
-             << tmp->num_states() << " states\n";
+          *vs << "split inputs and outputs done in " << bv->split_time
+              << " seconds\nautomaton has "
+              << tmp->num_states() << " states\n";
         break;
       }
       case solver::DPA_SPLIT:
@@ -585,45 +648,45 @@ namespace spot
         if (bv)
           bv->paritize_time = sw.stop();
         if (vs)
-          vs << "simplification done in " << bv->paritize_time
-             << " seconds\nDPA has " << aut->num_states()
-             << " states\n";
+          *vs << "simplification done in " << bv->paritize_time
+              << " seconds\nDPA has " << aut->num_states()
+              << " states\n";
         if (bv)
           sw.start();
-        dpa = split_2step(aut, ins, outs, true, true);
+        dpa = split_2step(aut, outs, true, true);
         spot::colorize_parity_here(dpa, true);
         if (bv)
           bv->split_time = sw.stop();
         if (vs)
-          vs << "split inputs and outputs done in " << bv->split_time
-             << " seconds\nautomaton has "
-             << dpa->num_states() << " states\n";
+          *vs << "split inputs and outputs done in " << bv->split_time
+              << " seconds\nautomaton has "
+              << dpa->num_states() << " states\n";
         break;
       }
       case solver::SPLIT_DET:
       {
         sw.start();
-        auto split = split_2step(aut, all_inputs, all_outputs,
+        auto split = split_2step(aut, outs,
                                 true, false);
         if (bv)
           bv->split_time = sw.stop();
         if (vs)
-          vs << "split inputs and outputs done in " << bv->split_time
-             << " seconds\nautomaton has "
-             << split->num_states() << " states\n";
+          *vs << "split inputs and outputs done in " << bv->split_time
+              << " seconds\nautomaton has "
+              << split->num_states() << " states\n";
         if (bv)
           sw.start();
-        dpa = ntgba2dpa(split);
+        dpa = ntgba2dpa(split, gi.force_sbacc);
         if (vs)
-          vs << "determinization done\nDPA has "
-             << dpa->num_states() << " states, "
-             << dpa->num_sets() << " colors\n";
+          *vs << "determinization done\nDPA has "
+              << dpa->num_states() << " states, "
+              << dpa->num_sets() << " colors\n";
         dpa->merge_states();
         if (vs)
-          vs << "simplification done\nDPA has "
-             << dpa->num_states() << " states\n"
-             << "determinization and simplification took "
-             << bv->paritize_time << " seconds\n";
+          *vs << "simplification done\nDPA has "
+              << dpa->num_states() << " states\n"
+              << "determinization and simplification took "
+              << bv->paritize_time << " seconds\n";
         if (bv)
           bv->paritize_time = sw.stop();
         // The named property "state-player" is set in split_2step
@@ -637,7 +700,7 @@ namespace spot
       {
         if (bv)
           sw.start();
-        if (opt_solver == solver::LAR)
+        if (gi.s == solver::LAR)
           {
             dpa = spot::to_parity(aut);
             // reduce_parity is called by to_parity(),
@@ -654,101 +717,72 @@ namespace spot
         if (bv)
           bv->paritize_time = sw.stop();
         if (vs)
-          vs << "LAR construction done in " << bv->paritize_time
-             << " seconds\nDPA has "
-             << dpa->num_states() << " states, "
-             << dpa->num_sets() << " colors\n";
+          *vs << "LAR construction done in " << bv->paritize_time
+              << " seconds\nDPA has "
+              << dpa->num_states() << " states, "
+              << dpa->num_sets() << " colors\n";
 
         if (bv)
           sw.start();
-        dpa = split_2step(dpa, all_inputs, all_outputs, true, true);
+        dpa = split_2step(dpa, outs, true, true);
         spot::colorize_parity_here(dpa, true);
         if (bv)
           bv->split_time = sw.stop();
         if (vs)
-          vs << "split inputs and outputs done in " << bv->split_time
-             << " seconds\nautomaton has "
-             << dpa->num_states() << " states\n";
+          *vs << "split inputs and outputs done in " << bv->split_time
+              << " seconds\nautomaton has "
+              << dpa->num_states() << " states\n";
         break;
       }
     } //end switch solver
     // Set the named properties
-    assert(dpa.get_named_prop<std::vector<bool>>("state-player")
+    assert(dpa->get_named_prop<std::vector<bool>>("state-player")
            && "DPA has no state-players");
-    dpa.set_named_prop<bdd>("synthesis-inputs", new bdd(ins));
-    dpa.set_named_prop<bdd>("synthesis-outputs", new bdd(outs));
-    dpa.set_named_prop<bdd>("synthesis-unused-ins", new bdd(unused_inss));
-    dpa.set_named_prop<bdd>("synthesis-unused-outs", new bdd(unused_outs));
+    dpa->set_named_prop<bdd>("synthesis-outputs", new bdd(outs));
     return dpa;
   }
 
-  bool solve_game(twa_graph_ptr arena)
+  bool solve_game(twa_graph_ptr arena, game_info& gi)
   {
     // todo adapt to new interface
-    return solve_
+    spot::stopwatch sw;
+    if (gi.bv)
+      sw.start();
+    auto ret = spot::solve_parity_game(arena);
+    if (gi.bv)
+      gi.bv->solve_time = sw.stop();
+    if (gi.verbose_stream)
+      *(gi.verbose_stream) << "parity game solved in "
+                           << gi.bv->solve_time << " seconds\n";
+    return ret;
   }
 
   // Besoin d'une version qui prend en arg une stratégie ?
   // TODO: Là on prend un dpa et on créé strat_aut. Peut être qu'il faut encore
   // découper la fonction car ltlsynt peut simplement demander s'il existe une
   // stratégie. Dans ce cas pas besoin d'appel à apply_strategy.
-  std::pair<bool, twa_graph_ptr>
+  twa_graph_ptr
   create_strategy(twa_graph_ptr arena, game_info& gi)
   {
     auto& bv = gi.bv;
-    auto& vs = gi.verbose_stream;
     spot::stopwatch sw;
 
-    twa_graph_ptr strat_aut = nullptr;
+    if (auto* sw = arena->get_named_prop<std::vector<bool>>("state-winner"))
+      {
+        if (not (*sw)[arena->get_init_state_number()])
+          return nullptr;
+      }
+    else
+      throw std::runtime_error("Arena has no named property"
+                                "\"state-winner\". Game not solved?\n");
 
     if (bv)
       sw.start();
-    bool player1winning = solve_parity_game(arena);
+    twa_graph_ptr strat_aut = apply_strategy(arena, true, false);
     if (bv)
-      bv->solve_time = sw.stop();
-    if (vs)
-      vs << "parity game solved in " << bv->solve_time << " seconds\n";
-    if (player1winning and gi.appy_strat)
-      {
-         if (bv)
-           sw.start();
-         if (bdd* outs = arena.get_named_property<bdd>("synthesis-outputs"))
-           strat_aut = apply_strategy(dpa, *outs, true, false);
-         else
-           throw std::runtime_error("create_strategy relies on the named prop"
-                                    "\"synthesis-outputs\"!");
-        if (bv)
-          bv->strat2aut_time = sw.stop();
-      }
-    return std::make_pair(player1winning, strat_aut);
+      bv->strat2aut_time = sw.stop();
+
+    return strat_aut;
   }
 
-  bool
-  is_realizable(spot::formula& f, std::vector<spot::formula> ins,
-                     std::vector<spot::formula> outs,
-                     spot::translator& trans,
-                     bool verbose,
-                     solver sol,
-                     bench_var bv)
-  {
-    return create_solved_game(f, ins, outs, trans, verbose, sol, bv) != nullptr;
-  }
-
-  // Là create_aiger_circuit prend une formule et va utiliser les trucs au
-  // dessus. Je sais pas s'il y a besoin d'un équivalent qui prend en
-  // argument une stratégie.
-  spot::aig
-  create_aiger_circuit(spot::formula& f, std::vector<spot::formula> ins,
-                       std::vector<spot::formula> outs,
-                       spot::translator& trans,
-                       const char* mode,
-                       bool verbose,
-                       solver sol,
-                       bench_var bv)
-  {
-    auto strategy = create_strategy(f, ins, outs, trans, verbose, sol, bv);
-    if (strategy == nullptr)
-      return aig(0, 0, 0);
-    return strategy_to_aig(strategy, mode);
-  }
 } // spot

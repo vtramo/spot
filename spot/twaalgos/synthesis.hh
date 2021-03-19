@@ -45,8 +45,8 @@ namespace spot
   /// This function is used to transform an automaton into a turn-based game in
   /// the context of LTL reactive synthesis.
   /// \param aut          automaton to be transformed
-  /// \param input_bdd    conjunction of all input AP
-  /// \param output_bdd   conjunction of all output AP
+  /// \param output_bdd   conjunction of all output AP; Note that all aps
+  ///                     not appearing here are considered inputs
   /// \param complete_env Whether the automaton should be complete for the
   ///                     environment, i.e. the player of I
   /// \param do_simplify  If a state has a single outgoing transition
@@ -57,7 +57,7 @@ namespace spot
   ///        then egdes between the sinks will be added
   /// (assuming that the environnement/player of I) plays first
   SPOT_API twa_graph_ptr
-  split_2step(const const_twa_graph_ptr& aut, const bdd& input_bdd,
+  split_2step(const const_twa_graph_ptr& aut,
               const bdd& output_bdd, bool complete_env, bool do_simplify);
 
   /// \brief the reverse of split_2step
@@ -72,73 +72,62 @@ namespace spot
   ///
   /// \param arena        twa_graph with named properties "state-player",
   ///                     "strategy" and "state-winner"
-  /// \param all_outputs  bdd of all output signals
   /// \param unsplit      Whether or not to unsplit the automaton
   /// \param keep_acc     Whether or not keep the acceptance condition
   /// \return             the resulting twa_graph
   SPOT_API spot::twa_graph_ptr
   apply_strategy(const spot::twa_graph_ptr& arena,
-                 bdd all_outputs, bool unsplit, bool keep_acc);
-
-  // TODO: Dans ltlsynt on mesure les temps, nb d'états,…
-  // J'en fais une structure qui est remplie si besoin.
-  struct bench_var
-  {
-    double trans_time = 0.0;
-    double split_time = 0.0;
-    double paritize_time = 0.0;
-    double solve_time = 0.0;
-    double strat2aut_time = 0.0;
-    unsigned nb_states_arena = 0;
-    unsigned nb_states_parity_game = 0;
-  };
+                 bool unsplit, bool keep_acc);
 
   enum class solver
   {
-    DET_SPLIT,
+    DET_SPLIT=0,
     SPLIT_DET,
     DPA_SPLIT,
     LAR,
     LAR_OLD,
   };
 
+  SPOT_API std::ostream&
+  operator<<(std::ostream& os, solver s);
+
   struct game_info
   {
+    struct bench_var
+    {
+      double total_time = 0.0;
+      double trans_time = 0.0;
+      double split_time = 0.0;
+      double paritize_time = 0.0;
+      double solve_time = 0.0;
+      double strat2aut_time = 0.0;
+      unsigned nb_states_arena = 0;
+      unsigned nb_states_parity_game = 0;
+      bool realizable = false;
+    };
+
     bool force_sbacc = false;
-    bool apply_strat = true;
-    solver s = solver::DET_SPLIT;
+    solver s = solver::SPLIT_DET;
     std::optional<bench_var> bv = {};
-    std::optional<std::ostream&> verbose_stream = {};
+    std::ostream* verbose_stream = nullptr;
   };
+
+  SPOT_API std::ostream&
+  operator<<(std::ostream& os, const game_info& gi);
+
 
   SPOT_API spot::twa_graph_ptr
   create_game(const formula& f,
-              const std::vector<std::string>& ins,
-              const std::vector<std::string>& outs,
+              const std::set<std::string>& all_outs,
               spot::translator& trans,
               game_info& gi);
+
 
   SPOT_API bool
   solve_game(twa_graph_ptr arena, game_info& gi);
 
 
-  SPOT_API std::pair<bool, twa_graph_ptr>
-  create_strategy(twa_graph_ptr arena, game_info& gi)
+  SPOT_API twa_graph_ptr
+  create_strategy(twa_graph_ptr arena, game_info& gi);
 
-  SPOT_API bool
-  is_realizable(spot::formula& f, std::vector<spot::formula> ins,
-                     std::vector<spot::formula> outs,
-                     spot::translator& trans,
-                     bool verbose = false,
-                     solver sol = SPLIT_DET,
-                     bench_var bv = bench_var());
-
-  SPOT_API spot::aig
-  create_aiger_circuit(spot::formula& f, std::vector<spot::formula> ins,
-                       std::vector<spot::formula> outs,
-                       spot::translator& trans,
-                       const char *mode = "ITE",
-                       bool verbose = false,
-                       solver sol = SPLIT_DET,
-                       bench_var bv = bench_var());
 }
