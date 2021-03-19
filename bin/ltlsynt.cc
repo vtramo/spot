@@ -67,12 +67,12 @@ static const argp_option options[] =
   {
     /**************************************************/
     { nullptr, 0, nullptr, 0, "Input options:", 1 },
-    { "ins", OPT_INPUT, "PROPS", 0,
-      "comma-separated list of uncontrollable (a.k.a. input) atomic"
-      " propositions", 0},
     { "outs", OPT_OUTPUT, "PROPS", 0,
       "comma-separated list of controllable (a.k.a. output) atomic"
       " propositions", 0},
+    { "ins", OPT_INPUT, "PROPS", OPTION_ARG_OPTIONAL,
+      "comma-separated list of controllable (a.k.a. output) atomic"
+      " propositions. If unspecified its the complement of \"outs\"", 0},
     /**************************************************/
     { nullptr, 0, nullptr, 0, "Fine tuning:", 10 },
     { "algo", OPT_ALGO, "sd|ds|ps|lar|lar.old", 0,
@@ -125,8 +125,8 @@ Exit status:\n\
   1   if the input problem is not realizable\n\
   2   if any error has been reported";
 
-static std::vector<std::string> input_aps;
-static std::vector<std::string> output_aps;
+static std::set<std::string> all_output_aps;
+static std::set<std::string> all_input_aps;
 
 static const char* opt_csv = nullptr;
 static bool opt_print_pg = false;
@@ -158,15 +158,13 @@ static char const *const solver_args[] =
 };
 static spot::solver const solver_types[] =
 {
-  spot::DET_SPLIT, spot::DET_SPLIT,
-  spot::SPLIT_DET, spot::SPLIT_DET,
-  spot::DPA_SPLIT, spot::DPA_SPLIT,
-  spot::LAR,
-  spot::LAR_OLD,
+  spot::solver::DET_SPLIT, spot::solver::DET_SPLIT,
+  spot::solver::SPLIT_DET, spot::solver::SPLIT_DET,
+  spot::solver::DPA_SPLIT, spot::solver::DPA_SPLIT,
+  spot::solver::LAR,
+  spot::solver::LAR_OLD,
 };
 ARGMATCH_VERIFY(solver_args, solver_types);
-
-static bool verbose = false;
 
 namespace
 {
@@ -178,18 +176,42 @@ namespace
       return s;
     };
 
+//  std::string exec(const char* cmd)
+//    {
+//      std::array<char, 256> buffer;
+//      std::string result;
+//
+//      int ret_code = 0;
+//      auto closer = [&](auto&& myfile)
+//        {
+//          auto rc = pclose(myfile);
+//          if(WIFEXITED(rc))
+//            ret_code = WEXITSTATUS(rc);
+//        };
+//      {
+//        std::unique_ptr<FILE, decltype(closer)> pipe(popen(cmd, "r"), closer);
+//        if (!pipe)
+//          throw std::runtime_error("popen() failed!");
+//        while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr)
+//          result += buffer.data();
+//      }
+//      if (ret_code != 0)
+//        throw std::runtime_error("Nonzero exit code\n");
+//      return result;
+//    }
+
   // TODO: Un point à régler sur le CSV est que lorsque l'on va découper
   // la formule, il va y avoir plusieurs temps de traduction. On se contente
   // d'en faire la somme ?
   static void
-  print_csv(spot::formula f, bool realizable)
+  print_csv(const spot::formula& f)
   {
     auto& vs = gi.verbose_stream;
     auto& bv = gi.bv;
     if (not bv)
-      raise std::runtime_error("No information available for csv!");
+      throw std::runtime_error("No information available for csv!");
     if (vs)
-      vs << "writing CSV to " << opt_csv << '\n';
+      *vs << "writing CSV to " << opt_csv << '\n';
 
     output_file outf(opt_csv);
     std::ostream& out = outf.ostream();
@@ -198,14 +220,14 @@ namespace
     // (Even if that file was empty initially.)
     if (!outf.append())
       {
-        out << ("\"formula\",\"algo\",\"trans_time\","
+        out << ("\"formula\",\"algo\",\"tot_time\",\"trans_time\","
                 "\"split_time\",\"todpa_time\"");
         if (!opt_print_pg && !opt_print_hoa)
           {
             out << ",\"solve_time\"";
             if (!opt_real)
               out << ",\"strat2aut_time\"";
-            out << ",\"realizable\"";
+            out << ",\"realizable\""; //-1: Unknown, 0: Unreal, 1: Real
           }
         out << ",\"dpa_num_states\",\"parity_game_num_states\""
             << '\n';
@@ -213,8 +235,9 @@ namespace
     std::ostringstream os;
     os << f;
     spot::escape_rfc4180(out << '"', os.str());
-    out << "\",\"" << solver_names[opt_solver]
+    out << "\",\"" << solver_names[(int) gi.s]
         << "\"," << bv->trans_time
+        << "," << bv->total_time
         << ',' << bv->split_time
         << ',' << bv->paritize_time;
     if (!opt_print_pg && !opt_print_hoa)
@@ -231,51 +254,96 @@ namespace
   }
 
   int
-  solve_formula(spot::formula f, std::vector<std::string> input_aps, std::vector<std::string> output_aps, spot::translator trans)
+  solve_formula(const spot::formula& f,
+                const std::set<std::string>& input_aps,
+                const std::set<std::string>& output_aps,
+                spot::translator& trans)
   {
-    // TODO: Les bench_var sont passés par copie…
-    std::vector<spot::formula> ins, outs;
-    std::transform(input_aps.begin(), input_aps.end(), std::back_inserter(ins),
-    [](std::string name) { return spot::formula::ap(name); });
-    std::transform(output_aps.begin(), output_aps.end(), std::back_inserter(outs),
-    [](std::string name) { return spot::formula::ap(name); });
-    if (opt_print_pg || opt_print_hoa)
+    spot::stopwatch sw;
+    if (gi.bv)
+      sw.start();
+
+    int is_winning = -1;
+    auto safe_tot_time = [&]()
     {
-      auto dpa = create_game(f, ins, outs, trans, opt_solver, verbose);
-      if (opt_print_pg)
-        pg_print(std::cout, dpa);
-      else
-        spot::print_hoa(std::cout, dpa, opt_print_hoa_args) << '\n';
-      return 0;
+      if (gi.bv)
+        gi.bv->total_time = sw.stop();
+    };
+
+    // Set the solver setting
+    switch (gi.s)
+    {
+      case spot::solver::LAR:
+        SPOT_FALLTHROUGH;
+      case spot::solver::LAR_OLD:
+        trans.set_type(spot::postprocessor::Generic);
+        trans.set_pref(spot::postprocessor::Deterministic);
+        break;
+      case spot::solver::DPA_SPLIT:
+        trans.set_type(spot::postprocessor::ParityMaxOdd);
+        trans.set_pref(spot::postprocessor::Deterministic
+                       | spot::postprocessor::Colored);
+        break;
+      case spot::solver::DET_SPLIT:
+        SPOT_FALLTHROUGH;
+      case spot::solver::SPLIT_DET:
+        break;
     }
-    else if (!opt_print_aiger)
-    {
-      auto strat_aut = create_strategy(f, ins, outs, trans, verbose, opt_solver);
-      if (strat_aut == nullptr)
+
+    // We always need an arena, specific needs are passed via gi
+    auto arena = spot::create_game(f, output_aps, trans, gi);
+    if (gi.bv)
+      gi.bv->nb_states_arena = arena->num_states();
+
+    if (opt_print_pg)
       {
-        std::cout << "UNREALIZABLE" << std::endl;
-        return 1;
-      }
-      std::cout << "REALIZABLE" << std::endl;
-      return 0;
-    }
-    else
-    {
-      // FIXME: Là c'est un AIGER qui est renvoyé, il faudrait un
-      // truc dans le cas où le circuit n'existe pas.
-      auto circuit = create_aiger_circuit(f, ins, outs, trans, opt_print_aiger, verbose, opt_solver);
-      // if (circuit != nullptr)
-      // {
-        std::cout << "REALIZABLE" << std::endl;
-        print_aiger(std::cout, circuit, "circuit");
+        pg_print(std::cout, arena);
+        safe_tot_time();
         return 0;
-      // }
-      // else
-      // {
-      //   std::cout << "UNREALIZABLE" << std::endl;
-      //   return 1;
-      // }
-    }
+      }
+    if (opt_print_hoa)
+      {
+        spot::print_hoa(std::cout, arena, opt_print_hoa_args) << '\n';
+        safe_tot_time();
+        return 0;
+      }
+
+    // We need a solved game
+    is_winning = (int) spot::solve_game(arena, gi);
+    if (gi.bv)
+      gi.bv->realizable = is_winning;
+
+    if (opt_real)
+      {
+        std::cout << (is_winning ? "REALIZABLE" : "UNREALIZABLE") << std::endl;
+        safe_tot_time();
+        return (int) not is_winning;
+      }
+    // From here on we need the strat if winning
+    std::cout << (is_winning ? "REALIZABLE" : "UNREALIZABLE") << std::endl;
+    if (is_winning)
+      {
+        // We need the strategy automaton
+        if (gi.bv)
+          sw.start();
+        auto strat_aut = spot::apply_strategy(arena, true, false);
+        if (gi.bv)
+          gi.bv->strat2aut_time = sw.stop();
+        if (opt_print_aiger)
+          spot::print_aiger(std::cout,
+                            spot::strategy_to_aig(strat_aut, opt_print_aiger,
+                                                  input_aps,
+                                                  output_aps), "circuit");
+        else
+          {
+            spot::process_timer timer;
+            automaton_printer printer;
+            printer.print(strat_aut, timer);
+          }
+      }
+
+    safe_tot_time();
+    return (int) not is_winning;
     // TODO: Print csv
   }
 
@@ -289,66 +357,24 @@ namespace
     // comme formule? Après je vais faire
     // aut.register_ap(af.ap_name())
     // ce n'est pas plus pratique
-    std::vector<std::string> input_aps_;
-    std::vector<std::string> output_aps_;
+    std::set<std::string> input_aps_;
+    std::set<std::string> output_aps_;
 
   public:
     ltl_processor(spot::translator &trans,
-                  std::vector<std::string> input_aps_,
-                  std::vector<std::string> output_aps_)
-        : trans_(trans), input_aps_(input_aps_), output_aps_(output_aps_)
+                  std::set<std::string> input_aps_,
+                  std::set<std::string> output_aps_)
+        : trans_(trans),
+          input_aps_(std::move(input_aps_)),
+          output_aps_(std::move(output_aps_))
     {
-    }
-
-    int solve_formula(spot::formula f)
-    {
-      // Le trans_ est un argument passé aux create_XX().
-      spot::process_timer timer;
-      timer.start();
-
-      auto arena = spot::create_game(f, input_aps_, output_aps_, trans_, gi);
-
-      if (cgi.bv)
-        cgi.bv->nb_states_arena = dpa->num_states();
-
-      if (opt_print_pg)
-        {
-          timer.stop();
-          pg_print(std::cout, dpa);
-          return 0;
-        }
-      if (opt_print_hoa)
-        {
-          timer.stop();
-          spot::print_hoa(std::cout, dpa, opt_print_hoa_args) << '\n';
-          return 0;
-        }
-
-      auto [winning, strat] = spot::create_strategy(arena, gi);
-
-      if (winning)
-        {
-          if (opt_print_aiger)
-            spot::print_aiger(std::cout, strat_aut, opt_print_aiger);
-          else
-            {
-              automaton_printer printer;
-              printer.print(strat_aut, timer);
-            }
-          return 0;
-        }
-      else
-        {
-          std::cout << "UNREALIZABLE\n";
-          return 1;
-        }
     }
 
     int process_formula(spot::formula f, const char*, int) override
     {
-      unsigned res = solve_formula(f);
+      int res = solve_formula(f, input_aps_, output_aps_, trans_);
       if (opt_csv)
-        print_csv(f, res == 0);
+        print_csv(f);
       return res;
     }
   };
@@ -367,7 +393,7 @@ namespace
     case OPT_CSV:
       opt_csv = arg ? arg : "-";
       if (not gi.bv)
-        gi.bv = spot::bench_var()
+        gi.bv = spot::game_info::bench_var();
       break;
     case OPT_INPUT:
       {
@@ -376,7 +402,7 @@ namespace
         while (std::getline(aps, ap, ','))
           {
             ap.erase(remove_if(ap.begin(), ap.end(), isspace), ap.end());
-            input_aps.push_back(str_tolower(ap));
+            all_input_aps.emplace(str_tolower(ap));
           }
         break;
       }
@@ -387,7 +413,7 @@ namespace
         while (std::getline(aps, ap, ','))
           {
             ap.erase(remove_if(ap.begin(), ap.end(), isspace), ap.end());
-            output_aps.push_back(str_tolower(ap));
+            all_output_aps.emplace(str_tolower(ap));
           }
         break;
       }
@@ -404,12 +430,11 @@ namespace
       break;
     case OPT_REAL:
       opt_real = true;
-      gi.apply_strat = false;
       break;
     case OPT_VERBOSE:
-      gi.verbose_stream = std::cerr;
+      gi.verbose_stream = &std::cerr;
       if (not gi.bv)
-        gi.bv = spot::bench_var()
+        gi.bv = spot::game_info::bench_var();
       break;
     case 'x':
       {
@@ -438,11 +463,28 @@ main(int argc, char **argv)
         exit(err);
       check_no_formula();
 
+      // Check if inputs and outputs are distinct
+      // Inputs can be empty, outputs not
+      if (not all_input_aps.empty())
+        {
+          std::vector<std::string> inter;
+          std::set_intersection(all_input_aps.begin(), all_input_aps.end(),
+                                all_output_aps.begin(), all_output_aps.end(),
+                                std::back_inserter(inter));
+          if (not inter.empty())
+            {
+              for (auto&& e : inter)
+                std::cerr << e << "\n";
+              throw std::runtime_error("The above aps appear in \"ins\" and"
+                                       "\"outs\"");
+            }
+        }
+
       // Setup the dictionary now, so that BuDDy's initialization is
       // not measured in our timings.
       spot::bdd_dict_ptr dict = spot::make_bdd_dict();
       spot::translator trans(dict, &extra_options);
-      ltl_processor processor(trans, input_aps, output_aps);
+      ltl_processor processor(trans, all_input_aps, all_output_aps);
 
       // Diagnose unused -x options
       extra_options.report_unused_options();
