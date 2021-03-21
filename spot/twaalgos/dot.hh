@@ -25,6 +25,7 @@
 #include <iosfwd>
 #include <spot/twa/fwd.hh>
 #include <spot/misc/common.hh>
+#include <spot/twaalgos/aiger.hh>
 
 namespace spot
 {
@@ -44,4 +45,7 @@ namespace spot
   print_dot(std::ostream& os,
                   const const_twa_ptr& g,
                   const char* options = nullptr);
+
+  SPOT_API std::ostream &
+  print_dot(std::ostream &os, aig_ptr circuit, const char * = nullptr);
 }
