@@ -138,14 +138,14 @@ option_map.__init__ = __om_init_new
 
 @_extend(aig)
 class aig:
-    def _repr_svg_(self):
+    def _repr_svg_(self, opt=None):
         ostr = ostringstream()
-        print_aiger(ostr, self, 'dot')
+        print_dot(ostr, self, opt)
         return _ostream_to_svg(ostr)
 
-    def show(self):
+    def show(self, opt=None):
         from spot.jupyter import SVG
-        return SVG(self._repr_svg_())
+        return SVG(self._repr_svg_(opt))
 
 @_extend(twa, ta)
 class twa:

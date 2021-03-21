@@ -27,6 +27,7 @@
 #include <spot/tl/print.hh>
 #include <spot/twa/twagraph.hh>
 #include <spot/twaalgos/dot.hh>
+#include <spot/twaalgos/aiger.hh>
 #include <spot/twa/bddprint.hh>
 #include <spot/misc/escape.hh>
 #include <spot/twa/formula2bdd.hh>
@@ -1022,6 +1023,167 @@ namespace spot
     if (!aut || (d.max_states_given() && aut->num_states() >= d.max_states()))
       aut = make_twa_graph(g, twa::prop_set::all(), true, d.max_states() - 1);
     d.print(aut);
+    return os;
+  }
+
+  namespace
+  {
+    class dotty_aig final
+    {
+      public:
+      bool verical = true;
+      bool latex = false;
+      std::ostream& os_;
+
+      void
+      parse_opts(const char *options)
+      {
+        while (char c = *options++)
+          switch (c)
+          {
+          case 'h':
+          {
+            verical = false;
+            break;
+          }
+          case 'v':
+          {
+            verical = true;
+            break;
+          }
+          case 'x':
+          {
+            // TODO: Latex ?
+          }
+          default:
+            throw std::runtime_error("unknown option for print_dot(): "s + c);
+          }
+      }
+
+      dotty_aig(std::ostream &os, const char *options)
+          : os_(os)
+      {
+        parse_opts(options ? options : "");
+      }
+
+      void print(const aig_ptr &circuit)
+      {
+        auto add_edge = [](std::ostream &stream, const unsigned src, const unsigned dst) {
+          auto src_gate = src & ~1;
+          stream << src_gate;
+          stream << " -> " << dst;
+          if (src % 2)
+            stream << " [arrowhead=dot]";
+          stream << "\n";
+        };
+
+        if (verical)
+          std::cout << "digraph {\nrankdir = BT;\n";
+        else
+          std::cout << "digraph {\nrankdir = LR;\n";
+
+        std::cout << "# latches left\n";
+        for (unsigned i = 0; i < circuit->num_latches_; ++i)
+        {
+          auto first = circuit->latch_var(i);
+          auto first_m_mod = first & ~1;
+          std::cout << "node[shape=box, label=\"" << first_m_mod << "\"] " << first_m_mod << ";\n";
+        }
+
+        std::cout << "# inputs\n";
+        for (unsigned i = 0; i < circuit->num_inputs_; ++i)
+          std::cout << "node [shape=triangle, label=\""
+              << circuit->input_names_[i] << "\"] "
+              << circuit->input_var(i) << ";\n";
+
+        std::cout << "# And\n";
+        for (unsigned i = 0; i < circuit->and_gates_.size(); ++i)
+          if ((circuit->and_gates_[i].first != 0) && (circuit->and_gates_[i].second != 0))
+          {
+            auto gate_var = circuit->gate_var(i);
+            std::cout << "node [shape=circle, label =\"" << gate_var
+               << "\"] " << gate_var << ";\n";
+            add_edge(std::cout, circuit->and_gates_[i].first, gate_var);
+            add_edge(std::cout, circuit->and_gates_[i].second, gate_var);
+          }
+
+        std::cout << "# Latches\n";
+        for (unsigned i = 0; i < circuit->num_latches_; ++i)
+        {
+          auto first = circuit->latch_var(i);
+          auto first_m_mod = first & ~1;
+          auto second = circuit->latches_[i];
+          std::cout << "node[shape=box, label=\"L" << i << "\"] L" << i << ";\n";
+          std::cout << "L" << i << " -> "
+             << first_m_mod << "\n";
+          std::cout << (second & ~1) << " -> L" << i;
+          if (i % 2)
+            std::cout << "[arrowhead=dot]";
+          std::cout << "\n";
+        }
+
+        std::cout << "# Outs\n";
+        bool has_alone_gate = false;
+        const char* out_pos = verical ? ":s" : ":w";
+        for (unsigned i = 0; i < circuit->num_outputs_; ++i)
+        {
+          std::cout << "node [shape=triangle, orientation=180, label=\""
+             << circuit->output_names_[i] << "\"] o" << i
+             << circuit->output_names_[i] << ";\n";
+          auto z = circuit->outputs_[i];
+          if (z <= 1 && !has_alone_gate)
+          {
+            std::cout << "node[shape=box, label=\"Const\"] 0" << std::endl;
+            has_alone_gate = true;
+          }
+          std::cout << (z & ~1) << "->" << "o" << i << circuit->output_names_[i] << out_pos;
+          if (circuit->outputs_[i] % 2 == 1)
+            std::cout << " [arrowhead=dot]";
+          std::cout << "\n";
+        }
+
+        if (has_alone_gate || circuit->num_outputs_ > 0)
+        {
+          std::cout << "{rank = source; ";
+          for (unsigned i = 0; i < circuit->num_inputs_; ++i)
+            std::cout << circuit->input_var(i) << "; ";
+          if (has_alone_gate)
+            std::cout << "0; ";
+          std::cout << "}\n";
+        }
+        if (circuit->num_outputs_ > 0)
+        {
+          std::cout << "{rank = sink; ";
+          for (unsigned i = 0; i < circuit->num_outputs_; ++i)
+            std::cout << "o" << i << circuit->output_names_[i] << "; ";
+          std::cout << "}\n";
+        }
+        if (circuit->num_latches_ > 0)
+        {
+          std::cout << "{rank = same; ";
+          for (unsigned i = 0; i < circuit->num_latches_; ++i)
+            std::cout << "L" << i << "; ";
+          std::cout << "}\n{rank = same; ";
+          for (unsigned i = 0; i < circuit->num_latches_; ++i)
+          {
+            auto first = circuit->latch_var(i);
+            auto first_m_mod = first & ~1;
+            std::cout << first_m_mod << "; ";
+          }
+          std::cout << "}\n";
+        }
+        std::cout << "}\n";
+      }
+    };
+  }
+
+  std::ostream &
+  print_dot(std::ostream &os, aig_ptr circuit, const char* options)
+  {
+    dotty_aig d(os, options);
+    if (!circuit)
+      return os;
+    d.print(circuit);
     return os;
   }
 
