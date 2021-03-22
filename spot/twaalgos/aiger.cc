@@ -590,6 +590,8 @@ namespace spot
   aig_ptr
   strategy_to_aig(const const_twa_ptr& aut, const char* mode)
   {
+    if (!aut)
+      throw std::runtime_error("aut cannot be null");
     auto a = down_cast<const_twa_graph_ptr>(aut);
     if (!a)
       throw std::runtime_error("aiger output is only for twa_graph");
@@ -606,6 +608,8 @@ namespace spot
                   const std::set<std::string>& ins,
                   const std::set<std::string>& outs)
   {
+    if (!aut)
+      throw std::runtime_error("aut cannot be null");
     auto a = down_cast<const_twa_graph_ptr>(aut);
     if (!a)
       throw std::runtime_error("aiger output is only for twa_graph");
@@ -643,9 +647,9 @@ namespace spot
     else
       throw std::runtime_error("strategy_to_aig relies on the named property"
                                "\"synthesis-outputs\".\n");
-
   }
 
+  // TODO: Le mode n'a rien à faire là
   std::ostream &
   print_aiger(std::ostream &os, const_aig_ptr circuit, const char* mode)
   {

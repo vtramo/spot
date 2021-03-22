@@ -564,12 +564,38 @@ namespace spot
 
   }
 
+  static spot::translator
+  create_translator(spot::option_map& extra_options, spot::solver sol)
+  {
+    spot::bdd_dict_ptr dict = spot::make_bdd_dict();
+    spot::translator trans(dict, &extra_options);
+    switch (sol)
+    {
+    case spot::solver::LAR:
+      SPOT_FALLTHROUGH;
+    case spot::solver::LAR_OLD:
+      trans.set_type(spot::postprocessor::Generic);
+      trans.set_pref(spot::postprocessor::Deterministic);
+      break;
+    case spot::solver::DPA_SPLIT:
+      trans.set_type(spot::postprocessor::ParityMaxOdd);
+      trans.set_pref(spot::postprocessor::Deterministic | spot::postprocessor::Colored);
+      break;
+    case spot::solver::DET_SPLIT:
+      SPOT_FALLTHROUGH;
+    case spot::solver::SPLIT_DET:
+      break;
+    }
+    return trans;
+  }
+
   spot::twa_graph_ptr
   create_game(const spot::formula& f,
               const std::set<std::string>& all_outs,
-              spot::translator& trans,
+              spot::option_map& extra_opt,
               game_info& gi)
   {
+    auto trans = create_translator(extra_opt, gi.s);
     // Shortcuts
     auto& bv = gi.bv;
     auto& vs = gi.verbose_stream;
@@ -682,13 +708,13 @@ namespace spot
               << dpa->num_states() << " states, "
               << dpa->num_sets() << " colors\n";
         dpa->merge_states();
+        if (bv)
+          bv->paritize_time = sw.stop();
         if (vs)
           *vs << "simplification done\nDPA has "
               << dpa->num_states() << " states\n"
               << "determinization and simplification took "
               << bv->paritize_time << " seconds\n";
-        if (bv)
-          bv->paritize_time = sw.stop();
         // The named property "state-player" is set in split_2step
         // but not propagated by ntgba2dpa
         alternate_players(dpa);
@@ -757,13 +783,12 @@ namespace spot
     return ret;
   }
 
-  // Besoin d'une version qui prend en arg une stratégie ?
-  // TODO: Là on prend un dpa et on créé strat_aut. Peut être qu'il faut encore
-  // découper la fonction car ltlsynt peut simplement demander s'il existe une
-  // stratégie. Dans ce cas pas besoin d'appel à apply_strategy.
   twa_graph_ptr
   create_strategy(twa_graph_ptr arena, game_info& gi)
   {
+    if (!arena)
+      throw std::runtime_error("Arena can not be null");
+
     auto& bv = gi.bv;
     spot::stopwatch sw;
 

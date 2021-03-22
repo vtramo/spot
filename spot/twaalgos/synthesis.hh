@@ -119,7 +119,7 @@ namespace spot
   SPOT_API spot::twa_graph_ptr
   create_game(const formula& f,
               const std::set<std::string>& all_outs,
-              spot::translator& trans,
+              spot::option_map& opt,
               game_info& gi);
 
 
