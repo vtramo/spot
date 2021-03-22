@@ -147,6 +147,18 @@ class aig:
         from spot.jupyter import SVG
         return SVG(self._repr_svg_(opt))
 
+    def to_str(self, format='circuit', opt=None):
+        format = format.lower()
+        if format == 'circuit':
+            ostr = ostringstream()
+            print_aiger(ostr, self, "circuit")
+            return ostr.str()
+        if format == 'dot':
+            ostr = ostringstream()
+            print_dot(ostr, self, opt)
+            return ostr.str()
+        raise ValueError("unknown string format: " + format)
+
 @_extend(twa, ta)
 class twa:
     def _repr_svg_(self, opt=None):

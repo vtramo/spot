@@ -19,10 +19,10 @@
 
 #include <config.h>
 
-#include <string>
 #include <sstream>
 #include <unordered_map>
 #include <vector>
+#include <regex>
 
 #include "argmatch.h"
 
@@ -34,6 +34,7 @@
 #include <spot/misc/bddlt.hh>
 #include <spot/misc/escape.hh>
 #include <spot/misc/timer.hh>
+#include <spot/tl/apcollect.hh>
 #include <spot/tl/formula.hh>
 #include <spot/twa/twagraph.hh>
 #include <spot/twaalgos/aiger.hh>
@@ -169,6 +170,36 @@ ARGMATCH_VERIFY(solver_args, solver_types);
 namespace
 {
 
+  // TODO: Alexandre propose que --ins et --outs puissent être donnés par
+  // regex.
+  // static std::pair<std::set<std::string>, std::set<std::string>>
+  // regexes_to_ins_outs(spot::formula f, std::string reg_in, std::string reg_out)
+  // {
+  //   std::regex left_ex(reg_in), right_ex(reg_out);
+  //   spot::atomic_prop_set f_props;
+  //   std::set<std::string> lefts, rights;
+  //   spot::atomic_prop_collect(f, &f_props);
+  //   for (auto prop : f_props)
+  //   {
+  //     auto prop_name = prop.ap_name();
+  //     bool is_ok_left = false;
+  //     if (std::regex_match(prop_name, left_ex))
+  //     {
+  //       lefts.insert(prop_name);
+  //       is_ok_left = true;
+  //     }
+  //     if (std::regex_match(prop_name, right_ex))
+  //     {
+  //       if (is_ok_left)
+  //       {
+  //         throw std::runtime_error("A proposition cannot be matched by 2 regex!");
+  //       }
+  //       rights.insert(prop_name);
+  //     }
+  //   }
+  //   return {lefts, rights};
+  // }
+
   auto str_tolower = [] (std::string s)
     {
       std::transform(s.begin(), s.end(), s.begin(),
@@ -237,7 +268,7 @@ namespace
     spot::escape_rfc4180(out << '"', os.str());
     out << "\",\"" << solver_names[(int) gi.s]
         << "\"," << bv->trans_time
-        << "," << bv->total_time
+        << ',' << bv->total_time
         << ',' << bv->split_time
         << ',' << bv->paritize_time;
     if (!opt_print_pg && !opt_print_hoa)
@@ -256,8 +287,7 @@ namespace
   int
   solve_formula(const spot::formula& f,
                 const std::set<std::string>& input_aps,
-                const std::set<std::string>& output_aps,
-                spot::translator& trans)
+                const std::set<std::string>& output_aps)
   {
     spot::stopwatch sw;
     if (gi.bv)
@@ -270,28 +300,10 @@ namespace
         gi.bv->total_time = sw.stop();
     };
 
-    // Set the solver setting
-    switch (gi.s)
-    {
-      case spot::solver::LAR:
-        SPOT_FALLTHROUGH;
-      case spot::solver::LAR_OLD:
-        trans.set_type(spot::postprocessor::Generic);
-        trans.set_pref(spot::postprocessor::Deterministic);
-        break;
-      case spot::solver::DPA_SPLIT:
-        trans.set_type(spot::postprocessor::ParityMaxOdd);
-        trans.set_pref(spot::postprocessor::Deterministic
-                       | spot::postprocessor::Colored);
-        break;
-      case spot::solver::DET_SPLIT:
-        SPOT_FALLTHROUGH;
-      case spot::solver::SPLIT_DET:
-        break;
-    }
-
     // We always need an arena, specific needs are passed via gi
-    auto arena = spot::create_game(f, output_aps, trans, gi);
+    auto arena = spot::create_game(f, output_aps, extra_options, gi);
+    // FIXME: Voir tout en bas
+    extra_options.report_unused_options();
     if (gi.bv)
       gi.bv->nb_states_arena = arena->num_states();
 
@@ -326,7 +338,7 @@ namespace
         // We need the strategy automaton
         if (gi.bv)
           sw.start();
-        auto strat_aut = spot::apply_strategy(arena, true, false);
+        auto strat_aut = spot::create_strategy(arena, gi);
         if (gi.bv)
           gi.bv->strat2aut_time = sw.stop();
         if (opt_print_aiger)
@@ -344,13 +356,11 @@ namespace
 
     safe_tot_time();
     return (int) not is_winning;
-    // TODO: Print csv
   }
 
   class ltl_processor final : public job_processor
   {
   private:
-    spot::translator &trans_;
     // TODO: Ces trucs là j'ai l'impression qu'il n'y a pas d'intérêt à
     // les avoir en vecteur de string.
     // Gardons le pour le moment, c'est quoi l'advantage des les avoir
@@ -361,18 +371,16 @@ namespace
     std::set<std::string> output_aps_;
 
   public:
-    ltl_processor(spot::translator &trans,
-                  std::set<std::string> input_aps_,
+    ltl_processor(std::set<std::string> input_aps_,
                   std::set<std::string> output_aps_)
-        : trans_(trans),
-          input_aps_(std::move(input_aps_)),
+        : input_aps_(std::move(input_aps_)),
           output_aps_(std::move(output_aps_))
     {
     }
 
     int process_formula(spot::formula f, const char*, int) override
     {
-      int res = solve_formula(f, input_aps_, output_aps_, trans_);
+      int res = solve_formula(f, input_aps_, output_aps_);
       if (opt_csv)
         print_csv(f);
       return res;
@@ -480,14 +488,12 @@ main(int argc, char **argv)
             }
         }
 
-      // Setup the dictionary now, so that BuDDy's initialization is
-      // not measured in our timings.
-      spot::bdd_dict_ptr dict = spot::make_bdd_dict();
-      spot::translator trans(dict, &extra_options);
-      ltl_processor processor(trans, all_input_aps, all_output_aps);
+      ltl_processor processor(all_input_aps, all_output_aps);
 
       // Diagnose unused -x options
-      extra_options.report_unused_options();
+      // FIXME: Maintenant que c'est déplacé, il ne voit pas que les options
+      // sont utilisées
+      // extra_options.report_unused_options();
       return processor.run();
     });
 }
