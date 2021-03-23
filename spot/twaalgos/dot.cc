@@ -1076,7 +1076,7 @@ namespace spot
           stream << " -> " << dst;
           if (src % 2)
             stream << " [arrowhead=dot]";
-          stream << "\n";
+          stream << '\n';
         };
 
         if (verical)
@@ -1117,11 +1117,11 @@ namespace spot
           auto second = circuit->latches_[i];
           os_ << "node[shape=box, label=\"L" << i << "\"] L" << i << ";\n";
           os_ << 'L' << i << " -> "
-             << first_m_mod << "\n";
+             << first_m_mod << '\n';
           os_ << (second & ~1) << " -> L" << i;
           if (i % 2)
             os_ << "[arrowhead=dot]";
-          os_ << "\n";
+          os_ << '\n';
         }
 
         os_ << "# Outs\n";
@@ -1141,7 +1141,7 @@ namespace spot
           os_ << (z & ~1) << "->" << 'o' << i << circuit->output_names_[i] << out_pos;
           if (circuit->outputs_[i] % 2 == 1)
             os_ << " [arrowhead=dot]";
-          os_ << "\n";
+          os_ << '\n';
         }
 
         if (has_alone_gate || circuit->num_inputs_ > 0)

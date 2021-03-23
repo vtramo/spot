@@ -766,7 +766,6 @@ namespace spot
 
   bool solve_parity_game(const twa_graph_ptr& arena)
   {
-    assert(arena->get_named_prop<std::vector<bool>>("state-player") != nullptr);
     parity_game pg;
     return pg.solve(arena);
   }
