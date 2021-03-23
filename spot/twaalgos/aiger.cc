@@ -408,7 +408,6 @@ namespace spot
 //    {
     do
     {
-
       if (vs.size() & 1)
         {
           // Odd size -> make even
