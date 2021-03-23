@@ -311,17 +311,34 @@ namespace spot
     if (vs.size() == 2)
       return aig_and(vs[0], vs[1]);
 
+    std::sort(vs.begin(), vs.end());
+    auto new_end = std::unique(vs.begin(), vs.end());
+    vs.erase(new_end, vs.end());
+
+    unsigned add_elem = -1u;
+
     do
     {
-      if (vs.size() & 1)
-        // Odd size -> make even
-        vs.push_back(aig_true());
       // Sort to increase reusage gates
       std::sort(vs.begin(), vs.end());
+
+      if (vs.size() & 1)
+        {
+          // Odd size -> make even
+          add_elem = vs.back();
+          vs.pop_back();
+        }
+
       // Reduce two by two inplace
       for (unsigned i = 0; i < vs.size() / 2; ++i)
         vs[i] = aig_and(vs[2 * i], vs[2 * i + 1]);
       vs.resize(vs.size() / 2);
+      // Add the odd elem if necessary
+      if (add_elem != -1u)
+        {
+          vs.push_back(add_elem);
+          add_elem = -1u;
+        }
     } while (vs.size() > 1);
     return vs[0];
   }
@@ -410,7 +427,7 @@ namespace spot
       }
   }
 
-  unsigned aig::bdd2DNFvar(const bdd &b)
+  unsigned aig::bdd2DNFvar(bdd b)
   {
     static std::vector<unsigned> plus_vars;
     static std::vector<unsigned> prod_vars(num_inputs);
@@ -479,17 +496,8 @@ namespace spot
 
     unsigned v_var = bdd2var_.at(bdd_ithvar(bdd_var(b)));
 
-    bdd b_branch[2] = {bdd_low(b), bdd_high(b)};
-    unsigned b_branch_var[2];
-
-    for (unsigned i : {0, 1})
-    {
-      auto b_branch_it = bdd2var_.find(b_branch[i]);
-      if (b_branch_it == bdd2var_.end())
-        b_branch_var[i] = bdd2INFvar(b_branch[i]);
-      else
-        b_branch_var[i] = b_branch_it->second;
-    }
+    unsigned b_branch_var[2] = {bdd2INFvar(bdd_low(b)),
+                                bdd2INFvar(bdd_high(b))};
 
     unsigned r = aig_not(aig_and(v_var, b_branch_var[1]));
     unsigned l = aig_not(aig_and(aig_not(v_var), b_branch_var[0]));
@@ -626,6 +634,9 @@ namespace spot
     auts_to_aiger(const std::vector<std::pair<const_twa_graph_ptr, bdd>>& strat_vec,
                   const char* mode)
     {
+      if (not ((strcasecmp(mode, "ITE") == 0)
+              or (strcasecmp(mode, "ISOP") == 0)))
+        throw std::runtime_error("mode must be \"ITE\" or \"ISOP\"!\n");
       // The aiger circuit cannot encode the acceptance condition
       // Test that the acceptance condition is true
       for (auto&& astrat : strat_vec)
@@ -732,200 +743,95 @@ namespace spot
       // latches
       for (unsigned i = 0; i < n_latches; ++i)
         circuit.register_latch(i, bdd_ithvar(st0[0]+i));
-//        circuit.register_new_lit(circuit.latch_var(i), bdd_ithvar(st0[0]+i));
       // inputs
       for (unsigned i = 0; i < all_inputs_vec.size(); ++i)
         circuit.register_input(i, all_inputs_vec[i]);
-//        circuit.register_new_lit(circuit.input_var(i), all_inputs_vec[i]);
 
-      // Latches and outputs are expressed as a DNF in which each term
-      // represents a transition.
-      // latch[i] (resp. out[i]) represents the i-th latch (resp. output) DNF.
+      // Latches and outputs are expressed as a bdd
+      // The bdd are then translated into aiger circuits
+      // relying on different strategies
+      std::vector<bdd> latch(n_latches, bddfalse);
+      std::vector<bdd> out(output_names.size(), bddfalse);
 
       std::vector<unsigned> out_vec;
       out_vec.reserve(output_names.size());
       std::vector<unsigned> next_state_vec;
       next_state_vec.reserve(n_latches);
-      if (strcasecmp(mode, "ISOP") == 0)
-        {
-          std::vector<std::vector<unsigned>> latch(n_latches);
-          std::vector<std::vector<unsigned>> out(output_names.size());
 
-          // Loop over the different strategies
-          for (unsigned i = 0; i < strat_vec.size(); ++i)
+      // Loop over the different strategies
+      for (unsigned i = 0; i < strat_vec.size(); ++i)
+      {
+        auto&& [astrat, aouts] = strat_vec[i];
+        auto ast0 = st0[i];
+
+        auto aoff = latch_offset[i];
+        auto aoff_next = latch_offset.at(i+1);
+
+        auto alog2n = log2n[i];
+        auto enc_init =
+            [&, inum = astrat->get_init_state_number()](auto s)
             {
-              auto&& [astrat, aouts] = strat_vec[i];
-
-              auto aoff = latch_offset[i];
-              auto aoff_next = latch_offset.at(i+1);
-
-              auto enc_init =
-                [inum = astrat->get_init_state_number()](auto s)
-                  {
-                    return encode_init_0(s, inum);
-                  };
-              auto state2prodvar = [&](auto s)
-                {
-                  static std::vector<unsigned> prod_state(n_latches);
-                  prod_state.clear();
-
-                  auto s2 = enc_init(s);
-                  for (unsigned j = aoff; j < aoff_next; ++j)
-                    {
-                      unsigned v = circuit.latch_var(j);
-                      prod_state.push_back(s2 & 1 ? v : circuit.aig_not(v));
-                      s2 >>= 1;
-                    }
-                  assert(s2 <= 1);
-                  return circuit.aig_and(prod_state);
-                };
-
-              // Loop over all statea
-              for (unsigned s = 0; s < astrat->num_states(); ++s)
-                {
-                  // Encoding of src
-                  auto src_var = state2prodvar(s);
-                  //Loop over all its edges
-                  for (auto&& e: astrat->out(s))
-                    {
-                      // Same outcond for all ins
-                      output_to_vec(out_vec,
-                                    used_outc[i][astrat->edge_number(e)],
-                                    bddvar_to_num);
-                      // out_vec holds all that have to be high,
-                      // lows can be ignored
-
-                      // Get high latches of dst state
-                      state_to_vec(next_state_vec, enc_init(e.dst), aoff);
-
-                      // Get the isops over the input condition
-                      // Each isop only contains variables from in
-                      // -> directly compute the corresponding
-                      // variable and and-gate
-                      unsigned incond_var = circuit.bdd2DNFvar(
-                          bdd_exist(e.cond, aouts));
-                      // todo
-                      // Test that bdd_exist(e.cond, aouts)
-                      // Does not contains outs of other strategies?
-
-                      // AND with state
-                      unsigned tot_cond =
-                          circuit.aig_and(src_var, incond_var);
-                      // Set in latches/outs having "high"
-                      for (auto&& nl : next_state_vec)
-                        {
-                          assert (aoff <= nl && nl < aoff_next);
-                          latch.at(nl).push_back(tot_cond);
-                        }
-                      for (auto&& ao : out_vec)
-                        {
-                          // todo test?
-                          out.at(ao).push_back(tot_cond);
-                        }
-                    }//edge
-                }//state
-            }//strat
-          // OR them all
-          // As the elements are ORED,
-          // we can sort the latch and out vectors and make them unique
-          // This might reduce the number of gates by increasing reusage
-          // and decreasing number of terms
-          auto preproc = [](auto& vofvu)
-            {
-              for (auto& vu : vofvu)
-                {
-                  std::sort(vu.begin(), vu.end());
-                  auto new_end = std::unique(vu.begin(), vu.end());
-                  vu.erase(new_end, vu.end());
-                }
+              return encode_init_0(s, inum);
             };
-          preproc(latch);
-          preproc(out);
-
-          for (unsigned i = 0; i < n_latches; ++i)
-            circuit.set_latch(i, circuit.aig_or(latch[i]));
-          for (unsigned i = 0; i < output_names.size(); ++i)
-            circuit.set_output(i, circuit.aig_or(out[i]));
-          circuit.remove_unused();
-        }
-      else if (strcasecmp(mode, "ITE") == 0)
+        auto state2bdd = [&](auto s)
         {
-          std::vector<bdd> latch(n_latches, bddfalse);
-          std::vector<bdd> out(output_names.size(), bddfalse);
+          bdd b = bddtrue;
+          auto s2 = enc_init(s);
+          for (unsigned j = 0; j < alog2n; ++j)
+          {
+            b &= (s2 & 1) ? bdd_ithvar(ast0 + j)
+                          : bdd_nithvar(ast0 + j);
+            s2 >>= 1;
+          }
+          assert(s2 <= 1);
+          return b;
+        };
 
-          // Loop over the different strategies
-          for (unsigned i = 0; i < strat_vec.size(); ++i)
+        for (unsigned s = 0; s < astrat->num_states(); ++s)
+        {
+          // Convert state to bdd
+          bdd src_bdd = state2bdd(s);
+
+          for (const auto& e : astrat->out(s))
+          {
+            // High latches of dst
+            state_to_vec(next_state_vec, enc_init(e.dst), aoff);
+
+            // Get high outs depending on cond
+            output_to_vec(out_vec,
+                          used_outc[i][astrat->edge_number(e)],
+                          bddvar_to_num);
+
+            // The condition that joins in_cond and src
+            bdd tot_cond = src_bdd & bdd_exist(e.cond, aouts);
+            // Test should not have any outs from other strats
+
+            // Set in latches/outs having "high"
+            for (auto&& nl : next_state_vec)
             {
-              auto&& [astrat, aouts] = strat_vec[i];
-              auto ast0 = st0[i];
+              assert (aoff <= nl && nl < aoff_next);
+              latch.at(nl) |= tot_cond;
+            }
+            for (auto&& ao : out_vec)
+            {
+              // todo test?}
+              out.at(ao) |= tot_cond;
+            }
+          } // edges
+        } // state
+      } //strat
 
-              auto aoff = latch_offset[i];
-              auto aoff_next = latch_offset.at(i+1);
-
-              auto alog2n = log2n[i];
-              auto enc_init =
-                [&, inum = astrat->get_init_state_number()](auto s)
-                  {
-                    return encode_init_0(s, inum);
-                  };
-              auto state2bdd = [&](auto s)
-                {
-                  bdd b = bddtrue;
-                  auto s2 = enc_init(s);
-                  for (unsigned j = 0; j < alog2n; ++j)
-                    {
-                      b &= (s2 & 1) ? bdd_ithvar(ast0 + j)
-                                    : bdd_nithvar(ast0 + j);
-                      s2 >>= 1;
-                    }
-                  assert(s2 <= 1);
-                  return b;
-                };
-
-              for (unsigned s = 0; s < astrat->num_states(); ++s)
-                {
-                  // Convert state to bdd
-                  bdd src_bdd = state2bdd(s);
-
-                  for (const auto& e : astrat->out(s))
-                    {
-                      // High latches of dst
-                      state_to_vec(next_state_vec, enc_init(e.dst), aoff);
-
-                      // Get high outs depending on cond
-                      output_to_vec(out_vec,
-                                    used_outc[i][astrat->edge_number(e)],
-                                    bddvar_to_num);
-
-                      // The condition that joins in_cond and src
-                      bdd tot_cond = src_bdd & bdd_exist(e.cond, aouts);
-                      // Test should not have any outs from other strats
-
-                      // Set in latches/outs having "high"
-                      for (auto&& nl : next_state_vec)
-                        {
-                          assert (aoff <= nl && nl < aoff_next);
-                          latch.at(nl) |= tot_cond;
-                        }
-                      for (auto&& ao : out_vec)
-                        {
-                          // todo test?}
-                          out.at(ao) |= tot_cond;
-                        }
-                    } // edges
-                } // state
-            } //strat
-          // Create the vars
-          for (unsigned i = 0; i < output_names.size(); ++i)
-            circuit.set_output(i, circuit.bdd2INFvar(out[i]));
-          for (unsigned i = 0; i < n_latches; ++i)
-            circuit.set_latch(i, circuit.bdd2INFvar(latch[i]));
-        }
+      std::function<unsigned(bdd)> bdd2var;
+      if (strcasecmp(mode, "ITE") == 0)
+        bdd2var = [&circuit](auto b)->unsigned{return circuit.bdd2INFvar(b);};
       else
-        {
-          throw std::runtime_error
-            ("print_aiger(): mode must be \"ISOP\" or \"ITE\"");
-        }
+        bdd2var = [&circuit](auto b)->unsigned{return circuit.bdd2DNFvar(b);};
+
+      // Create the vars
+      for (unsigned i = 0; i < output_names.size(); ++i)
+        circuit.set_output(i, bdd2var(out[i]));
+      for (unsigned i = 0; i < n_latches; ++i)
+        circuit.set_latch(i, bdd2var(latch[i]));
 
       return circuit_ptr;
     } // auts_to_aiger
