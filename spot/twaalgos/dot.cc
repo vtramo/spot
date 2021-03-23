@@ -1054,6 +1054,7 @@ namespace spot
           case 'x':
           {
             // TODO: Latex ?
+            SPOT_FALLTHROUGH;
           }
           default:
             throw std::runtime_error("unknown option for print_dot(): "s + c);
@@ -1070,6 +1071,12 @@ namespace spot
       {
         if (!circuit)
           return;
+
+        std::vector<std::string> in_names(circuit->input_names_.begin(),
+                                          circuit->input_names_.end());
+        std::vector<std::string> out_names(circuit->output_names_.begin(),
+                                           circuit->output_names_.end());
+
         auto add_edge = [](std::ostream &stream, const unsigned src, const unsigned dst) {
           auto src_gate = src & ~1;
           stream << src_gate;
@@ -1095,7 +1102,7 @@ namespace spot
         os_ << "# inputs\n";
         for (unsigned i = 0; i < circuit->num_inputs_; ++i)
           os_ << "node [shape=triangle, label=\""
-              << circuit->input_names_[i] << "\"] "
+              << in_names[i] << "\"] "
               << circuit->input_var(i) << ";\n";
 
         os_ << "# And\n";
@@ -1130,15 +1137,15 @@ namespace spot
         for (unsigned i = 0; i < circuit->num_outputs_; ++i)
         {
           os_ << "node [shape=triangle, orientation=180, label=\""
-             << circuit->output_names_[i] << "\"] o" << i
-             << circuit->output_names_[i] << ";\n";
+             << out_names[i] << "\"] o" << i
+             << out_names[i] << ";\n";
           auto z = circuit->outputs_[i];
           if (z <= 1 && !has_alone_gate)
           {
             os_ << "node[shape=box, label=\"Const\"] 0" << std::endl;
             has_alone_gate = true;
           }
-          os_ << (z & ~1) << "->" << 'o' << i << circuit->output_names_[i] << out_pos;
+          os_ << (z & ~1) << "->" << 'o' << i << out_names[i] << out_pos;
           if (circuit->outputs_[i] % 2 == 1)
             os_ << " [arrowhead=dot]";
           os_ << '\n';
@@ -1157,7 +1164,7 @@ namespace spot
         {
           os_ << "{rank = sink; ";
           for (unsigned i = 0; i < circuit->num_outputs_; ++i)
-            os_ << 'o' << i << circuit->output_names_[i] << "; ";
+            os_ << 'o' << i << out_names[i] << "; ";
           os_ << "}\n";
         }
         if (circuit->num_latches_ > 0)
