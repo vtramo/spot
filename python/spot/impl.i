@@ -479,6 +479,8 @@ namespace std {
   %template(atomic_prop_set) set<spot::formula>;
   %template(relabeling_map) map<spot::formula, spot::formula>;
   %template(setstring) set<std::string>;
+  %template(twa_vector) std::vector<twa_ptr>;
+  %template(const_twa_vector) std::vector<const_twa_ptr>;
 }
 
 %include <spot/tl/environment.hh>

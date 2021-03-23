@@ -229,7 +229,7 @@ namespace spot
 
   // register the bdd corresponding the an
   // aig literal
-  void aig::register_new_lit(unsigned v, const bdd &b)
+  void aig::register_new_lit_(unsigned v, const bdd &b)
   {
     assert(!var2bdd_.count(v) || var2bdd_.at(v) == b);
     assert(!bdd2var_.count(b) || bdd2var_.at(b) == v);
@@ -241,44 +241,44 @@ namespace spot
     bdd2var_[!b] = v ^ 1;
   }
 
+  void aig::register_latch(unsigned i, const bdd& b)
+  {
+    register_new_lit_(latch_var(i), b);
+  }
+
+  void aig::register_input(unsigned i, const bdd& b)
+  {
+    register_new_lit_(input_var(i), b);
+  }
+
   unsigned aig::input_var(unsigned i) const
   {
-    assert(i < num_inputs_);
+    assert(i < num_inputs);
     return (1 + i) * 2;
   }
 
-  unsigned aig::latch_var(unsigned i)
+  unsigned aig::latch_var(unsigned i) const
   {
-    assert(i < latches_.size());
-    return (1 + num_inputs_ + i) * 2;
+    assert(i < num_latches);
+    return (1 + num_inputs + i) * 2;
   }
 
   unsigned aig::gate_var(unsigned i) const
   {
-    assert(i < and_gates_.size());
-    return (1 + num_inputs_ + num_latches_ + i) * 2;
+    assert(i < num_gates());
+    return (1 + num_inputs + num_latches + i) * 2;
   }
 
   void aig::set_output(unsigned i, unsigned v)
   {
-    assert(v <= max_var_ + 1);
+    assert(v <= max_var() + 1);
     outputs_[i] = v;
   }
 
   void aig::set_latch(unsigned i, unsigned v)
   {
-    assert(v <= max_var_ + 1);
+    assert(v <= max_var() + 1);
     latches_[i] = v;
-  }
-
-  unsigned aig::aig_true() const
-  {
-    return 1;
-  }
-
-  unsigned aig::aig_false() const
-  {
-    return 0;
   }
 
   unsigned aig::aig_not(unsigned v)
@@ -298,7 +298,7 @@ namespace spot
       return it->second;
     max_var_ += 2;
     and_gates_.emplace_back(v1, v2);
-    register_new_lit(max_var_, b);
+    register_new_lit_(max_var_, b);
     return max_var_;
   }
 
@@ -360,8 +360,8 @@ namespace spot
     // if v/2 < 1+n_i_nl -> v is a latch
     auto v2idx = [&](unsigned v) -> unsigned {
       assert(!(v & 1));
-      const unsigned Nlatch_min = 1 + num_inputs_;
-      const unsigned Ngate_min = 1 + num_inputs_ + num_latches_;
+      const unsigned Nlatch_min = 1 + num_inputs;
+      const unsigned Ngate_min = 1 + num_inputs + num_latches;
 
       // Note: this will at most run twice
       while (true)
@@ -410,12 +410,10 @@ namespace spot
       }
   }
 
-  unsigned aig::bdd2DNFvar(const bdd &b,
-                           const std::unordered_map<unsigned, unsigned>&
-                               bddvar_to_num)
+  unsigned aig::bdd2DNFvar(const bdd &b)
   {
     static std::vector<unsigned> plus_vars;
-    static std::vector<unsigned> prod_vars(num_inputs_);
+    static std::vector<unsigned> prod_vars(num_inputs);
 
     plus_vars.clear();
     prod_vars.clear();
@@ -443,8 +441,16 @@ namespace spot
         // Create
         while (prod != bddtrue)
         {
-          unsigned v =
-              input_var(bddvar_to_num.at(bdd_var(prod)));
+          //Check if we know the sub-bdd
+          if ((it = bdd2var_.find(prod)) != bdd2var_.end())
+            {
+              // We already constructed prod
+              prod_vars.push_back(it->second);
+              break;
+            }
+          // if the next lines failes,
+          // it is probably due to unregistered latches or ins
+          unsigned v = bdd2var_.at(bdd_ithvar(bdd_var(prod)));
           if (bdd_high(prod) == bddfalse)
           {
             v = aig_not(v);
@@ -578,44 +584,6 @@ namespace spot
       return src == init ? 0 : src == 0 ? init : src;
     }
 
-//    inline unsigned count_high(bdd b)
-//    {
-//      unsigned high=0;
-//      while (b != bddtrue)
-//      {
-//        if (bdd_low(b) == bddfalse)
-//        {
-//          ++high;
-//          b = bdd_high(b);
-//        }
-//        else
-//        {
-//          assert(bdd_high(b) == bddfalse);
-//          b = bdd_low(b);
-//        }
-//      }
-//       return high;
-//    }
-//
-//    inline bdd get_min(bdd b)
-//    {
-//      bdd bbest = bddtrue;
-//      unsigned n_high=-1u;
-//      while (b != bddfalse)
-//      {
-//        bdd nextsat = bdd_satone(b);
-//        b -= nextsat;
-//        unsigned next_high = count_high(nextsat);
-//        if (next_high<n_high)
-//        {
-//          n_high = next_high;
-//          bbest = nextsat;
-//        }
-//      }
-//      assert(n_high != -1u);
-//      return bbest;
-//    }
-
     // Heuristic to minimize the number of gates
     // in the resulting aiger
     // the idea is to take the (valid) output with the
@@ -645,8 +613,6 @@ namespace spot
               // Get the minterm with least highs
               //Those that are undefined we be set to low
               this_outc[astrat.first->edge_number(e)] = bdd_satone(bout);
-//              std::cout << this_outc[astrat.first->edge_number(e)] << std::endl;
-//              this_outc[astrat.first->edge_number(e)] = get_min(bout);
               assert(this_outc[astrat.first->edge_number(e)] != bddfalse);
             }
         }
@@ -693,15 +659,12 @@ namespace spot
                     if (output_names.count(ap.ap_name()))
                       throw std::runtime_error("Outputs not disjoint!\n"
                                                "Problem ap: " + ap.ap_name());
-                    // bddvar_to_num[bddvar] = output_names.size(); #Do not save
                     output_names.emplace(ap.ap_name());
                   }
                 else // ap is an input AP
                   {
-                    // bddvar_to_num[bddvar] = input_names.size();
                     input_names.emplace(ap.ap_name());
                     all_inputs &= b;
-  //                  all_inputs_vec.push_back(b);
                   }
               }
           }
@@ -768,10 +731,13 @@ namespace spot
       // Register
       // latches
       for (unsigned i = 0; i < n_latches; ++i)
-        circuit.register_new_lit(circuit.latch_var(i), bdd_ithvar(st0[0]+i));
+        circuit.register_latch(i, bdd_ithvar(st0[0]+i));
+//        circuit.register_new_lit(circuit.latch_var(i), bdd_ithvar(st0[0]+i));
       // inputs
       for (unsigned i = 0; i < all_inputs_vec.size(); ++i)
-        circuit.register_new_lit(circuit.input_var(i), all_inputs_vec[i]);
+        circuit.register_input(i, all_inputs_vec[i]);
+//        circuit.register_new_lit(circuit.input_var(i), all_inputs_vec[i]);
+
       // Latches and outputs are expressed as a DNF in which each term
       // represents a transition.
       // latch[i] (resp. out[i]) represents the i-th latch (resp. output) DNF.
@@ -784,21 +750,15 @@ namespace spot
         {
           std::vector<std::vector<unsigned>> latch(n_latches);
           std::vector<std::vector<unsigned>> out(output_names.size());
-//          // Keep track of bdd that were already transformed into a gate
-//          std::unordered_map<bdd, unsigned, bdd_hash> incond_map;
 
           // Loop over the different strategies
           for (unsigned i = 0; i < strat_vec.size(); ++i)
             {
               auto&& [astrat, aouts] = strat_vec[i];
-//              auto ast0 = st0[i];
-//              auto ast0_next = (i + 1 < strat_vec.size()) ? st0[i+1]
-//                                                          : strat_vec.size();
 
               auto aoff = latch_offset[i];
               auto aoff_next = latch_offset.at(i+1);
 
-//              auto alog2n = log2n[i];
               auto enc_init =
                 [inum = astrat->get_init_state_number()](auto s)
                   {
@@ -843,13 +803,12 @@ namespace spot
                       // -> directly compute the corresponding
                       // variable and and-gate
                       unsigned incond_var = circuit.bdd2DNFvar(
-                          bdd_exist(e.cond, aouts), bddvar_to_num);
+                          bdd_exist(e.cond, aouts));
                       // todo
                       // Test that bdd_exist(e.cond, aouts)
                       // Does not contains outs of other strategies?
 
                       // AND with state
-//                      std::cout << src_var << "; " << incond_var << std::endl;
                       unsigned tot_cond =
                           circuit.aig_and(src_var, incond_var);
                       // Set in latches/outs having "high"
@@ -860,28 +819,30 @@ namespace spot
                         }
                       for (auto&& ao : out_vec)
                         {
-                          // todo test?}
+                          // todo test?
                           out.at(ao).push_back(tot_cond);
                         }
                     }//edge
                 }//state
             }//strat
           // OR them all
-//          for (unsigned i = 0; i < n_latches; ++i)
-//          {
-//            std::cout << "latch " << i << std::endl;
-//            for (auto e : latch[i])
-//              std::cout << e << ",";
-//            std::cout << std::endl;
-//          }
-//        for (unsigned i = 0; i < output_names.size(); ++i)
-//        {
-//          std::cout << "out " << i << std::endl;
-//          for (auto e : out[i])
-//            std::cout << e << ",";
-//          std::cout << std::endl;
-//        }
-        for (unsigned i = 0; i < n_latches; ++i)
+          // As the elements are ORED,
+          // we can sort the latch and out vectors and make them unique
+          // This might reduce the number of gates by increasing reusage
+          // and decreasing number of terms
+          auto preproc = [](auto& vofvu)
+            {
+              for (auto& vu : vofvu)
+                {
+                  std::sort(vu.begin(), vu.end());
+                  auto new_end = std::unique(vu.begin(), vu.end());
+                  vu.erase(new_end, vu.end());
+                }
+            };
+          preproc(latch);
+          preproc(out);
+
+          for (unsigned i = 0; i < n_latches; ++i)
             circuit.set_latch(i, circuit.aig_or(latch[i]));
           for (unsigned i = 0; i < output_names.size(); ++i)
             circuit.set_output(i, circuit.aig_or(out[i]));
@@ -897,8 +858,6 @@ namespace spot
             {
               auto&& [astrat, aouts] = strat_vec[i];
               auto ast0 = st0[i];
-//              auto ast0_next = (i + 1 < strat_vec.size()) ? st0[i+1]
-//                                                          : strat_vec.size();
 
               auto aoff = latch_offset[i];
               auto aoff_next = latch_offset.at(i+1);
@@ -1101,10 +1060,14 @@ namespace spot
   std::ostream &
   print_aiger(std::ostream &os, const_aig_ptr circuit, const char* mode)
   {
-    std::vector<std::string> in_names(circuit->input_names_.begin(),
-                                      circuit->input_names_.end());
-    std::vector<std::string> out_names(circuit->output_names_.begin(),
-                                       circuit->output_names_.end());
+
+    if (not circuit)
+      return os;//Print nothing in case of nullptr
+
+    std::vector<std::string> in_names(circuit->input_names.begin(),
+                                      circuit->input_names.end());
+    std::vector<std::string> out_names(circuit->output_names.begin(),
+                                       circuit->output_names.end());
     if (strcasecmp(mode, "circuit") == 0)
     {
       // Writing gates to formatted buffer speed-ups output
@@ -1117,31 +1080,31 @@ namespace spot
       };
       // Count active gates
       unsigned n_gates = 0;
-      for (auto &g : circuit->and_gates_)
+      for (auto &g : circuit->gates())
         if ((g.first != 0) && (g.second != 0))
           ++n_gates;
       // Note max_var_ is now an upper bound
-      os << "aag " << circuit->max_var_ / 2
-          << ' ' << circuit->num_inputs_
-          << ' ' << circuit->num_latches_
-          << ' ' << circuit->num_outputs_
+      os << "aag " << circuit->max_var() / 2
+          << ' ' << circuit->num_inputs
+          << ' ' << circuit->num_latches
+          << ' ' << circuit->num_outputs
           << ' ' << n_gates << '\n';
-      for (unsigned i = 0; i < circuit->num_inputs_; ++i)
+      for (unsigned i = 0; i < circuit->num_inputs; ++i)
         os << (1 + i) * 2 << '\n';
-      for (unsigned i = 0; i < circuit->num_latches_; ++i)
-        os << (1 + circuit->num_inputs_ + i) * 2
-           << ' ' << circuit->latches_[i] << '\n';
-      for (unsigned i = 0; i < circuit->outputs_.size(); ++i)
-        os << circuit->outputs_[i] << '\n';
-      for (unsigned i = 0; i < circuit->and_gates_.size(); ++i)
-        if ((circuit->and_gates_[i].first != 0)
-            && (circuit->and_gates_[i].second != 0))
+      for (unsigned i = 0; i < circuit->num_latches; ++i)
+        os << (1 + circuit->num_inputs + i) * 2
+           << ' ' << circuit->latches()[i] << '\n';
+      for (unsigned i = 0; i < circuit->num_outputs; ++i)
+        os << circuit->outputs()[i] << '\n';
+      for (unsigned i = 0; i < circuit->num_gates(); ++i)
+        if ((circuit->gates()[i].first != 0)
+            && (circuit->gates()[i].second != 0))
           write_gate(circuit->gate_var(i),
-                     circuit->and_gates_[i].first,
-                     circuit->and_gates_[i].second);
-      for (unsigned i = 0; i < circuit->num_inputs_; ++i)
+                     circuit->gates()[i].first,
+                     circuit->gates()[i].second);
+      for (unsigned i = 0; i < circuit->num_inputs; ++i)
         os << 'i' << i << ' ' << in_names[i] << '\n';
-      for (unsigned i = 0; i < circuit->outputs_.size(); ++i)
+      for (unsigned i = 0; i < circuit->num_outputs; ++i)
         os << 'o' << i << ' ' << out_names[i] << '\n';
     }
     else
