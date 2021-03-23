@@ -482,7 +482,7 @@ main(int argc, char **argv)
           if (not inter.empty())
             {
               for (auto&& e : inter)
-                std::cerr << e << "\n";
+                std::cerr << e << '\n';
               throw std::runtime_error("The above aps appear in \"ins\" and"
                                        "\"outs\"");
             }

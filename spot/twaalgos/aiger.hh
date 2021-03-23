@@ -194,7 +194,7 @@ namespace spot
       line.clear();
       getline(iss, line);
       ++line_number;
-      while(iss)
+      while (iss)
       {
         unsigned pos_var_name;
         char first_char = line[0];
@@ -211,11 +211,12 @@ namespace spot
         }
         case 'i':
         {
-          if (sscanf(line.c_str(), "i%u %s", &pos_var_name, var_name) != 2 || pos_var_name >= num_inputs_)
+          if ((sscanf(line.c_str(), "i%u %255s", &pos_var_name, var_name) != 2) || pos_var_name >= num_inputs_)
           {
             error_oss << line_number << " invalid input name";
             throw std::runtime_error(error_oss.str());
           }
+
           input_names_[pos_var_name] = var_name;
           line.clear();
           getline(iss, line);
@@ -224,7 +225,7 @@ namespace spot
         }
         case 'o':
         {
-          if (sscanf(line.c_str(), "o%u %s", &pos_var_name, var_name) != 2 || pos_var_name >= num_outputs_)
+          if (sscanf(line.c_str(), "o%u %255s", &pos_var_name, var_name) != 2 || pos_var_name >= num_outputs_)
           {
             error_oss << line_number << " invalid output name";
             throw std::runtime_error(error_oss.str());

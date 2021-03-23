@@ -30,13 +30,10 @@ def equiv(a, b):
 
 def do_split(f, in_list, out_list):
     aut = spot.translate(f)
-    inputs = spot.buddy.bddtrue
-    for a in in_list:
-        inputs &= spot.buddy.bdd_ithvar(aut.get_dict().varnum(spot.formula(a)))
     outputs = spot.buddy.bddtrue
     for a in out_list:
         outputs &= spot.buddy.bdd_ithvar(aut.get_dict().varnum(spot.formula(a)))
-    s = spot.split_2step(aut, inputs, outputs, False, False)
+    s = spot.split_2step(aut, outputs, False, False)
     return aut, s
 
 def str_diff(expect, obtained):
