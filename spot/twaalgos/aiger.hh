@@ -202,7 +202,7 @@ namespace spot
 
     // Takes a bdd, computes the corresponding literal
     // using its DNF
-    unsigned bdd2DNFvar(const bdd &b);
+    unsigned bdd2DNFvar(bdd b);
 
     // Takes a bdd, computes the corresponding literal
     // using its INF
