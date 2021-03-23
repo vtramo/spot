@@ -84,42 +84,45 @@ namespace spot
   // TODO: On garde ce nom ou "aiger" ?
   // Non on garde car aiger c'est le format du fichier
   // aig c'est and-inverter-graph
-  class aig
+  class SPOT_API aig
   {
   public:
-    unsigned max_var_;
-    unsigned num_inputs_;
-    unsigned num_latches_;
-    unsigned num_outputs_;
+    const unsigned num_inputs;
+    const unsigned num_outputs;
+    const unsigned num_latches;
+    const std::set<std::string> input_names;
+    const std::set<std::string> output_names;
 
+
+  protected:
+    unsigned max_var_;
     std::vector<unsigned> latches_;
     std::vector<unsigned> outputs_;
-    std::set<std::string> input_names_;
-    std::set<std::string> output_names_;
     std::vector<std::pair<unsigned, unsigned>> and_gates_;
     // Cache the function computed by each variable as a bdd.
     std::unordered_map<unsigned, bdd> var2bdd_;
     std::unordered_map<bdd, unsigned, bdd_hash> bdd2var_;
 
+  public:
     aig(const std::set<std::string>& inputs,
         const std::set<std::string>& outputs,
         unsigned num_latches)
-        : max_var_((inputs.size() + num_latches) * 2),
-          num_inputs_(inputs.size()),
-          num_latches_(num_latches),
-          num_outputs_(outputs.size()),
+        : num_inputs(inputs.size()),
+          num_outputs(outputs.size()),
+          num_latches(num_latches),
+          input_names(inputs),
+          output_names(outputs),
+          max_var_((inputs.size() + num_latches) * 2),
           latches_(num_latches),
-          outputs_(outputs.size()),
-          input_names_(inputs),
-          output_names_(outputs)
+          outputs_(outputs.size())
     {
-      bdd2var_[bddtrue] = 1;
-      var2bdd_[1] = bddtrue;
-      bdd2var_[bddfalse] = 0;
-      var2bdd_[0] = bddfalse;
+      bdd2var_[bddtrue] = aig_true();
+      var2bdd_[aig_true()] = bddtrue;
+      bdd2var_[bddfalse] = aig_false();
+      var2bdd_[aig_false()] = bddfalse;
 
-      bdd2var_.reserve(4 * (num_inputs_ + num_latches_));
-      var2bdd_.reserve(4 * (num_inputs_ + num_latches_));
+      bdd2var_.reserve(4 * (num_inputs + num_latches));
+      var2bdd_.reserve(4 * (num_inputs + num_latches));
     }
 
     aig(unsigned num_inputs, unsigned num_latches, unsigned num_outputs)
@@ -128,49 +131,84 @@ namespace spot
     {
     }
 
+    const std::vector<unsigned>& outputs() const
+    {
+      return outputs_;
+    }
+
+
+    const std::vector<unsigned>& latches() const
+    {
+      return latches_;
+    };
+
+    unsigned num_gates() const
+    {
+      return and_gates_.size();
+    };
+    const std::vector<std::pair<unsigned, unsigned>>& gates() const
+    {
+      return and_gates_;
+    };
+
+    auto max_var() const -> decltype(max_var_)
+    {
+      return max_var_;
+    };
+
     // register the bdd corresponding the an
     // aig literal
-    SPOT_API void register_new_lit(unsigned v, const bdd &b);
+  protected:
+    void register_new_lit_(unsigned v, const bdd &b);
 
-    SPOT_API unsigned input_var(unsigned i) const;
+  public:
+    void register_latch(unsigned i, const bdd& b);
 
-    SPOT_API unsigned latch_var(unsigned i);
+    void register_input(unsigned i, const bdd& b);
 
-    SPOT_API unsigned gate_var(unsigned i) const;
+    unsigned input_var(unsigned i) const;
 
-    SPOT_API void set_output(unsigned i, unsigned v);
+    unsigned latch_var(unsigned i) const;
 
-    SPOT_API void set_latch(unsigned i, unsigned v);
+    unsigned gate_var(unsigned i) const;
 
-    SPOT_API unsigned aig_true() const;
+    void set_output(unsigned i, unsigned v);
 
-    SPOT_API unsigned aig_false() const;
+    void set_latch(unsigned i, unsigned v);
 
-    SPOT_API unsigned aig_not(unsigned v);
+    static constexpr unsigned aig_true() noexcept
+    {
+      return 1;
+    };
 
-    SPOT_API unsigned aig_and(unsigned v1, unsigned v2);
+    static constexpr unsigned aig_false() noexcept
+    {
+      return 0;
+    };
 
-    SPOT_API unsigned aig_and(std::vector<unsigned> vs);
+    unsigned aig_not(unsigned v);
 
-    SPOT_API unsigned aig_or(unsigned v1, unsigned v2);
+    unsigned aig_and(unsigned v1, unsigned v2);
 
-    SPOT_API unsigned aig_or(std::vector<unsigned> vs);
+    unsigned aig_and(std::vector<unsigned> vs);
 
-    SPOT_API unsigned aig_pos(unsigned v);
+    unsigned aig_or(unsigned v1, unsigned v2);
 
-    SPOT_API void remove_unused();
+    unsigned aig_or(std::vector<unsigned> vs);
+
+    unsigned aig_pos(unsigned v);
+
+    void remove_unused();
 
     // Takes a bdd, computes the corresponding literal
     // using its DNF
-    SPOT_API unsigned bdd2DNFvar(const bdd &b,
-                                const std::unordered_map<unsigned, unsigned> &
-                                    bddvar_to_num);
+    unsigned bdd2DNFvar(const bdd &b);
 
     // Takes a bdd, computes the corresponding literal
     // using its INF
-    SPOT_API unsigned bdd2INFvar(bdd b);
+    static aig_ptr parse_aag(const std::string& aig_txt);
 
-    static SPOT_API aig_ptr parse_aag(const std::string& aig_txt);
+    unsigned bdd2INFvar(bdd b);
   };
 
   SPOT_API std::ostream &
