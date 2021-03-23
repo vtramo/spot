@@ -64,12 +64,12 @@ namespace spot
 
   namespace
   {
-    static std::vector<std::string>
+    static std::set<std::string>
     name_vector(unsigned n, const std::string &prefix)
     {
-      std::vector<std::string> res(n);
+      std::set<std::string> res;
       for (unsigned i = 0; i != n; ++i)
-        res[i] = prefix + std::to_string(i);
+        res.emplace(prefix + std::to_string(i));
       return res;
     }
   }
@@ -82,6 +82,8 @@ namespace spot
 
   // A class to represent an AIGER circuit
   // TODO: On garde ce nom ou "aiger" ?
+  // Non on garde car aiger c'est le format du fichier
+  // aig c'est and-inverter-graph
   class aig
   {
   public:
@@ -92,163 +94,15 @@ namespace spot
 
     std::vector<unsigned> latches_;
     std::vector<unsigned> outputs_;
-    std::vector<std::string> input_names_;
-    std::vector<std::string> output_names_;
+    std::set<std::string> input_names_;
+    std::set<std::string> output_names_;
     std::vector<std::pair<unsigned, unsigned>> and_gates_;
     // Cache the function computed by each variable as a bdd.
     std::unordered_map<unsigned, bdd> var2bdd_;
     std::unordered_map<bdd, unsigned, bdd_hash> bdd2var_;
 
-    aig(const std::string& aig_txt)
-    {
-      std::istringstream iss(aig_txt);
-      std::string line;
-      std::ostringstream error_oss;
-      error_oss << "aig(std::string): line ";
-      getline(iss, line);
-      unsigned line_number = 1;
-      unsigned max_index, nb_inputs, nb_latches, nb_outputs, nb_and;
-      if (sscanf(line.c_str(), "aag %u %u %u %u %u", &max_index, &nb_inputs, &nb_latches, &nb_outputs, &nb_and) != 5)
-      {
-        error_oss << line_number << " invalid header";
-        throw std::runtime_error(error_oss.str());
-      }
-      num_inputs_ = nb_inputs;
-      num_latches_ = nb_latches;
-      num_outputs_ = nb_outputs;
-      input_names_.reserve(num_inputs_);
-      output_names_.reserve(num_outputs_);
-      latches_.reserve(num_latches_);
-      outputs_.reserve(num_outputs_);
-      // FIXME:
-      max_var_ = -2U;
-      for (unsigned i = 0; i < nb_inputs; ++i)
-      {
-        if (!iss)
-        {
-          error_oss << line_number << " missing input";
-          throw std::runtime_error(error_oss.str());
-        }
-        line.clear();
-        getline(iss, line);
-        ++line_number;
-      }
-      for (unsigned i = 0; i < nb_latches; ++i)
-      {
-        if (!iss)
-        {
-          error_oss << line_number << " missing latch";
-          throw std::runtime_error(error_oss.str());
-        }
-        line.clear();
-        getline(iss, line);
-        ++line_number;
-        unsigned current_state, next_state;
-        if (sscanf(line.c_str(), "%u %u", &current_state, &next_state) != 2)
-        {
-          error_oss << line_number << " invalid latch";
-          throw std::runtime_error(error_oss.str());
-        }
-      }
-      for (unsigned i = 0; i < nb_outputs; ++i)
-      {
-        if (!iss)
-        {
-          error_oss << line_number << " missing output";
-          throw std::runtime_error(error_oss.str());
-        }
-        line.clear();
-        getline(iss, line);
-        ++line_number;
-        unsigned num_out;
-        if (sscanf(line.c_str(), "%u", &num_out) != 1)
-        {
-          error_oss << line_number << " invalid output";
-          throw std::runtime_error(error_oss.str());
-        }
-        set_output(i, num_out);
-      }
-      for (unsigned i = 0; i < nb_and; ++i)
-      {
-        unsigned lhs, rhs, and_gate;
-        if (!iss)
-        {
-          error_oss << line_number << " missing AND";
-          throw std::runtime_error(error_oss.str());
-        }
-        line.clear();
-        getline(iss, line);
-        ++line_number;
-        if (sscanf(line.c_str(), "%u %u %u", &lhs, &rhs, &and_gate) != 3)
-        {
-          error_oss << line_number << " invalid AND";
-          throw std::runtime_error(error_oss.str());
-        }
-
-        if (and_gate != aig_and(lhs, rhs))
-        {
-          // TODO: Est-ce vrai ?
-          throw std::runtime_error("aig(std::string): invalid input");
-        }
-      }
-      line.clear();
-      getline(iss, line);
-      ++line_number;
-      while (iss)
-      {
-        unsigned pos_var_name;
-        char first_char = line[0];
-        char var_name[256];
-        switch (first_char)
-        {
-          // latches names non supported
-        case 'l':
-        {
-          line.clear();
-          getline(iss, line);
-          ++line_number;
-          continue;
-        }
-        case 'i':
-        {
-          if ((sscanf(line.c_str(), "i%u %255s", &pos_var_name, var_name) != 2) || pos_var_name >= num_inputs_)
-          {
-            error_oss << line_number << " invalid input name";
-            throw std::runtime_error(error_oss.str());
-          }
-
-          input_names_[pos_var_name] = var_name;
-          line.clear();
-          getline(iss, line);
-          ++line_number;
-          break;
-        }
-        case 'o':
-        {
-          if (sscanf(line.c_str(), "o%u %255s", &pos_var_name, var_name) != 2 || pos_var_name >= num_outputs_)
-          {
-            error_oss << line_number << " invalid output name";
-            throw std::runtime_error(error_oss.str());
-          }
-          output_names_[pos_var_name] = var_name;
-          line.clear();
-          getline(iss, line);
-          ++line_number;
-          break;
-        }
-        case 'c':
-          return;
-        default:
-        {
-          error_oss << line_number << " invalid line";
-          throw std::runtime_error(error_oss.str());
-        }
-        }
-      }
-    }
-
-    aig(const std::vector<std::string> &inputs,
-        const std::vector<std::string> &outputs,
+    aig(const std::set<std::string>& inputs,
+        const std::set<std::string>& outputs,
         unsigned num_latches)
         : max_var_((inputs.size() + num_latches) * 2),
           num_inputs_(inputs.size()),
@@ -315,19 +169,29 @@ namespace spot
     // Takes a bdd, computes the corresponding literal
     // using its INF
     SPOT_API unsigned bdd2INFvar(bdd b);
+
+    static SPOT_API aig_ptr parse_aag(const std::string& aig_txt);
   };
 
-  typedef std::shared_ptr<aig> aig_ptr;
-
   SPOT_API std::ostream &
-
   print_aiger(std::ostream &os, const_aig_ptr circuit, const char *opt);
+
+  SPOT_API aig_ptr
+  parse_aag(const std::string& aig_txt);
 
   SPOT_API aig_ptr
   strategy_to_aig(const const_twa_ptr &aut, const char *mode);
 
   SPOT_API aig_ptr
-  strategy_to_aig(const twa_ptr &aut, const char *mode,
+  strategies_to_aig(const std::vector<const_twa_ptr>& strat_vec, const char *mode);
+
+  SPOT_API aig_ptr
+  strategy_to_aig(const twa_ptr& aut, const char *mode,
                   const std::set<std::string>& ins,
                   const std::set<std::string>& outs);
+
+  SPOT_API aig_ptr
+  strategies_to_aig(const std::vector<twa_ptr>& strat_vec, const char *mode,
+                    const std::set<std::string>& ins,
+                    const std::vector<std::set<std::string>>& outs);
 }
