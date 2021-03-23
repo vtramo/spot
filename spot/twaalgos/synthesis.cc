@@ -24,6 +24,7 @@
 #include <spot/twaalgos/degen.hh>
 #include <spot/twaalgos/game.hh>
 #include <spot/twaalgos/isdet.hh>
+#include <spot/twaalgos/minimize.hh>
 #include <spot/twaalgos/parity.hh>
 #include <spot/twaalgos/toparity.hh>
 #include <spot/twaalgos/sbacc.hh>
@@ -783,6 +784,23 @@ namespace spot
     return ret;
   }
 
+  // TODO: Est-ce qu'on en fait une option --minimize=[int] où
+  // 0 => pas de minim
+  // 1 => minimize_monitor
+  // 2 => 1 + implication des signatures
+  // ?
+  static void
+  minimize_strategy_here(twa_graph_ptr& strat)
+  {
+    // (void) strat;
+    strat->set_acceptance(spot::acc_cond::acc_code::t());
+    bdd *obdd = strat->get_named_prop<bdd>("synthesis-outputs");
+    assert(obdd);
+    auto new_bdd = new bdd(*obdd);
+    strat = spot::minimize_monitor(strat);
+    strat->set_named_prop("synthesis-outputs", new_bdd);
+  }
+
   twa_graph_ptr
   create_strategy(twa_graph_ptr arena, game_info& gi)
   {
@@ -804,8 +822,10 @@ namespace spot
     if (bv)
       sw.start();
     twa_graph_ptr strat_aut = apply_strategy(arena, true, false);
+    (void)minimize_strategy_here;
+    // minimize_strategy_here(strat_aut);
     if (bv)
-      bv->strat2aut_time = sw.stop();
+        bv->strat2aut_time = sw.stop();
 
     return strat_aut;
   }
