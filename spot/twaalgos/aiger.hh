@@ -151,7 +151,7 @@ namespace spot
       return and_gates_;
     };
 
-    auto max_var() const -> decltype(max_var_)
+    unsigned max_var() const
     {
       return max_var_;
     };
