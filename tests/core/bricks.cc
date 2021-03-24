@@ -209,7 +209,7 @@ int main()
   std::vector<std::thread> workers;
   for (int i = 0; i < 6; i++)
     workers.
-      push_back(std::thread([&ht2](int tid)
+      push_back(std::thread([ht2](int tid) mutable
                             {
                               for (int i = 0; i< 2000; ++i)
                                 ht2.insert({i, tid});
