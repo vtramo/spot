@@ -215,9 +215,6 @@ namespace spot
   print_aiger(std::ostream &os, const_aig_ptr circuit, const char *opt);
 
   SPOT_API aig_ptr
-  parse_aag(const std::string& aig_txt);
-
-  SPOT_API aig_ptr
   strategy_to_aig(const const_twa_ptr &aut, const char *mode);
 
   SPOT_API aig_ptr
