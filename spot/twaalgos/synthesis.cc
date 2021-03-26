@@ -568,8 +568,17 @@ namespace spot
   static spot::translator
   create_translator(spot::option_map& extra_options, spot::solver sol)
   {
+    for (auto&& p : std::vector<std::pair<const char*, int>>
+                      {{"simul", 0},
+                       {"ba-simul", 0},
+                       {"det-simul", 0},
+                       {"tls-impl", 1},
+                       {"wdba-minimize", 2}})
+      extra_options.set(p.first, extra_options.get(p.first, p.second));
+
     spot::bdd_dict_ptr dict = spot::make_bdd_dict();
     spot::translator trans(dict, &extra_options);
+    extra_options.report_unused_options();
     switch (sol)
     {
     case spot::solver::LAR:
@@ -593,7 +602,7 @@ namespace spot
   spot::twa_graph_ptr
   create_game(const spot::formula& f,
               const std::set<std::string>& all_outs,
-              spot::option_map& extra_opt,
+              option_map& extra_opt,
               game_info& gi)
   {
     auto trans = create_translator(extra_opt, gi.s);
@@ -624,8 +633,8 @@ namespace spot
 
     // Check for each ap that actually appears in the graph
     // whether its an in or out
-    auto ins = bddtrue;
-    auto outs = bddtrue;
+    bdd ins = bddtrue;
+    bdd outs = bddtrue;
     for (auto&& aap : aut->ap())
       {
         if (all_outs.count(aap.ap_name()) != 0)

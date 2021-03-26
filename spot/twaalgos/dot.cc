@@ -1072,20 +1072,21 @@ namespace spot
         if (!circuit)
           return;
 
-        std::vector<std::string> in_names(circuit->input_names.begin(),
-                                          circuit->input_names.end());
-        std::vector<std::string> out_names(circuit->output_names.begin(),
-                                           circuit->output_names.end());
+        std::vector<std::string> in_names(circuit->input_names().begin(),
+                                          circuit->input_names().end());
+        std::vector<std::string> out_names(circuit->output_names().begin(),
+                                           circuit->output_names().end());
 
-        auto num_latches = circuit->num_latches;
-        auto latches = circuit->latches();
-        auto num_inputs = circuit->num_inputs;
-        auto num_outputs = circuit->num_outputs;
+        auto num_latches = circuit->num_latches();
+        auto latches = circuit->next_latches();
+        auto num_inputs = circuit->num_inputs();
+        auto num_outputs = circuit->num_outputs();
         auto outputs = circuit->outputs();
         auto num_gates = circuit->num_gates();
         auto gates = circuit->gates();
 
-        auto add_edge = [](std::ostream &stream, const unsigned src, const unsigned dst) {
+        auto add_edge = [](std::ostream &stream, const unsigned src,
+                           const unsigned dst) {
           auto src_gate = src & ~1;
           stream << src_gate;
           stream << " -> " << dst;
@@ -1104,7 +1105,8 @@ namespace spot
         {
           auto first = circuit->latch_var(i);
           auto first_m_mod = first & ~1;
-          os_ << "node[shape=box, label=\"" << first_m_mod << "\"] " << first_m_mod << ";\n";
+          os_ << "node[shape=box, label=\"" << first_m_mod << "\"] "
+              << first_m_mod << ";\n";
         }
 
         os_ << "# inputs\n";
