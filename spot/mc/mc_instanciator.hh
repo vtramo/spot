@@ -96,9 +96,11 @@ namespace spot
     std::vector<struct_name*> ss(nbth);
 
     tm.start("Initialisation");
+    // FIXME: use singleton instead? (only used in bloemen)
+    ss[0] = algo_name::make_shared_structure(map, 0);
     for (unsigned i = 0; i < nbth; ++i)
       {
-        ss[i] = algo_name::make_shared_structure(map, i);
+        ss[i] = ss[0];
 
         if constexpr (std::is_same_v<algo_name,
             spot::swarmed_deadlock_bitstate<State, Iterator, Hash, Equal, std::true_type>>)
