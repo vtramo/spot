@@ -289,6 +289,8 @@ namespace spot
                 const output_aborter* aborter,
                 std::vector<unsigned>* accepting_sinks)
   {
+    if (aut->prop_universal())
+      return make_twa_graph(aut, spot::twa::prop_set::all());
     power_map pm;
     return tgba_powerset(aut, pm, true, aborter, accepting_sinks);
   }
