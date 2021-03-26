@@ -26,6 +26,7 @@
 #include <spot/twaalgos/aiger.hh>
 #include <spot/twaalgos/translate.hh>
 #include <spot/tl/formula.hh>
+#include <spot/misc/optionmap.hh>
 
 namespace spot
 {
@@ -106,10 +107,18 @@ namespace spot
       bool realizable = false;
     };
 
-    bool force_sbacc = false;
-    solver s = solver::SPLIT_DET;
-    std::optional<bench_var> bv = {};
-    std::ostream* verbose_stream = nullptr;
+    game_info()
+      : force_sbacc{false},
+        s{solver::SPLIT_DET},
+        bv{},
+        verbose_stream{nullptr}
+    {
+    }
+
+    bool force_sbacc;
+    solver s;
+    std::optional<bench_var> bv;
+    std::ostream* verbose_stream;
   };
 
   SPOT_API std::ostream&
@@ -119,13 +128,27 @@ namespace spot
   SPOT_API spot::twa_graph_ptr
   create_game(const formula& f,
               const std::set<std::string>& all_outs,
-              spot::option_map& opt,
+              option_map& opt,
               game_info& gi);
 
+  SPOT_API spot::twa_graph_ptr
+  create_game(const formula& f,
+              const std::set<std::string>& all_outs)
+  {
+    option_map dummy1;
+    game_info dummy2;
+    return create_game(f, all_outs, dummy1, dummy2);
+  }
 
   SPOT_API bool
   solve_game(twa_graph_ptr arena, game_info& gi);
 
+  SPOT_API bool
+  solve_game(twa_graph_ptr arena)
+  {
+    game_info dummy1;
+    return solve_game(arena, dummy1);
+  }
 
   SPOT_API twa_graph_ptr
   create_strategy(twa_graph_ptr arena, game_info& gi);

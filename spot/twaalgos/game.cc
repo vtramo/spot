@@ -840,9 +840,9 @@ namespace spot
               }
             else if ((*owner)[e.dst] == osrc)
               {
-                delete owner;
-                throw
-                  std::runtime_error("alternate_players(): odd cycle detected");
+//                delete owner;
+//                throw
+//                  std::runtime_error("alternate_players(): odd cycle detected");
               }
           }
         if (complete0 && !(*owner)[src] && missing != bddfalse)
