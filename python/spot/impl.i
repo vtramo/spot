@@ -462,6 +462,9 @@ static void handle_any_exception()
 %implicitconv spot::formula;
 %implicitconv std::vector<bool>;
 
+%implicitconv std::vector<spot::twa_ptr>;
+%implicitconv std::vector<spot::const_twa_ptr>;
+
 %include <spot/tl/formula.hh>
 
 namespace std {
@@ -479,8 +482,8 @@ namespace std {
   %template(atomic_prop_set) set<spot::formula>;
   %template(relabeling_map) map<spot::formula, spot::formula>;
   %template(setstring) set<std::string>;
-  %template(twa_vector) std::vector<twa_ptr>;
-  %template(const_twa_vector) std::vector<const_twa_ptr>;
+  %template(twa_vector) std::vector<spot::twa_ptr>;
+  %template(const_twa_vector) std::vector<spot::const_twa_ptr>;
 }
 
 %include <spot/tl/environment.hh>

@@ -30,6 +30,9 @@
 #include <memory>
 #include <sstream>
 
+#include <spot/twa/bdddict.hh>
+#include <spot/tl/formula.hh>
+
 namespace spot
 {
   // TODO: Déplacer cette doc.
@@ -86,60 +89,114 @@ namespace spot
   // aig c'est and-inverter-graph
   class SPOT_API aig
   {
-  public:
-    const unsigned num_inputs;
-    const unsigned num_outputs;
-    const unsigned num_latches;
-    const std::set<std::string> input_names;
-    const std::set<std::string> output_names;
-
-
   protected:
+    const unsigned num_inputs_;
+    const unsigned num_outputs_;
+    const unsigned num_latches_;
+    const std::set<std::string> input_names_;
+    const std::set<std::string> output_names_;
     unsigned max_var_;
-    std::vector<unsigned> latches_;
+
+    std::vector<unsigned> next_latches_;
     std::vector<unsigned> outputs_;
     std::vector<std::pair<unsigned, unsigned>> and_gates_;
     // Cache the function computed by each variable as a bdd.
+    bdd_dict_ptr dict_;
     std::unordered_map<unsigned, bdd> var2bdd_;
     std::unordered_map<bdd, unsigned, bdd_hash> bdd2var_;
+    int l0_;
 
   public:
     aig(const std::set<std::string>& inputs,
         const std::set<std::string>& outputs,
-        unsigned num_latches)
-        : num_inputs(inputs.size()),
-          num_outputs(outputs.size()),
-          num_latches(num_latches),
-          input_names(inputs),
-          output_names(outputs),
+        unsigned num_latches,
+        bdd_dict_ptr dict = make_bdd_dict())
+        : num_inputs_(inputs.size()),
+          num_outputs_(outputs.size()),
+          num_latches_(num_latches),
+          input_names_(inputs),
+          output_names_(outputs),
           max_var_((inputs.size() + num_latches) * 2),
-          latches_(num_latches),
-          outputs_(outputs.size())
+          next_latches_(num_latches),
+          outputs_(outputs.size()),
+          dict_{dict}
     {
       bdd2var_[bddtrue] = aig_true();
       var2bdd_[aig_true()] = bddtrue;
       bdd2var_[bddfalse] = aig_false();
       var2bdd_[aig_false()] = bddfalse;
 
-      bdd2var_.reserve(4 * (num_inputs + num_latches));
-      var2bdd_.reserve(4 * (num_inputs + num_latches));
+      l0_ = dict_->register_anonymous_variables(num_latches_, this);
+      for (size_t i = 0; i < num_latches_; ++i)
+        register_latch_(i, bdd_ithvar(l0_+i));
+
+      size_t i = 0;
+      for (auto&& in : input_names_)
+      {
+        register_input_(i,
+                        bdd_ithvar(
+                          dict_->register_proposition(formula::ap(in), this))
+                        );
+        ++i;
+      }
+      for (auto&& out : output_names_)
+        dict_->register_proposition(formula::ap(out), this);
+
+      bdd2var_.reserve(4 * (num_inputs_ + num_outputs_ + num_latches_));
+      var2bdd_.reserve(4 * (num_inputs_ + num_outputs_ + num_latches_));
     }
 
-    aig(unsigned num_inputs, unsigned num_latches, unsigned num_outputs)
-        : aig(name_vector(num_inputs, "in"), name_vector(num_outputs, "out"),
-              num_latches)
+    aig(unsigned num_inputs, unsigned num_outputs,
+        unsigned num_latches, bdd_dict_ptr dict = make_bdd_dict())
+        : aig(name_vector(num_inputs, "in"),
+          name_vector(num_outputs, "out"), num_latches, dict)
     {
     }
 
+
+    ~aig()
+    {
+      dict_->unregister_all_my_variables(this);
+    }
+
+    // register the bdd corresponding the an
+    // aig literal
+  protected:
+    void register_new_lit_(unsigned v, const bdd &b);
+    void register_latch_(unsigned i, const bdd& b);
+    void register_input_(unsigned i, const bdd& b);
+
+  public:
+
+    unsigned num_outputs() const
+    {
+      return num_outputs_;
+    }
     const std::vector<unsigned>& outputs() const
     {
       return outputs_;
     }
-
-
-    const std::vector<unsigned>& latches() const
+    const std::set<std::string>& output_names() const
     {
-      return latches_;
+      return output_names_;
+    }
+
+    unsigned num_inputs() const
+    {
+      return num_inputs_;
+    }
+    const std::set<std::string>& input_names() const
+    {
+      return input_names_;
+    }
+
+    unsigned num_latches() const
+    {
+      return num_latches_;
+    }
+    const std::vector<unsigned>& next_latches() const
+    {
+      return next_latches_;
     };
 
     unsigned num_gates() const
@@ -156,25 +213,44 @@ namespace spot
       return max_var_;
     };
 
-    // register the bdd corresponding the an
-    // aig literal
-  protected:
-    void register_new_lit_(unsigned v, const bdd &b);
+    unsigned input_var(unsigned i, bool neg = false) const
+    {
+      assert(i < num_inputs_);
+      return (1 + i) * 2 + neg;
+    }
+    bdd input_bdd(unsigned i, bool neg = false) const
+    {
+      return aigvar2bdd(input_var(i, neg));
+    }
 
-  public:
-    void register_latch(unsigned i, const bdd& b);
+    unsigned latch_var(unsigned i, bool neg = false) const
+    {
+      assert(i < num_latches_);
+      return (1 + num_inputs_ + i) * 2 + neg;
+    }
+    bdd latch_bdd(unsigned i, bool neg = false) const
+    {
+      return aigvar2bdd(latch_var(i, neg));
+    }
 
-    void register_input(unsigned i, const bdd& b);
+    unsigned gate_var(unsigned i, bool neg = false) const
+    {
+      assert(i < num_gates());
+      return (1 + num_inputs_ + num_latches_ + i) * 2 + neg;
+    }
+    bdd gate_bdd(unsigned i, bool neg = false) const
+    {
+      return aigvar2bdd(gate_var(i, neg));
+    }
 
-    unsigned input_var(unsigned i) const;
-
-    unsigned latch_var(unsigned i) const;
-
-    unsigned gate_var(unsigned i) const;
+    bdd aigvar2bdd(unsigned v) const
+    {
+      return var2bdd_.at(v);
+    }
 
     void set_output(unsigned i, unsigned v);
 
-    void set_latch(unsigned i, unsigned v);
+    void set_next_latch(unsigned i, unsigned v);
 
     static constexpr unsigned aig_true() noexcept
     {
@@ -206,7 +282,8 @@ namespace spot
 
     // Takes a bdd, computes the corresponding literal
     // using its INF
-    static aig_ptr parse_aag(const std::string& aig_txt);
+    static aig_ptr parse_aag(const std::string& aig_txt,
+                             bdd_dict_ptr dict = make_bdd_dict());
 
     unsigned bdd2INFvar(bdd b);
   };
@@ -218,7 +295,8 @@ namespace spot
   strategy_to_aig(const const_twa_ptr &aut, const char *mode);
 
   SPOT_API aig_ptr
-  strategies_to_aig(const std::vector<const_twa_ptr>& strat_vec, const char *mode);
+  strategies_to_aig(const std::vector<const_twa_ptr>& strat_vec,
+                    const char *mode);
 
   SPOT_API aig_ptr
   strategy_to_aig(const twa_ptr& aut, const char *mode,
@@ -229,4 +307,5 @@ namespace spot
   strategies_to_aig(const std::vector<twa_ptr>& strat_vec, const char *mode,
                     const std::set<std::string>& ins,
                     const std::vector<std::set<std::string>>& outs);
+
 }
