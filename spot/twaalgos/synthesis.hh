@@ -133,6 +133,10 @@ namespace spot
 
   SPOT_API spot::twa_graph_ptr
   create_game(const formula& f,
+              const std::set<std::string>& all_outs);
+
+  spot::twa_graph_ptr
+  create_game(const formula& f,
               const std::set<std::string>& all_outs)
   {
     option_map dummy1;
@@ -143,6 +147,9 @@ namespace spot
   SPOT_API bool
   solve_game(twa_graph_ptr arena, game_info& gi);
 
+  bool
+  solve_game(twa_graph_ptr arena);
+
   SPOT_API bool
   solve_game(twa_graph_ptr arena)
   {
@@ -151,6 +158,6 @@ namespace spot
   }
 
   SPOT_API twa_graph_ptr
-  create_strategy(twa_graph_ptr arena, game_info& gi);
+  create_strategy(twa_graph_ptr arena, game_info& gi, option_map& opt);
 
 }

@@ -303,7 +303,7 @@ namespace
     // We always need an arena, specific needs are passed via gi
     auto arena = spot::create_game(f, output_aps, extra_options, gi);
     // FIXME: Voir tout en bas
-    extra_options.report_unused_options();
+    // extra_options.report_unused_options();
     if (gi.bv)
       gi.bv->nb_states_arena = arena->num_states();
 
@@ -338,7 +338,7 @@ namespace
         // We need the strategy automaton
         if (gi.bv)
           sw.start();
-        auto strat_aut = spot::create_strategy(arena, gi);
+        auto strat_aut = spot::create_strategy(arena, gi, extra_options);
         if (gi.bv)
           gi.bv->strat2aut_time = sw.stop();
         if (opt_print_aiger)
