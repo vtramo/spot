@@ -173,7 +173,8 @@ namespace spot
       int states;
     };
 
-    class impl_red final
+    // TODO: This part is just a copy of a part of simulation.cc
+    class sig_calculator final
     {
     protected:
       typedef std::map<bdd, bdd, bdd_less_than> map_bdd_bdd;
@@ -182,7 +183,7 @@ namespace spot
 
     public:
 
-      impl_red(twa_graph_ptr aut) : a_(aut),
+      sig_calculator(twa_graph_ptr aut) : a_(aut),
           po_size_(0),
           all_class_var_(bddtrue),
           record_implications_(nullptr)
@@ -223,7 +224,7 @@ namespace spot
       // Reverse all the acceptance condition at the destruction of
       // this object, because it occurs after the return of the
       // function simulation.
-      virtual ~impl_red()
+      virtual ~sig_calculator()
       {
         a_->get_dict()->unregister_all_my_variables(this);
       }
@@ -269,13 +270,6 @@ namespace spot
           // print_partition();
         }
         update_previous_class();
-      }
-
-      // The core loop of the algorithm.
-      twa_graph_ptr run()
-      {
-        main_loop();
-        return build_result();
       }
 
       // Take a state and compute its signature.
@@ -386,47 +380,8 @@ namespace spot
         }
       }
 
-      twa_graph_ptr
-      build_result()
-      {
-        for (unsigned s = 0; s < a_->num_states(); ++s)
-        {
-          auto outs = a_->out(s);
-          for (auto& e : outs)
-          {
-            bdd lower_compatible = compute_sig(e.dst);
-            unsigned new_dst = e.dst;
-            for (auto& e2 : outs)
-            {
-              auto sig_e2 = compute_sig(e2.dst);
-              if (bdd_implies(sig_e2, lower_compatible))
-              {
-                lower_compatible = sig_e2;
-                new_dst = e2.dst;
-              }
-            }
-            e.dst = new_dst;
-          }
-        }
-        // Update the initial state
-        auto init_state = a_->get_init_state_number();
-        auto src_sig = compute_sig(init_state);
-        for (auto& e : a_->out(init_state))
-        {
-          auto sig_e = compute_sig(e.dst);
-          if (bdd_implies(sig_e, src_sig))
-          {
-            a_->set_init_state(e.dst);
-            break;
-          }
-        }
-        a_->purge_unreachable_states();
-        a_->merge_edges();
-        return a_;
-      }
-
     protected:
-      // The automaton which is simulated.
+      // The automaton which is reduced.
       twa_graph_ptr a_;
 
       // Implications between classes.
@@ -478,6 +433,147 @@ namespace spot
   } // End namespace anonymous.
 
 } // namespace spot
+
+namespace spot
+{
+  namespace
+  {
+    // This class is a tree where the node is ⊤ and a node implies its parent
+    class bdd_tree
+    {
+      bdd label;
+      unsigned state_;
+      std::vector<bdd_tree> children;
+
+      public:
+
+      bdd_tree() : label(bddtrue), state_(-1U) {}
+
+      bdd_tree(bdd value, unsigned state) : label(value), state_(state) {}
+
+      void add_child(bdd value, unsigned state)
+      {
+        if (value == bddtrue)
+          return;
+        const unsigned nb_children = children.size();
+        for (unsigned i = 0; i < nb_children; ++i)
+        {
+          // If a child contains a BDD that implies the value, we need a
+          // recursive call
+          if (bdd_implies(value, children[i].label))
+          {
+            children[i].add_child(value, state);
+            return;
+          }
+          else if (bdd_implies(children[i].label, value))
+          {
+            bdd_tree new_node(value, state);
+            // If a child contains a BDD that implies the value, we create a
+            // new bdd_tree. It must contains all the children that imply
+            // value
+            auto impl_filter = [value](bdd_tree tree)
+            {
+              return bdd_implies(tree.label, value) == 1;
+            };
+            auto new_end = std::remove_if(children.begin() + i, children.end(), impl_filter);
+            new_node.children.insert(new_node.children.end(), new_end, children.end());
+            children.erase(new_end, children.end());
+            children.push_back(new_node);
+            return;
+          }
+        }
+        children.push_back(bdd_tree(value, state));
+      }
+
+      bdd
+      get_lowest_bdd()
+      {
+        if (children.size() == 0)
+          return label;
+        return children[0].get_lowest_bdd();
+      }
+
+      unsigned
+      flatten_aux(std::map<bdd, unsigned, bdd_less_than> &res)
+      {
+        if (children.size() == 0)
+        {
+          res.insert({label, state_});
+          return state_;
+        }
+        unsigned rep = children[0].flatten_aux(res);
+        res.insert({label, rep});
+        for (unsigned i = 1; i < children.size(); ++i)
+          children[i].flatten_aux(res);
+        return rep;
+      }
+
+      // Every node is associated to the state of a leaf
+      std::map<bdd, unsigned, bdd_less_than>
+      flatten()
+      {
+        std::map<bdd, unsigned, bdd_less_than> res;
+        flatten_aux(res);
+        return res;
+      }
+    };
+
+    // Associate to a state a representative
+    std::vector<unsigned>
+    get_repres(twa_graph_ptr& a)
+    {
+      std::vector<unsigned> repr;
+      auto a_num_states = a->num_states();
+      repr.reserve(a_num_states);
+      bdd_tree tree;
+      std::unordered_set<bdd, spot::bdd_hash> bdd_done;
+      bdd_done.insert(bddtrue);
+      std::vector<bdd> signatures;
+      sig_calculator red(a);
+      red.main_loop();
+      for (unsigned i = 0; i < a_num_states; ++i)
+      {
+        bdd sig = red.compute_sig(i);
+        signatures.push_back(sig);
+        if (bdd_done.find(sig) == bdd_done.end())
+        {
+          tree.add_child(sig, i);
+          bdd_done.insert(sig);
+        }
+      }
+      auto repr_map = tree.flatten();
+      for (unsigned i = 0; i < a_num_states; ++i)
+        repr[i] = repr_map[signatures[i]];
+      return repr;
+    }
+
+    void
+    reduce_graph_here(twa_graph_ptr& a)
+    {
+      auto repr = get_repres(a);
+      auto init = repr[a->get_init_state_number()];
+      a->set_init_state(init);
+      std::stack<unsigned> todo;
+      std::vector<bool> done(a->num_states(), false);
+      todo.emplace(init);
+      while (!todo.empty())
+      {
+        auto current = todo.top();
+        todo.pop();
+        done[current] = true;
+        for (auto& e : a->out(current))
+        {
+          auto repr_dst = repr[e.dst];
+          e.dst = repr_dst;
+          if (!done[repr_dst])
+            todo.emplace(repr_dst);
+        }
+      }
+      a->purge_unreachable_states();
+      a->merge_edges();
+    }
+  }
+}
 
 
 // Helper function/structures for split_2step
@@ -1243,30 +1339,18 @@ namespace spot
   static void
   minimize_strategy_here(twa_graph_ptr& strat, option_map& opt)
   {
-    unsigned simplification_level=opt.get("minimization-level", 1);
-    // opt.report_unused_options();
     strat->set_acceptance(spot::acc_cond::acc_code::t());
+    unsigned simplification_level = opt.get("minimization-level", 1);
+    opt.report_unused_options();
+    if (simplification_level == 0)
+      return;
     bdd *obdd = strat->get_named_prop<bdd>("synthesis-outputs");
     assert(obdd);
     auto new_bdd = new bdd(*obdd);
-    if (simplification_level != 0)
-    {
-      unsigned nb_states_before;
-      unsigned nb_states_after;
-      do
-      {
-        nb_states_before = strat->num_states();
-        strat = spot::minimize_monitor(strat);
-        if (simplification_level == 2)
-        {
-          auto sim = impl_red(strat);
-          sim.run();
-        }
-        if (simplification_level == 1)
-          break;
-        nb_states_after = strat->num_states();
-      } while(nb_states_before != nb_states_after);
-    }
+    if (simplification_level == 1)
+      strat = minimize_monitor(strat);
+    else if (simplification_level == 2)
+      reduce_graph_here(strat);
     restore_form(strat, *new_bdd);
     strat->set_named_prop("synthesis-outputs", new_bdd);
   }
