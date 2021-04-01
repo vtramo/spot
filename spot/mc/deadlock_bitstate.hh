@@ -105,11 +105,11 @@ namespace spot
 
     swarmed_deadlock_bitstate(kripkecube<State, SuccIterator>& sys,
                               twacube_ptr, /* useless here */
-                              shared_map& map, size_t mem_size,
+                              shared_map& map,
                               shared_struct* /* useless here */,
                               unsigned tid, std::atomic<bool>& stop):
       sys_(sys), tid_(tid), map_(map),
-      bloom_filter_(mem_size),
+      bloom_filter_(100000),
       nb_th_(std::thread::hardware_concurrency()),
       p_(sizeof(int)*std::thread::hardware_concurrency()),
       stop_(stop)
