@@ -104,15 +104,18 @@ namespace spot
     }
 
     swarmed_deadlock2(kripkecube<State, SuccIterator>& sys,
-                     twacube_ptr, /* useless here */
-                     shared_map& map, shared_struct* ss,
-                     unsigned tid,
-                     std::atomic<bool>& stop):
+                      twacube_ptr, /* useless here */
+                      shared_map& map, shared_struct* ss,
+                      unsigned tid,
+                      std::atomic<bool>& stop,
+                      int arg):
       sys_(sys), tid_(tid), map_(ss),
       nb_th_(std::thread::hardware_concurrency()),
       p_(sizeof(int)*std::thread::hardware_concurrency()),
       stop_(stop)
     {
+      std::cout << "arg : " << arg << std::endl;
+
       static_assert(spot::is_a_kripkecube_ptr<decltype(&sys),
                                              State, SuccIterator>::value,
                     "error: does not match the kripkecube requirements");

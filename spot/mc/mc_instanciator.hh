@@ -79,10 +79,12 @@ namespace spot
 
 
   template<typename algo_name, typename kripke_ptr, typename State,
-           typename Iterator, typename Hash, typename Equal>
+           typename Iterator, typename Hash, typename Equal,
+           typename ...Params>
   static ec_stats instanciate(kripke_ptr sys,
                               spot::twacube_ptr prop = nullptr,
-                              bool trace = false)
+                              bool trace = false,
+                              Params&&... params)
   {
     spot::timer_map tm;
     std::atomic<bool> stop(false);
@@ -101,7 +103,8 @@ namespace spot
     for (unsigned i = 0; i < nbth; ++i)
       {
         ss[i] = ss[0];
-        swarmed[i] = new algo_name(*sys, prop, map, ss[i], i, stop);
+        swarmed[i] = new algo_name(*sys, prop, map, ss[i], i, stop,
+                                   std::forward<Params>(params)...);
         static_assert(spot::is_a_mc_algorithm<decltype(&*swarmed[i])>::value,
                     "error: does not match the kripkecube requirements");
       }
