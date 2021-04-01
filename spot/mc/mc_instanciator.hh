@@ -101,17 +101,9 @@ namespace spot
     for (unsigned i = 0; i < nbth; ++i)
       {
         ss[i] = ss[0];
-
-        if constexpr (std::is_same_v<algo_name,
-            spot::swarmed_deadlock_bitstate<State, Iterator, Hash, Equal, std::true_type>>)
-            // TODO: bitstate version with size as parameter
-            swarmed[i] = new algo_name(*sys, prop, map, 1000000, ss[i], i, stop);
-        else
-            swarmed[i] = new algo_name(*sys, prop, map, ss[i], i, stop);
-
+        swarmed[i] = new algo_name(*sys, prop, map, ss[i], i, stop);
         static_assert(spot::is_a_mc_algorithm<decltype(&*swarmed[i])>::value,
                     "error: does not match the kripkecube requirements");
-
       }
     tm.stop("Initialisation");
 
