@@ -194,6 +194,10 @@ namespace spot
       {
         // FIXME Should we add a local cache to avoid useless allocations?
         p_.deallocate(ref);
+        auto tmp = map_->search(v);
+        delete v;
+        v = map_->get(tmp.value()); // FIXME in multithread this is no longer guranteed
+        assert(v);
       }
       else
       {
@@ -334,6 +338,12 @@ namespace spot
     ~concurrent_hash_set2()
     {
       delete[] hs_;
+    }
+
+
+    T get(size_t i)
+    {
+      return hs_[i];
     }
 
     std::optional<std::size_t> search(T element) const
