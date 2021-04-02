@@ -103,16 +103,16 @@ namespace spot
     internal::univ_dest_mapper<twa_graph::graph_t> uniq(out->get_graph());
 
     bdd all = aut->ap_vars();
-    std::unordered_map<bdd, std::pair<std::pair<unsigned, unsigned>, bdd>,
-                       spot::bdd_hash> split_cond;
-    split_cond.reserve(aut->num_edges());
-//    robin_hood::unordered_map<bdd, std::pair<std::pair<unsigned, unsigned>, bdd>,
-//        spot::bdd_hash> split_cond;
+//    std::unordered_map<bdd, std::pair<std::pair<unsigned, unsigned>, bdd>,
+//                       spot::bdd_hash> split_cond;
 //    split_cond.reserve(aut->num_edges());
+    robin_hood::unordered_map<bdd, std::pair<std::pair<unsigned, unsigned>, bdd>,
+        spot::bdd_hash> split_cond;
+    split_cond.reserve(aut->num_edges());
 //    std::map<bdd, std::pair<std::pair<unsigned, unsigned>, bdd>,
 //             bdd_less_than> split_cond;
 
-    const unsigned n_inter_safe = 10*bdd_nodecount(all) + 1;
+    const unsigned n_inter_safe = 0.5*bdd_nodecount(all) + 1;
     unsigned nmiss=0, nfound=0, nis=0;
     auto start = std::chrono::high_resolution_clock::now();
 

@@ -49,6 +49,8 @@
 //
 //  See our Spin'13 paper for background on this procedure.
 
+//#define USETESTSIMORIG
+
 namespace spot
 {
   namespace
@@ -1109,6 +1111,7 @@ namespace spot
     std::vector<bool> can_sim(n * n, true);
 
     // Test if s1 simulates s2.
+#ifdef USETESTSIMORIG
     const auto test_sim = [&](size_t s1, size_t s2) -> bool
       {
         auto s_edges = aut_->out(s1);
@@ -1151,6 +1154,56 @@ namespace spot
                   });
             });
       };
+#else
+    const auto test_sim = [&](size_t s1, size_t s2) -> bool
+      {
+        auto s_edges = aut_->out(s1);
+        auto d_edges = aut_->out(s2);
+
+        // s1 simulates s2 only if for all the edges of s2 there is an edges s1
+        // with compatible condition, acceptance and the destinations simulate
+        // each other.
+        return std::all_of(s_edges.begin(), s_edges.end(),
+          [&](const auto& s_edge) -> bool
+            {
+              size_t i = static_cast<size_t>(s_edge.dst) * n;
+
+              bdd d_edge_cond_comb = bddfalse;
+              for (const auto& d_edge : d_edges)
+                {
+                  // Checks if the destinations of the spoiler simulates the
+                  // duplicator.
+                  if (!can_sim[i + static_cast<size_t>(d_edge.dst)])
+                    continue;
+
+                  if (Sba && Cosimulation)
+                    {
+                      if (!(acc_[d_edge.src]).subset(acc_[s_edge.src]))
+                        continue;
+                    }
+                  else
+                    {
+                      if (!(d_edge.acc).subset(s_edge.acc))
+                        continue;
+                    }
+
+                  if (Cosimulation)
+                    {
+                      if (s_edge.dst == init && d_edge.dst != init)
+                        continue;
+                    }
+
+                  // Everything of this edge simulates the other
+                  // we only need to verify the cond
+                  d_edge_cond_comb | = d_edge.cond;
+                  if bdd_implies(s_edge.cond, d_edge_cond_comb):
+                    return true;//For every minterm there is some simulation edge
+                }
+              // There are still non-simulated minterms
+              return false;
+            });
+      };
+#endif
 
     todo.resize(n, true);
 
