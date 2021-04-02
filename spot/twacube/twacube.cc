@@ -21,7 +21,7 @@
 #include "twacube.hh"
 #include <iostream>
 
-#include "spot/priv/merge_edges.hh"
+#include <spot/priv/merge_edges.hh>
 
 namespace spot
 {

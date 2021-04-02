@@ -138,7 +138,7 @@ namespace spot
   SPOT_API
   twa_graph_ptr reduce_direct_sim(const const_twa_graph_ptr& aut);
   SPOT_API
-  twacube_ptr reduce_direct_sim(const const_twacube_ptr& aut);
+  twacube_ptr reduce_direct_sim(const const_twacube_ptr& aut, unsigned nb_thread=0);
   SPOT_API
   twa_graph_ptr reduce_direct_sim_sba(const const_twa_graph_ptr& aut);
   /// @}

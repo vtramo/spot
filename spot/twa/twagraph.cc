@@ -26,7 +26,7 @@
 #include <vector>
 #include <deque>
 
-#include "spot/priv/merge_edges.hh"
+#include <spot/priv/merge_edges.hh>
 
 using namespace std::string_literals;
 
