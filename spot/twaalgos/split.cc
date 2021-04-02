@@ -103,18 +103,23 @@ namespace spot
     internal::univ_dest_mapper<twa_graph::graph_t> uniq(out->get_graph());
 
     bdd all = aut->ap_vars();
-//    std::unordered_map<bdd, std::pair<std::pair<unsigned, unsigned>, bdd>,
-//                       spot::bdd_hash> split_cond;
-//    split_cond.reserve(aut->num_edges());
-    robin_hood::unordered_map<bdd, std::pair<std::pair<unsigned, unsigned>, bdd>,
-        spot::bdd_hash> split_cond;
+    std::unordered_map<bdd, std::pair<std::pair<unsigned, unsigned>, bdd>,
+                       spot::bdd_hash> split_cond;
     split_cond.reserve(aut->num_edges());
+//    robin_hood::unordered_map<bdd, std::pair<std::pair<unsigned, unsigned>, bdd>,
+//        spot::bdd_hash> split_cond;
+//    split_cond.reserve(aut->num_edges());
 //    std::map<bdd, std::pair<std::pair<unsigned, unsigned>, bdd>,
 //             bdd_less_than> split_cond;
 
     const unsigned n_inter_safe = 0.5*bdd_nodecount(all) + 1;
     unsigned nmiss=0, nfound=0, nis=0;
     auto start = std::chrono::high_resolution_clock::now();
+
+    std::pair<std::pair<unsigned, unsigned>, bdd> initval;
+    initval.first.first = 0;
+    initval.first.second = 0;
+    initval.second = bddfalse;
 
     for (auto& e: aut->edges())
       {
@@ -130,9 +135,17 @@ namespace spot
 
         do
           {
-            auto& [edgelim, nextbdd] = split_cond[cond];
+//            auto& [edgelim, nextbdd] = split_cond[cond];
+            bool inserted;
+            decltype(split_cond)::iterator v_it;
+            std::tie(v_it, inserted) =
+                split_cond.insert(std::make_pair(cond,
+                                                 initval));
 
-            if (edgelim.first != edgelim.second)
+            auto& edgelim = v_it->second.first;
+            auto& nextbdd = v_it->second.second;
+
+            if (!inserted)
               {
                 // Found one!
                 ++nfound;
@@ -147,12 +160,14 @@ namespace spot
                 ++nmiss;
                 bdd base = cond;
                 unsigned n2restart = n_inter_safe;
-                edgelim.first = out->num_edges();
+                edgelim.first = out->num_edges()+1;
+                std::cout << "first " << edgelim.first << std::endl;
                 do
                   {
                     bdd cube = bdd_satoneset(cond, all, bddfalse);
                     cond -= cube;
-                    out->new_edge(e.src, dst, cube, e.acc);
+                    auto xxx = out->new_edge(e.src, dst, cube, e.acc);
+                    std::cout << "new " << xxx << std::endl;
                     --n2restart;
                   } while( n2restart
                            && (cond != bddfalse)
@@ -161,6 +176,7 @@ namespace spot
                 // Insert this partial sol
                 // and continue
                 edgelim.second = out->num_edges()+1;
+                std::cout << "sec " << edgelim.second << std::endl;
                 nextbdd = cond;
               }
           }while(cond != bddfalse);

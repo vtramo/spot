@@ -49,7 +49,7 @@
 //
 //  See our Spin'13 paper for background on this procedure.
 
-#define USETESTSIMORIG
+//#define USETESTSIMORIG
 
 namespace spot
 {
