@@ -20,9 +20,11 @@
 
 #include <spot/twaalgos/synthesis.hh>
 #include <spot/twa/fwd.hh>
+#include <spot/twaalgos/contains.hh>
 #include <spot/twaalgos/determinize.hh>
 #include <spot/twaalgos/degen.hh>
 #include <spot/twaalgos/game.hh>
+#include <spot/twaalgos/hoa.hh>
 #include <spot/twaalgos/isdet.hh>
 #include <spot/twaalgos/minimize.hh>
 #include <spot/twaalgos/parity.hh>
@@ -453,6 +455,8 @@ namespace spot
 
       void add_child(bdd value, unsigned state)
       {
+        // FIXME: Par défaut, -1U est assigné à ⊤ mais s'il y a un état avec ⊤
+        // comme signature (ça existe ?) on a un problème.
         if (value == bddtrue)
           return;
         const unsigned nb_children = children.size();
@@ -471,12 +475,17 @@ namespace spot
             // If a child contains a BDD that implies the value, we create a
             // new bdd_tree. It must contains all the children that imply
             // value
-            auto impl_filter = [value](bdd_tree tree)
+            std::vector<bdd_tree> removed;
+            auto impl_filter = [value, &new_node](bdd_tree tree)
             {
-              return bdd_implies(tree.label, value) == 1;
+              if (bdd_implies(tree.label, value) == 1)
+              {
+                new_node.children.push_back(tree);
+                return 1;
+              }
+              return 0;
             };
             auto new_end = std::remove_if(children.begin() + i, children.end(), impl_filter);
-            new_node.children.insert(new_node.children.end(), new_end, children.end());
             children.erase(new_end, children.end());
             children.push_back(new_node);
             return;
@@ -516,6 +525,16 @@ namespace spot
         flatten_aux(res);
         return res;
       }
+
+      void
+      print()
+      {
+        std::cout << "(" << this->label << ", " << this->state_ << ") : " << std::endl;
+        for (auto c : children)
+          std::cout << c.state_ << std::endl;
+        for (auto c : children)
+          c.print();
+      }
     };
 
     // Associate to a state a representative
@@ -541,6 +560,7 @@ namespace spot
           bdd_done.insert(sig);
         }
       }
+      // tree.print();
       auto repr_map = tree.flatten();
       for (unsigned i = 0; i < a_num_states; ++i)
         repr[i] = repr_map[signatures[i]];
@@ -550,6 +570,24 @@ namespace spot
     void
     reduce_graph_here(twa_graph_ptr& a)
     {
+      // TODO: Si le nombre de classes est égal au nombre d'états de l'automate,
+      // pas besoin de faire tout ça.
+      // We cannot have a dead state.
+      assert(
+          [&]()  {
+          auto n1 = a->num_states();
+          a->purge_dead_states();
+          return n1 == a->num_states();
+      }() );
+      //
+      // auto repr = get_repres(a);
+      // for (auto&e : a->edges())
+      // {
+      //   e.dst = repr[e.dst];
+      // }
+      // a->set_init_state(repr[a->get_init_state_number()]);
+      //
+
       auto repr = get_repres(a);
       auto init = repr[a->get_init_state_number()];
       a->set_init_state(init);
@@ -563,6 +601,8 @@ namespace spot
         done[current] = true;
         for (auto& e : a->out(current))
         {
+          if (e.dst == current)
+            continue;
           auto repr_dst = repr[e.dst];
           e.dst = repr_dst;
           if (!done[repr_dst])
@@ -570,7 +610,7 @@ namespace spot
         }
       }
       a->purge_unreachable_states();
-      a->merge_edges();
+      // a->merge_edges();
     }
   }
 }
@@ -1209,7 +1249,7 @@ namespace spot
               << bv->paritize_time << " seconds\n";
         if (bv)
           sw.start();
-        dpa = split_2step(tmp, outs, true, true);
+        dpa = split_2step(tmp, outs, true, false);
         spot::colorize_parity_here(dpa, true);
         if (bv)
           bv->split_time = sw.stop();
@@ -1232,7 +1272,7 @@ namespace spot
               << " states\n";
         if (bv)
           sw.start();
-        dpa = split_2step(aut, outs, true, true);
+        dpa = split_2step(aut, outs, true, false);
         spot::colorize_parity_here(dpa, true);
         if (bv)
           bv->split_time = sw.stop();
@@ -1303,7 +1343,7 @@ namespace spot
 
         if (bv)
           sw.start();
-        dpa = split_2step(dpa, outs, true, true);
+        dpa = split_2step(dpa, outs, true, false);
         spot::colorize_parity_here(dpa, true);
         if (bv)
           bv->split_time = sw.stop();
@@ -1336,23 +1376,51 @@ namespace spot
     return ret;
   }
 
+  static twa_graph_ptr
+  change_init_to_0(twa_graph_ptr& a)
+  {
+    auto res = make_twa_graph(a->get_dict());
+    res->copy_ap_of(a);
+    res->new_states(a->num_states());
+    res->set_init_state(0);
+    auto change = [&a](const unsigned state) {
+      if (state == 0) return a->get_init_state_number();
+      if (state == a->get_init_state_number()) return 0U;
+      return state;
+    };
+    for (auto& e : a->edges())
+    {
+      res->new_edge(change(e.src), change(e.dst), e.cond, e.acc);
+    }
+    a->set_acceptance(acc_cond::acc_code::t());
+    return res;
+  }
+
   static void
   minimize_strategy_here(twa_graph_ptr& strat, option_map& opt)
   {
     strat->set_acceptance(spot::acc_cond::acc_code::t());
     unsigned simplification_level = opt.get("minimization-level", 1);
     opt.report_unused_options();
-    if (simplification_level == 0)
-      return;
     bdd *obdd = strat->get_named_prop<bdd>("synthesis-outputs");
     assert(obdd);
     auto new_bdd = new bdd(*obdd);
-    if (simplification_level == 1)
-      strat = minimize_monitor(strat);
-    else if (simplification_level == 2)
-      reduce_graph_here(strat);
-    restore_form(strat, *new_bdd);
+    if (simplification_level != 0)
+    {
+      if (simplification_level == 1)
+        strat = minimize_monitor(strat);
+      else if (simplification_level == 2)
+        reduce_graph_here(strat);
+    }
+    auto copy = make_twa_graph(strat, twa::prop_set::all());
+    strat = change_init_to_0(strat);
+    assert(are_equivalent(strat, copy));
+    // std::cout << *new_bdd << std::endl;
     strat->set_named_prop("synthesis-outputs", new_bdd);
+    (void)restore_form;
+    // restore_form(strat, *new_bdd);
+    // print_hoa(std::cout, strat) << '\n';
+    // print_hoa(std::cout, copy) << '\n';
   }
 
   twa_graph_ptr
