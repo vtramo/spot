@@ -49,7 +49,7 @@
 //
 //  See our Spin'13 paper for background on this procedure.
 
-//#define USETESTSIMORIG
+#define USETESTSIMORIG
 
 namespace spot
 {
@@ -1052,7 +1052,6 @@ namespace spot
     // so we only need to check the peers whose successors were updated in the
     // previous iteration. To limit the number of iterations, we update them in
     // reverse topological order.
-
     const size_t n = aut_->num_states();
     const bool only_bisimu = is_deterministic(aut_);
 
@@ -1149,7 +1148,6 @@ namespace spot
                         if (s_edge.dst == init && d_edge.dst != init)
                           return false;
                       }
-
                     return bdd_implies(s_edge.cond, d_edge.cond);
                   });
             });
@@ -1195,8 +1193,8 @@ namespace spot
 
                   // Everything of this edge simulates the other
                   // we only need to verify the cond
-                  d_edge_cond_comb | = d_edge.cond;
-                  if bdd_implies(s_edge.cond, d_edge_cond_comb):
+                  d_edge_cond_comb |= d_edge.cond;
+                  if (bdd_implies(s_edge.cond, d_edge_cond_comb))
                     return true;//For every minterm there is some simulation edge
                 }
               // There are still non-simulated minterms

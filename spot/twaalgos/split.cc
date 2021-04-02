@@ -160,7 +160,7 @@ namespace spot
                 nis += (n2restart == 0);//Artificial restart?
                 // Insert this partial sol
                 // and continue
-                edgelim.second = out->num_edges();
+                edgelim.second = out->num_edges()+1;
                 nextbdd = cond;
               }
           }while(cond != bddfalse);
