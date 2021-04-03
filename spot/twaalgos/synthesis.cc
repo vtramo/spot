@@ -453,42 +453,48 @@ namespace spot
 
       bdd_tree(bdd value, unsigned state) : label(value), state_(state) {}
 
-      void add_child(bdd value, unsigned state)
+      void add_child(bdd value, unsigned state, bool rec)
       {
-        // FIXME: Par défaut, -1U est assigné à ⊤ mais s'il y a un état avec ⊤
-        // comme signature (ça existe ?) on a un problème.
         if (value == bddtrue)
-          return;
-        const unsigned nb_children = children.size();
-        for (unsigned i = 0; i < nb_children; ++i)
         {
-          // If a child contains a BDD that implies the value, we need a
-          // recursive call
-          if (bdd_implies(value, children[i].label))
+          assert(label == bddtrue);
+          state_ = state;
+        }
+        if (rec)
+        {
+          const unsigned nb_children = children.size();
+          for (unsigned i = 0; i < nb_children; ++i)
           {
-            children[i].add_child(value, state);
-            return;
-          }
-          else if (bdd_implies(children[i].label, value))
-          {
-            bdd_tree new_node(value, state);
-            // If a child contains a BDD that implies the value, we create a
-            // new bdd_tree. It must contains all the children that imply
-            // value
-            std::vector<bdd_tree> removed;
-            auto impl_filter = [value, &new_node](bdd_tree tree)
+            // If a child contains a BDD that implies the value, we need a
+            // recursive call
+            if (bdd_implies(value, children[i].label))
             {
-              if (bdd_implies(tree.label, value) == 1)
+              children[i].add_child(value, state, rec);
+              return;
+            }
+            else if (bdd_implies(children[i].label, value))
+            {
+              bdd_tree new_node(value, state);
+              // If a child contains a BDD that implies the value, we create a
+              // new bdd_tree. It must contains all the children that imply
+              // value
+              std::vector<bdd_tree> removed;
+              auto impl_filter = [value, &new_node](bdd_tree tree)
               {
-                new_node.children.push_back(tree);
-                return 1;
-              }
-              return 0;
-            };
-            auto new_end = std::remove_if(children.begin() + i, children.end(), impl_filter);
-            children.erase(new_end, children.end());
-            children.push_back(new_node);
-            return;
+                if (bdd_implies(tree.label, value) == 1)
+                {
+                  new_node.children.push_back(tree);
+                  return true;
+                }
+                return false;
+              };
+              auto new_end = std::remove_if(children.begin() + i,
+                                            children.end(),
+                                            impl_filter);
+              children.erase(new_end, children.end());
+              children.push_back(new_node);
+              return;
+            }
           }
         }
         children.push_back(bdd_tree(value, state));
@@ -539,7 +545,7 @@ namespace spot
 
     // Associate to a state a representative
     std::vector<unsigned>
-    get_repres(twa_graph_ptr& a)
+    get_repres(twa_graph_ptr& a, bool rec)
     {
       std::vector<unsigned> repr;
       auto a_num_states = a->num_states();
@@ -556,7 +562,7 @@ namespace spot
         signatures.push_back(sig);
         if (bdd_done.find(sig) == bdd_done.end())
         {
-          tree.add_child(sig, i);
+          tree.add_child(sig, i, rec);
           bdd_done.insert(sig);
         }
       }
@@ -568,7 +574,7 @@ namespace spot
     }
 
     void
-    reduce_graph_here(twa_graph_ptr& a)
+    reduce_graph_here(twa_graph_ptr& a, int level)
     {
       // TODO: Si le nombre de classes est égal au nombre d'états de l'automate,
       // pas besoin de faire tout ça.
@@ -588,7 +594,7 @@ namespace spot
       // a->set_init_state(repr[a->get_init_state_number()]);
       //
 
-      auto repr = get_repres(a);
+      auto repr = get_repres(a, level == 2);
       auto init = repr[a->get_init_state_number()];
       a->set_init_state(init);
       std::stack<unsigned> todo;
@@ -1406,12 +1412,7 @@ namespace spot
     assert(obdd);
     auto new_bdd = new bdd(*obdd);
     if (simplification_level != 0)
-    {
-      if (simplification_level == 1)
-        strat = minimize_monitor(strat);
-      else if (simplification_level == 2)
-        reduce_graph_here(strat);
-    }
+      reduce_graph_here(strat, simplification_level);
     auto copy = make_twa_graph(strat, twa::prop_set::all());
     strat = change_init_to_0(strat);
     assert(are_equivalent(strat, copy));
