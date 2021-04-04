@@ -102,8 +102,7 @@ namespace spot
     ss[0] = algo_name::make_shared_structure(map, 0);
     for (unsigned i = 0; i < nbth; ++i)
       {
-        ss[i] = ss[0];
-        swarmed[i] = new algo_name(*sys, prop, map, ss[i], i, stop,
+        swarmed[i] = new algo_name(*sys, prop, map, ss[0], i, stop,
                                    std::forward<Params>(params)...);
         static_assert(spot::is_a_mc_algorithm<decltype(&*swarmed[i])>::value,
                     "error: does not match the kripkecube requirements");

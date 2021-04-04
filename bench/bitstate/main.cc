@@ -22,7 +22,7 @@ int main(int argc, char** argv)
   }
 
   const unsigned compression_level = 0;
-  const unsigned nb_threads = 1;
+  const unsigned nb_threads = 4;
 
   std::string model_path = argv[1];
   std::string algo = argv[2];

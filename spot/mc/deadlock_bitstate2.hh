@@ -191,38 +191,34 @@ namespace spot
         ref[i] = UNKNOWN;
 
       // Try to insert the new state in the shared map.
-      deadlock_pair2<State, StateHash, StateEqual>* v = new deadlock_pair2<State, StateHash, StateEqual>{ s, ref };
-      auto b = !map_->contains(v);
+      deadlock_pair2<State, StateHash, StateEqual> v { s, ref };
+      auto r = map_->find(v);
+
+      auto it = r.first;
+      auto b = r.second;
       if (!b)
-      {
         // FIXME Should we add a local cache to avoid useless allocations?
         p_.deallocate(ref);
-        auto tmp = map_->search(v);
-        delete v;
-        v = map_->get(tmp.value()); // FIXME in multithread this is no longer guranteed
-        assert(v);
-      }
-      else
-      {
-        map_->insert(v);
-      }
+      if (!it)
+        return nullptr;
+
       // The state has been mark dead by another thread
       for (unsigned i = 0; !b && i < nb_th_; ++i)
-        if (v->colors[i] == static_cast<int>(CLOSED))
+        if (it->colors[i] == static_cast<int>(CLOSED))
           return nullptr;
 
       // The state has already been visited by the current thread
-      if (v->colors[tid_] == static_cast<int>(OPEN))
+      if (it->colors[tid_] == static_cast<int>(OPEN))
         return nullptr;
 
       // Keep a ptr over the array of colors
-      refs_.push_back(v->colors);
+      refs_.push_back(it->colors);
 
       // Mark state as visited.
-      v->colors[tid_] = OPEN;
+      it->colors[tid_] = OPEN;
       ++states_;
 
-      return v->st;
+      return it->st;
     }
 
     bool pop()
@@ -325,14 +321,14 @@ namespace spot
            typename StateEqual>
   class concurrent_hash_set2
   {
-    using T = deadlock_pair2<State, StateHash, StateEqual>*;
+    using T = deadlock_pair2<State, StateHash, StateEqual>;
     static constexpr auto LOAD_FACTOR = 0.80;
 
   public:
     concurrent_hash_set2(std::size_t hs_size)
       : hs_size_(hs_size)
     {
-      hs_ = new std::atomic<T>[hs_size]{nullptr};
+      hs_ = new std::atomic<T*>[hs_size]{nullptr};
     }
 
     concurrent_hash_set2()
@@ -340,13 +336,9 @@ namespace spot
 
     ~concurrent_hash_set2()
     {
+      for (std::size_t i = 0; i < hs_size_; i++)
+        delete hs_[i];
       delete[] hs_;
-    }
-
-
-    T get(size_t i)
-    {
-      return hs_[i];
     }
 
     std::optional<std::size_t> search(T element) const
@@ -355,65 +347,35 @@ namespace spot
         return std::nullopt;
 
       // Linear probing
-      std::size_t idx = element->hash() % hs_size_;
+      std::size_t idx = element.hash() % hs_size_;
       // TODO: check number of loop iterations
-      while (hs_[idx] != nullptr && !element->equal(*hs_[idx]))
+      while (hs_[idx] != nullptr && !(element.equal(*hs_[idx])))
         idx = (idx + 1) % hs_size_;
       return std::optional<std::size_t>(idx);
     }
 
-    bool insert(T element)
+    std::pair<T*, bool> find(T element)
     {
       if (SPOT_UNLIKELY((double) nb_elements_ / hs_size_ >= LOAD_FACTOR))
-        return false;
+        return {nullptr, false};
 
       if (auto idx = search(element))
       {
-        hs_[*idx] = element;
-        ++nb_elements_;
-        return true;
-      }
-      else
-        return false;
-    }
-
-    bool contains(T element) const
-    {
-      if (auto idx = search(element))
-        return (hs_[*idx] != nullptr);
-        //return element->equal(*hs_[*idx]);
-      else
-        return false;
-    }
-
-    bool erase(T element)
-    {
-      if (auto idx = search(element))
-      {
-        hs_[*idx] = nullptr;
-        --nb_elements_;
-
-        // Only deleting the element will break the linear probing
-        // mechanism, thus we need to either move the cells to keep the
-        // continuous probing block, or use a tombstone. Here we mostly care
-        // about memory and not speed performance so we chose the first
-        // option.
-        std::size_t cur = *idx;
-        while (cur + 1 < hs_size_ && hs_[cur + 1] != nullptr)
+        if (hs_[*idx] != nullptr)
+          return {hs_[*idx], false};
+        else
         {
-          T next = hs_[cur + 1];
-          hs_[cur] = next;
-          ++cur;
+          hs_[*idx] = new deadlock_pair2<State, StateHash, StateEqual>{element};
+          ++nb_elements_;
+          return {hs_[*idx], true};
         }
-
-        return true;
       }
       else
-        return false;
+        return {nullptr, false};
     }
 
   private:
-    std::atomic<T> *hs_;
+    std::atomic<T*> *hs_;
     std::atomic<std::size_t> nb_elements_;
     std::size_t hs_size_;
   };

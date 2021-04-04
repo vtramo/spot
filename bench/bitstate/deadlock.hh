@@ -66,7 +66,8 @@ void bench_deadlock(kripke_ptr sys, std::vector<size_t> mem_sizes)
   std::cout << "Reference:\n" << ref << "\n";
   std::cout << "mem_used (nb pages): " << mem_used_ref << "\n";
 
-  for (size_t mem_size : mem_sizes)
+  // TODO: deadlock with bitstate hashing is not working ATM in parallel
+  /*for (size_t mem_size : mem_sizes)
   {
     const std::string round = "Using " + std::to_string(mem_size) + " bits";
 
@@ -85,7 +86,7 @@ void bench_deadlock(kripke_ptr sys, std::vector<size_t> mem_sizes)
     std::cout << "\n" << round << "\n";
     std::cout << "Bitstate version:\n" << res << "\n";
     std::cout << "mem_used (nb pages): " << mem_used_ref << "\n";
-  }
+  }*/
 
   std::cout << "\n";
   timer.print(std::cout);
