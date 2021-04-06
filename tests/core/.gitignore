@@ -43,6 +43,7 @@ Makefile
 Makefile.in
 maskacc
 mempool
+minterm
 mixprod
 nequals
 nenoform

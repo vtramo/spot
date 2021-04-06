@@ -1,5 +1,5 @@
 ## -*- coding: utf-8 -*-
-## Copyright (C) 2009-2020 Laboratoire de Recherche et Développement
+## Copyright (C) 2009-2021 Laboratoire de Recherche et Développement
 ## de l'Epita (LRDE).
 ## Copyright (C) 2003-2006 Laboratoire d'Informatique de Paris 6
 ## (LIP6), département Systèmes Répartis Coopératifs (SRC), Université
@@ -85,6 +85,7 @@ check_PROGRAMS = \
   core/ltlrel \
   core/lunabbrev \
   core/mempool \
+  core/minterm \
   core/nequals \
   core/nenoform \
   core/ngraph \
@@ -134,6 +135,7 @@ core_ltl2text_SOURCES = core/readltl.cc
 core_ltlrel_SOURCES = core/ltlrel.cc
 core_lunabbrev_SOURCES = core/equalsf.cc
 core_lunabbrev_CPPFLAGS = $(AM_CPPFLAGS) -DUNABBREV='"^ie"'
+core_minterm_SOURCES = core/minterm.cc
 core_nenoform_SOURCES = core/equalsf.cc
 core_nenoform_CPPFLAGS = $(AM_CPPFLAGS) -DNENOFORM
 core_nequals_SOURCES = core/equalsf.cc
@@ -211,6 +213,7 @@ TESTS_misc = \
   core/bitvect.test \
   core/bricks.test \
   core/intvcomp.test \
+  core/minterm.test \
   core/minusx.test \
   core/full.test \
   core/trival.test
