@@ -406,6 +406,164 @@ BDD bdd_ibuildcube(int value, int width, int *variables)
    return result;
 }
 
+BDD bdd_ibuildcube2(int width, const int *variables)
+{
+   if (width == 0)
+     return BDDONE;
+
+   BDD result;
+   {
+     int vn = variables[width - 1];
+      if (vn >= 0)
+        result = bdd_ithvar(vn);
+      else
+        result = bdd_nithvar(~vn);
+   }
+
+   for (int z = width - 2 ; z >= 0 ; --z)
+   {
+      BDD v;
+      int vn = variables[z];
+      if (vn >= 0)
+        v = bdd_ithvar(vn);
+      else
+        v = bdd_nithvar(~vn);
+      int lv = LEVEL(v);
+      if (__likely(LEVEL(result) > lv))
+        {
+          PUSHREF(result);
+          if (vn >= 0)
+            result = bdd_makenode(lv, BDDZERO, result);
+          else
+            result = bdd_makenode(lv, result, BDDZERO);
+          POPREF(1);
+        }
+      else
+        {
+          bdd_addref(result);
+          BDD tmp = bdd_apply(result, v, bddop_and);
+          bdd_delref(result);
+          result = tmp;
+        }
+   }
+
+   return result;
+}
+
+mintermEnumerator* bdd_init_minterm(BDD fun, BDD vars)
+{
+  mintermEnumerator* me = malloc(sizeof(mintermEnumerator));
+  if (__unlikely(me == NULL))
+    {
+      bdd_error(BDD_MEMORY);
+      return NULL;
+    }
+  int* varsptr = malloc(sizeof(int)*bddvarnum);
+  if (__unlikely(varsptr == NULL))
+    {
+      free(me);
+      bdd_error(BDD_MEMORY);
+      return NULL;
+    }
+  int i = 0;
+  while (!ISCONST(vars))
+    {
+      varsptr[i++] = bddlevel2var[LEVEL(vars)];
+      vars = HIGH(vars);
+    }
+  int* stack = malloc(sizeof(int)*i*2);
+  if (__unlikely(stack == NULL))
+    {
+      free(varsptr);
+      free(me);
+      bdd_error(BDD_MEMORY);
+      return NULL;
+    }
+  bdd_addref(fun);
+  me->vars = varsptr;
+  me->stacktop = stack;
+  me->stack = stack;
+  me->fun = fun;
+  me->nvars = i;
+  return me;
+}
+
+void bdd_free_minterm(mintermEnumerator* me)
+{
+  bdd_delref(me->fun);
+  free(me->stack);
+  free(me->vars);
+  free(me);
+}
+
+static int reset_minterm(mintermEnumerator*me,
+                         BDD sub, int var)
+{
+  int nvars = me->nvars;
+  int* vars = me->vars;
+  int ls = LEVEL(sub);
+  for (int i = var; i < nvars; ++i)
+    {
+      int v = vars[i];
+      int neg = v < 0;
+      if (neg)
+        v = ~v;
+      int lv = bddvar2level[v];
+      if (ls == lv)            /* variable used in fun */
+        {
+          BDD low = LOW(sub);
+          if (low == BDDZERO)
+            {
+              sub = HIGH(sub);
+            }
+          else
+            {
+              if (HIGH(sub) != BDDZERO)
+                {
+                  *me->stacktop++ = sub;
+                  *me->stacktop++ = i;
+                }
+              v = ~v;
+              sub = low;
+            }
+          ls = LEVEL(sub);
+        }
+      else
+        {
+          *me->stacktop++ = sub;
+          *me->stacktop++ = i;
+          v = ~v;
+        }
+      vars[i] = v;
+    }
+  return 1;
+}
+
+
+int bdd_first_minterm(mintermEnumerator* me)
+{
+  if (__unlikely(me->fun == BDDZERO))
+    return 0;
+  me->stacktop = me->stack;
+  return reset_minterm(me, me->fun, 0);
+}
+
+bdd bdd_next_minterm(mintermEnumerator* me)
+{
+  if (me->stacktop == me->stack) // end of iteration
+    return 0;
+  int *vars = me->vars;
+  // switch polarity of variable of last possible branching
+  int lastbranch = *--me->stacktop;
+  BDD lastsub = *--me->stacktop;
+  int v = ~vars[lastbranch];
+  if (LEVEL(lastsub) == bddvar2level[v])
+    lastsub = HIGH(lastsub);
+  vars[lastbranch] = v;
+  // reset everything below to negative polarity
+  return reset_minterm(me, lastsub, lastbranch + 1);
+}
+
 
 /*=== NOT ==============================================================*/
 

@@ -127,6 +127,14 @@ typedef struct s_bddPair
    struct s_bddPair *next;
 } bddPair;
 
+typedef struct
+{
+  int *vars;
+  int *stacktop;
+  int *stack;
+  BDD fun;
+  int nvars;
+} mintermEnumerator;
 
 /*=== Status information ===============================================*/
 
@@ -333,6 +341,11 @@ BUDDY_API void     bdd_freepair(bddPair*);
 BUDDY_API int      bdd_setcacheratio(int);
 BUDDY_API BDD      bdd_buildcube(int, int, BDD *);
 BUDDY_API BDD      bdd_ibuildcube(int, int, int *);
+BUDDY_API BDD      bdd_ibuildcube2(int, const int *);
+BUDDY_API mintermEnumerator* bdd_init_minterm(BDD, BDD);
+BUDDY_API int      bdd_first_minterm(mintermEnumerator*);
+BUDDY_API int      bdd_next_minterm(mintermEnumerator*);
+BUDDY_API void     bdd_free_minterm(mintermEnumerator*);
 BUDDY_API BDD      bdd_not(BDD);
 BUDDY_API BDD      bdd_apply(BDD, BDD, int);
 BUDDY_API BDD      bdd_and(BDD, BDD);
@@ -583,6 +596,11 @@ protected:
    friend bdd      bdd_from_int(int i);
    friend bdd      bdd_buildcube(int, int, const bdd *);
    friend bdd      bdd_ibuildcubepp(int, int, int *);
+   friend bdd      bdd_ibuildcubepp2(int, const int *);
+   friend mintermEnumerator* bdd_init_minterm(const bdd&, const bdd&);
+   friend int      bdd_first_mintermpp(mintermEnumerator*);
+   friend int      bdd_next_mintermpp(mintermEnumerator*);
+   friend void     bdd_free_mintermpp(mintermEnumerator*);
    friend bdd      bdd_not(const bdd &);
    friend bdd      bdd_simplify(const bdd &, const bdd &);
    friend bdd      bdd_apply(const bdd &, const bdd &, int);
@@ -750,6 +768,21 @@ inline bdd bdd_simplify(const bdd &d, const bdd &b)
 inline bdd bdd_ibuildcubepp(int v, int w, int *a)
 { return bdd_ibuildcube(v,w,a); }
 
+inline bdd bdd_ibuildcubepp2(int v, const int *a)
+{ return bdd_ibuildcube2(v,a); }
+
+inline mintermEnumerator* bdd_init_minterm(const bdd& fun, const bdd& vars)
+{ return bdd_init_minterm(fun.root, vars.root); }
+
+inline int bdd_first_mintermpp(mintermEnumerator* me)
+{ return bdd_first_minterm(me); }
+
+inline int bdd_next_mintermpp(mintermEnumerator* me)
+{ return bdd_next_minterm(me); }
+
+inline void bdd_free_mintermpp(mintermEnumerator* me)
+{ return bdd_free_minterm(me); }
+
 inline bdd bdd_not(const bdd &r)
 { return bdd_not(r.root); }
 
@@ -904,6 +937,10 @@ inline int bdd_addvarblock(const bdd &v, int f)
 #define bdd_nithvar bdd_nithvarpp
 #define bdd_makeset bdd_makesetpp
 #define bdd_ibuildcube bdd_ibuildcubepp
+#define bdd_ibuildcube2 bdd_ibuildcubepp2
+#define bdd_first_minterm bdd_first_mintermpp
+#define bdd_next_minterm bdd_next_mintermpp
+#define bdd_free_minterm bdd_free_mintermpp
 #define bdd_anodecount bdd_anodecountpp
 
 /*=== Inline C++ functions =============================================*/
@@ -1059,6 +1096,95 @@ BUDDY_API_VAR bdd_ioformat fddset;
 typedef void (*bddstrmhandler)(std::ostream &, int);
 
 BUDDY_API bddstrmhandler bdd_strm_hook(bddstrmhandler);
+
+/*=== Minterm enumeration ====*/
+
+class minterms_of
+{
+public:
+  class minterm_iterator
+  {
+  public:
+    minterm_iterator(minterms_of* me)
+      : me_(me)
+    {
+    }
+
+    minterm_iterator& operator++();
+    void operator++(int);
+    bool operator==(std::nullptr_t) const;
+    bool operator!=(std::nullptr_t) const;
+    bdd operator*() const;
+  protected:
+    minterms_of* me_;
+  };
+
+  minterms_of(bdd fun, bdd vars)
+  {
+    me_ = bdd_init_minterm(fun, vars);
+  }
+
+  ~minterms_of()
+  {
+    bdd_free_minterm(me_);
+  }
+
+  minterm_iterator begin()
+  {
+    done_ = !bdd_first_minterm(me_);
+    return this;
+  }
+
+  std::nullptr_t end() const
+  {
+    return nullptr;
+  }
+
+  bool done() const
+  {
+    return done_;
+  }
+
+  bdd operator*() const
+  {
+    return bdd_ibuildcube2(me_->nvars, me_->vars);
+  }
+
+  void operator++()
+  {
+    if (!bdd_next_minterm(me_))
+      done_ = true;
+  }
+
+protected:
+  mintermEnumerator* me_;
+  bool done_;
+};
+
+inline minterms_of::minterm_iterator&
+minterms_of::minterm_iterator::operator++()
+{
+  ++*me_;
+  return *this;
+}
+
+inline bool
+minterms_of::minterm_iterator::operator==(std::nullptr_t) const
+{
+  return me_->done();
+}
+
+inline bool
+minterms_of::minterm_iterator::operator!=(std::nullptr_t) const
+{
+  return !me_->done();
+}
+
+inline bdd
+minterms_of::minterm_iterator::operator*() const
+{
+  return **me_;
+}
 
 #endif /* CPLUSPLUS */
 
