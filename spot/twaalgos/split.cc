@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2017-2020 Laboratoire de Recherche et Développement
+// Copyright (C) 2017-2021 Laboratoire de Recherche et Développement
 // de l'Epita.
 //
 // This file is part of Spot, a model checking library.
@@ -20,8 +20,8 @@
 #include "config.h"
 #include <spot/twaalgos/split.hh>
 #include <spot/misc/minato.hh>
-#include <spot/twaalgos/totgba.hh>
 #include <spot/misc/bddlt.hh>
+#include <spot/priv/robin_hood.hh>
 
 #include <algorithm>
 #include <map>
@@ -37,10 +37,16 @@ namespace spot
     out->new_states(aut->num_states());
     out->set_init_state(aut->get_init_state_number());
 
-    internal::univ_dest_mapper<twa_graph::graph_t> uniq(out->get_graph());
+    // We use a cache to avoid the costly loop around minterms_of().
+    // Cache entries have the form (id, [begin, end]) where id is the
+    // number of a BDD that as been (or will be) split, and begin/end
+    // denotes a range of existing transition numbers that cover the
+    // split.
+    typedef std::pair<unsigned, unsigned> cached_t;
+    robin_hood::unordered_map<unsigned, cached_t> split_cond;
 
     bdd all = aut->ap_vars();
-    std::map<unsigned, std::pair<unsigned, unsigned>> split_cond;
+    internal::univ_dest_mapper<twa_graph::graph_t> uniq(out->get_graph());
 
     for (auto& e: aut->edges())
       {
@@ -57,20 +63,14 @@ namespace spot
         auto& [begin, end] = split_cond[cond.id()];
         if (begin == end)
           {
-            begin = aut->num_edges();
-
-            while (cond != bddfalse)
-              {
-                bdd cube = bdd_satoneset(cond, all, bddfalse);
-                cond -= cube;
-                out->new_edge(e.src, dst, cube, e.acc);
-              }
-
-            end = aut->num_edges();
+            begin = out->num_edges() + 1;
+            for (bdd minterm: minterms_of(cond, all))
+              out->new_edge(e.src, dst, minterm, e.acc);
+            end = out->num_edges() + 1;
           }
         else
           {
-            auto& g = aut->get_graph();
+            auto& g = out->get_graph();
             for (unsigned i = begin; i < end; ++i)
               out->new_edge(e.src, dst, g.edge_storage(i).cond, e.acc);
           }
