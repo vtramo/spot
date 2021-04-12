@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2013-2020 Laboratoire de Recherche
+// Copyright (C) 2013-2021 Laboratoire de Recherche
 // et Développement de l'Epita.
 //
 // This file is part of Spot, a model checking library.
@@ -501,16 +501,15 @@ namespace spot
         }
 
       // Fill dict's bdd vetor (alpha_vect) and save each bdd and it's
-      // corresponding index in alpha_map. This is necessary beacause some
-      // loops start from a precise bdd. Therefore, it's useful to know
-      // it's corresponding index to deal with vars_helper.
-      bdd all = bddtrue;
-      for (unsigned j = 0; all != bddfalse; ++j)
+      // corresponding index in alpha_map. This is necessary beacause
+      // some loops start from a precise bdd. Therefore, it's useful
+      // to know its corresponding index to deal with vars_helper.
+      unsigned j = 0;
+      for (bdd one: minterms_of(bddtrue, ap))
         {
-          bdd one = bdd_satoneset(all, ap, bddfalse);
           d.alpha_vect.push_back(one);
           d.alpha_map[d.alpha_vect[j]] = j;
-          all -= one;
+          ++j;
         }
 
       // Initialize vars_helper by giving it all the necessary information.
@@ -670,24 +669,17 @@ namespace spot
             for (auto& tr: ref->out(q1p))
               {
                 unsigned dp = tr.dst;
-                bdd all = tr.cond;
-                while (all != bddfalse)
-                  {
-                    bdd s = bdd_satoneset(all, ap, bddfalse);
-                    all -= s;
-
-                    for (unsigned q2 = 0; q2 < d.cand_size; ++q2)
-                      {
-                        int succ = d.pathid(q2, dp, q2, dp);
-                        if (p1id == succ)
-                          continue;
-
-                        cnf_comment(d.fmt_p(q1, q1p, q1, q1p), " ∧ ",
-                                    d.fmt_t(q1, s, q2), "δ → ",
-                                    d.fmt_p(q2, dp, q2, dp), '\n');
-                        solver.add({-p1id, -d.transid(q1, s, q2), succ, 0});
-                      }
-                  }
+                for (bdd s: minterms_of(tr.cond, ap))
+                  for (unsigned q2 = 0; q2 < d.cand_size; ++q2)
+                    {
+                      int succ = d.pathid(q2, dp, q2, dp);
+                      if (p1id == succ)
+                        continue;
+                      cnf_comment(d.fmt_p(q1, q1p, q1, q1p), " ∧ ",
+                                  d.fmt_t(q1, s, q2), "δ → ",
+                                  d.fmt_p(q2, dp, q2, dp), '\n');
+                      solver.add({-p1id, -d.transid(q1, s, q2), succ, 0});
+                    }
               }
           }
 
@@ -738,13 +730,9 @@ namespace spot
 
                               for (unsigned q3 = 0; q3 < d.cand_size; ++q3)
                                 {
-                                  bdd all = tr.cond;
                                   acc_cond::mark_t curacc = tr.acc;
-                                  while (all != bddfalse)
+                                  for (bdd l: minterms_of(tr.cond, ap))
                                     {
-                                      bdd l = bdd_satoneset(all, ap, bddfalse);
-                                      all -= l;
-
                                       int ti = d.transid(q2, l, q3);
                                       if (dp == q1p && q3 == q1) // (11,12) loop
                                         {

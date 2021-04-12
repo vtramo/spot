@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2009-2011, 2013-2019 Laboratoire de Recherche et
+// Copyright (C) 2009-2011, 2013-2019, 2021 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 // Copyright (C) 2004 Laboratoire d'Informatique de Paris 6 (LIP6),
 // département Systèmes Répartis Coopératifs (SRC), Université Pierre
@@ -96,12 +96,9 @@ namespace spot
     std::vector<bdd> num2bdd;
     num2bdd.reserve(1UL << nap);
     std::map<bdd, unsigned, bdd_less_than> bdd2num;
-    bdd all = bddtrue;
     bdd allap = aut->ap_vars();
-    while (all != bddfalse)
+    for (bdd one: minterms_of(bddtrue, allap))
       {
-        bdd one = bdd_satoneset(all, allap, bddfalse);
-        all -= one;
         bdd2num.emplace(one, num2bdd.size());
         num2bdd.emplace_back(one);
       }
@@ -183,16 +180,11 @@ namespace spot
         for (unsigned i = 0; i < nc; ++i)
           bv->at(base + i).clear_all();
       for (auto& t: aut->out(src))
-        {
-          bdd all = t.cond;
-          while (all != bddfalse)
-            {
-              bdd one = bdd_satoneset(all, allap, bddfalse);
-              all -= one;
-              unsigned num = bdd2num[one];
-              bv->at(base + num).set(t.dst);
-            }
-        }
+        for (bdd one: minterms_of(t.cond, allap))
+          {
+            unsigned num = bdd2num[one];
+            bv->at(base + num).set(t.dst);
+          }
 
       assert(idx == lru.begin()->first);
       return idx;

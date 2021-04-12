@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2014-2020 Laboratoire de Recherche et
+// Copyright (C) 2014-2021 Laboratoire de Recherche et
 // Developpement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -710,33 +710,28 @@ namespace spot
         else
           {
             for (auto& t: aut->out(i))
-              {
-                bdd cond = t.cond;
-                while (cond != bddfalse)
-                  {
-                    bdd one = bdd_satoneset(cond, md.all_ap, bddfalse);
-                    cond -= one;
-                    unsigned level = 1;
-                    unsigned pos = 0U;
-                    while (one != bddtrue)
-                      {
-                        bdd h = bdd_high(one);
-                        if (h == bddfalse)
-                          {
-                            one = bdd_low(one);
-                          }
-                        else
-                          {
-                            pos |= level;
-                            one = h;
-                          }
-                        level <<= 1;
-                      }
-                    out[pos] = t.dst;
-                    if (this_acc != Hoa_Acceptance_States)
-                      outm[pos] = t.acc;
-                  }
-              }
+              for (bdd one: minterms_of(t.cond, md.all_ap))
+                {
+                  unsigned level = 1;
+                  unsigned pos = 0U;
+                  while (one != bddtrue)
+                    {
+                      bdd h = bdd_high(one);
+                      if (h == bddfalse)
+                        {
+                          one = bdd_low(one);
+                        }
+                      else
+                        {
+                          pos |= level;
+                          one = h;
+                        }
+                      level <<= 1;
+                    }
+                  out[pos] = t.dst;
+                  if (this_acc != Hoa_Acceptance_States)
+                    outm[pos] = t.acc;
+                }
             unsigned n = out.size();
             for (unsigned i = 0; i < n;)
               {

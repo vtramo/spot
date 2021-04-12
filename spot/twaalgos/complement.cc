@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2013-2015, 2017-2020 Laboratoire de Recherche et
+// Copyright (C) 2013-2015, 2017-2021 Laboratoire de Recherche et
 // Développement de l'Epita.
 //
 // This file is part of Spot, a model checking library.
@@ -484,15 +484,10 @@ namespace spot
                                    {0});
                   }
               }
-            while (all != bddfalse)
-              {
-                bdd one = bdd_satoneset(all, msupport, bddfalse);
-                all -= one;
-
-                // Compute all new states available from the generated
-                // letter.
-                ncsb_successors(std::move(ms), top.second, one);
-              }
+            for (bdd one: minterms_of(all, msupport))
+              // Compute all new states available from the generated
+              // letter.
+              ncsb_successors(std::move(ms), top.second, one);
           }
 
         res_->merge_edges();

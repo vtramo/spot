@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2013-2018 Laboratoire de Recherche
-// et Développement de l'Epita.
+// Copyright (C) 2013-2018, 2021 Laboratoire de Recherche et
+// Développement de l'Epita.
 //
 // This file is part of Spot, a model checking library.
 //
@@ -272,17 +272,16 @@ namespace spot
         }
 
       // Fill dict's bdd vetor (alpha_vect) and save each bdd and it's
-      // corresponding index in alpha_map. This is necessary beacause some
-      // loops start from a precise bdd. Therefore, it's useful to know
-      // it's corresponding index to deal with vars_helper.
-      bdd all = bddtrue;
-      for (unsigned j = 0; all != bddfalse; ++j)
-      {
-        bdd one = bdd_satoneset(all, ap, bddfalse);
-        d.alpha_vect.push_back(one);
-        d.alpha_map[d.alpha_vect[j]] = j;
-        all -= one;
-      }
+      // corresponding index in alpha_map. This is necessary beacause
+      // some loops start from a precise bdd. Therefore, it's useful
+      // to know its corresponding index to deal with vars_helper.
+      unsigned j = 0;
+      for (bdd one: minterms_of(bddtrue, ap))
+        {
+          d.alpha_vect.push_back(one);
+          d.alpha_map[d.alpha_vect[j]] = j;
+          ++j;
+        }
 
       // Initialize vars_helper by giving it all the necessary information.
       // 1: nacc_size is 1 (with Büchi) | true: means dtbasat, i-e, not dtwasat.
@@ -389,24 +388,18 @@ namespace spot
             for (auto& tr: ref->out(q1p))
               {
                 unsigned dp = tr.dst;
-                bdd all = tr.cond;
-                while (all != bddfalse)
-                  {
-                    bdd s = bdd_satoneset(all, ap, bddfalse);
-                    all -= s;
+                for (bdd s: minterms_of(tr.cond, ap))
+                  for (unsigned q2 = 0; q2 < d.cand_size; q2++)
+                    {
+                      int prev = d.pathid_ref(q1, q1p, q1, q1p);
+                      int succ = d.pathid_ref(q2, dp, q2, dp);
+                      if (prev == succ)
+                        continue;
 
-                    for (unsigned q2 = 0; q2 < d.cand_size; q2++)
-                      {
-                        int prev = d.pathid_ref(q1, q1p, q1, q1p);
-                        int succ = d.pathid_ref(q2, dp, q2, dp);
-                        if (prev == succ)
-                          continue;
-
-                        cnf_comment(prev, "∧", d.fmt_t(q1, s, q2), "δ →",
-                                    d.fmt_p(q2, dp, q2, dp), '\n');
-                        solver.add({-prev, -d.transid(q1, s, q2), succ, 0});
-                      }
-                  }
+                      cnf_comment(prev, "∧", d.fmt_t(q1, s, q2), "δ →",
+                                  d.fmt_p(q2, dp, q2, dp), '\n');
+                      solver.add({-prev, -d.transid(q1, s, q2), succ, 0});
+                    }
               }
           }
         }
@@ -452,11 +445,8 @@ namespace spot
                           {
                             if (dp == q1p && q3 == q1) // (4) looping
                               {
-                                bdd all = tr.cond;
-                                while (all != bddfalse)
+                                for (bdd s: minterms_of(tr.cond, ap))
                                   {
-                                    bdd s = bdd_satoneset(all, ap, bddfalse);
-                                    all -= s;
 #if TRACE
                                     std::string f_t = d.fmt_t(q2, s, q1);
                                     cnf_comment(f_p, "R ∧", f_t, "δ → ¬", f_t,
@@ -474,12 +464,8 @@ namespace spot
                                 if (pid1 == pid2)
                                   continue;
 
-                                bdd all = tr.cond;
-                                while (all != bddfalse)
+                                for (bdd s: minterms_of(tr.cond, ap))
                                   {
-                                    bdd s = bdd_satoneset(all, ap, bddfalse);
-                                    all -= s;
-
                                     cnf_comment(f_p, "R ∧", d.fmt_t(q2, s, q3),
                                                 "δ →", d.fmt_p(q1, q1p, q3, dp),
                                                 "R\n");
@@ -539,11 +525,8 @@ namespace spot
                                 // it is accepting in the reference.
                                 if (!ra.accepting(tr.acc))
                                   continue;
-                                bdd all = tr.cond;
-                                while (all != bddfalse)
+                                for (bdd s: minterms_of(tr.cond, ap))
                                   {
-                                    bdd s = bdd_satoneset(all, ap, bddfalse);
-                                    all -= s;
 #if TRACE
                                     std::string f_t = d.fmt_t(q2, s, q1);
                                     cnf_comment(f_p, "C ∧", f_t, "δ →", f_t,
@@ -561,11 +544,8 @@ namespace spot
                                 if (pid1 == pid2)
                                   continue;
 
-                                bdd all = tr.cond;
-                                while (all != bddfalse)
+                                for (bdd s: minterms_of(tr.cond, ap))
                                   {
-                                    bdd s = bdd_satoneset(all, ap, bddfalse);
-                                    all -= s;
 #if TRACE
                                     std::string f_t = d.fmt_t(q2, s, q3);
                                     cnf_comment(f_p, "C ∧", f_t, "δ ∧ ¬", f_t,

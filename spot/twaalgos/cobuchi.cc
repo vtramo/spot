@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2017-2018 Laboratoire de Recherche et Développement
+// Copyright (C) 2017-2018, 2021 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -426,13 +426,11 @@ namespace spot
             ap_(aut->ap_vars())
         {
           //  Get all bdds.
-          bdd all = bddtrue;
-          for (unsigned i = 0; all != bddfalse; ++i)
+          unsigned i = 0;
+          for (bdd one: minterms_of(bddtrue, ap_))
             {
-              bdd one = bdd_satoneset(all, ap_, bddfalse);
               num2bdd_.push_back(one);
-              bdd2num_[one] = i;
-              all -= one;
+              bdd2num_[one] = i++;
             }
         }
 
@@ -455,15 +453,8 @@ namespace spot
             {
               size_t base = src * nc;
               for (auto& t: aut_->out(src))
-                {
-                  bdd all = t.cond;
-                  while (all != bddfalse)
-                    {
-                      bdd one = bdd_satoneset(all, ap_, bddfalse);
-                      all -= one;
-                      bv_aut_trans_->at(base + bdd2num_[one]).set(t.dst);
-                    }
-                }
+                for (bdd one: minterms_of(t.cond, ap_))
+                  bv_aut_trans_->at(base + bdd2num_[one]).set(t.dst);
             }
           trace << "All_states:\n" << *bv_aut_trans_ << '\n';
 

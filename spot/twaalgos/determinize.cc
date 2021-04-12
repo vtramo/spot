@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2015-2020 Laboratoire de Recherche et
+// Copyright (C) 2015-2021 Laboratoire de Recherche et
 // Développement de l'Epita.
 //
 // This file is part of Spot, a model checking library.
@@ -548,21 +548,6 @@ namespace spot
       return res;
     }
 
-    // Compute a vector of letters from a given support
-    std::vector<bdd>
-    letters(const bdd& allap)
-    {
-      std::vector<bdd> res;
-      bdd all = bddtrue;
-      while (all != bddfalse)
-        {
-          bdd one = bdd_satoneset(all, allap, bddfalse);
-          all -= one;
-          res.emplace_back(one);
-        }
-      return res;
-    }
-
     class safra_support
     {
       const std::vector<bdd>& state_supports;
@@ -579,7 +564,11 @@ namespace spot
           supp &= state_supports[n.first];
         auto i = cache.emplace(supp, std::vector<bdd>());
         if (i.second) // insertion took place
-          i.first->second = letters(supp);
+          {
+            std::vector<bdd>& res = i.first->second;
+            for (bdd one: minterms_of(bddtrue, supp))
+              res.emplace_back(one);
+          }
         return i.first->second;
       }
     };
