@@ -1,6 +1,6 @@
 #!/bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2017, 2019 Laboratoire de Recherche et Développement de
+# Copyright (C) 2017, 2019, 2021 Laboratoire de Recherche et Développement de
 # l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -33,7 +33,7 @@ set -e
 cat >input <<EOF
 GF((Fp2 & X((p0 & Gp1) | (!p0 & F!p1))) | (G!p2 & X((p0 & F!p1) | (!p0 & Gp1))))
 ((Gp2&FG((Gp1&Xp0)|(F!p1&X!p0)))|(F!p2 & GF((Gp1 & X!p0) | (Xp0 & F!p1)))) W !p0
-G(Fp0 & (F!p1 U (G!p2 M !p0)))
+p2 & GF(G(p0 & !p1) | (F!p0 & Fp1))
 G(((Fp1 & (p1 W Fp0)) | (G!p1 & (!p1 M G!p0))) M FG!p2)
 Xp0 R F((p0 & FG(Gp2 U p1)) | (!p0 & GF(F!p2 R !p1)))
 GF(p0 & (((p1 & Fp2) | (!p1 & G!p2)) M Gp1))
@@ -47,8 +47,6 @@ G(XF((p2 & F!p1) | (!p2 & Gp1)) | (p1 & Fp0))
 !p0 | GF((p1 & (Xp2 W Gp2)) | (!p1 & (X!p2 M F!p2)))
 G!p0 | G((Fp1 U p2) & F!p2)
 EOF
-
-
 
 # We want to make sure the degeneralized automaton has fewer SCCs
 # (it can be less if the simulation on the BA is lukier than on the TGBA)

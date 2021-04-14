@@ -620,24 +620,24 @@ properties: trans-labels explicit-labels trans-acc stutter-invariant
 State: 0
 [0] 0
 [!0] 1 {0}
-[0&1] 2 {0}
-[!0&1] 3
+[!0&1] 2
+[0&1] 3 {0}
 State: 1
 [1] 1
 [!1] 1 {0}
-[!0&1] 3
+[!0&1] 2
 [0&1] 4
 State: 2
-[0&1] 2 {0}
-State: 3
 [!1] 1 {0}
-[!0&1] 3
+[!0&1] 2
 [0&1] 5
+State: 3
+[0&1] 3 {0}
 State: 4
 [0&!1] 6
 State: 5
 [!0&!1] 1 {0}
-[!0&1] 3
+[!0&1] 2
 [0&1] 5
 [0&!1] 6 {0}
 State: 6

@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2016-2019 Laboratoire de Recherche et Développement
-// de l'Epita (LRDE).
+// Copyright (C) 2016-2019, 2021 Laboratoire de Recherche et
+// Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
 //
@@ -456,11 +456,8 @@ namespace spot
             bdd all_letters = bdd_exist(bs, all_vars_);
 
             // First loop over all possible valuations atomic properties.
-            while (all_letters != bddfalse)
+            for (bdd oneletter: minterms_of(all_letters, ap))
               {
-                bdd oneletter = bdd_satoneset(all_letters, ap, bddtrue);
-                all_letters -= oneletter;
-
                 minato_isop isop(bs & oneletter);
                 bdd cube;
                 while ((cube = isop.next()) != bddfalse)
@@ -637,7 +634,7 @@ namespace spot
           // If it was the last transition, try the next letter.
           if (transition_ == bddfalse)
             {
-              bdd oneletter = bdd_satoneset(all_letters_, ap_, bddtrue);
+              bdd oneletter = bdd_satoneset(all_letters_, ap_, bddfalse);
               all_letters_ -= oneletter;
               // Get a sum of possible transitions matching this letter.
               isop_ = minato_isop(oneletter & transitions_);

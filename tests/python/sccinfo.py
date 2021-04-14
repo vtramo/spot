@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2017 Laboratoire de Recherche et Développement de
+# Copyright (C) 2017, 2021 Laboratoire de Recherche et Développement de
 # l'EPITA.
 #
 # This file is part of Spot, a model checking library.
@@ -75,10 +75,10 @@ while todo:
             todo.add(s)
 assert seen == {0, 1, 2, 3}
 assert trans == [(0, 0), (0, 1), (0, 2), (0, 3),
-                 (3, 0), (3, 1), (3, 3), (3, 4),
-                 (1, 1), (2, 2), (4, 1), (4, 4)]
-assert transi == [(0, 0, 1), (0, 3, 4), (3, 0, 7),
-                  (3, 3, 9), (1, 1, 5), (2, 2, 6), (4, 4, 12)]
+                 (2, 0), (2, 1), (2, 2), (2, 4),
+                 (1, 1), (4, 1), (4, 4), (3, 3)]
+assert transi == [(0, 0, 1), (0, 2, 3), (2, 0, 6),
+                  (2, 2, 8), (1, 1, 5), (4, 4, 12), (3, 3, 10)]
 
 assert not spot.is_weak_automaton(a, si)
 

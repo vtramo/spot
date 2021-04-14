@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2012-2020 Laboratoire de Recherche et Développement
+// Copyright (C) 2012-2021 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -538,7 +538,7 @@ namespace spot
         stat.states = bdd_lstate_.size();
         stat.edges = 0;
 
-        unsigned nb_satoneset = 0;
+        unsigned nb_minterms = 0;
         unsigned nb_minato = 0;
 
         auto all_inf = all_inf_;
@@ -573,24 +573,19 @@ namespace spot
             bdd all_atomic_prop = bdd_exist(sig, nonapvars);
 
             // First loop over all possible valuations atomic properties.
-            while (all_atomic_prop != bddfalse)
+            for (bdd one: minterms_of(all_atomic_prop, sup_all_atomic_prop))
               {
-                bdd one = bdd_satoneset(all_atomic_prop,
-                                        sup_all_atomic_prop,
-                                        bddtrue);
-                all_atomic_prop -= one;
-
                 // For each possible valuation, iterate over all possible
                 // destination classes.   We use minato_isop here, because
                 // if the same valuation of atomic properties can go
                 // to two different classes C1 and C2, iterating on
-                // C1 + C2 with the above bdd_satoneset loop will see
+                // C1 + C2 with the above minters_of loop will see
                 // C1 then (!C1)C2, instead of C1 then C2.
                 // With minatop_isop, we ensure that the no negative
                 // class variable will be seen (likewise for promises).
                 minato_isop isop(sig & one);
 
-                ++nb_satoneset;
+                ++nb_minterms;
 
                 bdd cond_acc_dest;
                 while ((cond_acc_dest = isop.next()) != bddfalse)
@@ -750,8 +745,8 @@ namespace spot
                          true, // stutter inv.
                        });
         // !unambiguous and !semi-deterministic are not preserved
-        if (!Cosimulation && nb_minato == nb_satoneset)
-          // Note that nb_minato != nb_satoneset does not imply
+        if (!Cosimulation && nb_minato == nb_minterms)
+          // Note that nb_minato != nb_minterms does not imply
           // non-deterministic, because of the merge_edges() above.
           res->prop_universal(true);
         if (Sba)

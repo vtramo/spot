@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2017-2019 Laboratoire de Recherche et Développement
+// Copyright (C) 2017-2019, 2021 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -153,11 +153,8 @@ namespace spot
             bdd ap = bdd_exist(bdd_support(delta), all_vars_);
             bdd letters = bdd_exist(delta, all_vars_);
 
-            while (letters != bddfalse)
+            for (bdd oneletter: minterms_of(letters, ap))
               {
-                bdd oneletter = bdd_satoneset(letters, ap, bddtrue);
-                letters -= oneletter;
-
                 minato_isop isop(delta & oneletter);
                 bdd cube;
 

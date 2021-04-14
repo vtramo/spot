@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2014-2020 Laboratoire de Recherche et Développement de
+// Copyright (C) 2014-2021 Laboratoire de Recherche et Développement de
 // l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -187,7 +187,7 @@ namespace spot
       void
       next_edge()
       {
-        one_ = bdd_satoneset(cond_, aps_, bddtrue);
+        one_ = bdd_satoneset(cond_, aps_, bddfalse);
         cond_ -= one_;
         if (need_loop_ && (state_->cond() == one_)
             && (state_ == it_->dst()))
@@ -313,11 +313,8 @@ namespace spot
         for (auto& t : a->out(s.first))
           {
             bdd all = t.cond;
-            while (all != bddfalse)
+            for (bdd one: minterms_of(t.cond, atomic_propositions))
               {
-                bdd one = bdd_satoneset(all, atomic_propositions, bddtrue);
-                all -= one;
-
                 stutter_state d(t.dst, one);
 
                 auto r = ss2num.emplace(d, ss2num.size());
@@ -408,10 +405,8 @@ namespace spot
             // Do not use td in the loop because the new_edge()
             // might invalidate it.
             auto acc = td.acc;
-            while (all != bddfalse)
+            for (bdd one: minterms_of(all, atomic_propositions))
               {
-                bdd one = bdd_satoneset(all, atomic_propositions, bddtrue);
-                all -= one;
                 // Skip if there is a loop for this particular letter.
                 if (bdd_implies(one, selfloops[src])
                     || bdd_implies(one, selfloops[dst]))

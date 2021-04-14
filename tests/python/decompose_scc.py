@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2017 Laboratoire de Recherche et
+# Copyright (C) 2017, 2021 Laboratoire de Recherche et
 # Développement de l'Epita
 #
 # This file is part of Spot, a model checking library.
@@ -22,7 +22,14 @@ import spot
 aut = spot.translate('(Ga -> Gb) W c')
 si = spot.scc_info(aut)
 
-assert (spot.decompose_scc(si, 2).to_str('hoa', '1.1') == """HOA: v1.1
+# Extract the only rejecting SCC.  Its number might differ
+# if the generation of the automaton changes, so just scan
+# for it.
+rej = [j for j in range(si.scc_count()) if si.is_rejecting_scc(j)]
+assert len(rej) == 1
+s = spot.decompose_scc(si, rej[0]).to_str('hoa', '1.1')
+
+assert (s == """HOA: v1.1
 States: 3
 Start: 0
 AP: 3 "b" "a" "c"

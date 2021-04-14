@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2008-2019 Laboratoire de Recherche et Développement
+// Copyright (C) 2008-2019, 2021 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 // Copyright (C) 2003-2006 Laboratoire d'Informatique de Paris 6
 // (LIP6), département Systèmes Répartis Coopératifs (SRC), Université
@@ -899,11 +899,8 @@ namespace spot
               bdd res_det = bddfalse;
               bdd var_set = bdd_existcomp(bdd_support(res_ndet), dict_.var_set);
               bdd all_props = bdd_existcomp(res_ndet, dict_.var_set);
-              while (all_props != bddfalse)
+              for (bdd label: minterms_of(all_props, var_set))
                 {
-                  bdd label = bdd_satoneset(all_props, var_set, bddtrue);
-                  all_props -= label;
-
                   formula dest =
                     dict_.bdd_to_sere(bdd_appex(res_ndet, label, bddop_and,
                                                 dict_.var_set));
@@ -998,11 +995,8 @@ namespace spot
           // Generate (deterministic) successors
           bdd var_set = bdd_existcomp(bdd_support(res), dict_.var_set);
           bdd all_props = bdd_existcomp(res, dict_.var_set);
-          while (all_props != bddfalse)
+          for (bdd label: minterms_of(all_props, var_set))
             {
-              bdd label = bdd_satoneset(all_props, var_set, bddtrue);
-              all_props -= label;
-
               formula dest =
                 dict_.bdd_to_sere(bdd_appex(res, label, bddop_and,
                                             dict_.var_set));
@@ -1475,11 +1469,8 @@ namespace spot
                 {
                   bdd var_set = bdd_existcomp(bdd_support(f1), dict_.var_set);
                   bdd all_props = bdd_existcomp(f1, dict_.var_set);
-                  while (all_props != bddfalse)
+                  for (bdd label: minterms_of(all_props, var_set))
                     {
-                      bdd label = bdd_satoneset(all_props, var_set, bddtrue);
-                      all_props -= label;
-
                       formula dest =
                         dict_.bdd_to_sere(bdd_appex(f1, label, bddop_and,
                                                     dict_.var_set));
@@ -1559,11 +1550,8 @@ namespace spot
                   bdd var_set = bdd_existcomp(bdd_support(f1), dict_.var_set);
                   bdd all_props = bdd_existcomp(f1, dict_.var_set);
                   bdd missing = !all_props;
-                  while (all_props != bddfalse)
+                  for (bdd label: minterms_of(all_props, var_set))
                     {
-                      bdd label = bdd_satoneset(all_props, var_set, bddtrue);
-                      all_props -= label;
-
                       formula dest =
                         dict_.bdd_to_sere(bdd_appex(f1, label, bddop_and,
                                                     dict_.var_set));
@@ -1793,16 +1781,15 @@ namespace spot
         if (t.has_rational)
           {
             bdd res = bddfalse;
-
-            bdd var_set = bdd_existcomp(bdd_support(t.symbolic), d_.var_set);
-            bdd all_props = bdd_existcomp(t.symbolic, d_.var_set);
-            while (all_props != bddfalse)
+            bdd var_set = bddtrue;
+            bdd all_props = bddtrue;
+            if (d_.exprop)
               {
-                bdd one_prop_set = bddtrue;
-                if (d_.exprop)
-                  one_prop_set = bdd_satoneset(all_props, var_set, bddtrue);
-                all_props -= one_prop_set;
-
+                var_set = bdd_existcomp(bdd_support(t.symbolic), d_.var_set);
+                all_props = bdd_existcomp(t.symbolic, d_.var_set);
+              }
+            for (bdd one_prop_set: minterms_of(all_props, var_set))
+              {
                 minato_isop isop(t.symbolic & one_prop_set);
                 bdd cube;
                 while ((cube = isop.next()) != bddfalse)
@@ -2110,24 +2097,21 @@ namespace spot
         dests.clear();
 
         // Compute all outgoing arcs.
-
         // If EXPROP is set, we will refine the symbolic
         // representation of the successors for all combinations of
         // the atomic properties involved in the formula.
         // VAR_SET is the set of these properties.
-        bdd var_set = bdd_existcomp(bdd_support(res), d.var_set);
-        // ALL_PROPS is the combinations we have yet to consider.
-        // We used to start with `all_props = bddtrue', but it is
-        // more efficient to start with the set of all satisfiable
-        // variables combinations.
-        bdd all_props = bdd_existcomp(res, d.var_set);
-        while (all_props != bddfalse)
+        // ALL_PROPS is the satisfiable combinations of VAR_SET to consider.
+        bdd var_set = bddtrue;
+        bdd all_props = bddtrue;
+        if (exprop)
           {
-            bdd one_prop_set = bddtrue;
-            if (exprop)
-              one_prop_set = bdd_satoneset(all_props, var_set, bddtrue);
-            all_props -= one_prop_set;
+            var_set = bdd_existcomp(bdd_support(res), d.var_set);
+            all_props = bdd_existcomp(res, d.var_set);
+          }
 
+        for (bdd one_prop_set: minterms_of(all_props, var_set))
+          {
             // Compute prime implicants.
             // The reason we use prime implicants and not bdd_satone()
             // is that we do not want to get any negation in front of Next

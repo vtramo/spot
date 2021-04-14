@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2010-2018 Laboratoire de Recherche et Développement de
-// l'Epita (LRDE).
+// Copyright (C) 2010-2018, 2021 Laboratoire de Recherche et
+// Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
 //
@@ -410,12 +410,9 @@ namespace spot
           delete it;
         }
 
-      bdd satone_tgba_condition;
-      while ((satone_tgba_condition = bdd_satoneset(tgba_condition,
-                                                    atomic_propositions_set_,
-                                                    bddtrue)) != bddfalse)
+      for (bdd satone_tgba_condition: minterms_of(tgba_condition,
+                                                  atomic_propositions_set_))
         {
-          tgba_condition -= satone_tgba_condition;
           state_ta_explicit* init_state = new
             state_ta_explicit(tgba_init_state->clone(),
                               satone_tgba_condition, true, is_acc);
@@ -441,17 +438,9 @@ namespace spot
               bdd tgba_condition = twa_succ_it->cond();
               acc_cond::mark_t tgba_acceptance_conditions =
                 twa_succ_it->acc();
-              bdd satone_tgba_condition;
-              while ((satone_tgba_condition =
-                      bdd_satoneset(tgba_condition,
-                                    atomic_propositions_set_, bddtrue))
-                     != bddfalse)
+              for (bdd satone_tgba_condition:
+                     minterms_of(tgba_condition, atomic_propositions_set_))
                 {
-                  tgba_condition -= satone_tgba_condition;
-
-                  bdd all_props = bddtrue;
-                  bdd dest_condition;
-
                   bool is_acc = false;
                   if (degeneralized)
                   {
@@ -463,12 +452,9 @@ namespace spot
                   }
 
                   if (satone_tgba_condition == source->get_tgba_condition())
-                    while ((dest_condition =
-                            bdd_satoneset(all_props,
-                                          atomic_propositions_set_, bddtrue))
-                           != bddfalse)
+                    for (bdd dest_condition:
+                           minterms_of(bddtrue, atomic_propositions_set_))
                       {
-                        all_props -= dest_condition;
                         state_ta_explicit* new_dest =
                           new state_ta_explicit(tgba_state->clone(),
                                                 dest_condition, false, is_acc);
