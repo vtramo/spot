@@ -745,7 +745,6 @@ namespace spot
   {
     if (ap().empty())
       return;
-    std::set<bdd> conds;
     bdd all = ap_vars();
     for (auto& e: g_.edges())
       {
