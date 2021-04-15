@@ -11,7 +11,7 @@ default:
     # defined, slowing down the builds.  This should help us debug
     # these situations.
     - echo "MAKEFLAGS='$MAKEFLAGS' NBPROC='$NBPROC'"
-    - cat /sys/fs/cgroup/cpuset.cpus || cat /sys/fs/cgroup/cpuset/cpuset.cpus
+    - cat /sys/fs/cgroup/cpuset.cpus || cat /sys/fs/cgroup/cpuset/cpuset.cpus || true
 
 debian-stable-gcc:
   stage: build
