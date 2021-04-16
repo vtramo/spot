@@ -1,7 +1,7 @@
 #!/bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2014-2018, 2020 Laboratoire de Recherche et Développement de
-# l'Epita (LRDE).
+# Copyright (C) 2014-2018, 2020-2021 Laboratoire de Recherche et
+# Développement de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
 #
@@ -69,6 +69,7 @@ input:2.1-9: ... previously defined here.
 EOF
 
 cat >input <<EOF
+#line 1 "hoa"
 HOA: v1
 States: 1
 Start: 0
@@ -80,6 +81,7 @@ State: 0 {0}
 State: 1 {0}
 [t] 1
 --END--
+#line 1 "lbtt"
 2 1t
 2 1
 1 -1 "b"
@@ -103,17 +105,18 @@ EOF
 
 diff='different state numbers have been used'
 expecterr input <<EOF
-input:8.5: state number is larger than state count...
-input:2.1-9: ... declared here.
-input:9.8: state number is larger than state count...
-input:2.1-9: ... declared here.
-input:10.5: state number is larger than state count...
-input:2.1-9: ... declared here.
-input:12.1-19.2: 2 states have been declared, but 3 $diff
-input:25.5-10: non-Boolean transition label (replaced by true)
+hoa:8.5: state number is larger than state count...
+hoa:2.1-9: ... declared here.
+hoa:9.8: state number is larger than state count...
+hoa:2.1-9: ... declared here.
+hoa:10.5: state number is larger than state count...
+hoa:2.1-9: ... declared here.
+lbtt:1.1-8.2: 2 states have been declared, but 3 $diff
+lbtt:14.5-10: non-Boolean transition label (replaced by true)
 EOF
 
 cat >input <<EOF
+#line 1 /* incomplete line directive */
 HOA: v1
 States: 1
 Start: 0
@@ -125,15 +128,22 @@ State: 0 {0}
 State: 0 {0}
 [t] 0
 --END--
+#line 1 "foo" /* line directive at the end is ignored */
 EOF
 
 expecterr input <<EOF
-input:8.2: AP number is larger than the number of APs...
-input:4.1-5: ... declared here
-input:9.1-8: redeclaration of state 0
+input:1.1: syntax error, unexpected invalid token
+input:9.2: AP number is larger than the number of APs...
+input:5.1-5: ... declared here
+input:10.1-8: redeclaration of state 0
+input:1.1-7: leading garbage was ignored
 EOF
 
 cat >input <<EOF
+#line 0 invalid
+#line -0 "invalid"
+#line 99999999999999 "too large"
+#line 1 "real"
 HOA: v1
 States: 0
 AP: 1 "a" "b"
@@ -143,7 +153,11 @@ Acceptance: 0 t
 EOF
 
 expecterr input <<EOF
-input:3.1-13: found 2 atomic propositions instead of the 1 announced
+input:1.1: syntax error, unexpected invalid token
+input:3.1-32: value too large
+input:4.1-14: #line may not occur after any error
+input:7.1-13: found 2 atomic propositions instead of the 1 announced
+input:1.1-2.18: leading garbage was ignored
 EOF
 
 cat >input <<EOF

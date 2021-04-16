@@ -255,6 +255,7 @@ extern "C" int strverscmp(const char *s1, const char *s2);
 %token ACCPAIRS "Acceptance-Pairs:"
 %token ACCSIG "Acc-Sig:";
 %token ENDOFHEADER "---";
+%token <str> LINEDIRECTIVE "#line"
 
 
 %left '|'
@@ -338,6 +339,10 @@ extern "C" int strverscmp(const char *s1, const char *s2);
 
 %%
 aut: aut-1     { res.h->loc = @$; YYACCEPT; }
+/* Not how we do not accept garbage before LINEDIRECTIVE. This is because
+   all error will be relative to the specified filename, so that filename
+   must not be changed after any error was reported. */
+   | LINEDIRECTIVE { res.h->filename = *$1; } aut
    | ENDOFFILE { YYABORT; }
    | error ENDOFFILE { YYABORT; }
    | error aut-1
@@ -2635,6 +2640,7 @@ namespace spot
     check_version(r);
     last_loc = r.h->loc;
     last_loc.step();
+    filename_ = r.h->filename; // in case it was changed
     if (r.h->aborted)
       {
 	if (opts_.ignore_abort)

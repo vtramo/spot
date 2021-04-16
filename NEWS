@@ -191,6 +191,12 @@ New in spot 2.9.6.dev (not yet released)
     setting SPOT_SIMULATION_REDUCTION environment variable or using the
     "-x simul-method=..." option (see spot-x(7)).
 
+  - The automaton parser will now recognize lines of the form
+      #line 10 "filename"
+    that may occur *between* the automata of an input stream to specify
+    that error messages should be emitted as if the next automaton
+    was read from "filename" starting on line 10.  (Issue #232)
+
   Python:
 
   - Bindings for functions related to games.

@@ -69,7 +69,7 @@ namespace spot
     /// Format of the automaton.
     parsed_aut_type type = parsed_aut_type::Unknown;
     /// Name of the stream (used for displaying syntax errors)
-    const std::string filename;
+    std::string filename;
     /// \brief Syntax errors that occurred during parsing.
     ///
     /// Note that the parser does not print any diagnostic.
