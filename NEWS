@@ -196,6 +196,9 @@ New in spot 2.9.6.dev (not yet released)
   - Bindings for functions related to games.
     See https://spot.lrde.epita.fr/ipynb/games.html for examples.
 
+  - spot::twa::prop_set was previously abstent from the Python
+    binding.  It is now available as spot.twa_prop_set (issue #453).
+
   Bugs fixed:
 
   - tgba_determinize() could create parity automata using more colors

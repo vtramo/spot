@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2017 Laboratoire de Recherche et Développement de l'Epita
+# Copyright (C) 2017, 2021 Laboratoire de Recherche et Développement de l'Epita
 # (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -53,8 +53,19 @@ except RuntimeError as e:
     s = str(e)
     assert "abstract interface" in s and "alternating automata" in s
 
+cpy = spot.make_twa_graph(aut, spot.twa_prop_set.all())
+assert aut.to_str() == cpy.to_str()
 all = aut.set_buchi()
+assert aut.to_str() != cpy.to_str()
+cpy = spot.make_twa_graph(aut, spot.twa_prop_set.all())
 aut.new_acc_edge(0, 1, bddtrue, True)
+assert aut.num_edges() == 1 + cpy.num_edges()
+
+aut.prop_universal(True)
+cpy = spot.make_twa_graph(aut, spot.twa_prop_set(False, False, False,
+                                                 False, False, False))
+assert cpy.prop_universal() != aut.prop_universal()
+assert cpy.prop_universal() == spot.trival.maybe()
 
 try:
     s = aut.state_acc_sets(0)
