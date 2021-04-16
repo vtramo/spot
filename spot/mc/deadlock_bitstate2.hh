@@ -32,6 +32,7 @@
 #include <spot/twacube/twacube.hh>
 #include <spot/twacube/fwd.hh>
 #include <spot/mc/mc.hh>
+#include <spot/mc/bloom_filter.hh>
 
 namespace spot
 {
@@ -94,13 +95,21 @@ namespace spot
 
   public:
 
+    struct hs_mtx_wrapper
+    {
+      std::mutex *mtx;
+      concurrent_hash_set2<State, StateHash, StateEqual> *hs;
+    };
+
     ///< \brief Shortcut to ease shared map manipulation
     using shared_map = concurrent_hash_set2<State, StateHash, StateEqual>*;
-    using shared_struct = concurrent_hash_set2<State, StateHash, StateEqual>;
+    using shared_struct = hs_mtx_wrapper;
 
     static shared_struct* make_shared_structure(shared_map, unsigned)
     {
-      return new concurrent_hash_set2<State, StateHash, StateEqual>();
+      auto mtx_ptr = new std::mutex();
+      auto hs_ptr = new concurrent_hash_set2<State, StateHash, StateEqual>(mtx_ptr);
+      return new hs_mtx_wrapper{ mtx_ptr, hs_ptr };
     }
 
     swarmed_deadlock2(kripkecube<State, SuccIterator>& sys,
@@ -109,7 +118,8 @@ namespace spot
                       unsigned tid,
                       std::atomic<bool>& stop,
                       int arg):
-      sys_(sys), tid_(tid), map_(ss),
+      sys_(sys), tid_(tid), map_(ss->hs),
+      bloom_filter_(1000000), mtx_(ss->mtx),
       nb_th_(std::thread::hardware_concurrency()),
       p_(sizeof(int)*std::thread::hardware_concurrency()),
       stop_(stop)
@@ -185,6 +195,7 @@ namespace spot
     // Returns nullptr if no push
     State push(State s)
     {
+      std::scoped_lock<std::mutex> lock(*mtx_);
       // Prepare data for a newer allocation
       int* ref = (int*) p_.allocate();
       for (unsigned i = 0; i < nb_th_; ++i)
@@ -193,6 +204,12 @@ namespace spot
       // Try to insert the new state in the shared map.
       deadlock_pair2<State, StateHash, StateEqual> v { s, ref };
       auto r = map_->find(v);
+      if (!r.first && r.second)
+      {
+        if (bloom_filter_.contains(state_hash_(s)))
+          return nullptr;
+        r = map_->insert(v);
+      }
 
       auto it = r.first;
       auto b = r.second;
@@ -211,6 +228,21 @@ namespace spot
       if (it->colors[tid_] == static_cast<int>(OPEN))
         return nullptr;
 
+      // Rare case: no more threads is using the state
+      if (it->equal({s,nullptr})) // TODO: lock
+      {
+        int* unbox_s = sys_.unbox_bitstate_metadata(it->st);
+        int cnt = __atomic_load_n(&unbox_s[0], __ATOMIC_RELAXED);
+        if (SPOT_UNLIKELY(cnt == 0))
+          return nullptr;
+
+        // Set bitstate metadata
+        while (!(cnt & (1 << tid_)))
+          cnt = __atomic_fetch_or(unbox_s, (1 << tid_), __ATOMIC_RELAXED);
+      }
+      else
+        return nullptr;
+
       // Keep a ptr over the array of colors
       refs_.push_back(it->colors);
 
@@ -223,13 +255,35 @@ namespace spot
 
     bool pop()
     {
-      // Track maximum dfs size
-      dfs_ = todo_.size()  > dfs_ ? todo_.size() : dfs_;
+      std::scoped_lock<std::mutex> lock(*mtx_);
+      // Insert the state into the filter
+      State st = todo_.back().s;
+      bloom_filter_.insert(state_hash_(st));
 
       // Don't avoid pop but modify the status of the state
       // during backtrack
       refs_.back()[tid_] = CLOSED;
       refs_.pop_back();
+
+      // Clear bitstate metadata
+      int* unbox_s = sys_.unbox_bitstate_metadata(st);
+      int cnt = __atomic_load_n(&unbox_s[0], __ATOMIC_RELAXED);
+      while (cnt & (1 << tid_))
+      {
+        cnt = __atomic_fetch_and(unbox_s, ~(1 << tid_), __ATOMIC_RELAXED);
+      }
+
+      // Release memory if no thread is using the state
+      if (cnt == 0)
+      {
+        deadlock_pair2<State, StateHash, StateEqual> p { st, nullptr };
+        map_->erase(p);
+        sys_.recycle_state(st);
+      }
+
+      // Track maximum dfs size
+      dfs_ = todo_.size()  > dfs_ ? todo_.size() : dfs_;
+
       return true;
     }
 
@@ -302,6 +356,9 @@ namespace spot
     unsigned transitions_ = 0;             ///< \brief Number of transitions
     unsigned tid_;                         ///< \brief Thread's current ID
     shared_map map_;                       ///< \brief Map shared by threads
+    StateHash state_hash_;
+    concurrent_bloom_filter bloom_filter_;
+    std::mutex *mtx_;
     spot::timer_map tm_;                   ///< \brief Time execution
     unsigned states_ = 0;                  ///< \brief Number of states
     unsigned dfs_ = 0;                     ///< \brief Maximum DFS stack size
@@ -325,14 +382,14 @@ namespace spot
     static constexpr auto LOAD_FACTOR = 0.80;
 
   public:
-    concurrent_hash_set2(std::size_t hs_size)
-      : hs_size_(hs_size)
+    concurrent_hash_set2(std::mutex *mtx, std::size_t hs_size)
+      : mtx_(mtx), hs_size_(hs_size)
     {
       hs_ = new std::atomic<T*>[hs_size]{nullptr};
     }
 
-    concurrent_hash_set2()
-      : concurrent_hash_set2(1000000) {}
+    concurrent_hash_set2(std::mutex *mtx)
+      : concurrent_hash_set2(mtx, 1000000) {}
 
     ~concurrent_hash_set2()
     {
@@ -356,9 +413,24 @@ namespace spot
 
     std::pair<T*, bool> find(T element)
     {
+      //std::scoped_lock<std::mutex> lock(*mtx_);
       if (SPOT_UNLIKELY((double) nb_elements_ / hs_size_ >= LOAD_FACTOR))
         return {nullptr, false};
 
+      if (auto idx = search(element))
+      {
+        if (hs_[*idx] != nullptr)
+          return {hs_[*idx], false};
+        else
+          return {nullptr, true};
+      }
+      else
+        return {nullptr, false};
+    }
+
+    std::pair<T*, bool> insert(T element)
+    {
+      //std::scoped_lock<std::mutex> lock(*mtx_);
       if (auto idx = search(element))
       {
         if (hs_[*idx] != nullptr)
@@ -374,9 +446,38 @@ namespace spot
         return {nullptr, false};
     }
 
+    bool erase(T element)
+    {
+      //std::scoped_lock<std::mutex> lock(*mtx_);
+      if (auto idx = search(element))
+      {
+        delete hs_[*idx];
+        --nb_elements_;
+
+        // Only deleting the element will break the linear probing
+        // mechanism, thus we need to either move the cells to keep the
+        // continuous probing block, or use a tombstone. Here we mostly care
+        // about memory and not speed performance so we chose the first
+        // option.
+        std::size_t cur = *idx;
+        while (hs_[(cur + 1) % hs_size_] != nullptr)
+        {
+          T* next = hs_[(cur + 1) % hs_size_];
+          hs_[cur] = next;
+          cur = (cur + 1) % hs_size_;
+        }
+        hs_[cur] = nullptr;
+
+        return true;
+      }
+      else
+        return false;
+    }
+
   private:
     std::atomic<T*> *hs_;
     std::atomic<std::size_t> nb_elements_;
+    std::mutex *mtx_;
     std::size_t hs_size_;
   };
 }
