@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2013-2020 Laboratoire de Recherche et Développement
+// Copyright (C) 2013-2021 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -160,11 +160,12 @@ that are weak and deterministic.  The default is 1 in --high mode, else 2 in \
 if the TGBA is not already deterministic.  Doing so will degeneralize \
 the automaton.  This is disabled by default, unless sat-minimize is set.") },
     { DOC("sat-minimize",
-          "Set it to enable SAT-based minimization of deterministic \
-TGBA. Depending on its value (from 1 to 4) it changes the algorithm \
-to perform. The default value is (1) and it proves to be the most effective \
-method. SAT-based minimization uses PicoSAT (distributed with Spot), but \
-another installed SAT-solver can be set thanks to the SPOT_SATSOLVER \
+          "Set to a value between 1 and 4 to enable SAT-based minimization \
+of deterministic ω-automata.  If the input has n states, a SAT solver is \
+used to find an equivalent automaton with 1≤m<n states.  The value between \
+1 and 4 selects how the lowest possible m is searched, see the SAT-MINIMIZE \
+VALUE section.  SAT-based minimization uses PicoSAT (distributed with Spot), \
+but another installed SAT-solver can be set thanks to the SPOT_SATSOLVER \
 environment variable. Enabling SAT-based minimization will also enable \
 tba-det.") },
     { DOC("sat-incr-steps", "Set the value of sat-incr-steps. This variable \
@@ -176,8 +177,8 @@ is at least equal to the total number of different languages recognized by \
 the automaton's states.") },
     { DOC("sat-states",
           "When this is set to some positive integer, the SAT-based \
-minimization will attempt to construct a TGBA with the given number of \
-states.  It may however return an automaton with less states if some of \
+minimization will attempt to construct an automaton with the given number of \
+states.  It may however return an automaton with fewer states if some of \
 these are unreachable or useless.  Setting sat-states automatically \
 enables sat-minimize, but no iteration is performed.  If no equivalent \
 automaton could be constructed with the given number of states, the original \
@@ -185,13 +186,13 @@ automaton is returned.") },
     { DOC("sat-acc",
           "When this is set to some positive integer, the SAT-based will \
 attempt to construct a TGBA with the given number of acceptance sets. \
-states.  It may however return an automaton with less acceptance sets if \
+states.  It may however return an automaton with fewer acceptance sets if \
 some of these are useless.  Setting sat-acc automatically \
 sets sat-minimize to 1 if not set differently.") },
     { DOC("state-based",
           "Set to 1 to instruct the SAT-minimization procedure to produce \
-a TGBA where all outgoing transition of a state have the same acceptance \
-sets.  By default this is only enabled when option -B is used.") },
+an automaton where all outgoing transition of a state have the same acceptance \
+sets.  By default this is only enabled when options -B or -S are used.") },
     { nullptr, 0, nullptr, 0, nullptr, 0 }
   };
 

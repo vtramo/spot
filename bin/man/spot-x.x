@@ -10,11 +10,17 @@ spot-x \- Common fine-tuning options and environment variables.
 .\" Add any additional description here
 
 [SAT\-MINIMIZE VALUES]
+When the sat-minimize=K option is used to enable SAT-based
+minimization of deterministic automata, a SAT solver is
+used to minimize an input automaton with N states into an
+output automaton with 1≤M≤N states.  The parameter K specifies
+how the smallest possible M should be searched.
+
 .TP
 \fB1\fR
-Used by default, \fB1\fR performs a binary search, checking N/2, etc.
-The upper bound being N (the size of the starting automaton), the lower bound
-is always 1 except when \fBsat-langmap\fR option is used.
+The default, \fB1\fR, performs a binary search between 1 and N.  The
+lower bound can sometimes be improved when the \fBsat-langmap\fR
+option is used.
 
 .TP
 \fB2\fR

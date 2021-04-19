@@ -534,7 +534,7 @@ namespace spot
         else if (sat_acc_ != -1)
           target_acc = sat_acc_;
         else
-          // Take the number of acceptance conditions from the input
+          // Take the number of acceptance sets from the input
           // automaton, not from dba, because dba often has been
           // degeneralized by tba_determinize_check().  Make sure it
           // is at least 1.
