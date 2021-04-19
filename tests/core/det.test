@@ -1,6 +1,6 @@
 #!/bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2013-2020 Laboratoire de Recherche et Développement de
+# Copyright (C) 2013-2021 Laboratoire de Recherche et Développement de
 # l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -42,7 +42,7 @@ cat >formulas <<'EOF'
 1,9,X(a R ((!b & F!c) M X!a))
 1,2,XG!a R Fb
 1,4,GFc | (a & Fb)
-1,6,X(a R (Fb R F!b))
+1,4,X(a R (Fb R F!b))
 1,1,G(Xa M Fa)
 1,3,X(Gb | GFa)
 1,9,X(Gc | XG((b & Ga) | (!b & F!a)))

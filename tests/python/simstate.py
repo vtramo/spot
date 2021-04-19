@@ -649,3 +649,41 @@ State: 7
 [0&1] 5
 [1] 7
 --END--'''
+
+
+# issue #452
+aut = spot.automaton("""HOA: v1
+States: 9
+Start: 0
+AP: 4 "p0" "p1" "p2" "p3"
+Acceptance: 2 Fin(0)&Fin(1)
+Alias: @p 0&1&!2&3
+--BODY--
+State: 0
+[@p] 1 {0 1}
+State: 1
+[@p] 2 {0 1}
+State: 2
+[@p] 0 {0 1}
+[@p] 2
+[@p] 3 {0}
+[@p] 4 {1}
+State: 3
+[@p] 5 {0 1}
+[@p] 6 {0}
+State: 4
+[@p] 7 {0 1}
+[@p] 8 {1}
+State: 5
+[@p] 8 {0 1}
+State: 6
+[@p] 2 {0}
+[@p] 4 {0 1}
+State: 7
+[@p] 6 {0 1}
+State: 8
+[@p] 2 {1}
+[@p] 3 {0 1}
+--END--""")
+aut = spot.simulation(aut)
+assert aut.num_states() == 1

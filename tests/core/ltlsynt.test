@@ -1,6 +1,6 @@
 #! /bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2017, 2019, 2020 Laboratoire de Recherche et
+# Copyright (C) 2017, 2019-2021 Laboratoire de Recherche et
 # Développement de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -376,6 +376,6 @@ diff out exp
 
 f='Fp0 U XX((p0 & F!p1) | (!p0 & Gp1))'
 ltlsynt --verbose --algo=ps --outs=p1 --ins=p0 -f "$f" 2>err
-grep 'DPA has 14 states' err
+grep 'DPA has 13 states' err
 ltlsynt --verbose -x wdba-minimize=1 --algo=ps --outs=p1 --ins=p0 -f "$f" 2>err
 grep 'DPA has 12 states' err

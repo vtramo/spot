@@ -1,7 +1,7 @@
 #!/bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2013, 2017, 2018, 2019 Laboratoire de Recherche et Développement
-# de l'Epita (LRDE).
+# Copyright (C) 2013, 2017-2019, 2021 Laboratoire de Recherche et
+# Développement de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
 #
@@ -1300,8 +1300,8 @@ cat >expected <<'EOF'
 "!((G(F(p0))) | ((p1) & (F(p2))))","15",5
 "!((G(F(p0))) | ((p1) & (F(p2))))","16",5
 "!((G(F(p0))) | ((p1) & (F(p2))))","17",5
-"X((p0) R ((F(p1)) R (F(!(p1)))))","1",6
-"X((p0) R ((F(p1)) R (F(!(p1)))))","2",6
+"X((p0) R ((F(p1)) R (F(!(p1)))))","1",4
+"X((p0) R ((F(p1)) R (F(!(p1)))))","2",4
 "X((p0) R ((F(p1)) R (F(!(p1)))))","3",4
 "X((p0) R ((F(p1)) R (F(!(p1)))))","4",4
 "X((p0) R ((F(p1)) R (F(!(p1)))))","6",4

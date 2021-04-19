@@ -550,16 +550,16 @@ namespace spot
             // All states in p.second have the same class, so just
             // pick the class of the first one first one.
             bdd src = previous_class_[p->second.front()];
+            assert(gb->get_state(src.id()) == srcst);
 
             // Get the signature to derive successors.
             bdd sig = compute_sig(p->second.front());
+            assert(signatures.size() == srcst);
+            signatures.push_back(sig);
 
             if (Cosimulation)
               sig = bdd_compose(sig, bddfalse, bdd_var(bdd_initial));
 
-            assert(gb->get_state(src.id()) == srcst);
-            assert(signatures.size() == srcst);
-            signatures.push_back(bdd_exist(sig, all_proms_));
 
             // Get all the variables in the signature.
             bdd sup_sig = bdd_support(sig);
@@ -656,6 +656,7 @@ namespace spot
               }
           }
 
+        bool need_another_pass = false;
         // Attempt to merge trivial SCCs
         if (!record_implications_ && res->num_states() > 1)
           {
@@ -664,7 +665,10 @@ namespace spot
             unsigned nstates = res->num_states();
             std::vector<unsigned> redirect(nstates);
             std::iota(redirect.begin(), redirect.end(), 0);
+            for (unsigned s = 0; s < nstates; ++s)
+              signatures[s] = bdd_exist(signatures[s], all_proms_);
             bool changed = false;
+            bool unchanged = false;
             for (unsigned scc = 0; scc < nscc; ++scc)
               if (si.is_trivial(scc))
                 {
@@ -676,8 +680,10 @@ namespace spot
                       {
                         changed = true;
                         redirect[s] = i;
-                        break;
+                        goto if_changed;
                       }
+                  unchanged = true;
+                if_changed:;
                 }
             if (changed)
               {
@@ -688,16 +694,28 @@ namespace spot
                   for (auto& e: res->edges())
                     e.dst = redirect[e.dst];
                 res->set_init_state(redirect[res->get_init_state_number()]);
+                if (Cosimulation)
+                  // Fix chaining of edges with changed sources.
+                  res->merge_edges();
+                if (unchanged)
+                  need_another_pass = true;
               }
-          }
 
-        // If we recorded implications for the determinization
-        // procedure, we should not remove unreachable states, as that
-        // will invalidate the contents of the IMPLICATIONS vector.
-        // It's OK not to purge the result, as the determinization
-        // will only explore the reachable part anyway.
-        if (!record_implications_)
-          res->purge_unreachable_states();
+            // Remove unreachable states.
+            // In the case of co-simulation, changing the sources
+            // of edges, might have created dead states.
+            //
+            // If we recorded implications for the determinization
+            // procedure, we should not remove unreachable states, as
+            // that will invalidate the contents of the IMPLICATIONS
+            // vector.  It's OK not to purge the result in that case,
+            // as the determinization will only explore the reachable
+            // part anyway.
+            if (Cosimulation)
+              res->purge_dead_states();
+            else
+              res->purge_unreachable_states();
+          }
 
         // Push the common incoming sets to the outgoing edges.
         // Doing so cancels the preprocessing we did in the other
@@ -751,7 +769,12 @@ namespace spot
           res->prop_universal(true);
         if (Sba)
           res->prop_state_acc(true);
-        return res;
+
+        if (!need_another_pass)
+          return res;
+
+        direct_simulation<Cosimulation, Sba> sim(res);
+        return sim.run();
       }
 
 
