@@ -255,6 +255,7 @@ namespace spot
   cspins_state kripkecube<cspins_state, cspins_iterator>::initial(unsigned tid)
   {
     d_->get_initial_state(inner_[tid].uncompressed);
+    std::lock_guard<std::mutex> lock(recycle_mutex_[tid]);
     return manager_[tid].alloc_setup(inner_[tid].uncompressed,
                                      inner_[tid].compressed,
                                      manager_[tid].size() * 2);
@@ -284,6 +285,7 @@ namespace spot
   kripkecube<cspins_state, cspins_iterator>::succ(const cspins_state s,
                                                   unsigned tid)
   {
+    std::lock_guard<std::mutex> lock(recycle_mutex_[tid]);
     cspins_iterator::cspins_iterator_param p =
       {
         s, d_, manager_[tid], inner_[tid],
