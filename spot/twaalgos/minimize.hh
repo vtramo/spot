@@ -134,5 +134,11 @@ namespace spot
   bool minimize_obligation_garanteed_to_work(const const_twa_graph_ptr& aut_f,
                                              formula f = nullptr);
 
+  /// \brief Minimizes an (in)completely specified mealy machine
+  ///        The approach is basically described in \cite abel2015memin
+  /// \pre Graph must be split into env states and player states,
+  ///      such that they alternate.
+  SPOT_API
+  twa_graph_ptr minimize_mealy(const const_twa_graph_ptr& mm);
   /// @}
 }

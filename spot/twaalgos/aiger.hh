@@ -135,8 +135,7 @@ namespace spot
       {
         register_input_(i,
                         bdd_ithvar(
-                          dict_->register_proposition(formula::ap(in), this))
-                        );
+                          dict_->register_proposition(formula::ap(in), this)));
         ++i;
       }
       for (auto&& out : output_names_)
@@ -215,7 +214,7 @@ namespace spot
 
     unsigned input_var(unsigned i, bool neg = false) const
     {
-      assert(i < num_inputs_);
+      SPOT_ASSERT(i < num_inputs_);
       return (1 + i) * 2 + neg;
     }
     bdd input_bdd(unsigned i, bool neg = false) const
@@ -292,19 +291,20 @@ namespace spot
   print_aiger(std::ostream &os, const_aig_ptr circuit, const char *opt);
 
   SPOT_API aig_ptr
-  strategy_to_aig(const const_twa_ptr &aut, const char *mode);
+  strategy_to_aig(const const_twa_graph_ptr &aut, const char *mode);
 
   SPOT_API aig_ptr
-  strategies_to_aig(const std::vector<const_twa_ptr>& strat_vec,
+  strategies_to_aig(const std::vector<const_twa_graph_ptr>& strat_vec,
                     const char *mode);
 
   SPOT_API aig_ptr
-  strategy_to_aig(const twa_ptr& aut, const char *mode,
+  strategy_to_aig(const twa_graph_ptr& aut, const char *mode,
                   const std::set<std::string>& ins,
                   const std::set<std::string>& outs);
 
   SPOT_API aig_ptr
-  strategies_to_aig(const std::vector<twa_ptr>& strat_vec, const char *mode,
+  strategies_to_aig(const std::vector<twa_graph_ptr>& strat_vec,
+                    const char *mode,
                     const std::set<std::string>& ins,
                     const std::vector<std::set<std::string>>& outs);
 

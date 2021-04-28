@@ -1031,7 +1031,7 @@ namespace spot
     class dotty_aig final
     {
       public:
-      bool verical = true;
+      bool vertical = true;
       bool latex = false;
       std::ostream& os_;
 
@@ -1043,12 +1043,12 @@ namespace spot
           {
           case 'h':
           {
-            verical = false;
+            vertical = false;
             break;
           }
           case 'v':
           {
-            verical = true;
+            vertical = true;
             break;
           }
           case 'x':
@@ -1090,12 +1090,12 @@ namespace spot
           auto src_gate = src & ~1;
           stream << src_gate;
           stream << " -> " << dst;
-          if (src % 2)
+          if (src & 1)
             stream << " [arrowhead=dot]";
           stream << '\n';
         };
 
-        if (verical)
+        if (vertical)
           os_ << "digraph {\nrankdir = BT;\n";
         else
           os_ << "digraph {\nrankdir = LR;\n";
@@ -1109,19 +1109,32 @@ namespace spot
               << first_m_mod << ";\n";
         }
 
-        os_ << "# inputs\n";
+        //Predefine all nodes
+
+        os_ << "# input nodes\n";
         for (unsigned i = 0; i < num_inputs; ++i)
           os_ << "node [shape=triangle, label=\""
               << in_names[i] << "\"] "
               << circuit->input_var(i) << ";\n";
 
-        os_ << "# And\n";
+        os_ << "# latch nodes\n";
+        for (unsigned i = 0; i < num_latches; ++i)
+          os_ << "node[shape=box, label=\"L" << i << "\"] L" << i << ";\n";
+
+        os_ << "# gate nodes\n";
         for (unsigned i = 0; i < num_gates; ++i)
           if ((gates[i].first != 0) && (gates[i].second != 0))
           {
             auto gate_var = circuit->gate_var(i);
             os_ << "node [shape=circle, label=\"" << gate_var
-               << "\"] " << gate_var << ";\n";
+                << "\"] " << gate_var << ";\n";
+          }
+
+        os_ << "# and ins\n";
+        for (unsigned i = 0; i < num_gates; ++i)
+          if ((gates[i].first != 0) && (gates[i].second != 0))
+          {
+            auto gate_var = circuit->gate_var(i);
             add_edge(os_, gates[i].first, gate_var);
             add_edge(os_, gates[i].second, gate_var);
           }
@@ -1132,18 +1145,18 @@ namespace spot
           auto first = circuit->latch_var(i);
           auto first_m_mod = first & ~1;
           auto second = latches[i];
-          os_ << "node[shape=box, label=\"L" << i << "\"] L" << i << ";\n";
           os_ << 'L' << i << " -> "
              << first_m_mod << '\n';
           os_ << (second & ~1) << " -> L" << i;
-          if (i % 2)
+          if (i & 1)
             os_ << "[arrowhead=dot]";
           os_ << '\n';
         }
 
+        // Outs can be defined after everything else
         os_ << "# Outs\n";
         bool has_alone_gate = false;
-        const char* out_pos = verical ? ":s" : ":w";
+        const char* out_pos = vertical ? ":s" : ":w";
         for (unsigned i = 0; i < num_outputs; ++i)
         {
           os_ << "node [shape=triangle, orientation=180, label=\""
@@ -1156,7 +1169,7 @@ namespace spot
             has_alone_gate = true;
           }
           os_ << (z & ~1) << "->" << 'o' << i << out_names[i] << out_pos;
-          if (outputs[i] % 2 == 1)
+          if (outputs[i] & 1)
             os_ << " [arrowhead=dot]";
           os_ << '\n';
         }
