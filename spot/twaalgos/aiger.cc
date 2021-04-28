@@ -145,7 +145,7 @@ namespace
         throw std::runtime_error(std::string() +
             "Invalid gate numbering\n" +
             "Expected: " + std::to_string(2*(1 + nb_inputs + nb_latches + i)) +
-            "\nGot: " + std::to_string(and_gate) + "\n");
+            "\nGot: " + std::to_string(and_gate) + '\n');
       gates.emplace_back(lhs, rhs);
     }
     line.clear();
@@ -153,7 +153,7 @@ namespace
     // Here we need some restrictions to get a set...
     getline(iss, line);
     ++line_number;
-    while(iss)
+    while (iss)
     {
       unsigned pos_var_name;
       char first_char = line[0];
@@ -535,7 +535,7 @@ namespace spot
                               next_latches__.size(), dict);
     aig& circ = *res_ptr;
     res_ptr->max_var_ =
-        in_names__.size() + next_latches__.size() + gates__.size();
+        (in_names__.size() + next_latches__.size() + gates__.size())*2;
     std::swap(res_ptr->next_latches_, next_latches__);
     std::swap(res_ptr->outputs_, outputs__);
     std::swap(res_ptr->and_gates_, gates__);
@@ -553,7 +553,7 @@ namespace spot
       };
     auto& var2bdd = circ.var2bdd_;
     auto& bdd2var = circ.bdd2var_;
-    std::function<bdd(unsigned )> get_gate_bdd;
+    std::function<bdd(unsigned)> get_gate_bdd;
     get_gate_bdd = [&](unsigned g)->bdd
       {
         assert((v2g(circ.gate_var(g)) == g));
@@ -617,7 +617,7 @@ namespace spot
     {
       v.clear();
       unsigned i = offset;
-      while(s > 0)
+      while (s > 0)
         {
           if (s & 1)
             v.push_back(i);
@@ -871,9 +871,9 @@ namespace spot
 
       std::function<unsigned(bdd)> bdd2var;
       if (strcasecmp(mode, "ITE") == 0)
-        bdd2var = [&circuit](auto b)->unsigned{return circuit.bdd2INFvar(b);};
+        bdd2var = [&circuit](auto b)->unsigned{return circuit.bdd2INFvar(b); };
       else
-        bdd2var = [&circuit](auto b)->unsigned{return circuit.bdd2DNFvar(b);};
+        bdd2var = [&circuit](auto b)->unsigned{return circuit.bdd2DNFvar(b); };
 
       // Create the vars
       for (unsigned i = 0; i < output_names.size(); ++i)
@@ -886,25 +886,22 @@ namespace spot
   }
 
   aig_ptr
-  strategy_to_aig(const const_twa_ptr& aut, const char* mode)
+  strategy_to_aig(const const_twa_graph_ptr& aut, const char* mode)
   {
     if (!aut)
       throw std::runtime_error("aut cannot be null");
-    auto a = down_cast<const_twa_graph_ptr>(aut);
-    if (!a)
-      throw std::runtime_error("aiger output is only for twa_graph");
 
     if (bdd* all_outputs = aut->get_named_prop<bdd>("synthesis-outputs"))
       //return aut_to_aiger(a, *all_outputs, mode);
-      return auts_to_aiger({{a, *all_outputs}}, mode);
+      return auts_to_aiger({{aut, *all_outputs}}, mode);
     else
       throw std::runtime_error("strategy_to_aig relies on the named property"
                                "\"synthesis-outputs\".\n");
   }
 
   aig_ptr
-  strategies_to_aig(const std::vector<const_twa_ptr>& strat_vec,
-                  const char *mode )
+  strategies_to_aig(const std::vector<const_twa_graph_ptr>& strat_vec,
+                  const char *mode)
   {
     std::for_each(strat_vec.begin()+1, strat_vec.end(),
                   [usedbdd = strat_vec.at(0)->get_dict()](auto&& it)
@@ -920,19 +917,15 @@ namespace spot
     bdd all_outputs = bddtrue;
     for (auto&& astrat : strat_vec)
       {
-        auto a = down_cast<const_twa_graph_ptr>(astrat);
-        if (!a)
-          throw std::runtime_error("aiger output is only for twa_graph");
-
         if (bdd* this_outputs =
-                a->get_named_prop<bdd>("synthesis-outputs"))
+                astrat->get_named_prop<bdd>("synthesis-outputs"))
           {
             // Check if outs do not overlap
             if (bdd_and(bdd_not(*this_outputs), all_outputs) == bddfalse)
               throw std::runtime_error("\"outs\" of strategies are not "
                                        "distinct!.\n");
             all_outputs &= *this_outputs;
-            new_vec.emplace_back(a, *this_outputs);
+            new_vec.emplace_back(astrat, *this_outputs);
           }
         else
           throw std::runtime_error("strategy_to_aig relies on the named "
@@ -942,15 +935,12 @@ namespace spot
   }
 
   aig_ptr
-  strategy_to_aig(const twa_ptr &aut, const char *mode,
+  strategy_to_aig(const twa_graph_ptr &aut, const char *mode,
                   const std::set<std::string>& ins,
                   const std::set<std::string>& outs)
   {
     if (!aut)
       throw std::runtime_error("aut cannot be null");
-    auto a = down_cast<const_twa_graph_ptr>(aut);
-    if (!a)
-      throw std::runtime_error("aiger output is only for twa_graph");
 
     // Make sure ins and outs are disjoint
     {
@@ -968,19 +958,19 @@ namespace spot
     }
     // Register all to make sure they exist in the aut
     std::for_each(ins.begin(), ins.end(),
-                  [s = aut](auto&& e){s->register_ap(e);});
+                  [s = aut](auto&& e){s->register_ap(e); });
     bdd all_outputs = bddtrue;
     std::for_each(outs.begin(), outs.end(),
                   [&ao = all_outputs, s=aut](auto&& e)
-                  {ao &= bdd_ithvar(s->register_ap(e));});
+                  {ao &= bdd_ithvar(s->register_ap(e)); });
     // todo Some additional checks?
     //return aut_to_aiger(a, all_outputs, mode);
-    return auts_to_aiger({{a, all_outputs}}, mode);
+    return auts_to_aiger({{aut, all_outputs}}, mode);
   }
 
   // Note: This ignores the named property
   aig_ptr
-  strategies_to_aig(const std::vector<twa_ptr>& strat_vec, const char *mode,
+  strategies_to_aig(const std::vector<twa_graph_ptr>& strat_vec, const char *mode,
                     const std::set<std::string>& ins,
                     const std::vector<std::set<std::string>>& outs)
   {
@@ -1001,10 +991,6 @@ namespace spot
     std::set<std::string> seen_ap = ins;
     for (size_t i = 0; i < strat_vec.size(); ++i)
       {
-        auto a = down_cast<const_twa_graph_ptr>(strat_vec[i]);
-        if (!a)
-          throw std::runtime_error("aiger output is only for twa_graph");
-
         // Make sure ins and former outs are disjoint
         {
           bool inserted;
@@ -1019,16 +1005,16 @@ namespace spot
         }
         // Register all to make sure they exist in the aut
         std::for_each(ins.begin(), ins.end(),
-                      [s=strat_vec[i]](auto&& e){s->register_ap(e);});
+                      [s=strat_vec[i]](auto&& e){s->register_ap(e); });
         bdd this_outputs = bddtrue;
         std::for_each(outs[i].begin(), outs[i].end(),
                       [&to = this_outputs, s=strat_vec[i]](auto&& e)
-                      {to &= bdd_ithvar(s->register_ap(e));});
+                      {to &= bdd_ithvar(s->register_ap(e)); });
         if (this_outputs == bddfalse)
           throw std::runtime_error("Inconsistency in outputs of strat "
                                    + std::to_string(i) + ".\n");
         // todo Some additional checks?
-        new_vec.emplace_back(a, this_outputs);
+        new_vec.emplace_back(strat_vec[i], this_outputs);
       }
     return auts_to_aiger(new_vec, mode);
   }

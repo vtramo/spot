@@ -92,7 +92,7 @@ namespace spot
   SPOT_API std::ostream&
   operator<<(std::ostream& os, solver s);
 
-  struct game_info
+  struct SPOT_API game_info
   {
     struct bench_var
     {
@@ -110,15 +110,21 @@ namespace spot
     game_info()
       : force_sbacc{false},
         s{solver::SPLIT_DET},
+        minimize_opt{0},
+        out_choice{0},
         bv{},
-        verbose_stream{nullptr}
+        verbose_stream{nullptr},
+        dict(spot::make_bdd_dict())
     {
     }
 
     bool force_sbacc;
     solver s;
+    int minimize_opt;
+    int out_choice;
     std::optional<bench_var> bv;
     std::ostream* verbose_stream;
+    bdd_dict_ptr dict;
   };
 
   SPOT_API std::ostream&
@@ -135,15 +141,6 @@ namespace spot
   create_game(const formula& f,
               const std::set<std::string>& all_outs);
 
-  spot::twa_graph_ptr
-  create_game(const formula& f,
-              const std::set<std::string>& all_outs)
-  {
-    option_map dummy1;
-    game_info dummy2;
-    return create_game(f, all_outs, dummy1, dummy2);
-  }
-
   SPOT_API bool
   solve_game(twa_graph_ptr arena, game_info& gi);
 
@@ -151,11 +148,7 @@ namespace spot
   solve_game(twa_graph_ptr arena);
 
   SPOT_API bool
-  solve_game(twa_graph_ptr arena)
-  {
-    game_info dummy1;
-    return solve_game(arena, dummy1);
-  }
+  solve_game(twa_graph_ptr arena);
 
   SPOT_API twa_graph_ptr
   create_strategy(twa_graph_ptr arena, game_info& gi, option_map& opt);

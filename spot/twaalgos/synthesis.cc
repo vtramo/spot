@@ -624,6 +624,7 @@ namespace spot
 
 // Helper function/structures for split_2step
 namespace{
+  using namespace spot;
   // Computes and stores the restriction
   // of each cond to the input domain and the support
   // This is useful as it avoids recomputation
@@ -632,9 +633,9 @@ namespace{
   struct small_cacher_t
   {
     //e to e_in and support
-    std::unordered_map<bdd, std::pair<bdd, bdd>, spot::bdd_hash> cond_hash_;
+    std::unordered_map<bdd, std::pair<bdd, bdd>, bdd_hash> cond_hash_;
 
-    void fill(const spot::const_twa_graph_ptr& aut, bdd output_bdd)
+    void fill(const const_twa_graph_ptr& aut, bdd output_bdd)
     {
       cond_hash_.reserve(aut->num_edges()/5+1);
       // 20% is about lowest number of different edge conditions
@@ -664,28 +665,28 @@ namespace{
   // of the state.
   struct e_info_t
   {
-    e_info_t(const spot::twa_graph::edge_storage_t& e,
+    e_info_t(const twa_graph::edge_storage_t& e,
              const small_cacher_t& sm)
         : dst(e.dst),
           econd(e.cond),
           einsup(sm[e.cond]),
           acc(e.acc)
     {
-      pre_hash = (spot::wang32_hash(dst)
-                 ^ std::hash<spot::acc_cond::mark_t>()(acc))
-                 * spot::fnv<size_t>::prime;
+      pre_hash = (wang32_hash(dst)
+                 ^ std::hash<acc_cond::mark_t>()(acc))
+                 * fnv<size_t>::prime;
     }
 
     inline size_t hash() const
     {
-      return spot::wang32_hash(spot::bdd_hash()(econdout)) ^ pre_hash;
+      return wang32_hash(bdd_hash()(econdout)) ^ pre_hash;
     }
 
     unsigned dst;
     bdd econd;
     mutable bdd econdout;
     std::pair<bdd, bdd> einsup;
-    spot::acc_cond::mark_t acc;
+    acc_cond::mark_t acc;
     size_t pre_hash;
   };
   // We define a order between the edges to avoid creating multiple
@@ -715,27 +716,69 @@ namespace{
     }
   }less_info_ptr;
 
-  static spot::twa_graph_ptr
-  ntgba2dpa(const spot::twa_graph_ptr &split, bool force_sbacc)
+  static twa_graph_ptr
+  ntgba2dpa(const twa_graph_ptr &split, bool force_sbacc)
   {
     // if the input automaton is deterministic, degeneralize it to be sure to
     // end up with a parity automaton
-    auto dpa = spot::tgba_determinize(spot::degeneralize_tba(split),
+    auto dpa = tgba_determinize(degeneralize_tba(split),
                                       false, true, true, false);
     dpa->merge_edges();
     if (force_sbacc)
-      dpa = spot::sbacc(dpa);
-    spot::reduce_parity_here(dpa, true);
-    spot::change_parity_here(dpa, spot::parity_kind_max,
-                             spot::parity_style_odd);
+      dpa = sbacc(dpa);
+    reduce_parity_here(dpa, true);
+    change_parity_here(dpa, parity_kind_max,
+                             parity_style_odd);
     assert((
                [&dpa]() -> bool {
                  bool max, odd;
                  dpa->acc().is_parity(max, odd);
                  return max && odd;
                }()));
-    assert(spot::is_deterministic(dpa));
+    assert(is_deterministic(dpa));
     return dpa;
+  }
+
+  static twa_graph_ptr
+  change_init_to_0(twa_graph_ptr& a)
+  {
+    auto res = make_twa_graph(a->get_dict());
+    res->copy_ap_of(a);
+    res->new_states(a->num_states());
+    res->set_init_state(0);
+    auto change = [&a](const unsigned state) {
+      if (state == 0) return a->get_init_state_number();
+      if (state == a->get_init_state_number()) return 0U;
+      return state;
+    };
+    for (auto& e : a->edges())
+    {
+      res->new_edge(change(e.src), change(e.dst), e.cond, e.acc);
+    }
+    a->set_acceptance(acc_cond::acc_code::t());
+    return res;
+  }
+
+  static void
+  minimize_strategy_here(twa_graph_ptr& strat, option_map& opt)
+  {
+    strat->set_acceptance(acc_cond::acc_code::t());
+    unsigned simplification_level = opt.get("minimization-level", 1);
+    opt.report_unused_options();
+    bdd *obdd = strat->get_named_prop<bdd>("synthesis-outputs");
+    assert(obdd);
+    auto new_bdd = new bdd(*obdd);
+    if (simplification_level != 0)
+      reduce_graph_here(strat, simplification_level);
+    auto copy = make_twa_graph(strat, twa::prop_set::all());
+    strat = change_init_to_0(strat);
+    assert(are_equivalent(strat, copy));
+    // std::cout << *new_bdd << std::endl;
+    strat->set_named_prop("synthesis-outputs", new_bdd);
+    (void)restore_form;
+    // restore_form(strat, *new_bdd);
+    // print_hoa(std::cout, strat) << '\n';
+    // print_hoa(std::cout, copy) << '\n';
   }
 }
 
@@ -1155,7 +1198,8 @@ namespace spot
   }
 
   static spot::translator
-  create_translator(spot::option_map& extra_options, spot::solver sol)
+  create_translator(spot::option_map& extra_options, spot::solver sol,
+                    spot::bdd_dict_ptr dict)
   {
     for (auto&& p : std::vector<std::pair<const char*, int>>
                       {{"simul", 0},
@@ -1165,7 +1209,6 @@ namespace spot
                        {"wdba-minimize", 2}})
       extra_options.set(p.first, extra_options.get(p.first, p.second));
 
-    spot::bdd_dict_ptr dict = spot::make_bdd_dict();
     spot::translator trans(dict, &extra_options);
     // extra_options.report_unused_options();
     switch (sol)
@@ -1194,7 +1237,7 @@ namespace spot
               option_map& extra_opt,
               game_info& gi)
   {
-    auto trans = create_translator(extra_opt, gi.s);
+    auto trans = create_translator(extra_opt, gi.s, gi.dict);
     // Shortcuts
     auto& bv = gi.bv;
     auto& vs = gi.verbose_stream;
@@ -1367,6 +1410,15 @@ namespace spot
     return dpa;
   }
 
+  spot::twa_graph_ptr
+  create_game(const formula& f,
+              const std::set<std::string>& all_outs)
+  {
+    option_map dummy1;
+    game_info dummy2;
+    return create_game(f, all_outs, dummy1, dummy2);
+  }
+
   bool solve_game(twa_graph_ptr arena, game_info& gi)
   {
     // todo adapt to new interface
@@ -1382,46 +1434,11 @@ namespace spot
     return ret;
   }
 
-  static twa_graph_ptr
-  change_init_to_0(twa_graph_ptr& a)
+  bool
+  solve_game(twa_graph_ptr arena)
   {
-    auto res = make_twa_graph(a->get_dict());
-    res->copy_ap_of(a);
-    res->new_states(a->num_states());
-    res->set_init_state(0);
-    auto change = [&a](const unsigned state) {
-      if (state == 0) return a->get_init_state_number();
-      if (state == a->get_init_state_number()) return 0U;
-      return state;
-    };
-    for (auto& e : a->edges())
-    {
-      res->new_edge(change(e.src), change(e.dst), e.cond, e.acc);
-    }
-    a->set_acceptance(acc_cond::acc_code::t());
-    return res;
-  }
-
-  static void
-  minimize_strategy_here(twa_graph_ptr& strat, option_map& opt)
-  {
-    strat->set_acceptance(spot::acc_cond::acc_code::t());
-    unsigned simplification_level = opt.get("minimization-level", 1);
-    opt.report_unused_options();
-    bdd *obdd = strat->get_named_prop<bdd>("synthesis-outputs");
-    assert(obdd);
-    auto new_bdd = new bdd(*obdd);
-    if (simplification_level != 0)
-      reduce_graph_here(strat, simplification_level);
-    auto copy = make_twa_graph(strat, twa::prop_set::all());
-    strat = change_init_to_0(strat);
-    assert(are_equivalent(strat, copy));
-    // std::cout << *new_bdd << std::endl;
-    strat->set_named_prop("synthesis-outputs", new_bdd);
-    (void)restore_form;
-    // restore_form(strat, *new_bdd);
-    // print_hoa(std::cout, strat) << '\n';
-    // print_hoa(std::cout, copy) << '\n';
+    game_info dummy1;
+    return solve_game(arena, dummy1);
   }
 
   twa_graph_ptr
@@ -1445,8 +1462,10 @@ namespace spot
     if (bv)
       sw.start();
     twa_graph_ptr strat_aut = apply_strategy(arena, true, false);
+
     strat_aut->prop_universal(true);
     minimize_strategy_here(strat_aut, opt);
+
     if (bv)
         bv->strat2aut_time = sw.stop();
 
