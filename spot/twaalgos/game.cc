@@ -808,10 +808,16 @@ namespace spot
   void alternate_players(spot::twa_graph_ptr& arena,
                          bool first_player, bool complete0)
   {
-    auto um = arena->acc().unsat_mark();
-    if (!um.first)
-      throw std::runtime_error
-        ("alternate_players(): game winning condition is a tautology");
+    auto umt = acc_cond::mark_t({});
+    if (complete0)
+      {
+        auto um = arena->acc().unsat_mark();
+        if (!um.first)
+          throw std::runtime_error
+              ("alternate_players(): game winning condition is a tautology,"
+               "can not complete the automaton.");
+        umt = um.second;
+      }
 
     unsigned sink_env = 0;
     unsigned sink_con = 0;
@@ -853,10 +859,10 @@ namespace spot
                 sink_con = arena->new_state();
                 owner->push_back(true);
                 owner->push_back(false);
-                arena->new_edge(sink_con, sink_env, bddtrue, um.second);
-                arena->new_edge(sink_env, sink_con, bddtrue, um.second);
+                arena->new_edge(sink_con, sink_env, bddtrue, umt);
+                arena->new_edge(sink_env, sink_con, bddtrue, umt);
               }
-            arena->new_edge(src, sink_con, missing, um.second);
+            arena->new_edge(src, sink_con, missing, umt);
           }
       }
 

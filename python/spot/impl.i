@@ -462,9 +462,6 @@ static void handle_any_exception()
 %implicitconv spot::formula;
 %implicitconv std::vector<bool>;
 
-%implicitconv std::vector<spot::twa_ptr>;
-%implicitconv std::vector<spot::const_twa_ptr>;
-
 %include <spot/tl/formula.hh>
 
 namespace std {
@@ -482,8 +479,6 @@ namespace std {
   %template(atomic_prop_set) set<spot::formula>;
   %template(relabeling_map) map<spot::formula, spot::formula>;
   %template(setstring) set<std::string>;
-  %template(twa_vector) std::vector<spot::twa_ptr>;
-  %template(const_twa_vector) std::vector<spot::const_twa_ptr>;
 }
 
 %include <spot/tl/environment.hh>
@@ -671,6 +666,9 @@ def state_is_accepting(self, src) -> "bool":
 %template(scc_info_scc_edges) spot::internal::scc_edges<spot::digraph<spot::twa_graph_state, spot::twa_graph_edge_data> const, spot::internal::keep_all>;
 %template(scc_info_inner_scc_edges) spot::internal::scc_edges<spot::digraph<spot::twa_graph_state, spot::twa_graph_edge_data> const, spot::internal::keep_inner_scc>;
 %template(vector_twa_graph) std::vector<spot::twa_graph_ptr>;
+%template(vector_const_twa_graph) std::vector<spot::const_twa_graph_ptr>;
+%implicitconv std::vector<spot::twa_graph_ptr>;
+%implicitconv std::vector<spot::const_twa_graph_ptr>;
 %include <spot/twaalgos/strength.hh>
 %include <spot/twaalgos/sccfilter.hh>
 %include <spot/twaalgos/stats.hh>
