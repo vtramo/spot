@@ -249,7 +249,6 @@ TESTS_twa = \
   core/maskkeep.test \
   core/prodchain.test \
   core/prodor.test \
-  core/simdet.test \
   core/sim2.test \
   core/sim3.test \
   core/ltl2tgba.test \
