@@ -1,6 +1,6 @@
 #! /bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2015, 2018, 2019, 2020 Laboratoire de Recherche et Développement
+# Copyright (C) 2015, 2018-2021 Laboratoire de Recherche et Développement
 # de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -150,3 +150,33 @@ State: 6
 EOF
 autfilt --small --low input > output
 diff expect output
+
+
+cat >input <<EOF
+HOA: v1
+States: 4
+Start: 0
+AP: 3 "a" "b" "c"
+acc-name: Buchi
+Acceptance: 0 t
+--BODY--
+State: 0
+[0] 1
+[0&1] 2
+[2] 3
+State: 1
+[0] 1
+State: 2
+[0&1] 2
+State: 3
+[0] 3
+--END--
+EOF
+cmd="autfilt --small input --stats=%s,%t"
+test 2,5 = `$cmd -x simul=0`
+test 2,5 = `$cmd -x wdba-minimize=0`
+test 4,20 = `$cmd -x simul=0,wdba-minimize=0`
+test 3,14 = `$cmd -x simul-trans-pruning=0,wdba-minimize=0`
+test 3,14 = `$cmd -x simul-trans-pruning=2,wdba-minimize=0`
+# Three "equivalence classes" are needed even if the output has two states.
+test 2,5 = `$cmd -x simul-trans-pruning=3,wdba-minimize=0`

@@ -77,11 +77,16 @@ namespace spot
   /// \param aborter abort the construction if the constructed
   ///                automaton would be too large.  Return nullptr
   ///                in this case.
+  ///
+  /// \param trans_pruning when  \a use_simulation is true, \a trans_pruning
+  ///                is passed to the simulation-based reduction to limit
+  ///                the effect of transition pruning.
   SPOT_API twa_graph_ptr
   tgba_determinize(const const_twa_graph_ptr& aut,
                    bool pretty_print = false,
                    bool use_scc = true,
                    bool use_simulation = true,
                    bool use_stutter = true,
-                   const output_aborter* aborter = nullptr);
+                   const output_aborter* aborter = nullptr,
+                   int trans_pruning = -1);
 }

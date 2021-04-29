@@ -811,7 +811,8 @@ namespace spot
   tgba_determinize(const const_twa_graph_ptr& a,
                    bool pretty_print, bool use_scc,
                    bool use_simulation, bool use_stutter,
-                   const output_aborter* aborter)
+                   const output_aborter* aborter,
+                   int trans_pruning)
   {
     if (!a->is_existential())
       throw std::runtime_error
@@ -829,7 +830,7 @@ namespace spot
       if (use_simulation)
         {
           aut_tmp = spot::scc_filter(aut_tmp);
-          auto aut2 = simulation(aut_tmp, &implications);
+          auto aut2 = simulation(aut_tmp, &implications, trans_pruning);
           if (pretty_print)
             aut2->copy_state_names_from(aut_tmp);
           aut_tmp = aut2;

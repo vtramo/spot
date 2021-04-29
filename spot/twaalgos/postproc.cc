@@ -75,6 +75,7 @@ namespace spot
         det_max_edges_ = opt->get("det-max-edges", -1);
         simul_ = opt->get("simul", -1);
         simul_method_ = opt->get("simul-method", -1);
+        dpa_simul_ = opt->get("dpa-simul", -1);
         scc_filter_ = opt->get("scc-filter", -1);
         ba_simul_ = opt->get("ba-simul", -1);
         tba_determinisation_ = opt->get("tba-det", 0);
@@ -86,8 +87,9 @@ namespace spot
         state_based_ = opt->get("state-based", 0);
         wdba_minimize_ = opt->get("wdba-minimize", -1);
         gen_reduce_parity_ = opt->get("gen-reduce-parity", 1);
-        simul_max_ = opt->get("simul-max", 512);
+        simul_max_ = opt->get("simul-max", 4096);
         wdba_det_max_ = opt->get("wdba-det-max", 4096);
+        simul_trans_pruning_ = opt->get("simul-trans-pruning", 512);
 
         if (sat_acc_ && sat_minimize_ == 0)
           sat_minimize_ = 1;        // Dicho.
@@ -113,10 +115,9 @@ namespace spot
   twa_graph_ptr
   postprocessor::do_simul(const twa_graph_ptr& a, int opt) const
   {
-    if (simul_max_ > 0 && static_cast<unsigned>(simul_max_) < a->num_states())
-      return a;
-
     if (opt == 0)
+      return a;
+    if (simul_max_ > 0 && static_cast<unsigned>(simul_max_) < a->num_states())
       return a;
 
     static unsigned sim = [&]()
@@ -131,18 +132,18 @@ namespace spot
     if (sim == 2)
       opt += 3;
 
-    // FIXME: simulation-based reduction how have work-arounds for
+    // FIXME: simulation-based reduction now have work-arounds for
     // non-separated sets, so we can probably try them.
     if (!has_separate_sets(a))
       return a;
     switch (opt)
       {
       case 1:
-        return simulation(a);
+        return simulation(a, simul_trans_pruning_);
       case 2:
-        return cosimulation(a);
+        return cosimulation(a, simul_trans_pruning_);
       case 3:
-        return iterated_simulations(a);
+        return iterated_simulations(a, simul_trans_pruning_);
       case 4:
         return reduce_direct_sim(a);
       case 5:
@@ -150,7 +151,7 @@ namespace spot
       case 6:
         return reduce_iterated(a);
       default:
-        return iterated_simulations(a);
+        return iterated_simulations(a, simul_trans_pruning_);
       }
   }
 
@@ -166,12 +167,12 @@ namespace spot
       case 0:
         return a;
       case 1:
-        return simulation_sba(a);
+        return simulation_sba(a, simul_trans_pruning_);
       case 2:
-        return cosimulation_sba(a);
+        return cosimulation_sba(a, simul_trans_pruning_);
       case 3:
       default:
-        return iterated_simulations_sba(a);
+        return iterated_simulations_sba(a, simul_trans_pruning_);
       }
   }
 
@@ -266,6 +267,8 @@ namespace spot
       simul_ = (level_ == Low) ? 1 : 3;
     if (ba_simul_ < 0)
       ba_simul_ = (level_ == High) ? 3 : 0;
+    if (dpa_simul_ < 0)
+      dpa_simul_ = (level_ != Low) ? 1 : 0;
     if (scc_filter_ < 0)
       scc_filter_ = 1;
     if (type_ == BA)
@@ -551,14 +554,13 @@ namespace spot
           det_simul = false;
         dba = tgba_determinize(tba,
                                false, det_scc_, det_simul, det_stutter_,
-                               aborter);
+                               aborter, simul_trans_pruning_);
         // Setting det-max-states or det-max-edges may cause tgba_determinize
         // to fail.
+
         if (dba)
           {
-            dba = simplify_acc(dba);
-            if (level_ != Low)
-              dba = simulation(dba);
+            dba = do_simul(simplify_acc(dba), dpa_simul_);
             sim = nullptr;
           }
       }

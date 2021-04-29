@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2012-2015, 2017, 2019 Laboratoire de Recherche et
+// Copyright (C) 2012-2015, 2017, 2019, 2021 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -36,7 +36,8 @@ namespace spot
   /// described in \cite babiak.13.spin .
   ///
   /// Our reconstruction of the quotient automaton based on this
-  /// suffix-inclusion relation will also improve determinism.
+  /// suffix-inclusion relation will also improve determinism thanks
+  /// to a kind of transition-pruning.
   ///
   /// We recommend to call scc_filter() to first simplify the
   /// automaton that should be reduced by simulation.
@@ -47,22 +48,33 @@ namespace spot
   /// acceptance conditions than necessary, and running scc_filter()
   /// again afterwards will remove these superfluous conditions.
   ///
-  /// The resulting automaton has a named property "simulated-states", that is a
-  /// vector mapping each state of the input to a state of the output. Note that
-  /// some input states may be mapped to -1, as a by-product of improved
-  /// determinism. Typically, if the language of q1 is included in the language
-  /// of q2, only a transition to q2 will be built.
+  ///
+  /// The resulting automaton has a named property "simulated-states",
+  /// that is a vector mapping each state of the input to a state of
+  /// the output. Note that some input states may be mapped to -1, as
+  /// a by-product of transition prunning.
   ///
   /// \param automaton the automaton to simulate.
+  ///
+  /// \param trans_pruning Transition pruning requires a quadratic
+  /// number of BDD implication checks between all equivalence
+  /// classes, so it can be costly on large automata.  If \a
+  /// trans_pruning is set to a non-negative integer, only
+  /// (non-deterministic) automata with more states than trans_pruning
+  /// will be simplified.
+  ///
   /// \return a new automaton which is at worst a copy of the received
   /// one
   SPOT_API twa_graph_ptr
-  simulation(const const_twa_graph_ptr& automaton);
+  simulation(const const_twa_graph_ptr& automaton,
+             int trans_pruning = -1);
   SPOT_API twa_graph_ptr
   simulation(const const_twa_graph_ptr& automaton,
-             std::vector<bdd>* implications);
+             std::vector<bdd>* implications,
+             int trans_pruning = -1);
   SPOT_API twa_graph_ptr
-  simulation_sba(const const_twa_graph_ptr& automaton);
+  simulation_sba(const const_twa_graph_ptr& automaton,
+                 int trans_pruning = -1);
   /// @}
 
   /// @{
@@ -73,7 +85,8 @@ namespace spot
   /// state can be merged into the latter.  \cite babiak.13.spin .
   ///
   /// Our reconstruction of the quotient automaton based on this
-  /// prefix-inclusion relation will also improve codeterminism.
+  /// prefix-inclusion relation will also improve codeterminism
+  /// thanks to a kind of transition pruning.
   ///
   /// We recommend to call scc_filter() to first simplify the
   /// automaton that should be reduced by cosimulation.
@@ -93,12 +106,22 @@ namespace spot
   /// codeterminism.)
   ///
   /// \param automaton the automaton to simulate.
+  ///
+  /// \param trans_pruning Transition pruning requires a quadratic
+  /// number of BDD implication checks between all equivalence
+  /// classes, so it can be costly on large automata.  If \a
+  /// trans_pruning is set to a non-negative integer, only
+  /// (non-deterministic) automata with more states than trans_pruning
+  /// will be simplified.
+  ///
   /// \return a new automaton which is at worst a copy of the received
   /// one
   SPOT_API twa_graph_ptr
-  cosimulation(const const_twa_graph_ptr& automaton);
+  cosimulation(const const_twa_graph_ptr& automaton,
+               int trans_pruning = -1);
   SPOT_API twa_graph_ptr
-  cosimulation_sba(const const_twa_graph_ptr& automaton);
+  cosimulation_sba(const const_twa_graph_ptr& automaton,
+                   int trans_pruning = -1);
   /// @}
 
   /// @{
@@ -117,9 +140,11 @@ namespace spot
   /// \return a new automaton which is at worst a copy of the received
   /// one
   SPOT_API twa_graph_ptr
-  iterated_simulations(const const_twa_graph_ptr& automaton);
+  iterated_simulations(const const_twa_graph_ptr& automaton,
+                       int trans_pruning = -1);
   SPOT_API twa_graph_ptr
-  iterated_simulations_sba(const const_twa_graph_ptr& automaton);
+  iterated_simulations_sba(const const_twa_graph_ptr& automaton,
+                           int trans_pruning = -1);
   /// @}
 
   /// @{

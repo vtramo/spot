@@ -377,5 +377,7 @@ diff out exp
 f='Fp0 U XX((p0 & F!p1) | (!p0 & Gp1))'
 ltlsynt --verbose --algo=ps --outs=p1 --ins=p0 -f "$f" 2>err
 grep 'DPA has 13 states' err
+ltlsynt -x dpa-simul=0 --verbose --algo=ps --outs=p1 --ins=p0 -f "$f" 2>err
+grep 'DPA has 30 states' err
 ltlsynt --verbose -x wdba-minimize=1 --algo=ps --outs=p1 --ins=p0 -f "$f" 2>err
 grep 'DPA has 12 states' err

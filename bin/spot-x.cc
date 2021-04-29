@@ -123,9 +123,15 @@ will be returned.")},
     { DOC("det-scc", "Set to 0 to disable scc-based optimizations in \
 the determinization algorithm.") },
     { DOC("det-simul", "Set to 0 to disable simulation-based optimizations in \
-the determinization algorithm.") },
+the determinization algorithm.  (Do not confuse this with option dpa-simul,  \
+which runs a simulation-based reduction after determinization.)") },
     { DOC("det-stutter", "Set to 0 to disable optimizations based on \
 the stutter-invariance in the determinization algorithm.") },
+    { DOC("dpa-simul", "Set to 1 to enable simulation-based reduction after \
+running a Safra-like determinization to obtain a DPA, or 0 to disable.  By \
+default is is enabled at all levels except low.  (Do not confuse this with \
+option det-simul, which uses a simulation-based optimizations during \
+the determinization.)") },
     { DOC("gen-reduce-parity", "When the postprocessor routines are \
 configured to output automata with any kind of acceptance condition, \
 but they happen to process an automaton with parity acceptance, they \
@@ -156,9 +162,18 @@ Set to 1 to use only direct simulation.  Set to 2 to use only reverse \
 simulation.  Set to 3 to iterate both direct and reverse simulations.   \
 The default is 3 in --high mode, and 0 otherwise.") },
     { DOC("simul-max", "Number of states above which simulation-based \
-reductions are skipped. Defaults to 512. Set to 0 to disable.  This also \
-applies to the simulation-based optimization of the determinization \
-algorithm.") },
+reductions are skipped. Defaults to 4096.  Set to 0 to disable.  This \
+applies to all simulation-based optimization, including thoses of the \
+determinization algorithm.") },
+    { DOC("simul-trans-pruning", "Number of equivalence classes above which \
+simulation-based transition-pruning for non-deterministic automata is disabled \
+automata. Defaults to 512.  Set to 0 to disable.  This applies to all \
+simulation-based reduction, as well as to the simulation-based optimization of \
+the determinization algorithm. Simulation-based reduction perform a number of \
+BDD implication checks that is quadratic in the number of classes to implement \
+transition pruning.  The equivalence classes is equal to the number \
+of output states of simulation-based reduction when transition-pruning is \
+disabled, it is just an upper bound otherwise.") },
     { DOC("relabel-bool", "If set to a positive integer N, a formula \
 with N atomic propositions or more will have its Boolean subformulas \
 abstracted as atomic propositions during the translation to automaton. \

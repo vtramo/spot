@@ -154,10 +154,12 @@ namespace spot
       }
 
       direct_simulation(const const_twa_graph_ptr& in,
+                        int trans_pruning,
                         std::vector<bdd>* implications = nullptr)
         : po_size_(0),
           all_class_var_(bddtrue),
           original_(in),
+          trans_pruning_(trans_pruning),
           record_implications_(implications)
       {
         if (!has_separate_sets(in))
@@ -467,13 +469,18 @@ namespace spot
           }
 
         // Update the partial order.
+        //
+        // Do not compute implication between classes if we have more
+        // classes than trans_pruning_, or if the automaton is
+        // deterministic (in which case want_implications_ was
+        // initialized to false).  The number of classes should only
+        // augment, so if we exceed trans_pruning_, it's safe to
+        // disable want_implications_ for good.
 
-        // This loop follows the pattern given by the paper.
-        // foreach class do
-        // |  foreach class do
-        // |  | update po if needed
-        // |  od
-        // od
+        if (want_implications_
+            && trans_pruning_ >= 0
+            && static_cast<unsigned>(trans_pruning_) < sz)
+          want_implications_ = false;
 
         for (unsigned n = 0; n < sz; ++n)
           {
@@ -773,7 +780,7 @@ namespace spot
         if (!need_another_pass)
           return res;
 
-        direct_simulation<Cosimulation, Sba> sim(res);
+        direct_simulation<Cosimulation, Sba> sim(res, trans_pruning_);
         return sim.run();
       }
 
@@ -861,16 +868,16 @@ namespace spot
       automaton_size stat;
 
       const const_twa_graph_ptr original_;
-
+      int trans_pruning_;
       std::vector<bdd>* record_implications_;
     };
 
     template<typename Fun, typename Aut>
     twa_graph_ptr
-    wrap_simul(Fun f, const Aut& a)
+    wrap_simul(Fun f, const Aut& a, int trans_pruning)
     {
       if (has_separate_sets(a))
-        return f(a);
+        return f(a, trans_pruning);
       // If the input has acceptance sets common to Fin and Inf,
       // separate them before doing the simulation, and merge them
       // back afterwards.  Doing will temporarily introduce more sets
@@ -879,62 +886,63 @@ namespace spot
       // automata sharing Fin/Inf sets.
       auto b = make_twa_graph(a, twa::prop_set::all());
       separate_sets_here(b);
-      return simplify_acceptance_here(f(b));
+      return simplify_acceptance_here(f(b, trans_pruning));
     }
 
   } // End namespace anonymous.
 
 
   twa_graph_ptr
-  simulation(const const_twa_graph_ptr& t)
+  simulation(const const_twa_graph_ptr& t, int trans_pruning)
   {
-    return wrap_simul([](const const_twa_graph_ptr& t) {
-                        direct_simulation<false, false> simul(t);
-                        return simul.run();
-                      }, t);
+    return wrap_simul([](const const_twa_graph_ptr& t, int trans_pruning) {
+      direct_simulation<false, false> simul(t, trans_pruning);
+      return simul.run();
+    }, t, trans_pruning);
   }
 
   twa_graph_ptr
   simulation(const const_twa_graph_ptr& t,
-             std::vector<bdd>* implications)
+             std::vector<bdd>* implications, int trans_pruning)
   {
-    return wrap_simul([implications](const const_twa_graph_ptr& t) {
-                        direct_simulation<false, false> simul(t, implications);
-                        return simul.run();
-                      }, t);
+    return wrap_simul([implications](const const_twa_graph_ptr& t,
+                                     int trans_pruning) {
+      direct_simulation<false, false> simul(t, trans_pruning, implications);
+      return simul.run();
+    }, t, trans_pruning);
   }
 
   twa_graph_ptr
-  simulation_sba(const const_twa_graph_ptr& t)
+  simulation_sba(const const_twa_graph_ptr& t, int trans_pruning)
   {
-    return wrap_simul([](const const_twa_graph_ptr& t) {
-                        direct_simulation<false, true> simul(t);
-                        return simul.run();
-                      }, t);
+    return wrap_simul([](const const_twa_graph_ptr& t, int trans_pruning) {
+      direct_simulation<false, true> simul(t, trans_pruning);
+      return simul.run();
+    }, t, trans_pruning);
   }
 
   twa_graph_ptr
-  cosimulation(const const_twa_graph_ptr& t)
+  cosimulation(const const_twa_graph_ptr& t, int trans_pruning)
   {
-    return wrap_simul([](const const_twa_graph_ptr& t) {
-                        direct_simulation<true, false> simul(t);
-                        return simul.run();
-                      }, t);
+    return wrap_simul([](const const_twa_graph_ptr& t, int trans_pruning) {
+      direct_simulation<true, false> simul(t, trans_pruning);
+      return simul.run();
+    }, t, trans_pruning);
   }
 
   twa_graph_ptr
-  cosimulation_sba(const const_twa_graph_ptr& t)
+  cosimulation_sba(const const_twa_graph_ptr& t, int trans_pruning)
   {
-    return wrap_simul([](const const_twa_graph_ptr& t) {
-                        direct_simulation<true, true> simul(t);
-                        return simul.run();
-                      }, t);
+    return wrap_simul([](const const_twa_graph_ptr& t, int trans_pruning) {
+      direct_simulation<true, true> simul(t, trans_pruning);
+      return simul.run();
+    }, t, trans_pruning);
   }
 
 
   template<bool Sba>
   twa_graph_ptr
-  iterated_simulations_(const const_twa_graph_ptr& t)
+  iterated_simulations_(const const_twa_graph_ptr& t, int trans_pruning)
   {
     twa_graph_ptr res = nullptr;
     automaton_size prev;
@@ -943,12 +951,12 @@ namespace spot
     do
       {
         prev = next;
-        direct_simulation<false, Sba> simul(res ? res : t);
+        direct_simulation<false, Sba> simul(res ? res : t, trans_pruning);
         res = simul.run();
         if (res->prop_universal())
           break;
 
-        direct_simulation<true, Sba> cosimul(res);
+        direct_simulation<true, Sba> cosimul(res, trans_pruning);
         res = cosimul.run();
 
         if (Sba)
@@ -963,15 +971,15 @@ namespace spot
   }
 
   twa_graph_ptr
-  iterated_simulations(const const_twa_graph_ptr& t)
+  iterated_simulations(const const_twa_graph_ptr& t, int trans_pruning)
   {
-    return wrap_simul(iterated_simulations_<false>, t);
+    return wrap_simul(iterated_simulations_<false>, t, trans_pruning);
   }
 
   twa_graph_ptr
-  iterated_simulations_sba(const const_twa_graph_ptr& t)
+  iterated_simulations_sba(const const_twa_graph_ptr& t, int trans_pruning)
   {
-    return wrap_simul(iterated_simulations_<true>, t);
+    return wrap_simul(iterated_simulations_<true>, t, trans_pruning);
   }
 
   template <bool Cosimulation, bool Sba>

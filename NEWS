@@ -129,36 +129,50 @@ New in spot 2.9.6.dev (not yet released)
   - print_dot() will display states from player 1 using a diamond
     shape.
 
-  - spot::postproc has two extra configuration variables that are meant
-    to speedup the processing of large automata.
+  - spot::postproc has new configuration variables that define
+    thresholds to disable some costly operation in order to speedup
+    the processing of large automata.  (Those variables are typically
+    modified using the -x option of command-line tools, and are all
+    documented in the spot-x(7) man page.)
 
-      simul-max      Number of states above which simulation-based
-                     reductions are skipped. Defaults to 512. Set to 0
-                     to disable.  This also applies to the
-                     simulation-based optimization of the
-                     determinization algorithm.
       wdba-det-max   Maximum number of additional states allowed in
-                     intermediate steps of WDBA-minimization. If the
+                     intermediate steps of WDBA-minimization.  If the
                      number of additional states reached in the
                      powerset construction or in the followup products
                      exceeds this value, WDBA-minimization is aborted.
-                     Defaults to 4096. Set to 0 to disable. This limit
+                     Defaults to 4096. Set to 0 to disable.  This limit
                      is ignored when -D used or when det-max-states is
                      set.
 
-    The reason for disabling simulation-based reduction above 512
-    states is that the current implementation uses one BDD variable
-    per state, and makes a number of BDD operations that is quadratic
-    in the number of states.  Similarly, WDBA-mininimization is used
-    with --small in the off chance that it might produce a smaller
-    automaton, but we should not waste too much space and time trying
-    that.
+      simul-max      Number of states above which simulation-based
+                     reductions are skipped.  Defaults to 4096.  Set
+                     to 0 to disable.  This also applies to the
+                     simulation-based optimization of the
+                     determinization algorithm.
+
+      simul-trans-pruning
+                     For simulation-based reduction, this is the
+                     number of equivalence classes above which
+                     transition-pruning for non-deterministic automata
+                     is disabled.  Defaults to 512.  Set to 0 to
+                     disable.  This applies to all simulation-based
+                     reduction, as well as to the simulation-based
+                     optimization of the determinization algorithm.
+                     Simulation-based reduction perform a number of
+                     BDD implication checks that is quadratic in the
+                     number of classes to implement transition pruning.
+
+      dpa-simul      Set to 0/1 to disable/enable simulation-based
+                     reduction performed after running a Safra-like
+                     determinization to optain a DPA.  By default, it
+                     is activated at all levels but --low.
 
     spot::translator additionally honor the following new variables:
 
       tls-max-states  Maximum number of states of automata involved in
                       automata-based implication checks for formula
                       simplifications.  Defaults to 64.
+
       exprop          When set, this causes the core LTL translation to
                       explicitly iterate over all possible valuations of
                       atomic propositions when considering the successors
