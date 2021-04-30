@@ -72,8 +72,6 @@ namespace
     outputs.reserve(nb_outputs);
     gates.reserve(nb_and);
 
-    // FIXME:
-//    unsigned max_var_ = -2U;
     for (unsigned i = 0; i < nb_inputs; ++i)
     {
       if (!iss)
@@ -895,7 +893,7 @@ namespace spot
       //return aut_to_aiger(a, *all_outputs, mode);
       return auts_to_aiger({{aut, *all_outputs}}, mode);
     else
-      throw std::runtime_error("strategy_to_aig relies on the named property"
+      throw std::runtime_error("strategy_to_aig relies on the named property "
                                "\"synthesis-outputs\".\n");
   }
 
