@@ -1105,7 +1105,7 @@ namespace spot
         {
           auto first = circuit->latch_var(i);
           auto first_m_mod = first & ~1;
-          os_ << "node[shape=box, label=\"" << first_m_mod << "\"] "
+          os_ << "node[shape=box, label=\"L" << i << "_out\"] "
               << first_m_mod << ";\n";
         }
 
@@ -1139,14 +1139,18 @@ namespace spot
             add_edge(os_, gates[i].second, gate_var);
           }
 
+        bool has_alone_gate = false;
+
         os_ << "# Latches\n";
         for (unsigned i = 0; i < num_latches; ++i)
         {
-          auto first = circuit->latch_var(i);
-          auto first_m_mod = first & ~1;
           auto second = latches[i];
-          os_ << 'L' << i << " -> "
-             << first_m_mod << '\n';
+          os_ << "node[shape=box, label=\"L" << i << "_in\"] L" << i << ";\n";
+          if (second <= 1 && !has_alone_gate)
+          {
+            os_ << "node[shape=box, label=\"Const\"] 0" << std::endl;
+            has_alone_gate = true;
+          }
           os_ << (second & ~1) << " -> L" << i;
           if (i & 1)
             os_ << "[arrowhead=dot]";
@@ -1155,7 +1159,6 @@ namespace spot
 
         // Outs can be defined after everything else
         os_ << "# Outs\n";
-        bool has_alone_gate = false;
         const char* out_pos = vertical ? ":s" : ":w";
         for (unsigned i = 0; i < num_outputs; ++i)
         {
