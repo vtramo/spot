@@ -20,9 +20,6 @@
 #include <config.h>
 
 #include <sstream>
-#include <unordered_map>
-#include <vector>
-#include <regex>
 
 #include "argmatch.h"
 
@@ -63,7 +60,6 @@ enum
   OPT_VERBOSE
 };
 
-// TODO: Une option "tlsf"
 static const argp_option options[] =
   {
     /**************************************************/
@@ -169,37 +165,6 @@ ARGMATCH_VERIFY(solver_args, solver_types);
 
 namespace
 {
-
-  // TODO: Alexandre propose que --ins et --outs puissent être donnés par
-  // regex.
-  // static std::pair<std::set<std::string>, std::set<std::string>>
-  // regexes_to_ins_outs(spot::formula f, std::string reg_in, std::string reg_out)
-  // {
-  //   std::regex left_ex(reg_in), right_ex(reg_out);
-  //   spot::atomic_prop_set f_props;
-  //   std::set<std::string> lefts, rights;
-  //   spot::atomic_prop_collect(f, &f_props);
-  //   for (auto prop : f_props)
-  //   {
-  //     auto prop_name = prop.ap_name();
-  //     bool is_ok_left = false;
-  //     if (std::regex_match(prop_name, left_ex))
-  //     {
-  //       lefts.insert(prop_name);
-  //       is_ok_left = true;
-  //     }
-  //     if (std::regex_match(prop_name, right_ex))
-  //     {
-  //       if (is_ok_left)
-  //       {
-  //         throw std::runtime_error("A proposition cannot be matched by 2 regex!");
-  //       }
-  //       rights.insert(prop_name);
-  //     }
-  //   }
-  //   return {lefts, rights};
-  // }
-
   auto str_tolower = [] (std::string s)
     {
       std::transform(s.begin(), s.end(), s.begin(),
@@ -231,9 +196,6 @@ namespace
 //      return result;
 //    }
 
-  // TODO: Un point à régler sur le CSV est que lorsque l'on va découper
-  // la formule, il va y avoir plusieurs temps de traduction. On se contente
-  // d'en faire la somme ?
   static void
   print_csv(const spot::formula& f)
   {
@@ -361,12 +323,6 @@ namespace
   class ltl_processor final : public job_processor
   {
   private:
-    // TODO: Ces trucs là j'ai l'impression qu'il n'y a pas d'intérêt à
-    // les avoir en vecteur de string.
-    // Gardons le pour le moment, c'est quoi l'advantage des les avoir
-    // comme formule? Après je vais faire
-    // aut.register_ap(af.ap_name())
-    // ce n'est pas plus pratique
     std::set<std::string> input_aps_;
     std::set<std::string> output_aps_;
 
