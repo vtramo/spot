@@ -153,4 +153,9 @@ namespace spot
   SPOT_API twa_graph_ptr
   create_strategy(twa_graph_ptr arena, game_info& gi, option_map& opt);
 
+  SPOT_API twa_graph_ptr
+  try_create_strategy_from_simple(formula f,
+                                  std::vector<std::string> output_aps,
+                                  option_map &extra_opt,
+                                  game_info &gi);
 }

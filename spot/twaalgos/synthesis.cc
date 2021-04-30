@@ -18,15 +18,21 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "config.h"
 
+#include <spot/tl/apcollect.hh>
+#include <spot/tl/hierarchy.hh>
+#include <spot/twaalgos/isdet.hh>
 #include <spot/twaalgos/synthesis.hh>
+#include <spot/twa/formula2bdd.hh>
 #include <spot/twa/fwd.hh>
 #include <spot/twaalgos/contains.hh>
 #include <spot/twaalgos/determinize.hh>
+#include <spot/twaalgos/complete.hh>
 #include <spot/twaalgos/degen.hh>
 #include <spot/twaalgos/game.hh>
 #include <spot/twaalgos/hoa.hh>
 #include <spot/twaalgos/isdet.hh>
 #include <spot/twaalgos/minimize.hh>
+#include <spot/twaalgos/strength.hh>
 #include <spot/twaalgos/parity.hh>
 #include <spot/twaalgos/toparity.hh>
 #include <spot/twaalgos/sbacc.hh>
@@ -770,12 +776,13 @@ namespace{
     auto new_bdd = new bdd(*obdd);
     if (simplification_level != 0)
       reduce_graph_here(strat, simplification_level);
-    auto copy = make_twa_graph(strat, twa::prop_set::all());
+    // auto copy = make_twa_graph(strat, twa::prop_set::all());
     strat = change_init_to_0(strat);
-    assert(are_equivalent(strat, copy));
+    // (void) change_init_to_0;
+    // assert(are_equivalent(strat, copy));
     // std::cout << *new_bdd << std::endl;
     strat->set_named_prop("synthesis-outputs", new_bdd);
-    (void)restore_form;
+    (void) restore_form;
     // restore_form(strat, *new_bdd);
     // print_hoa(std::cout, strat) << '\n';
     // print_hoa(std::cout, copy) << '\n';
@@ -1470,6 +1477,132 @@ namespace spot
         bv->strat2aut_time = sw.stop();
 
     return strat_aut;
+  }
+
+  // TODO:
+  // In the context of synthesis, we have more LTL equivalences. For example
+  // if 'a' is the input and 'b' the output, GF(a) <-> GF(b) is equivalent to
+  // GF(a <-> b). It is false for subformulas. For example
+  // (GF(a) <-> GF(b)) & (G(a <-> !b)) is not equivalent to
+  // GF(a <-> b) & G(a <-> !b).
+  // static formula
+  // simplify_ltl_for_synthesis(formula f, std::vector<std::string> ins,
+  //                           std::vector<std::string> outs)
+  // {
+  //   (void) f;
+  //   (void) ins;
+  //   (void) outs;
+  //   SPOT_UNIMPLEMENTED();
+  // }
+
+  static bool
+  has_props(formula f, std::vector<std::string> in_aps, bool in)
+  {
+    auto f_props = atomic_prop_collect(f);
+    for (auto& prop : *f_props)
+    {
+      auto name = prop.ap_name();
+      if ((std::find(in_aps.begin(), in_aps.end(), name) == in_aps.end()) == in)
+        return false;
+    }
+    return true;
+  }
+
+  // TODO:
+  // If a formula is G(o₀ <-> o₁) & G(i₁ <-> o₀), we can create a strategy for
+  // G(i₁ <-> o₀) and assign o₁ to the edges with o₀.
+  // bdd
+  // get_output_constrains(formula f, std::vector<std::string> outs)
+  // {
+  //   if (f.kind() != op::G)
+  //     return bddfalse;
+  //   bdd result = bddtrue;
+  //   if (f[0].kind() == op::Or)
+  //   {
+  //     for (auto elem : f[0])
+  //     {
+  //       TODO: Args?
+  //       result &= formula_to_bdd(elem);
+  //     }
+  //   }
+  //   else if (f[0].is_boolean())
+  //     return formula_to_bdd(f[0]);
+  //   else
+  //     return bddfalse;
+  // }
+
+  twa_graph_ptr
+  try_create_strategy_from_simple(formula f,
+                              std::vector<std::string> output_aps,
+                              option_map &extra_opt,
+                              game_info &gi)
+  {
+    // TODO: game_info not updated
+    auto trans = create_translator(extra_opt, gi.s, gi.dict);
+    trans.set_type(postprocessor::Buchi);
+    trans.set_pref(postprocessor::Complete);
+    trans.set_pref(postprocessor::Deterministic);
+    if (f.kind() == op::Equiv)
+    {
+      // A strategy for recurrence <-> GF(bool) can be created by translating
+      // the left part to a deterministic Terminal Büchi automaton and adding
+      // bool to the transitions with {0}.
+      // TODO: It is the same for guarantee <-> FG(bool)
+      formula left, right;
+      if ((f[0].kind() == op::G) && (f[0][0].kind() == op::F)
+                                       && f[0][0][0].is_boolean())
+      {
+        left = f[1];
+        right = f[0];
+      }
+      else
+      {
+        left = f[0];
+        right = f[1];
+      }
+      if (right.kind() == op::G && right[0].kind() == op::F && right[0][0].is_boolean())
+      {
+        // If left has an output or right has an input, we stop
+        if (!has_props(left, output_aps, false) || !has_props(right, output_aps, true))
+          return nullptr;
+        // We want a deterministic Büchi automaton. Do we want to translate?
+        // if (!(left.is_syntactic_recurrence() || left.is_syntactic_safety()))
+        //   return nullptr;
+
+        auto left_aut = trans.run(left);
+
+        if (!spot::is_recurrence(left, left_aut) && !spot::is_safety_automaton(left_aut))
+          return nullptr;
+        if (!is_complete(left_aut))
+            left_aut = complete(left_aut);
+
+        if (!spot::is_deterministic(left_aut))
+        {
+          left_aut = tgba_determinize(left_aut);
+          assert(left_aut->acc().is_buchi());
+        }
+
+        bdd right_bdd = formula_to_bdd(right[0][0], left_aut->get_dict(), left_aut);
+        bdd neg_right_bdd = bdd_not(right_bdd);
+
+        bdd output_bdd = bddtrue;
+        for (auto& out : output_aps)
+          output_bdd &= bdd_ithvar(left_aut->register_ap(out));
+
+        spot::scc_info si(left_aut, spot::scc_info_options::TRACK_STATES);
+        for (auto& e : left_aut->edges())
+        {
+          if (si.scc_of(e.src) == si.scc_of(e.dst))
+            e.cond &= e.acc ? right_bdd : neg_right_bdd;
+          e.acc = {};
+        }
+
+        left_aut->set_named_prop("synthesis-outputs", new bdd(output_bdd));
+        left_aut->set_acceptance(spot::acc_cond::acc_code::t());
+        return left_aut;
+      }
+    }
+    return nullptr;
   }
 
 } // spot
