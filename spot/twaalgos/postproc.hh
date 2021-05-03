@@ -247,7 +247,7 @@ namespace spot
     bool degen_lowinit_ = false;
     bool degen_remscc_ = true;
     bool det_scc_ = true;
-    bool det_simul_ = true;
+    int det_simul_ = -1;
     bool det_stutter_ = true;
     int det_max_states_ = -1;
     int det_max_edges_ = -1;
@@ -255,6 +255,7 @@ namespace spot
     int simul_method_ = -1;
     int simul_trans_pruning_ = 512;
     int dpa_simul_ = -1;
+    int dba_simul_ = -1;
     int scc_filter_ = -1;
     int ba_simul_ = -1;
     bool tba_determinisation_ = false;

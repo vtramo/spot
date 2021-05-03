@@ -164,8 +164,14 @@ New in spot 2.9.6.dev (not yet released)
 
       dpa-simul      Set to 0/1 to disable/enable simulation-based
                      reduction performed after running a Safra-like
-                     determinization to optain a DPA.  By default, it
-                     is activated at all levels but --low.
+                     determinization to optain a DPA.  By default, it is
+                     only disabled with --low or if simul=0.
+
+      dba-simul      Set to 0/1 to disable/enable simulation-based
+                     reduction performed after running the
+                     powerset-like construction (enabled by option
+                     tba-det) to obtain a DBA.  By default, it is
+                     only disabled with --low or if simul=0.
 
     spot::translator additionally honor the following new variables:
 
@@ -184,8 +190,15 @@ New in spot 2.9.6.dev (not yet released)
                       cannot be disabled.  (This feature is not new, but
                       was not tunable before.)
 
+  - In addition the to above new variables, the default value for
+    ba-simul (controling how degeneralized automata are reduced) and
+    for det-simul (simulation-based optimization of the
+    determinization) is now equal to the default value of simul.  This
+    changes allows "-x simul=0" to disable all of "ba-simul",
+    "dba-simul", "dpa-simul", and "det-simul" at once.
+
   - tgba_powerset() now takes an extra optional argument to specify a
-    list of accepting sinks states if some are known.  Doing so can
+    list of accepting sinks states if some arex known.  Doing so can
     cut the size of the powerset automaton by 2^|sinks| in favorable
     cases.
 

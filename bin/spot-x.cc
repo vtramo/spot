@@ -123,15 +123,16 @@ will be returned.")},
     { DOC("det-scc", "Set to 0 to disable scc-based optimizations in \
 the determinization algorithm.") },
     { DOC("det-simul", "Set to 0 to disable simulation-based optimizations in \
-the determinization algorithm.  (Do not confuse this with option dpa-simul,  \
+the determinization algorithm.  This is enabled by default, unless \"simul\" \
+is set to 0.  (Do not confuse this with option \"dpa-simul\",  \
 which runs a simulation-based reduction after determinization.)") },
     { DOC("det-stutter", "Set to 0 to disable optimizations based on \
 the stutter-invariance in the determinization algorithm.") },
     { DOC("dpa-simul", "Set to 1 to enable simulation-based reduction after \
 running a Safra-like determinization to obtain a DPA, or 0 to disable.  By \
-default is is enabled at all levels except low.  (Do not confuse this with \
-option det-simul, which uses a simulation-based optimizations during \
-the determinization.)") },
+default this is disabled at low level or if parameter \"simul\" is set to 0.  \
+(Do not confuse this with option det-simul, which uses a simulation-based \
+optimizations during the determinization.)") },
     { DOC("gen-reduce-parity", "When the postprocessor routines are \
 configured to output automata with any kind of acceptance condition, \
 but they happen to process an automaton with parity acceptance, they \
@@ -160,7 +161,8 @@ only to Büchi automata for historical reasons; it really applies to any \
 state-based acceptance nowadays. \
 Set to 1 to use only direct simulation.  Set to 2 to use only reverse \
 simulation.  Set to 3 to iterate both direct and reverse simulations.   \
-The default is 3 in --high mode, and 0 otherwise.") },
+The default is the value of parameter \"simul\" in --high mode, and 0 \
+therwise.") },
     { DOC("simul-max", "Number of states above which simulation-based \
 reductions are skipped. Defaults to 4096.  Set to 0 to disable.  This \
 applies to all simulation-based optimization, including thoses of the \
@@ -193,6 +195,9 @@ or when det-max-states is set.") },
     { DOC("tba-det", "Set to 1 to attempt a powerset determinization \
 if the TGBA is not already deterministic.  Doing so will degeneralize \
 the automaton.  This is disabled by default, unless sat-minimize is set.") },
+    { DOC("dba-simul", "Set to 1 to enable simulation-based reduction after \
+running the powerset determinization enabled by \"tba-det\".  By default this \
+is disabled at low level or if parameter \"simul\" is set to 0.") },
     { DOC("sat-minimize",
           "Set to a value between 1 and 4 to enable SAT-based minimization \
 of deterministic ω-automata.  If the input has n states, a SAT solver is \

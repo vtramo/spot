@@ -69,13 +69,14 @@ namespace spot
         degen_lowinit_ = opt->get("degen-lowinit", 0);
         degen_remscc_ = opt->get("degen-remscc", 1);
         det_scc_ = opt->get("det-scc", 1);
-        det_simul_ = opt->get("det-simul", 1);
+        det_simul_ = opt->get("det-simul", -1);
         det_stutter_ = opt->get("det-stutter", 1);
         det_max_states_ = opt->get("det-max-states", -1);
         det_max_edges_ = opt->get("det-max-edges", -1);
         simul_ = opt->get("simul", -1);
         simul_method_ = opt->get("simul-method", -1);
         dpa_simul_ = opt->get("dpa-simul", -1);
+        dba_simul_ = opt->get("dba-simul", -1);
         scc_filter_ = opt->get("scc-filter", -1);
         ba_simul_ = opt->get("ba-simul", -1);
         tba_determinisation_ = opt->get("tba-det", 0);
@@ -266,9 +267,14 @@ namespace spot
     if (simul_ < 0)
       simul_ = (level_ == Low) ? 1 : 3;
     if (ba_simul_ < 0)
-      ba_simul_ = (level_ == High) ? 3 : 0;
+      ba_simul_ = (level_ == High) ? simul_ : 0;
+    int detaut_simul_default = (level_ != Low && simul_ > 0) ? 1 : 0;
     if (dpa_simul_ < 0)
-      dpa_simul_ = (level_ != Low) ? 1 : 0;
+      dpa_simul_ = detaut_simul_default;
+    if (dba_simul_ < 0)
+      dba_simul_ = detaut_simul_default;
+    if (det_simul_ < 0)
+      det_simul_ = simul_ > 0;
     if (scc_filter_ < 0)
       scc_filter_ = 1;
     if (type_ == BA)
@@ -530,7 +536,7 @@ namespace spot
             // There is no point in running the reverse simulation on
             // a deterministic automaton, since all prefixes are
             // unique.
-            dba = simulation(tmp);
+            dba = do_simul(tmp, dba_simul_);
           }
         if (dba && PREF_ == Deterministic)
           {

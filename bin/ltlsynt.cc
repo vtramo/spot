@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2017-2020 Laboratoire de Recherche et Développement
+// Copyright (C) 2017-2021 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -587,11 +587,10 @@ int
 main(int argc, char **argv)
 {
   return protected_main(argv, [&] {
-      extra_options.set("simul", 0);
-      extra_options.set("ba-simul", 0);
-      extra_options.set("det-simul", 0);
-      extra_options.set("tls-impl", 1);
-      extra_options.set("wdba-minimize", 2);
+      extra_options.set("simul", 0);     // no simulation, except...
+      extra_options.set("dpa-simul", 1); // ... after determinization
+      extra_options.set("tls-impl", 1);  // no automata-based implication check
+      extra_options.set("wdba-minimize", 2); // minimize only syntactic oblig
       const argp ap = { options, parse_opt, nullptr,
                         argp_program_doc, children, nullptr, nullptr };
       if (int err = argp_parse(&ap, argc, argv, ARGP_NO_HELP, nullptr, nullptr))
