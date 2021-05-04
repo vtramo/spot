@@ -22,6 +22,7 @@
 #include <spot/misc/common.hh>
 #include <spot/misc/tmpfile.hh>
 #include <vector>
+#include <deque>
 #include <stdexcept>
 #include <iosfwd>
 #include <initializer_list>
@@ -84,6 +85,10 @@ namespace spot
 
     /// \brief Add a list of lit. to the current clause.
     void add(std::initializer_list<int> values);
+
+    /// \brief Add a container of lits possibly defining
+    ///        multiple clauses.
+    void add(const std::deque<int>& values);
 
     /// \brief Add a single lit. to the current clause.
     void add(int v);
