@@ -242,9 +242,9 @@ namespace spot
       return aigvar2bdd(gate_var(i, neg));
     }
 
-    bdd aigvar2bdd(unsigned v) const
+    bdd aigvar2bdd(unsigned v, bool neg = false) const
     {
-      return var2bdd_.at(v);
+      return neg ? bdd_not(var2bdd_.at(v)) : var2bdd_.at(v);
     }
 
     void set_output(unsigned i, unsigned v);
@@ -281,10 +281,16 @@ namespace spot
 
     // Takes a bdd, computes the corresponding literal
     // using its INF
+    unsigned bdd2INFvar(bdd b);
+
+    // Parser an aiger from an aig file.
+    // However the syntax is restricted
     static aig_ptr parse_aag(const std::string& aig_txt,
                              bdd_dict_ptr dict = make_bdd_dict());
 
-    unsigned bdd2INFvar(bdd b);
+    // Transform an Aiger into an euqivalent monitor/strategy
+    twa_graph_ptr aig2aut(bool keepsplit = false) const;
+
   };
 
   SPOT_API std::ostream &

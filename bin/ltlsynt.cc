@@ -57,7 +57,8 @@ enum
   OPT_PRINT_AIGER,
   OPT_PRINT_HOA,
   OPT_REAL,
-  OPT_VERBOSE
+  OPT_VERBOSE,
+  OPT_VERIFY
 };
 
 static const argp_option options[] =
@@ -95,6 +96,8 @@ static const argp_option options[] =
       "if-the-else normal form.", 0},
     { "verbose", OPT_VERBOSE, nullptr, 0,
       "verbose mode", -1 },
+    { "verify", OPT_VERIFY, nullptr, 0,
+       "verifies the strategy or (if demanded) aiger against the spec.", -1 },
     { "csv", OPT_CSV, "[>>]FILENAME", OPTION_ARG_OPTIONAL,
       "output statistics as CSV in FILENAME or on standard output "
       "(if '>>' is used to request append mode, the header line is "
@@ -130,6 +133,7 @@ static bool opt_print_pg = false;
 static bool opt_print_hoa = false;
 static const char* opt_print_hoa_args = nullptr;
 static bool opt_real = false;
+static bool opt_do_verify = false;
 static const char* opt_print_aiger = nullptr;
 static spot::option_map extra_options;
 
@@ -222,15 +226,17 @@ namespace
               out << ",\"strat2aut_time\"";
             out << ",\"realizable\""; //-1: Unknown, 0: Unreal, 1: Real
           }
-        out << ",\"dpa_num_states\",\"parity_game_num_states\""
-            << '\n';
+        out << ",\"dpa_num_states\",\"parity_game_num_states\"";
+        if (opt_print_aiger)
+            out << ",\"nb latches\",\"nb gates\"";
+        out << '\n';
       }
     std::ostringstream os;
     os << f;
     spot::escape_rfc4180(out << '"', os.str());
     out << "\",\"" << solver_names[(int) gi.s]
-        << "\"," << bv->trans_time
-        << ',' << bv->total_time
+        << "\"," << bv->total_time
+        << ',' << bv->trans_time
         << ',' << bv->split_time
         << ',' << bv->paritize_time;
     if (!opt_print_pg && !opt_print_hoa)
@@ -241,8 +247,13 @@ namespace
         out << ',' << bv->realizable;
       }
     out << ',' << bv->nb_states_arena
-        << ',' << bv->nb_states_parity_game
-        << '\n';
+        << ',' << bv->nb_states_parity_game;
+    if (opt_print_aiger)
+    {
+      out << "," << bv->nb_latches
+          << "," << bv->nb_gates;
+    }
+    out << '\n';
     outf.close(opt_csv);
   }
 
@@ -251,6 +262,9 @@ namespace
                 const std::set<std::string>& input_aps,
                 const std::set<std::string>& output_aps)
   {
+    //Negated specification if verify is demanded
+    spot::twa_graph_ptr neg_spec = nullptr;
+
     spot::stopwatch sw;
     if (gi.bv)
       sw.start();
@@ -264,6 +278,11 @@ namespace
 
     // We always need an arena, specific needs are passed via gi
     auto arena = spot::create_game(f, output_aps, extra_options, gi);
+    if (opt_do_verify)
+      {
+        spot::translator trans(arena->get_dict(), &extra_options);
+        neg_spec = trans.run(spot::formula::Not(f));
+      }
     // FIXME: Voir tout en bas
     // extra_options.report_unused_options();
     if (gi.bv)
@@ -300,19 +319,49 @@ namespace
         // We need the strategy automaton
         if (gi.bv)
           sw.start();
-        auto strat_aut = spot::create_strategy(arena, gi, extra_options);
+        auto strat_aut = spot::create_strategy(arena, extra_options, gi);
         if (gi.bv)
           gi.bv->strat2aut_time = sw.stop();
+
         if (opt_print_aiger)
-          spot::print_aiger(std::cout,
-                            spot::strategy_to_aig(strat_aut, opt_print_aiger,
-                                                  input_aps,
-                                                  output_aps), "circuit");
+          {
+            auto saig = spot::strategy_to_aig(strat_aut, opt_print_aiger,
+                                              input_aps,
+                                              output_aps);
+            if (gi.bv)
+              {
+                gi.bv->nb_latches = saig->num_latches();
+                gi.bv->nb_gates = saig->num_gates();
+              }
+            spot::print_aiger(std::cout, saig, "circuit");
+          }
         else
           {
             spot::process_timer timer;
             automaton_printer printer;
             printer.print(strat_aut, timer);
+          }
+
+        if (opt_do_verify)
+          {
+            // Test the strat
+            if (neg_spec->intersects(strat_aut))
+              throw std::runtime_error("Strategy and negated specification "
+                                       "do intersect -> strategy not OK.");
+            // Test the aiger
+            if (opt_print_aiger)
+              {
+                auto saig = spot::strategy_to_aig(strat_aut, opt_print_aiger,
+                                                  input_aps,
+                                                  output_aps);
+                auto saigaut = saig->aig2aut(false);
+                if (neg_spec->intersects(strat_aut))
+                  throw std::runtime_error("Aiger and negated specification "
+                                           "do intersect -> strategy not OK.");
+                std::cout << "#Circuit was verified\n";
+              }
+            else
+              std::cout << "/*Strategy was verified*/\n";
           }
       }
 
@@ -399,6 +448,9 @@ namespace
       gi.verbose_stream = &std::cerr;
       if (not gi.bv)
         gi.bv = spot::game_info::bench_var();
+      break;
+    case OPT_VERIFY:
+      opt_do_verify = true;
       break;
     case 'x':
       {

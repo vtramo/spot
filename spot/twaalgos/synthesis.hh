@@ -104,6 +104,8 @@ namespace spot
       double strat2aut_time = 0.0;
       unsigned nb_states_arena = 0;
       unsigned nb_states_parity_game = 0;
+      unsigned nb_latches = 0;
+      unsigned nb_gates = 0;
       bool realizable = false;
     };
 
@@ -141,17 +143,27 @@ namespace spot
   create_game(const formula& f,
               const std::set<std::string>& all_outs);
 
+  SPOT_API spot::twa_graph_ptr
+  create_game(const std::string& f,
+              const std::set<std::string>& all_outs);
+
+  SPOT_API spot::twa_graph_ptr
+  create_game(const std::string& f,
+              const std::set<std::string>& all_outs,
+              option_map& opt,
+              game_info& gi);
+
   SPOT_API bool
   solve_game(twa_graph_ptr arena, game_info& gi);
-
-  bool
-  solve_game(twa_graph_ptr arena);
 
   SPOT_API bool
   solve_game(twa_graph_ptr arena);
 
   SPOT_API twa_graph_ptr
-  create_strategy(twa_graph_ptr arena, game_info& gi, option_map& opt);
+  create_strategy(twa_graph_ptr arena, option_map& opt, game_info& gi);
+
+  SPOT_API twa_graph_ptr
+  create_strategy(twa_graph_ptr arena);
 
   SPOT_API twa_graph_ptr
   try_create_strategy_from_simple(formula f,
