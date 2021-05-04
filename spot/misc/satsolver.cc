@@ -175,6 +175,28 @@ namespace spot
     }
   }
 
+  void satsolver::add(const std::deque<int>& values)
+  {
+    if (psat_)
+      for (auto& v : values)
+        picosat_add(psat_, v);
+    else
+    {
+      for (auto& v : values)
+      {
+        if (xcnf_mode())
+          *xcnf_tmp_ << v << ' ';
+
+        *cnf_stream_ << v << ' ';
+        if (!v) // ..., 0)
+          end_clause();
+
+        if (nvars_ < v)
+          nvars_ = v;
+      }
+    }
+  }
+
   void satsolver::add(int v)
   {
     if (psat_)

@@ -46,6 +46,7 @@
 #include <spot/twaalgos/dualize.hh>
 #include <spot/twaalgos/remfin.hh>
 #include <spot/twaalgos/alternation.hh>
+#include <spot/twaalgos/game.hh>
 #include <spot/tl/hierarchy.hh>
 #include <spot/misc/satsolver.hh>
 
@@ -702,6 +703,537 @@ namespace spot
   }
 }
 
+namespace
+{
+  // Anonymous for minimize_mealy_fast
+  using namespace spot;
+
+  // Used to get the signature of the state.
+  typedef std::vector<bdd> vector_state_bdd;
+
+  // Get the list of state for each class.
+  typedef std::map<bdd, std::list<unsigned>,
+                   bdd_less_than>
+      map_bdd_lstate;
+
+  // This class helps to compare two automata in term of
+  // size.
+  struct automaton_size final
+  {
+    automaton_size()
+        : edges(0),
+          states(0)
+    {
+    }
+
+    automaton_size(const const_twa_graph_ptr &a)
+        : edges(a->num_edges()),
+          states(a->num_states())
+    {
+    }
+
+    void set_size(const const_twa_graph_ptr &a)
+    {
+      states = a->num_states();
+      edges = a->num_edges();
+    }
+
+    inline bool operator!=(const automaton_size &r)
+    {
+      return edges != r.edges || states != r.states;
+    }
+
+    inline bool operator<(const automaton_size &r)
+    {
+      if (states < r.states)
+        return true;
+      if (states > r.states)
+        return false;
+
+      if (edges < r.edges)
+        return true;
+      if (edges > r.edges)
+        return false;
+
+      return false;
+    }
+
+    inline bool operator>(const automaton_size &r)
+    {
+      if (states < r.states)
+        return false;
+      if (states > r.states)
+        return true;
+
+      if (edges < r.edges)
+        return false;
+      if (edges > r.edges)
+        return true;
+
+      return false;
+    }
+
+    int edges;
+    int states;
+  };
+
+  // TODO: This part is just a copy of a part of simulation.cc
+  class sig_calculator final
+  {
+  protected:
+    typedef std::map<bdd, bdd, bdd_less_than> map_bdd_bdd;
+    int acc_vars;
+    acc_cond::mark_t all_inf_;
+
+  public:
+
+    sig_calculator(twa_graph_ptr aut) : a_(aut),
+        po_size_(0),
+        all_class_var_(bddtrue),
+        record_implications_(nullptr)
+    {
+      unsigned ns = a_->num_states();
+      size_a_ = ns;
+      // Now, we have to get the bdd which will represent the
+      // class. We register one bdd by state, because in the worst
+      // case, |Class| == |State|.
+      unsigned set_num = a_->get_dict()
+                             ->register_anonymous_variables(size_a_ + 1, this);
+
+
+      bdd_initial = bdd_ithvar(set_num++);
+      bdd init = bdd_ithvar(set_num++);
+
+      used_var_.emplace_back(init);
+
+      // Initialize all classes to init.
+      previous_class_.resize(size_a_);
+      for (unsigned s = 0; s < size_a_; ++s)
+        previous_class_[s] = init;
+
+      // Put all the anonymous variable in a queue, and record all
+      // of these in a variable all_class_var_ which will be used
+      // to understand the destination part in the signature when
+      // building the resulting automaton.
+      all_class_var_ = init;
+      for (unsigned i = set_num; i < set_num + size_a_ - 1; ++i)
+      {
+        free_var_.push(i);
+        all_class_var_ &= bdd_ithvar(i);
+      }
+
+      relation_[init] = init;
+    }
+
+    // Reverse all the acceptance condition at the destruction of
+    // this object, because it occurs after the return of the
+    // function simulation.
+    virtual ~sig_calculator()
+    {
+      a_->get_dict()->unregister_all_my_variables(this);
+    }
+
+    // Update the name of the classes.
+    void update_previous_class()
+    {
+      std::list<bdd>::iterator it_bdd = used_var_.begin();
+
+      // We run through the map bdd/list<state>, and we update
+      // the previous_class_ with the new data.
+      for (auto &p : sorted_classes_)
+      {
+        // If the signature of a state is bddfalse (no
+        // edges) the class of this state is bddfalse
+        // instead of an anonymous variable. It allows
+        // simplifications in the signature by removing a
+        // edge which has as a destination a state with
+        // no outgoing edge.
+        if (p->first == bddfalse)
+          for (unsigned s : p->second)
+            previous_class_[s] = bddfalse;
+        else
+          for (unsigned s : p->second)
+            previous_class_[s] = *it_bdd;
+        ++it_bdd;
+      }
+    }
+
+    void main_loop()
+    {
+      unsigned int nb_partition_before = 0;
+      unsigned int nb_po_before = po_size_ - 1;
+
+      while (nb_partition_before != bdd_lstate_.size() || nb_po_before != po_size_)
+      {
+        update_previous_class();
+        nb_partition_before = bdd_lstate_.size();
+        nb_po_before = po_size_;
+        po_size_ = 0;
+        update_sig();
+        go_to_next_it();
+        // print_partition();
+      }
+      update_previous_class();
+    }
+
+    // Take a state and compute its signature.
+    bdd compute_sig(unsigned src)
+    {
+      bdd res = bddfalse;
+
+      for (auto &t : a_->out(src))
+      {
+        // to_add is a conjunction of the acceptance condition,
+        // the label of the edge and the class of the
+        // destination and all the class it implies.
+        bdd to_add = t.cond & relation_[previous_class_[t.dst]];
+
+        res |= to_add;
+      }
+      return res;
+    }
+
+    void update_sig()
+    {
+      bdd_lstate_.clear();
+      sorted_classes_.clear();
+      for (unsigned s = 0; s < size_a_; ++s)
+      {
+        bdd sig = compute_sig(s);
+        auto p = bdd_lstate_.emplace(std::piecewise_construct,
+                                     std::make_tuple(sig),
+                                     std::make_tuple());
+        p.first->second.emplace_back(s);
+        if (p.second)
+          sorted_classes_.emplace_back(p.first);
+      }
+    }
+
+    // This method renames the color set, updates the partial order.
+    void go_to_next_it()
+    {
+      int nb_new_color = bdd_lstate_.size() - used_var_.size();
+
+      // If we have created more partitions, we need to use more
+      // variables.
+      for (int i = 0; i < nb_new_color; ++i)
+      {
+        assert(!free_var_.empty());
+        used_var_.emplace_back(bdd_ithvar(free_var_.front()));
+        free_var_.pop();
+      }
+
+      // If we have reduced the number of partition, we 'free' them
+      // in the free_var_ list.
+      for (int i = 0; i > nb_new_color; --i)
+      {
+        assert(!used_var_.empty());
+        free_var_.push(bdd_var(used_var_.front()));
+        used_var_.pop_front();
+      }
+
+      assert((bdd_lstate_.size() == used_var_.size()) || (bdd_lstate_.find(bddfalse) != bdd_lstate_.end() && bdd_lstate_.size() == used_var_.size() + 1));
+
+      // This vector links the tuple "C^(i-1), N^(i-1)" to the
+      // new class coloring for the next iteration.
+      std::vector<std::pair<bdd, bdd>> now_to_next;
+      unsigned sz = bdd_lstate_.size();
+      now_to_next.reserve(sz);
+
+      std::list<bdd>::iterator it_bdd = used_var_.begin();
+
+      for (auto &p : sorted_classes_)
+      {
+        // If the signature of a state is bddfalse (no edges) the
+        // class of this state is bddfalse instead of an anonymous
+        // variable. It allows simplifications in the signature by
+        // removing an edge which has as a destination a state
+        // with no outgoing edge.
+        bdd acc = bddfalse;
+        if (p->first != bddfalse)
+          acc = *it_bdd;
+        now_to_next.emplace_back(p->first, acc);
+        ++it_bdd;
+      }
+
+      // Update the partial order.
+
+      // This loop follows the pattern given by the paper.
+      // foreach class do
+      // |  foreach class do
+      // |  | update po if needed
+      // |  od
+      // od
+
+      for (unsigned n = 0; n < sz; ++n)
+      {
+        bdd n_sig = now_to_next[n].first;
+        bdd n_class = now_to_next[n].second;
+        if (want_implications_)
+          for (unsigned m = 0; m < sz; ++m)
+          {
+            if (n == m)
+              continue;
+            if (bdd_implies(n_sig, now_to_next[m].first))
+            {
+              n_class &= now_to_next[m].second;
+              ++po_size_;
+            }
+          }
+        relation_[now_to_next[n].second] = n_class;
+      }
+    }
+
+  protected:
+    // The automaton which is reduced.
+    twa_graph_ptr a_;
+
+    // Implications between classes.
+    map_bdd_bdd relation_;
+
+    // Represent the class of each state at the previous iteration.
+    vector_state_bdd previous_class_;
+
+    // The list of states for each class at the current_iteration.
+    // Computed in `update_sig'.
+    map_bdd_lstate bdd_lstate_;
+    // The above map, sorted by states number instead of BDD
+    // identifier to avoid non-determinism while iterating over all
+    // states.
+    std::vector<map_bdd_lstate::const_iterator> sorted_classes_;
+
+    // The queue of free bdd. They will be used as the identifier
+    // for the class.
+    std::queue<int> free_var_;
+
+    // The list of used bdd. They are in used as identifier for class.
+    std::list<bdd> used_var_;
+
+    // Size of the automaton.
+    unsigned int size_a_;
+
+    // Used to know when there is no evolution in the partial order.
+    unsigned int po_size_;
+
+    // Whether to compute implications between classes.  This is costly
+    // and useless for deterministic automata.
+    bool want_implications_;
+
+    // All the class variable:
+    bdd all_class_var_;
+
+    // The flag to say if the outgoing state is initial or not
+    bdd bdd_initial;
+
+    bdd all_proms_;
+
+    automaton_size stat;
+
+    // const const_twa_graph_ptr original_;
+
+    std::vector<bdd> *record_implications_;
+  };
+
+  // This class is a tree where the root is ⊤ and a node implies its parent
+  class bdd_tree
+  {
+    bdd label;
+    unsigned state_;
+    std::vector<bdd_tree> children;
+
+  public:
+
+    bdd_tree() : label(bddtrue), state_(-1U) {}
+
+    bdd_tree(bdd value, unsigned state) : label(value), state_(state) {}
+
+    void add_child(bdd value, unsigned state, bool rec)
+    {
+      if (value == bddtrue)
+        {
+          assert(label == bddtrue);
+          state_ = state;
+        }
+      if (rec)
+        {
+          const unsigned nb_children = children.size();
+          for (unsigned i = 0; i < nb_children; ++i)
+            {
+              // If a child contains a BDD that implies the value, we need a
+              // recursive call
+              if (bdd_implies(value, children[i].label))
+                {
+                  children[i].add_child(value, state, rec);
+                  return;
+                }
+              else if (bdd_implies(children[i].label, value))
+                {
+                  bdd_tree new_node(value, state);
+                  // If a child contains a BDD that implies the value, we create a
+                  // new bdd_tree. It must contains all the children that imply
+                  // value
+                  std::vector<bdd_tree> removed;
+                  auto impl_filter = [value, &new_node](bdd_tree tree)
+                    {
+                      if (bdd_implies(tree.label, value) == 1)
+                        {
+                          new_node.children.push_back(tree);
+                          return true;
+                        }
+                      return false;
+                    };
+                  auto new_end = std::remove_if(children.begin() + i,
+                                                children.end(),
+                                                impl_filter);
+                  children.erase(new_end, children.end());
+                  children.push_back(new_node);
+                  return;
+                }
+            }
+        }
+      children.push_back(bdd_tree(value, state));
+    }
+
+    bdd
+    get_lowest_bdd()
+    {
+      if (children.size() == 0)
+        return label;
+      return children[0].get_lowest_bdd();
+    }
+
+    unsigned
+    flatten_aux(std::map<bdd, unsigned, bdd_less_than> &res)
+    {
+      if (children.size() == 0)
+        {
+          res.insert({label, state_});
+          return state_;
+        }
+      unsigned rep = children[0].flatten_aux(res);
+      res.insert({label, rep});
+      for (unsigned i = 1; i < children.size(); ++i)
+        children[i].flatten_aux(res);
+      return rep;
+    }
+
+    // Every node is associated to the state of a leaf
+    std::map<bdd, unsigned, bdd_less_than>
+    flatten()
+    {
+      std::map<bdd, unsigned, bdd_less_than> res;
+      flatten_aux(res);
+      return res;
+    }
+
+    void
+    print()
+    {
+      std::cout << "(" << this->label << ", " << this->state_ << ") : " << std::endl;
+      for (auto c : children)
+        std::cout << c.state_ << std::endl;
+      for (auto c : children)
+        c.print();
+    }
+  };
+
+  // Associate to a state a representative
+  std::vector<unsigned>
+  get_repres(twa_graph_ptr& a, bool rec)
+  {
+    const auto a_num_states = a->num_states();
+
+    std::vector<unsigned> repr;
+    repr.reserve(a_num_states);
+    bdd_tree tree;
+    std::unordered_set<bdd, spot::bdd_hash> bdd_done;
+    bdd_done.insert(bddtrue);
+    std::vector<bdd> signatures;
+    sig_calculator red(a);
+    red.main_loop();
+    for (unsigned i = 0; i < a_num_states; ++i)
+      {
+        bdd sig = red.compute_sig(i);
+        signatures.push_back(sig);
+        if (bdd_done.find(sig) == bdd_done.end())
+          {
+            tree.add_child(sig, i, rec);
+            bdd_done.insert(sig);
+          }
+      }
+    // tree.print();
+    auto repr_map = tree.flatten();
+    for (unsigned i = 0; i < a_num_states; ++i)
+      repr[i] = repr_map[signatures[i]];
+    return repr;
+  }
+}
+
+namespace spot
+{
+  twa_graph_ptr minimize_mealy_fast(const const_twa_graph_ptr& mm,
+                                    bool extra_fast)
+  {
+    auto mmc = make_twa_graph(mm, twa::prop_set::all());
+    mmc->copy_ap_of(mm);
+    mmc->copy_acceptance_of(mm);
+    minimize_mealy_fast_here(mmc, extra_fast);
+    // Try to set outputs
+    if (bdd* outptr = mm->get_named_prop<bdd>("synthesis-outputs"))
+      mmc->set_named_prop("synthesis-outputs", new bdd(*outptr));
+    return mmc;
+  }
+
+  void minimize_mealy_fast_here(twa_graph_ptr& mm, bool extra_fast)
+  {
+    // Only consider infinite runs
+    mm->purge_dead_states();
+
+    if (mm->num_states() == 1)
+      return;
+
+    auto repr = get_repres(mm, !extra_fast);
+    // Check if no reduction is possible
+    // This is the case if there are as many classes and states
+    // and in this case each state simply represents itself
+    {
+      bool has_reduc = false;
+      for (size_t i = 0; i < repr.size(); ++i)
+        if (repr[i] != i)
+          {
+            has_reduc = true;
+            break;
+          }
+      if (!has_reduc)
+        return;
+    }
+
+    auto init = repr[mm->get_init_state_number()];
+    mm->set_init_state(init);
+    std::stack<unsigned> todo;
+    std::vector<bool> done(mm->num_states(), false);
+    todo.emplace(init);
+    while (!todo.empty())
+      {
+        auto current = todo.top();
+        todo.pop();
+        done[current] = true;
+        for (auto& e : mm->out(current))
+          {
+            if (e.dst == current)
+              continue;
+            auto repr_dst = repr[e.dst];
+            e.dst = repr_dst;
+            if (!done[repr_dst])
+              todo.emplace(repr_dst);
+          }
+      }
+    mm->purge_dead_states();
+  }
+}
+
+
+
 // Anonymous for mealy minimization
 namespace
 {
@@ -709,16 +1241,22 @@ namespace
 
   struct info_struct_t
   {
+    double t_premin;
     double red_split;
     double incomp;
-    double build_cnf;
+    double build_cover;
+    double build_closure;
+    double sat_part_time;
     double sat_time;
     double build_time;
     unsigned sigma;
     unsigned sigma_red;
     unsigned n_trans;
+    unsigned n_part_vars;
     unsigned n_vars;
+    unsigned n_part_clauses;
     unsigned n_clauses;
+    int part_feas;
   }info_struct;
 
   template<class IT>
@@ -889,15 +1427,6 @@ namespace
                                     used_bdds[a]);
             }
         }
-      // Debug
-#ifdef TRACE
-      for (unsigned x = 0; x < (mm->num_states() - n_player); ++x)
-        {
-          for (const auto& e : splitmm->out(x))
-            trace << e.src << " - " << e.cond << " > " << e.dst << "; ";
-          trace << std::endl;
-        }
-#endif
 
       // Compute a further reduction
       // If there exist two letters a and b such that
@@ -905,12 +1434,28 @@ namespace
       // (including unspecified behaviour)
       // then we can use solely a or b in the sat problem
       // Note: Only in the sat, not to determine the incomp matrix
+//      auto vctr_hash = [](const auto& v) -> size_t
+//        {
+//          size_t h = wang32_hash(v.size());
+//          for (auto e : v)
+//            h = wang32_hash(h ^ ((size_t) e));
+//          return h;
+//        };
       auto vctr_hash = [](const auto& v) -> size_t
         {
-          size_t h = wang32_hash(v.size());
-          for (auto e : v)
-            h = wang32_hash(h ^ ((size_t) e));
-          return h;
+          size_t vs = v.size();
+          size_t h = wang32_hash(vs);
+          size_t hh;
+          for (size_t i = 0; i < vs; i += 3)
+            {
+              hh = v[i];
+              hh <<= 20;
+              hh += v[i+1];
+              hh <<= 20;
+              hh += v[i+2];
+              h = h ^ wang32_hash(hh);
+            }
+          return wang32_hash(h);
         };
 
       std::unordered_multimap<size_t, std::pair<unsigned, std::vector<unsigned>>> tgt_map;
@@ -988,22 +1533,46 @@ namespace
   // Helper structures
   // Todo add symmetrie
    template<class T>
-  struct square_matrix
+  class square_matrix: private std::vector<T>
   {
   private:
-    std::vector<T> storage_;
-    const size_t dim_;
+    size_t dim_;
 
   public:
+//    square_matrix(const square_matrix& other) = default;
+//    square_matrix& operator=(const square_matrix& other)
+//    {
+//      std::vector<T>::operator=(other);
+//      dim_ = other.dim_;
+//      return *this;
+//    }
+//    square_matrix& operator=(square_matrix&& other)
+//    {
+//      std::vector<T>::operator=(std::move(other));
+//      dim_ = other.dim_;
+//      return *this;
+//    }
+//
+    square_matrix()
+      : std::vector<T>()
+      , dim_(0)
+    {}
+
     square_matrix(size_t dim)
-      :  storage_(dim*dim)
+      :  std::vector<T>(dim*dim)
       ,  dim_{dim}
     {}
 
     square_matrix(size_t dim, T t)
-      :  storage_(dim*dim, t)
+      :  std::vector<T>(dim*dim, t)
       ,  dim_{dim}
     {}
+
+    using typename std::vector<T>::value_type;
+    using typename std::vector<T>::size_type;
+    using typename std::vector<T>::difference_type;
+    using typename std::vector<T>::iterator;
+    using typename std::vector<T>::const_iterator;
 
     inline size_t dim() const
     {
@@ -1012,23 +1581,38 @@ namespace
     // i: row number
     // j: column number
     // Stored in row major
+    inline size_t idx_(size_t i, size_t j) const
+    {
+      return i * dim_ + j;
+    }
     inline size_t idx(size_t i, size_t j) const
       {
         assert(i<dim_ && j<dim_);
-        return i*dim_ + j;
+        return idx_(i,j);
       }
     inline T operator()(size_t i, size_t j) const
     {
-      return storage_.at(idx(i, j));
+      return this->at(idx(i, j));
     }
     inline T& operator()(size_t i, size_t j)
     {
-      return storage_.at(idx(i, j));
+      return this->at(idx(i, j));
     }
-    const std::vector<T>& storage() const
+    std::pair<const_iterator, const_iterator> get_cline(size_t i) const
     {
-      return storage_;
+      assert(i < dim_);
+      return {cbegin() + idx(i, 0), cbegin() + idx_(i+1, 0)};
     }
+    std::pair<iterator, iterator> get_line(size_t i)
+    {
+      assert(i < dim_);
+      return {begin() + idx(i, 0), begin() + idx_(i+1, 0)};
+    }
+    using std::vector<T>::begin;
+    using std::vector<T>::cbegin;
+    using std::vector<T>::end;
+    using std::vector<T>::cend;
+
     void print() const
     {
       for (size_t i = 0; i < dim_; ++i)
@@ -1042,9 +1626,13 @@ namespace
 
   struct xi_t
   {
-    size_t hash() const
+    size_t hash() const noexcept
     {
-      return pair_hash()(std::make_pair(x, i));
+//      return pair_hash()(std::make_pair(x, i));
+      size_t h = x;
+      h <<= 32;
+      h += i;
+      return std::hash<size_t>()(h);
     }
     bool operator<(const xi_t& rhs) const
     {
@@ -1059,7 +1647,7 @@ namespace
   };
   struct hash_xi
   {
-    size_t operator()(const xi_t& xi) const
+    size_t operator()(const xi_t& xi) const noexcept
       {
         return xi.hash();
       }
@@ -1081,11 +1669,17 @@ namespace
 
   struct iaj_t
   {
-    size_t hash() const
+    size_t hash() const noexcept
     {
-      pair_hash ph;
-      size_t h = ph(std::make_pair(i, a));
-      return ph(std::make_pair(h, j));
+//      pair_hash ph;
+//      size_t h = ph(std::make_pair(i, a));
+//      return ph(std::make_pair(h, j));
+      size_t h = i;
+      h <<= 21;
+      h += a;
+      h <<= 20;
+      h += j;
+      return std::hash<size_t>()(h);
     }
     bool operator==(const iaj_t& rhs) const
     {
@@ -1100,7 +1694,7 @@ namespace
   };
   struct hash_iaj
   {
-    size_t operator()(const iaj_t& iaj) const
+    size_t operator()(const iaj_t& iaj) const noexcept
       {
         return iaj.hash();
       }
@@ -1305,27 +1899,37 @@ namespace
     return incompmat;
   }
 
+  struct part_sol_t
+  {
+    std::set<unsigned> psol_s; //Keep two copies for access and look-up
+    std::vector<unsigned> psol_v;
+    std::vector<unsigned> incompvec;
+  };
+
   template <class MAT>
-  std::vector<unsigned> get_part_sol(const MAT& incompmat)
+  part_sol_t get_part_sol(const MAT& incompmat)
   {
     // Use the "most" incompatible states as partial sol
     unsigned n_states = incompmat.dim();
     std::vector<std::pair<unsigned, size_t>> incompvec(n_states);
 
     // square_matrix is row major!
-    auto istore_beg = incompmat.storage().begin();
     for (size_t ns = 0; ns < n_states; ++ns)
-      incompvec[ns] = {ns,
-                       std::count(istore_beg+ns*n_states,
-                                  istore_beg+ns*n_states+n_states,
-                                  true)};
+      {
+        auto line_it = incompmat.get_cline(ns);
+        incompvec[ns] = {ns,
+                         std::count(line_it.first,
+                                    line_it.second,
+                                    true)};
+      }
 
     // Sort in reverse order
     std::sort(incompvec.begin(), incompvec.end(),
               [](const auto& p1, const auto& p2)
                 {return p1.second > p2.second;});
 
-    std::vector<unsigned> part_sol;
+    part_sol_t part_sol_p;
+    auto& part_sol = part_sol_p.psol_v;
     part_sol.reserve(n_states/2);
     // Add states that are incompatible with ALL states in part_sol
     for (auto& p : incompvec)
@@ -1338,10 +1942,121 @@ namespace
                           }))
           part_sol.push_back(ns);
       }
-    // Sort part_sol in ascending order
     std::sort(part_sol.begin(), part_sol.end());
-    return part_sol;
+    //Also construct the set
+    std::for_each(part_sol.begin(), part_sol.end(),
+                  [&psols  = part_sol_p.psol_s](auto s)
+                  {
+                    psols.emplace_hint(psols.end(), s);
+                  });
+
+    // Also store the states in their compatibility order
+    auto& part_sol_i = part_sol_p.incompvec;
+    part_sol_i.reserve(n_states);
+    std::for_each(incompvec.begin(), incompvec.end(),
+                  [&part_sol_i](auto&p ){part_sol_i.push_back(p.first);});
+    return part_sol_p;
   }
+
+  struct greedy_cover_t
+  {
+    // Rows -> classes
+    // Cols -> Incomp state
+    //(i,j) == 1 -> state j can not be in class i
+    const square_matrix<uint8_t>& incomp_ref_;
+    unsigned n_classes_;
+    const part_sol_t& partsol_;
+    unsigned idx_distrib; // Number of states already treated
+    square_matrix<uint8_t> incomp_classes;
+
+    greedy_cover_t(const square_matrix<uint8_t>& incomp_ref,
+                   unsigned n_classes,
+                   const part_sol_t& partsol)
+      : incomp_ref_(incomp_ref)
+      , n_classes_(n_classes)
+      , partsol_(partsol)
+      , idx_distrib(0)
+    {
+      // Check if we can build a greedy cover
+      // using n_classes_
+      assert(n_classes_ >= partsol_.psol_v.size());
+      if (n_classes_ == incomp_ref_.dim())
+        // In this case we do not need to build anything
+        // as no minimization is possible
+        idx_distrib = incomp_ref_.dim();
+      else
+        {
+          assert(n_classes_ < incomp_ref_.dim());
+          incomp_classes = square_matrix<uint8_t>(incomp_ref.dim());
+
+          //First use the partial solution
+          size_t n_psol = partsol_.psol_v.size();
+          for (unsigned i = 0; i < n_psol; ++i)
+            {
+              auto cline_it = incomp_ref_.get_cline(partsol.psol_v[i]);
+              std::copy(cline_it.first, cline_it.second,
+                        incomp_classes.get_line(i).first);
+            }
+
+          // (Try to) distribute the remaining states
+          while (add_one());
+        }
+    }
+
+    bool add_one()
+    {
+      assert(incomp_classes.dim() == incomp_ref_.dim());
+      // Get the next state that was not part of
+      // the partial solution and add it to some class
+      // if this did not succeed return false
+      while (partsol_.psol_s.count(idx_distrib) != 0)
+        ++idx_distrib;
+      if (idx_distrib >= incomp_ref_.dim())
+        return false;
+
+      // Search for a compatible class
+      // and add the state
+      unsigned iclass = -1u;
+      for ( unsigned i = 0; i < n_classes_; ++i)
+      {
+          std::cout << i << " " << idx_distrib << " " << incomp_classes.dim() << " " << n_classes_ << "\n";
+          if (!incomp_classes(i, idx_distrib))
+            {
+              iclass = i;
+              break;
+            }
+        }
+      if (iclass == -1u)
+        // Could not find a suitable class
+        return false;
+      // Put idx_distrib into iclass
+      // This means that this class becomes incompatible
+      // with all state incompatible with idx_distrib
+      auto [l_dist, l_dist_e] = incomp_ref_.get_cline(idx_distrib);
+      auto [l_incomp, l_incomp_e] = incomp_classes.get_line(iclass);
+      for (; l_incomp != l_incomp_e; ++l_incomp, ++l_dist)
+        *l_incomp |= *l_dist;
+      ++idx_distrib;
+      return true;
+    }
+
+    bool inc_classes()
+    {
+      if (feasible())
+        return true;
+      assert(n_classes_ < incomp_ref_.dim());
+      ++n_classes_;
+      while (add_one());
+      return feasible();
+    }
+
+    bool feasible() const
+    {
+      // All states have been distributed
+      return idx_distrib >= incomp_ref_.dim();
+    }
+
+  };
 
 #define USE_OPT_LIT
 #ifdef USE_OPT_LIT
@@ -1354,6 +2069,8 @@ namespace
     bool frozen_xi_, frozen_iaj_;
     std::unordered_map<xi_t, int, hash_xi, equal_to_xi> sxi_map_;//xi -> lit
     std::unordered_map<iaj_t, int, hash_iaj, equal_to_iaj> ziaj_map_;//iaj -> lit
+
+    std::deque<int> all_clauses_;
 
     lit_mapper(std::weak_ptr<satsolver> S, unsigned n_classes,
                unsigned n_env, unsigned n_sigma_red)
@@ -1377,7 +2094,7 @@ namespace
       assert(!frozen_xi_ || !inserted);
       if (inserted)
         {
-          S_->adjust_nvars(next_var_); // Does this have to be consistent or set once?
+//          S_->adjust_nvars(next_var_); // Does this have to be consistent or set once?
           ++next_var_;
         }
       return it->second;
@@ -1414,7 +2131,7 @@ namespace
       assert(!frozen_iaj_ || !inserted);
       if (inserted)
         {
-          S_->adjust_nvars(next_var_); // Does this have to be consistent or set once?
+//          S_->adjust_nvars(next_var_); // Does this have to be consistent or set once?
           ++next_var_;
         }
       return it->second;
@@ -1446,6 +2163,26 @@ namespace
       frozen_iaj_ = false;
       S_ = Sw_.lock();
     }
+
+    void add(int v)
+    {
+      all_clauses_.push_back(v);
+    }
+
+    void add(std::initializer_list<int> l)
+    {
+      for(auto&& v : l)
+        add(v);
+    }
+
+    void finalize()
+    {
+      S_ = Sw_.lock();
+      S_->adjust_nvars(next_var_ - 1);
+      S_->add(all_clauses_);
+      S_ = nullptr;
+      all_clauses_.clear();
+    }
   };
 #else
   struct lit_mapper
@@ -1470,7 +2207,6 @@ namespace
       return sxi2lit(xi);
     }
 
-
     int ziaj2lit(iaj_t iaj) const
     {
       assert(iaj.i < n_classes_);
@@ -1483,6 +2219,7 @@ namespace
     {
       return ziaj2lit(iaj);
     }
+
   };
 #endif
 
@@ -1492,10 +2229,11 @@ namespace
   auto try_build_sol(const const_twa_graph_ptr &splitmm,
                      const std::deque<bdd>& used_bdds,
                      const MAT& incompmat,
-                     const std::vector<unsigned>& s_partsol,
+                     const part_sol_t& partsol,
+                     const greedy_cover_t& gc,
                      const std::vector<std::pair<unsigned, unsigned>>& reduction_map,
                      const size_t n_classes, const size_t n_sigma_red) {
-    assert(s_partsol.size() <= n_classes);
+    assert(partsol.psol_v.size() <= n_classes);
     stopwatch sw;
     sw.start();
     // we have two types of literals:
@@ -1508,8 +2246,9 @@ namespace
     // solution Z_i_a_j : All states in i go to j under a
     // -> less than |Sigma|*n_classes^2
     // 0 -> Terminal lit
+    const auto& psol_v = partsol.psol_v;
     const size_t n_env = incompmat.dim();
-    const size_t n_psol = s_partsol.size();
+    const size_t n_psol = psol_v.size();
     const size_t n_sigma = reduction_map.size();
     trace << "n_psol " << n_psol << '\n';
 
@@ -1526,8 +2265,9 @@ namespace
     // Order does not matter -> s_part_sol[0] -> get class 0
     for (unsigned i = 0; i < n_psol; ++i)
       {
-        S.add({lm.sxi2lit({s_partsol[i], i}), 0});
-        printlit({lm.sxi2lit({s_partsol[i], i}), 0});
+//        S.add({lm.sxi2lit({psol_v[i], i}), 0});
+        lm.add({lm.sxi2lit({psol_v[i], i}), 0});
+        printlit({lm.sxi2lit({psol_v[i], i}), 0});
       }
 
     // Covering condition
@@ -1537,14 +2277,16 @@ namespace
       {
         for (unsigned i = 0; i < n_classes; ++i)
           {
-            if ((i < n_psol) && incompmat(s_partsol[i], x))
+            if ((i < n_psol) && incompmat(psol_v[i], x))
               // Skip this literal
               continue;
-            S.add(lm.sxi2lit({x, i}));
+//            S.add(lm.sxi2lit({x, i}));
+            lm.add(lm.sxi2lit({x, i}));
             printlit({lm.sxi2lit({x, i})});
           }
         // terminate clause
-        S.add(0);
+//        S.add(0);
+        lm.add(0);
         printlit({0});
       }
 
@@ -1554,9 +2296,10 @@ namespace
     trace << "Icomp 1\n";
     for (unsigned i = 0; i < n_psol; ++i)
       for (unsigned x = 0; x < n_env; ++x)
-        if (incompmat(s_partsol[i], x))
+        if (incompmat(psol_v[i], x))
           {
-            S.add({-lm.sxi2lit({x, i}), 0}); // x can not be in class i
+//            S.add({-lm.sxi2lit({x, i}), 0}); // x can not be in class i
+            lm.add({-lm.sxi2lit({x, i}), 0}); // x can not be in class i
             printlit({-lm.sxi2lit({x, i}), 0});
           }
     // All sxi exist now
@@ -1571,20 +2314,49 @@ namespace
       for (unsigned i = 0; i < n_classes; ++i)
         {
           // Check possible partial sol
-          if (i < n_psol && incompmat(s_partsol[i], x))
+          if (i < n_psol && incompmat(psol_v[i], x))
             continue; // Already taken care of in step 1
           // Get all the incompatible states
           for (unsigned y = x + 1; y < n_env; ++y)
             {
-              if (i < n_psol && incompmat(s_partsol[i], y))
+              if (i < n_psol && incompmat(psol_v[i], y))
                 continue; // Already taken care of in step 1
               if (incompmat(x, y))
                 {
-                  S.add({-lm.sxi2lit({x, i}), -lm.sxi2lit({y, i}), 0});
+//                  S.add({-lm.sxi2lit({x, i}), -lm.sxi2lit({y, i}), 0});
+                  lm.add({-lm.sxi2lit({x, i}), -lm.sxi2lit({y, i}), 0});
                   printlit({-lm.sxi2lit({x, i}), -lm.sxi2lit({y, i}), 0});
                 }
             }
         }
+
+    info_struct.build_cover = sw.stop();
+
+    // Check if the greedy cover exists, if not check
+    // if there can be a solution
+    info_struct.part_feas = -1;
+    if (!gc.feasible())
+      {
+        info_struct.part_feas = 1;
+        lm.finalize();
+        trace << "#partial prob\np cnf " << S.get_nb_vars()
+              << " " << S.get_nb_clauses()
+              << std::endl;
+        info_struct.n_part_vars = S.get_nb_vars();
+        info_struct.n_part_clauses = S.get_nb_clauses();
+
+        // Solve it
+        sw.start();
+        auto solpair = S.get_solution();
+        info_struct.sat_part_time = sw.stop();
+        if (solpair.second.empty())
+          {
+            // The partial prob is infeas -> early exit
+            info_struct.part_feas = 0;
+            return std::make_tuple(false, solpair.second, lm);
+          }
+      }
+    sw.start();
 
     // Closure condition
     // List of possible successor classes
@@ -1639,7 +2411,7 @@ namespace
                 if (edge_it[isrc].first->cond.id() != abddid)
                   // No successor for this letter
                   continue;
-                if ((i < n_psol) && (incompmat(isrc, s_partsol[i])))
+                if ((i < n_psol) && (incompmat(isrc, psol_v[i])))
                   continue; // isrc can not be in i
                 unsigned dst = get_dst(edge_it[isrc].first);
                 // Check all target classes
@@ -1647,7 +2419,7 @@ namespace
                   {
                     if (succ_classes[j])
                       continue;//Already possible
-                    if ((j < n_psol) && incompmat(s_partsol[j], dst))
+                    if ((j < n_psol) && incompmat(psol_v[j], dst))
                       continue;//dst can not be in class j
                     succ_classes[j] = true;
                   }
@@ -1668,11 +2440,13 @@ namespace
               {
                 if (succ_classes[j])
                   {
-                    S.add(lm.ziaj2lit({i, aidx, j}));
+//                    S.add(lm.ziaj2lit({i, aidx, j}));
+                    lm.add(lm.ziaj2lit({i, aidx, j}));
                     printlit({lm.ziaj2lit({i, aidx, j})});
                   }
               }
-            S.add(0);
+//            S.add(0);
+            lm.add(0);
             printlit({0});
             lm.freeze_iaj();
 
@@ -1691,12 +2465,14 @@ namespace
                       continue;
                     // If src can not be in i -> skip
                     unsigned x = eit.first->src;
-                    if ((i < n_psol) && incompmat(s_partsol[i], x))
+                    if ((i < n_psol) && incompmat(psol_v[i], x))
                       continue;
                     unsigned xprime = get_dst(eit.first);
                     // Add the clause
-                    S.add({-lm.ziaj2lit({i, aidx, j}),
-                           -lm.sxi2lit({x, i}), lm.sxi2lit({xprime, j}), 0});
+//                    S.add({-lm.ziaj2lit({i, aidx, j}),
+//                           -lm.sxi2lit({x, i}), lm.sxi2lit({xprime, j}), 0});
+                    lm.add({-lm.ziaj2lit({i, aidx, j}),
+                            -lm.sxi2lit({x, i}), lm.sxi2lit({xprime, j}), 0});
                     printlit({-lm.ziaj2lit({i, aidx, j}),
                               -lm.sxi2lit({x, i}), lm.sxi2lit({xprime, j}), 0});
                   }
@@ -1710,7 +2486,8 @@ namespace
                            return ((eit.first == eit.second)
                                    || ((++eit.first) == eit.second));
                        }));
-    info_struct.build_cnf = sw.stop();
+    lm.finalize();
+    info_struct.build_closure = sw.stop();
     trace << "p cnf " << S.get_nb_vars() << " " << S.get_nb_clauses()
           << std::endl;
     info_struct.n_vars = S.get_nb_vars();
@@ -1742,12 +2519,12 @@ namespace
   auto try_build_sol(const const_twa_graph_ptr& splitmm,
                      const std::deque<bdd>& used_bdds,
                      const MAT& incompmat,
-                     const std::vector<unsigned>& s_partsol,
+                     const part_sol_t& partsol,
                      const std::vector<std::pair<unsigned, unsigned>>& reduction_map,
                      const size_t n_classes,
                      const size_t n_sigma_red)
   {
-    assert(s_partsol.size() <= n_classes);
+    assert(partsol.psol_v.size() <= n_classes);
     // we have two types of literals:
     // Note: Sigma is the reduced alphabet
     // s_x_i: state x is in class i
@@ -1761,8 +2538,9 @@ namespace
     // Z_i_a_j -> 1 + |Q|*n_classes + i*|Sigma|*n_classes + #(a)*n_classes + j
     // Note that this is an upper bound as not all states
     // have successors under all letters
+    const auto& psol_v = partsol.psol_v;
     const size_t n_env = incompmat.dim();
-    const size_t n_psol = s_partsol.size();
+    const size_t n_psol = psol_v.size();
     const size_t n_sigma = reduction_map.size();
     trace << "n_psol " << n_psol << '\n';
 
@@ -1787,8 +2565,8 @@ namespace
     // Order does not matter -> s_part_sol[0] -> get class 0
     for (unsigned i = 0; i < n_psol; ++i)
       {
-        S.add({lm.sxi2lit({s_partsol[i], i}), 0});
-        printlit({lm.sxi2lit({s_partsol[i], i}), 0});
+        S.add({lm.sxi2lit({psol_v[i], i}), 0});
+        printlit({lm.sxi2lit({psol_v[i], i}), 0});
       }
 
     // Base
@@ -1910,24 +2688,26 @@ namespace
   bool check_sat_sol(
                      const MAT& incompmat,
                      const lit_mapper& lm,
-                     const std::vector<unsigned>& s_partsol,
+                     const part_sol_t& partsol,
                      const size_t n_classes,
                      const size_t n_sigma_red,
                      const std::vector<bool>& sol)
   {
+    const auto& psol_v = partsol.psol_v;
+
     const size_t n_env = incompmat.dim();
-    const size_t n_psol = s_partsol.size();
+    const size_t n_psol = psol_v.size();
 
     // Check partial sol
     for (unsigned i = 0; i < n_psol; ++i)
-      assert(sol[lm.sxi2lit({s_partsol[i], i})] && "pSol violated.");
+      assert(sol[lm.sxi2lit({psol_v[i], i})] && "pSol violated.");
 
     // Check covering for state not in a
     // partial solution
     for (unsigned x = 0; x < n_env; ++x)
       {
-        if (std::find(s_partsol.begin(), s_partsol.end(), x)
-            != s_partsol.end())
+        if (std::find(psol_v.begin(), psol_v.end(), x)
+            != psol_v.end())
           continue;
         bool covered = false;
         for (unsigned i = 0; i < n_classes; ++i)
@@ -1938,7 +2718,7 @@ namespace
               }
             catch (const std::out_of_range&)
               {
-                assert(incompmat(s_partsol[i], x));
+                assert(incompmat(psol_v[i], x));
               }
           }
         assert(covered && "Cover violated!");
@@ -2119,7 +2899,7 @@ namespace
                          {return spref.at(e.src) != spref.at(e.dst); }));
     // Debug
     trace << "final env count " << n_classes << std::endl;
-    minmach->merge_edges();
+//    minmach->merge_edges();
     return minmach;
   }
 
@@ -2128,14 +2908,16 @@ namespace
       const const_twa_graph_ptr& splitmm,
       const std::deque<bdd>& used_bdds,
       const MAT& incompmat,
-      const std::vector<unsigned>& s_partsol,
+      const part_sol_t& partsol,
+      const greedy_cover_t& gc,
       const std::vector<std::pair<unsigned, unsigned>>&
           reduction_map,
       const size_t n_classes,
       const size_t n_sigma_red)
   {
     auto [succ, sol, lm] = try_build_sol(splitmm, used_bdds, incompmat,
-                                         s_partsol,
+                                         partsol,
+                                         gc,
                                          reduction_map,
                                          n_classes, n_sigma_red);
     // Debug
@@ -2144,7 +2926,7 @@ namespace
 
     if (succ)
       {
-        assert(check_sat_sol(incompmat, lm, s_partsol,
+        assert(check_sat_sol(incompmat, lm, partsol,
                              n_classes, n_sigma_red, sol));
         sw.start();
         auto minmach = cstr_min_machine(splitmm, used_bdds, lm, reduction_map,
@@ -2159,19 +2941,54 @@ namespace
 }//anonymous
 
 namespace spot{
-  twa_graph_ptr minimize_mealy(const const_twa_graph_ptr& mm)
+  twa_graph_ptr minimize_mealy(const const_twa_graph_ptr& mm,
+                               int preminfast)
     {
       static_assert(sizeof(unsigned) == 4);
       static_assert(sizeof(int) == 4);
       static_assert(sizeof(unsigned long long) == 8);
 
+      if ((preminfast < -1) || (preminfast > 1))
+        throw std::runtime_error("preminfast has to be -1, 0 or 1");
+
       stopwatch sw;
 
       if (!mm->acc().is_t())
         throw std::runtime_error("Mealy machine needs true acceptance!\n");
+
+      // Check if finite traces exist
+      // If so, deactivate fast minimization
+      if ([&]()
+          {
+            for (unsigned s = 0; s < mm->num_states(); ++s)
+              {
+                auto eit = mm->out(s);
+                if (eit.begin() == eit.end())
+                  return true;
+              }
+            return false;
+          }())
+        preminfast = -1;
+
+      auto do_premin = [&]()->const_twa_graph_ptr
+        {
+          if (preminfast == -1)
+            return mm;
+          else
+            {
+              auto mm_res = minimize_mealy_fast(mm, preminfast == 1);
+              alternate_players(mm_res, false, false);
+              return mm_res;
+            }
+        };
+
+      sw.start();
+      const const_twa_graph_ptr mmw = do_premin();
+      info_struct.t_premin = sw.stop();
+
       // 0 -> "Env" next is input props
       // 1 -> "Player" next is output prop
-      auto spptr = mm->get_named_prop<std::vector<bool>>("state-player");
+      auto spptr = mmw->get_named_prop<std::vector<bool>>("state-player");
       if (!spptr)
         throw std::runtime_error("\"state-player\" must be defined!");
       const auto& spref = *spptr;
@@ -2179,10 +2996,10 @@ namespace spot{
       // Compute the alphabet and create new edges
       // Also the machine is such that
       // [0, n_env[ -> env states
-      // [n_env, mm->num_states()[ -> player states
+      // [n_env, mmw->num_states()[ -> player states
       sw.start();
       auto [splitmm, used_bdds, reduction_map, n_env, n_sigma_red]
-          = reduce_and_split(mm, spref);
+          = reduce_and_split(mmw, spref);
       info_struct.red_split = sw.stop();
       info_struct.sigma = reduction_map.size();
       info_struct.sigma_red = n_sigma_red;
@@ -2195,44 +3012,61 @@ namespace spot{
 
       // Compute the (greedy) partial solution
       // -> Vector of states that have to belong to different classes
-      auto s_partsol = get_part_sol(incompmat);
-      print_help(s_partsol.begin(), s_partsol.end(), "Partial sol");
+      auto partsol = get_part_sol(incompmat);
+      const auto& psol_v = partsol.psol_v;
+      print_help(psol_v.begin(), psol_v.end(), "Partial sol");
 
       // Now we can search for an actual instance of the problem
       // todo How can we reuse the CNFs?
       // Do we really have to rebuild it each time in its totality?!
 
       // Debug
-      trace << "npsol " << s_partsol.size() << " n_env " << n_env << std::endl;
+      trace << "npsol " << psol_v.size() << " n_env " << n_env << std::endl;
+      greedy_cover_t gc(incompmat, psol_v.size(), partsol);
 
-      for (size_t n_classes = s_partsol.size();
+      twa_graph_ptr minmachine = nullptr;
+      for (size_t n_classes = psol_v.size();
            n_classes < n_env; ++n_classes)
         {
-          auto minmachine = build_min_machine(splitmm, used_bdds, incompmat,
-                                              s_partsol, reduction_map,
-                                              n_classes, n_sigma_red);
+          minmachine = build_min_machine(splitmm, used_bdds, incompmat,
+                                         partsol, gc, reduction_map,
+                                         n_classes, n_sigma_red);
 #ifdef PRINTCSV
-          std::cerr << "## "
-                    << info_struct.red_split << " "
-                    << info_struct.incomp << " "
-                    << info_struct.build_cnf << " "
-                    << info_struct.sat_time << " "
-                    << info_struct.build_time << " "
-                    << info_struct.sigma << " "
-                    << info_struct.sigma_red << " "
-                    << info_struct.n_trans << " "
-                    << info_struct.n_vars << " "
+          std::cerr << "## nc" << n_classes << " premin "
+                    << info_struct.t_premin << "  rs "
+                    << info_struct.red_split << " inc "
+                    << info_struct.incomp << " bco "
+                    << info_struct.build_cover << " bcl "
+                    << info_struct.build_closure << " spt "
+                    << info_struct.sat_part_time << " st "
+                    << info_struct.sat_time << " pf "
+                    << info_struct.part_feas << " bt "
+                    << info_struct.build_time << " si "
+                    << info_struct.sigma << " sir "
+                    << info_struct.sigma_red << " nt "
+                    << info_struct.n_trans << " npv "
+                    << info_struct.n_part_vars << " nv "
+                    << info_struct.n_vars << " npc "
+                    << info_struct.n_part_clauses << " nc "
                     << info_struct.n_clauses << std::endl;
 #endif
           if (minmachine)
-            return minmachine;
+              break;
+          // Give the greedy cover one more class
+          gc.inc_classes();
         }
       // Is already minimal -> Return a copy
       // Set state players!
-      auto minmachine = make_twa_graph(mm, twa::prop_set::all());
-      assert(spptr != nullptr);
-      minmachine->set_named_prop("state-player",
-                                 new std::vector<bool>(*spptr));
+      if (!minmachine)
+        {
+          minmachine = make_twa_graph(mm, twa::prop_set::all());
+          assert(spptr != nullptr);
+          minmachine->set_named_prop("state-player",
+                                     new std::vector<bool>(*spptr));
+        }
+      // Try to set outputs
+      if (bdd* outptr = mm->get_named_prop<bdd>("synthesis-outputs"))
+        minmachine->set_named_prop("synthesis-outputs", new bdd(*outptr));
       return minmachine;
   }
 }

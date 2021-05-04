@@ -38,595 +38,77 @@
 #include <spot/twaalgos/sbacc.hh>
 #include <spot/twaalgos/sepsets.hh>
 #include <spot/twa/bddprint.hh>
+#include <spot/tl/parse.hh>
 #include <spot/misc/timer.hh>
 
 #include <algorithm>
 #include <string>
 #include <queue>
 
+#define KEEP_STRAT_UNSPLIT
+
 namespace spot
 {
-  static void
-  restore_form(const twa_graph_ptr &aut, bdd all_outputs)
-  {
-    bdd all_inputs = bddtrue;
-    for (const auto &ap : aut->ap())
-    {
-      int bddvar = aut->get_dict()->has_registered_proposition(ap, aut);
-      assert(bddvar >= 0);
-      bdd b = bdd_ithvar(bddvar);
-      if (!bdd_implies(all_outputs, b)) // ap is not an output AP
-        all_inputs &= b;
-    }
-
-    // Loop over all edges and split those that do not have the form
-    // (in)&(out)
-    // Note new_edge are always appended at the end
-    unsigned n_old_edges = aut->num_edges();
-    // Temp storage
-    // Output condition to possible input conditions
-    std::map<bdd, bdd, bdd_less_than> edge_map_;
-    for (unsigned i = 1; i <= n_old_edges; ++i)
-    {
-      // get the edge
-      auto &e = aut->edge_storage(i);
-      // Check if cond already has the correct form
-      if ((bdd_exist(e.cond, all_inputs) & bdd_existcomp(e.cond, all_inputs)) == e.cond)
-        // Nothing to do here
-        continue;
-      // Do the actual split
-      edge_map_.clear();
-      bdd old_cond = e.cond;
-      while (old_cond != bddfalse)
-      {
-        bdd minterm = bdd_satone(old_cond);
-        bdd minterm_in = bdd_exist(minterm, all_outputs);
-        // Get all possible valid outputs
-        bdd valid_out = bdd_exist((minterm_in & e.cond), all_inputs);
-        // Check if this out already exists
-        auto it = edge_map_.find(valid_out);
-        if (it == edge_map_.end())
-          edge_map_[valid_out] = minterm_in;
-        else
-          // Reuse the outs for this in
-          it->second |= minterm_in;
-
-        // Remove this minterm
-        old_cond -= minterm;
-      }
-      // Computed the splitted edges.
-      // Replace the current edge cond with the first pair
-      auto it = edge_map_.begin();
-      e.cond = (it->first & it->second);
-      ++it;
-      for (; it != edge_map_.end(); ++it)
-        aut->new_edge(e.src, e.dst, it->first & it->second, e.acc);
-    }
-    // Done
-  }
+//  static void
+//  restore_form(const twa_graph_ptr &aut, bdd all_outputs)
+//  {
+//    bdd all_inputs = bddtrue;
+//    for (const auto &ap : aut->ap())
+//    {
+//      int bddvar = aut->get_dict()->has_registered_proposition(ap, aut);
+//      assert(bddvar >= 0);
+//      bdd b = bdd_ithvar(bddvar);
+//      if (!bdd_implies(all_outputs, b)) // ap is not an output AP
+//        all_inputs &= b;
+//    }
+//
+//    // Loop over all edges and split those that do not have the form
+//    // (in)&(out)
+//    // Note new_edge are always appended at the end
+//    unsigned n_old_edges = aut->num_edges();
+//    // Temp storage
+//    // Output condition to possible input conditions
+//    std::map<bdd, bdd, bdd_less_than> edge_map_;
+//    for (unsigned i = 1; i <= n_old_edges; ++i)
+//    {
+//      // get the edge
+//      auto &e = aut->edge_storage(i);
+//      // Check if cond already has the correct form
+//      if ((bdd_exist(e.cond, all_inputs) & bdd_existcomp(e.cond, all_inputs)) == e.cond)
+//        // Nothing to do here
+//        continue;
+//      // Do the actual split
+//      edge_map_.clear();
+//      bdd old_cond = e.cond;
+//      while (old_cond != bddfalse)
+//      {
+//        bdd minterm = bdd_satone(old_cond);
+//        bdd minterm_in = bdd_exist(minterm, all_outputs);
+//        // Get all possible valid outputs
+//        bdd valid_out = bdd_exist((minterm_in & e.cond), all_inputs);
+//        // Check if this out already exists
+//        auto it = edge_map_.find(valid_out);
+//        if (it == edge_map_.end())
+//          edge_map_[valid_out] = minterm_in;
+//        else
+//          // Reuse the outs for this in
+//          it->second |= minterm_in;
+//
+//        // Remove this minterm
+//        old_cond -= minterm;
+//      }
+//      // Computed the splitted edges.
+//      // Replace the current edge cond with the first pair
+//      auto it = edge_map_.begin();
+//      e.cond = (it->first & it->second);
+//      ++it;
+//      for (; it != edge_map_.end(); ++it)
+//        aut->new_edge(e.src, e.dst, it->first & it->second, e.acc);
+//    }
+//    // Done
+//  }
 
 } // namespace spot
-
-
-namespace spot
-{
-  namespace
-  {
-    // Used to get the signature of the state.
-    typedef std::vector<bdd> vector_state_bdd;
-
-    // Get the list of state for each class.
-    typedef std::map<bdd, std::list<unsigned>,
-                     bdd_less_than>
-        map_bdd_lstate;
-
-    // This class helps to compare two automata in term of
-    // size.
-    struct automaton_size final
-    {
-      automaton_size()
-          : edges(0),
-            states(0)
-      {
-      }
-
-      automaton_size(const const_twa_graph_ptr &a)
-          : edges(a->num_edges()),
-            states(a->num_states())
-      {
-      }
-
-      void set_size(const const_twa_graph_ptr &a)
-      {
-        states = a->num_states();
-        edges = a->num_edges();
-      }
-
-      inline bool operator!=(const automaton_size &r)
-      {
-        return edges != r.edges || states != r.states;
-      }
-
-      inline bool operator<(const automaton_size &r)
-      {
-        if (states < r.states)
-          return true;
-        if (states > r.states)
-          return false;
-
-        if (edges < r.edges)
-          return true;
-        if (edges > r.edges)
-          return false;
-
-        return false;
-      }
-
-      inline bool operator>(const automaton_size &r)
-      {
-        if (states < r.states)
-          return false;
-        if (states > r.states)
-          return true;
-
-        if (edges < r.edges)
-          return false;
-        if (edges > r.edges)
-          return true;
-
-        return false;
-      }
-
-      int edges;
-      int states;
-    };
-
-    // TODO: This part is just a copy of a part of simulation.cc
-    class sig_calculator final
-    {
-    protected:
-      typedef std::map<bdd, bdd, bdd_less_than> map_bdd_bdd;
-      int acc_vars;
-      acc_cond::mark_t all_inf_;
-
-    public:
-
-      sig_calculator(twa_graph_ptr aut) : a_(aut),
-          po_size_(0),
-          all_class_var_(bddtrue),
-          record_implications_(nullptr)
-      {
-        unsigned ns = a_->num_states();
-        size_a_ = ns;
-        // Now, we have to get the bdd which will represent the
-        // class. We register one bdd by state, because in the worst
-        // case, |Class| == |State|.
-        unsigned set_num = a_->get_dict()
-                               ->register_anonymous_variables(size_a_ + 1, this);
-
-
-        bdd_initial = bdd_ithvar(set_num++);
-        bdd init = bdd_ithvar(set_num++);
-
-        used_var_.emplace_back(init);
-
-        // Initialize all classes to init.
-        previous_class_.resize(size_a_);
-        for (unsigned s = 0; s < size_a_; ++s)
-          previous_class_[s] = init;
-
-        // Put all the anonymous variable in a queue, and record all
-        // of these in a variable all_class_var_ which will be used
-        // to understand the destination part in the signature when
-        // building the resulting automaton.
-        all_class_var_ = init;
-        for (unsigned i = set_num; i < set_num + size_a_ - 1; ++i)
-        {
-          free_var_.push(i);
-          all_class_var_ &= bdd_ithvar(i);
-        }
-
-        relation_[init] = init;
-      }
-
-      // Reverse all the acceptance condition at the destruction of
-      // this object, because it occurs after the return of the
-      // function simulation.
-      virtual ~sig_calculator()
-      {
-        a_->get_dict()->unregister_all_my_variables(this);
-      }
-
-      // Update the name of the classes.
-      void update_previous_class()
-      {
-        std::list<bdd>::iterator it_bdd = used_var_.begin();
-
-        // We run through the map bdd/list<state>, and we update
-        // the previous_class_ with the new data.
-        for (auto &p : sorted_classes_)
-        {
-          // If the signature of a state is bddfalse (no
-          // edges) the class of this state is bddfalse
-          // instead of an anonymous variable. It allows
-          // simplifications in the signature by removing a
-          // edge which has as a destination a state with
-          // no outgoing edge.
-          if (p->first == bddfalse)
-            for (unsigned s : p->second)
-              previous_class_[s] = bddfalse;
-          else
-            for (unsigned s : p->second)
-              previous_class_[s] = *it_bdd;
-          ++it_bdd;
-        }
-      }
-
-      void main_loop()
-      {
-        unsigned int nb_partition_before = 0;
-        unsigned int nb_po_before = po_size_ - 1;
-
-        while (nb_partition_before != bdd_lstate_.size() || nb_po_before != po_size_)
-        {
-          update_previous_class();
-          nb_partition_before = bdd_lstate_.size();
-          nb_po_before = po_size_;
-          po_size_ = 0;
-          update_sig();
-          go_to_next_it();
-          // print_partition();
-        }
-        update_previous_class();
-      }
-
-      // Take a state and compute its signature.
-      bdd compute_sig(unsigned src)
-      {
-        bdd res = bddfalse;
-
-        for (auto &t : a_->out(src))
-        {
-          // to_add is a conjunction of the acceptance condition,
-          // the label of the edge and the class of the
-          // destination and all the class it implies.
-          bdd to_add = t.cond & relation_[previous_class_[t.dst]];
-
-          res |= to_add;
-        }
-        return res;
-      }
-
-      void update_sig()
-      {
-        bdd_lstate_.clear();
-        sorted_classes_.clear();
-        for (unsigned s = 0; s < size_a_; ++s)
-        {
-          bdd sig = compute_sig(s);
-          auto p = bdd_lstate_.emplace(std::piecewise_construct,
-                                       std::make_tuple(sig),
-                                       std::make_tuple());
-          p.first->second.emplace_back(s);
-          if (p.second)
-            sorted_classes_.emplace_back(p.first);
-        }
-      }
-
-      // This method renames the color set, updates the partial order.
-      void go_to_next_it()
-      {
-        int nb_new_color = bdd_lstate_.size() - used_var_.size();
-
-        // If we have created more partitions, we need to use more
-        // variables.
-        for (int i = 0; i < nb_new_color; ++i)
-        {
-          assert(!free_var_.empty());
-          used_var_.emplace_back(bdd_ithvar(free_var_.front()));
-          free_var_.pop();
-        }
-
-        // If we have reduced the number of partition, we 'free' them
-        // in the free_var_ list.
-        for (int i = 0; i > nb_new_color; --i)
-        {
-          assert(!used_var_.empty());
-          free_var_.push(bdd_var(used_var_.front()));
-          used_var_.pop_front();
-        }
-
-        assert((bdd_lstate_.size() == used_var_.size()) || (bdd_lstate_.find(bddfalse) != bdd_lstate_.end() && bdd_lstate_.size() == used_var_.size() + 1));
-
-        // This vector links the tuple "C^(i-1), N^(i-1)" to the
-        // new class coloring for the next iteration.
-        std::vector<std::pair<bdd, bdd>> now_to_next;
-        unsigned sz = bdd_lstate_.size();
-        now_to_next.reserve(sz);
-
-        std::list<bdd>::iterator it_bdd = used_var_.begin();
-
-        for (auto &p : sorted_classes_)
-        {
-          // If the signature of a state is bddfalse (no edges) the
-          // class of this state is bddfalse instead of an anonymous
-          // variable. It allows simplifications in the signature by
-          // removing an edge which has as a destination a state
-          // with no outgoing edge.
-          bdd acc = bddfalse;
-          if (p->first != bddfalse)
-            acc = *it_bdd;
-          now_to_next.emplace_back(p->first, acc);
-          ++it_bdd;
-        }
-
-        // Update the partial order.
-
-        // This loop follows the pattern given by the paper.
-        // foreach class do
-        // |  foreach class do
-        // |  | update po if needed
-        // |  od
-        // od
-
-        for (unsigned n = 0; n < sz; ++n)
-        {
-          bdd n_sig = now_to_next[n].first;
-          bdd n_class = now_to_next[n].second;
-          if (want_implications_)
-            for (unsigned m = 0; m < sz; ++m)
-            {
-              if (n == m)
-                continue;
-              if (bdd_implies(n_sig, now_to_next[m].first))
-              {
-                n_class &= now_to_next[m].second;
-                ++po_size_;
-              }
-            }
-          relation_[now_to_next[n].second] = n_class;
-        }
-      }
-
-    protected:
-      // The automaton which is reduced.
-      twa_graph_ptr a_;
-
-      // Implications between classes.
-      map_bdd_bdd relation_;
-
-      // Represent the class of each state at the previous iteration.
-      vector_state_bdd previous_class_;
-
-      // The list of states for each class at the current_iteration.
-      // Computed in `update_sig'.
-      map_bdd_lstate bdd_lstate_;
-      // The above map, sorted by states number instead of BDD
-      // identifier to avoid non-determinism while iterating over all
-      // states.
-      std::vector<map_bdd_lstate::const_iterator> sorted_classes_;
-
-      // The queue of free bdd. They will be used as the identifier
-      // for the class.
-      std::queue<int> free_var_;
-
-      // The list of used bdd. They are in used as identifier for class.
-      std::list<bdd> used_var_;
-
-      // Size of the automaton.
-      unsigned int size_a_;
-
-      // Used to know when there is no evolution in the partial order.
-      unsigned int po_size_;
-
-      // Whether to compute implications between classes.  This is costly
-      // and useless for deterministic automata.
-      bool want_implications_;
-
-      // All the class variable:
-      bdd all_class_var_;
-
-      // The flag to say if the outgoing state is initial or not
-      bdd bdd_initial;
-
-      bdd all_proms_;
-
-      automaton_size stat;
-
-      // const const_twa_graph_ptr original_;
-
-      std::vector<bdd> *record_implications_;
-    };
-
-  } // End namespace anonymous.
-
-} // namespace spot
-
-namespace spot
-{
-  namespace
-  {
-    // This class is a tree where the node is ⊤ and a node implies its parent
-    class bdd_tree
-    {
-      bdd label;
-      unsigned state_;
-      std::vector<bdd_tree> children;
-
-      public:
-
-      bdd_tree() : label(bddtrue), state_(-1U) {}
-
-      bdd_tree(bdd value, unsigned state) : label(value), state_(state) {}
-
-      void add_child(bdd value, unsigned state, bool rec)
-      {
-        if (value == bddtrue)
-        {
-          assert(label == bddtrue);
-          state_ = state;
-        }
-        if (rec)
-        {
-          const unsigned nb_children = children.size();
-          for (unsigned i = 0; i < nb_children; ++i)
-          {
-            // If a child contains a BDD that implies the value, we need a
-            // recursive call
-            if (bdd_implies(value, children[i].label))
-            {
-              children[i].add_child(value, state, rec);
-              return;
-            }
-            else if (bdd_implies(children[i].label, value))
-            {
-              bdd_tree new_node(value, state);
-              // If a child contains a BDD that implies the value, we create a
-              // new bdd_tree. It must contains all the children that imply
-              // value
-              std::vector<bdd_tree> removed;
-              auto impl_filter = [value, &new_node](bdd_tree tree)
-              {
-                if (bdd_implies(tree.label, value) == 1)
-                {
-                  new_node.children.push_back(tree);
-                  return true;
-                }
-                return false;
-              };
-              auto new_end = std::remove_if(children.begin() + i,
-                                            children.end(),
-                                            impl_filter);
-              children.erase(new_end, children.end());
-              children.push_back(new_node);
-              return;
-            }
-          }
-        }
-        children.push_back(bdd_tree(value, state));
-      }
-
-      bdd
-      get_lowest_bdd()
-      {
-        if (children.size() == 0)
-          return label;
-        return children[0].get_lowest_bdd();
-      }
-
-      unsigned
-      flatten_aux(std::map<bdd, unsigned, bdd_less_than> &res)
-      {
-        if (children.size() == 0)
-        {
-          res.insert({label, state_});
-          return state_;
-        }
-        unsigned rep = children[0].flatten_aux(res);
-        res.insert({label, rep});
-        for (unsigned i = 1; i < children.size(); ++i)
-          children[i].flatten_aux(res);
-        return rep;
-      }
-
-      // Every node is associated to the state of a leaf
-      std::map<bdd, unsigned, bdd_less_than>
-      flatten()
-      {
-        std::map<bdd, unsigned, bdd_less_than> res;
-        flatten_aux(res);
-        return res;
-      }
-
-      void
-      print()
-      {
-        std::cout << "(" << this->label << ", " << this->state_ << ") : " << std::endl;
-        for (auto c : children)
-          std::cout << c.state_ << std::endl;
-        for (auto c : children)
-          c.print();
-      }
-    };
-
-    // Associate to a state a representative
-    std::vector<unsigned>
-    get_repres(twa_graph_ptr& a, bool rec)
-    {
-      std::vector<unsigned> repr;
-      auto a_num_states = a->num_states();
-      repr.reserve(a_num_states);
-      bdd_tree tree;
-      std::unordered_set<bdd, spot::bdd_hash> bdd_done;
-      bdd_done.insert(bddtrue);
-      std::vector<bdd> signatures;
-      sig_calculator red(a);
-      red.main_loop();
-      for (unsigned i = 0; i < a_num_states; ++i)
-      {
-        bdd sig = red.compute_sig(i);
-        signatures.push_back(sig);
-        if (bdd_done.find(sig) == bdd_done.end())
-        {
-          tree.add_child(sig, i, rec);
-          bdd_done.insert(sig);
-        }
-      }
-      // tree.print();
-      auto repr_map = tree.flatten();
-      for (unsigned i = 0; i < a_num_states; ++i)
-        repr[i] = repr_map[signatures[i]];
-      return repr;
-    }
-
-    void
-    reduce_graph_here(twa_graph_ptr& a, int level)
-    {
-      // TODO: Si le nombre de classes est égal au nombre d'états de l'automate,
-      // pas besoin de faire tout ça.
-      // We cannot have a dead state.
-      assert(
-          [&]()  {
-          auto n1 = a->num_states();
-          a->purge_dead_states();
-          return n1 == a->num_states();
-      }() );
-      //
-      // auto repr = get_repres(a);
-      // for (auto&e : a->edges())
-      // {
-      //   e.dst = repr[e.dst];
-      // }
-      // a->set_init_state(repr[a->get_init_state_number()]);
-      //
-
-      auto repr = get_repres(a, level == 2);
-      auto init = repr[a->get_init_state_number()];
-      a->set_init_state(init);
-      std::stack<unsigned> todo;
-      std::vector<bool> done(a->num_states(), false);
-      todo.emplace(init);
-      while (!todo.empty())
-      {
-        auto current = todo.top();
-        todo.pop();
-        done[current] = true;
-        for (auto& e : a->out(current))
-        {
-          if (e.dst == current)
-            continue;
-          auto repr_dst = repr[e.dst];
-          e.dst = repr_dst;
-          if (!done[repr_dst])
-            todo.emplace(repr_dst);
-        }
-      }
-      a->purge_unreachable_states();
-      // a->merge_edges();
-    }
-  }
-}
-
 
 // Helper function/structures for split_2step
 namespace{
@@ -745,44 +227,76 @@ namespace{
     return dpa;
   }
 
-  static twa_graph_ptr
-  change_init_to_0(twa_graph_ptr& a)
-  {
-    auto res = make_twa_graph(a->get_dict());
-    res->copy_ap_of(a);
-    res->new_states(a->num_states());
-    res->set_init_state(0);
-    auto change = [&a](const unsigned state) {
-      if (state == 0) return a->get_init_state_number();
-      if (state == a->get_init_state_number()) return 0U;
-      return state;
-    };
-    for (auto& e : a->edges())
-    {
-      res->new_edge(change(e.src), change(e.dst), e.cond, e.acc);
-    }
-    a->set_acceptance(acc_cond::acc_code::t());
-    return res;
-  }
+//  static twa_graph_ptr
+//  change_init_to_0(twa_graph_ptr& a)
+//  {
+//    auto res = make_twa_graph(a->get_dict());
+//    res->copy_ap_of(a);
+//    res->new_states(a->num_states());
+//    res->set_init_state(0);
+//    auto change = [&a](const unsigned state) {
+//      if (state == 0) return a->get_init_state_number();
+//      if (state == a->get_init_state_number()) return 0U;
+//      return state;
+//    };
+//    for (auto& e : a->edges())
+//    {
+//      res->new_edge(change(e.src), change(e.dst), e.cond, e.acc);
+//    }
+//    a->set_acceptance(acc_cond::acc_code::t());
+//    return res;
+//  }
 
   static void
   minimize_strategy_here(twa_graph_ptr& strat, option_map& opt)
   {
     strat->set_acceptance(acc_cond::acc_code::t());
-    unsigned simplification_level = opt.get("minimization-level", 1);
+    unsigned simplification_level =
+        opt.get("minimization-level", 1);
+    // 0 -> No minimization
+    // 1 -> Regular monitor minimization
+    // 2 -> Fast mealy minimization
+    // 3 -> Exact mealy minimization
+    // 4 -> Monitor min then exact minimization
+    // 5 -> Fast mealy then exact minimization
+    bdd *obddptr = strat->get_named_prop<bdd>("synthesis-outputs");
+    assert(obddptr);
+    bdd obdd = *obddptr;
+    switch (simplification_level)
+    {
+      case 0:
+        return;
+      case 1:
+        {
+          minimize_mealy_fast_here(strat, false);
+          break;
+        }
+      case 2:
+        {
+          minimize_mealy_fast_here(strat, true);
+          break;
+        }
+      case 3:
+        {
+          strat = minimize_mealy(strat, -1);
+          break;
+        }
+      case 4:
+        {
+          strat = minimize_mealy(strat, 0);
+          break;
+        }
+      case 5:
+        {
+          strat = minimize_mealy(strat, 1);
+          break;
+        }
+      default:
+          throw std::runtime_error("Unknown minimization option");
+    }
     opt.report_unused_options();
-    bdd *obdd = strat->get_named_prop<bdd>("synthesis-outputs");
-    assert(obdd);
-    auto new_bdd = new bdd(*obdd);
-    if (simplification_level != 0)
-      reduce_graph_here(strat, simplification_level);
-    // auto copy = make_twa_graph(strat, twa::prop_set::all());
-    strat = change_init_to_0(strat);
-    // (void) change_init_to_0;
-    // assert(are_equivalent(strat, copy));
-    // std::cout << *new_bdd << std::endl;
-    strat->set_named_prop("synthesis-outputs", new_bdd);
-    (void) restore_form;
+
+    strat->set_named_prop("synthesis-outputs", new bdd(obdd));
     // restore_form(strat, *new_bdd);
     // print_hoa(std::cout, strat) << '\n';
     // print_hoa(std::cout, copy) << '\n';
@@ -1021,11 +535,11 @@ namespace spot
 
   twa_graph_ptr unsplit_2step(const const_twa_graph_ptr& aut)
   {
+    constexpr unsigned unseen_mark = std::numeric_limits<unsigned>::max();
+
     twa_graph_ptr out = make_twa_graph(aut->get_dict());
     out->copy_acceptance_of(aut);
     out->copy_ap_of(aut);
-    out->new_states(aut->num_states());
-    out->set_init_state(aut->get_init_state_number());
 
     // split_2step is not guaranteed to produce
     // states that alternate between env and player do to do_simplify
@@ -1034,15 +548,23 @@ namespace spot
       throw std::runtime_error("unsplit requires the named prop "
                                "state-player as set by split_2step");
 
-    std::vector<bool> seen(aut->num_states(), false);
+    std::vector<unsigned> state_map(aut->num_states(), unseen_mark);
+    auto seen = [&](unsigned s){return state_map[s] != unseen_mark; };
+    auto map_s = [&](unsigned s)
+      {
+        if (!seen(s))
+          state_map[s] = out->new_state();
+        return state_map[s];
+      };
+
     std::deque<unsigned> todo;
     todo.push_back(aut->get_init_state_number());
-    seen[aut->get_init_state_number()] = true;
+    map_s(aut->get_init_state_number());
     while (!todo.empty())
       {
         unsigned cur = todo.front();
+        unsigned cur_m = map_s(cur);
         todo.pop_front();
-        seen[cur] = true;
 
         for (const auto& i : aut->out(cur))
           {
@@ -1056,21 +578,26 @@ namespace spot
                             auto out_cont = aut->out(cur);
                             return (++(out_cont.begin()) == out_cont.end());
                           })());
-                out->new_edge(cur, i.dst, i.cond, i.acc);
-                if (!seen[i.dst])
+                if (!seen(i.dst))
                   todo.push_back(i.dst);
+                out->new_edge(cur_m, map_s(i.dst), i.cond, i.acc);
                 continue; // Done with cur
               }
             for (const auto& o : aut->out(i.dst))
               {
-                out->new_edge(cur, o.dst, i.cond & o.cond, i.acc | o.acc);
-                if (!seen[o.dst])
+                if (!seen(o.dst))
                   todo.push_back(o.dst);
+                out->new_edge(cur_m, map_s(o.dst),
+                              i.cond & o.cond, i.acc | o.acc);
               }
-            }
+          }
       }
-    out->merge_edges();
-    out->merge_states();
+    out->set_init_state(map_s(aut->get_init_state_number()));
+//    out->merge_edges();
+//    out->merge_states();
+    // Try to set outputs
+    if (bdd* outptr = aut->get_named_prop<bdd>("synthesis-outputs"))
+      out->set_named_prop("synthesis-outputs", new bdd(*outptr));
     return out;
   }
 
@@ -1161,12 +688,24 @@ namespace spot
                 pg2aut[e2.dst] = strat_aut->new_state();
                 todo.push_back(e2.dst);
               }
-
-            strat_aut->new_edge(
-                          unsplit ? pg2aut[v] : pg2aut[e1.dst],
-                          pg2aut[e2.dst],
-                          unsplit ? (e1.cond & e2.cond) : e2.cond,
-                          keep_acc ? e2.acc : spot::acc_cond::mark_t({}));
+            if (!unsplit)
+              {
+                auto eit = strat_aut->out(pg2aut[e1.dst]);
+                if (eit.begin()==eit.end())
+                  strat_aut->new_edge(
+                    pg2aut[e1.dst],
+                    pg2aut[e2.dst],
+                    e2.cond,
+                    keep_acc ? e2.acc
+                             : spot::acc_cond::mark_t({}));
+              }
+            else
+              strat_aut->new_edge(
+                            pg2aut[v],
+                            pg2aut[e2.dst],
+                            (e1.cond & e2.cond),
+                            keep_acc ? (e1.acc | e2.acc)
+                                     : spot::acc_cond::mark_t({}));
           }
       }
 
@@ -1426,6 +965,24 @@ namespace spot
     return create_game(f, all_outs, dummy1, dummy2);
   }
 
+  spot::twa_graph_ptr
+  create_game(const std::string& f,
+              const std::set<std::string>& all_outs)
+  {
+    return create_game(spot::parse_formula(f), all_outs);
+  }
+
+  SPOT_API spot::twa_graph_ptr
+  create_game(const std::string& f,
+              const std::set<std::string>& all_outs,
+              option_map& opt,
+              game_info& gi)
+  {
+    return create_game(spot::parse_formula(f), all_outs, opt, gi);
+  }
+
+
+
   bool solve_game(twa_graph_ptr arena, game_info& gi)
   {
     // todo adapt to new interface
@@ -1449,7 +1006,7 @@ namespace spot
   }
 
   twa_graph_ptr
-  create_strategy(twa_graph_ptr arena, game_info& gi, option_map& opt)
+  create_strategy(twa_graph_ptr arena, option_map& opt, game_info& gi)
   {
     if (!arena)
       throw std::runtime_error("Arena can not be null");
@@ -1468,15 +1025,38 @@ namespace spot
 
     if (bv)
       sw.start();
-    twa_graph_ptr strat_aut = apply_strategy(arena, true, false);
+    // todo check what is more expensive:
+    // minimizing unsplitted strategy or resplitting in aiger
 
+    // Depending on the minimization we need it split or unsplit
+    // 0 -> No minimization -> unsplit
+    // 1 -> Regular monitor minimization -> unsplit
+    // 2 -> Fast mealy minimization -> unsplit
+    // 3 -> Exact mealy minimization -> split
+    // 4 -> Monitor min then exact minimization -> split
+    // 5 -> Fast mealy then exact minimization -> split
+    unsigned sl =
+        opt.get("minimization-level", 1);
+    bool do_unsplit = sl < 3;
+    twa_graph_ptr strat_aut = apply_strategy(arena, do_unsplit,
+                                             false);
     strat_aut->prop_universal(true);
     minimize_strategy_here(strat_aut, opt);
+    if (!do_unsplit)
+      strat_aut = unsplit_2step(strat_aut);
 
     if (bv)
         bv->strat2aut_time = sw.stop();
 
     return strat_aut;
+  }
+
+  spot::twa_graph_ptr
+  create_strategy(twa_graph_ptr arena)
+  {
+    option_map dummy1;
+    game_info dummy2;
+    return create_strategy(arena, dummy1, dummy2);
   }
 
   // TODO:

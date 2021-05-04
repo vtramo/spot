@@ -607,6 +607,163 @@ namespace spot
     return res_ptr;
   }
 
+  twa_graph_ptr aig::aig2aut(bool keepsplit) const
+  {
+    static_assert(sizeof(int) == 4);
+    static_assert(sizeof(unsigned long long) == 8);
+
+    auto aut = make_twa_graph(dict_);
+
+    unsigned n_max_states = 2 << num_latches_;
+    aut->new_states(n_max_states);
+
+
+    auto s2bdd = [&](unsigned s)
+      {
+        bdd b = bddtrue;
+        for (unsigned j = 0; j < num_latches_; ++j)
+          {
+            // Get the j-th latch in this partial strategy
+            // If high -> not negated
+            b &= latch_bdd(j, !(s & 1));
+            s >>= 1;
+          }
+        return b;
+      };
+//
+//    auto sprime2bdd = [&](unsigned s)
+//    {
+//      bdd b = bddtrue;
+//      for (unsigned j = 0; j < num_latches_; ++j)
+//      {
+//        // Get the j-th latch in this partial strategy
+//        // If high -> not negated
+//        b &= aigvar2bdd(next_latches_[j], !(s & 1));
+//        s >>= 1;
+//      }
+//      return b;
+//    };
+
+    std::vector<bdd> outbddvec;
+    for (auto& ao : output_names_)
+      outbddvec.push_back(bdd_ithvar(aut->register_ap(ao)));
+    // Also register the ins
+    for (auto& ai : input_names_)
+      aut->register_ap(ai);
+
+    std::vector<bdd> outcondbddvec;
+    for (auto ov : outputs_)
+      outcondbddvec.push_back(aigvar2bdd(ov));
+
+    auto get_out = [&](const bdd& sbdd, const bdd& insbdd)
+      {
+        bdd out = bddtrue;
+        for (unsigned i = 0; i < num_outputs_; ++i)
+          {
+            if ((outcondbddvec[i] & sbdd & insbdd) != bddfalse)
+              out &= outbddvec[i];
+            else
+              out &= bdd_not(outbddvec[i]);
+          }
+        return out;
+      };
+
+
+    //Nextlatch is a fonction of latch and input
+    std::vector<bdd> nxtlbddvec(num_latches_);
+    for (unsigned i = 0; i < num_latches_; ++i)
+      nxtlbddvec[i] = aigvar2bdd(next_latches_[i]);
+
+    auto get_dst = [&](const bdd& sbdd, const bdd& insbdd)
+      {
+        // the first latch corresponds to the most significant digit
+        unsigned dst = 0;
+        unsigned off = 1;
+        for (unsigned i = 0; i < num_latches_ ; ++i)
+          {
+            bdd ilatch = nxtlbddvec[i];
+            // evaluate
+            ilatch = (ilatch & sbdd & insbdd);
+            dst += (ilatch != bddfalse)*off;
+            off *= 2;
+          }
+        return dst;
+      };
+
+    bdd alli = bddtrue;
+    std::vector<bdd> ibddvec(num_inputs_);
+    for (unsigned i = 0; i < num_inputs_; ++i)
+      {
+        ibddvec[i] = input_bdd(i);
+        alli &= ibddvec[i];
+      }
+
+    std::deque<unsigned> todo;
+    todo.push_back(0);
+    std::vector<bool> seen(n_max_states, false);
+    seen[0] = true;
+
+    std::unordered_map<unsigned long long, unsigned> splayer_map;
+    //dst + cond -> state
+    auto get_id = [](const bdd& ocond, unsigned dst)
+    {
+      unsigned long long u = dst;
+      u <<= 32;
+      u += std::abs(ocond.id());
+      return u;
+    };
+
+    while (!todo.empty())
+      {
+        unsigned s = todo.front();
+        todo.pop_front();
+
+        // bdd of source state
+        bdd srcbdd = s2bdd(s);
+        // All possible inputs
+        // Note that for unspecified input sequences the
+        // result is unspecified as well
+
+        //todo change to new format
+        bdd remin = bddtrue;
+        while (remin != bddfalse)
+          {
+            bdd inbdd = bdd_satoneset(remin, alli, bddfalse);
+            remin -= inbdd;
+
+            // Get the target state
+            unsigned sprime = get_dst(srcbdd, inbdd);
+            // Get the associated cout cond
+            bdd outbdd = get_out(srcbdd, inbdd);
+
+            if (keepsplit)
+              {
+                auto id = get_id(outbdd, sprime);
+                auto it = splayer_map.find(id);
+                if (it == splayer_map.end())
+                  {
+                    unsigned ntarg = aut->new_state();
+                    splayer_map[id] = ntarg;
+                    aut->new_edge(s, ntarg, inbdd);
+                    aut->new_edge(ntarg, sprime, outbdd);
+                  }
+                else
+                  aut->new_edge(s, it->second, inbdd);
+              }
+            else
+              aut->new_edge(s, sprime, inbdd & outbdd);
+            if (!seen[sprime])
+              {
+                seen[sprime] = true;
+                todo.push_back(sprime);
+              }
+          }
+      }
+    aut->purge_unreachable_states();
+    aut->merge_edges();
+    return aut;
+  }
+
   namespace
   {
     static void
@@ -702,7 +859,12 @@ namespace spot
       // Test that the acceptance condition is true
       for (auto&& astrat : strat_vec)
         if (!astrat.first->acc().is_t())
-          throw std::runtime_error("Cannot turn automaton into aiger circuit");
+          {
+            std::cerr << "Acc cond must be true not " << astrat.first->acc()
+                      << std::endl;
+            throw std::runtime_error("Cannot turn automaton into "
+                                     "aiger circuit");
+          }
 
       // get the propositions
       std::set<std::string> input_names;
