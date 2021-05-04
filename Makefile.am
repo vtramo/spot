@@ -32,8 +32,7 @@ if USE_PYTHON
   PYTHON_SUBDIR = python
 endif
 
-DOC_SUBDIR = doc
-SUBDIRS = picosat buddy lib ltdl spot bin tests $(PYTHON_SUBDIR) $(DOC_SUBDIR) \
+SUBDIRS = picosat buddy lib ltdl spot bin tests $(PYTHON_SUBDIR) \
 					$(NEVER_SUBDIRS)
 
 UTF8 = utf8/README.md utf8/utf8.h	\
