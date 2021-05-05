@@ -1134,7 +1134,7 @@ namespace spot
                     const std::set<std::string>& ins,
                     const std::vector<std::set<std::string>>& outs)
   {
-    if (strat_vec.size() == outs.size())
+    if (strat_vec.size() != outs.size())
       throw std::runtime_error("Expected as many outs as strategies!\n");
 
     std::for_each(strat_vec.begin()+1, strat_vec.end(),
