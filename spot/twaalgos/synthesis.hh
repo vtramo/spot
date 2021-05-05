@@ -170,4 +170,7 @@ namespace spot
                                   std::vector<std::string> output_aps,
                                   option_map &extra_opt,
                                   game_info &gi);
+
+  SPOT_API std::pair<std::vector<formula>, std::vector<std::set<spot::formula>>>
+  split_independant_formulas(formula f, std::set<std::string> outs);
 }
