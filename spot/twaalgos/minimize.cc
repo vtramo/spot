@@ -2018,14 +2018,11 @@ namespace
       // and add the state
       unsigned iclass = -1u;
       for ( unsigned i = 0; i < n_classes_; ++i)
-      {
-          std::cout << i << " " << idx_distrib << " " << incomp_classes.dim() << " " << n_classes_ << "\n";
-          if (!incomp_classes(i, idx_distrib))
-            {
-              iclass = i;
-              break;
-            }
-        }
+        if (!incomp_classes(i, idx_distrib))
+          {
+            iclass = i;
+            break;
+          }
       if (iclass == -1u)
         // Could not find a suitable class
         return false;
@@ -2375,6 +2372,13 @@ namespace
         return splitmm->out(eit->dst).begin()->dst;
       };
 
+    // todo char vs bool debate
+    // has_a_edge[i] stores if i has an edge under a
+    // No? -> -1u
+    // Yes -> dst state
+    std::vector<unsigned> has_a_edge_(n_env);
+    std::vector<char> active_edge_(n_env);
+
     trace << "Closure\n";
     for (unsigned a = 0; a < n_sigma; ++a)
       {
@@ -2382,13 +2386,21 @@ namespace
         // Advance all iterators if necessary
         // also check if finished.
         // if all edges are treated we can stop
+        // Drive by check if a exists in outs
+        auto h_a_it = has_a_edge_.begin();
         std::for_each(edge_it.begin(), edge_it.end(),
-                      [&abddid](auto& eit)
+                      [&abddid, &h_a_it, &get_dst](auto& eit)
                         {
+                          *h_a_it = -1u;
                           if ((eit.first != eit.second)
                                && (eit.first->cond.id() < abddid))
-                          ++eit.first;
+                              ++eit.first;
+                          if ((eit.first != eit.second)
+                              && (eit.first->cond.id() == abddid))
+                            *h_a_it = get_dst(eit.first);
+                          ++h_a_it;
                         });
+        assert(h_a_it == has_a_edge_.end());
 
         auto [aclass, aidx] = reduction_map[a];
         if (a != aclass)
@@ -2399,6 +2411,8 @@ namespace
         //Loop over src classes
         for (unsigned i = 0; i < n_classes; ++i)//src class
           {
+            // Reset active
+            std::fill(active_edge_.begin(), active_edge_.end(), false);
             // Check for possible successor classes of class i
             // If class i is a partial solution:
             // Only state compatible to i can be in it
@@ -2406,14 +2420,18 @@ namespace
             std::fill(succ_classes.begin(), succ_classes.end(), false);
             for (unsigned isrc = 0; isrc < n_env; ++isrc)
               {
-                if (edge_it[isrc].first == edge_it[isrc].second)
-                  continue; // Already all edges treated
-                if (edge_it[isrc].first->cond.id() != abddid)
-                  // No successor for this letter
+//                if (edge_it[isrc].first == edge_it[isrc].second)
+//                  continue; // Already all edges treated
+//                if (edge_it[isrc].first->cond.id() != abddid)
+//                  // No successor for this letter
+//                  continue;
+                if (has_a_edge_[isrc] == -1u)
                   continue;
                 if ((i < n_psol) && (incompmat(isrc, psol_v[i])))
                   continue; // isrc can not be in i
                 unsigned dst = get_dst(edge_it[isrc].first);
+                // This edge is active
+                active_edge_[isrc] = true;
                 // Check all target classes
                 for (unsigned j = 0; j < n_classes; ++j)
                   {
@@ -2423,9 +2441,9 @@ namespace
                       continue;//dst can not be in class j
                     succ_classes[j] = true;
                   }
-                if (std::all_of(succ_classes.begin(), succ_classes.end(),
-                                [](auto e){return e;}))
-                  break; // Every class can be a successor
+//                if (std::all_of(succ_classes.begin(), succ_classes.end(),
+//                                [](auto e){return e;}))
+//                  break; // Every class can be a successor
               }
             // We have checked which are possible successor classes
             // It can happen that a state has no successor class under a
@@ -2450,6 +2468,9 @@ namespace
             printlit({0});
             lm.freeze_iaj();
 
+            // todo if dst is incompatible, I the condition can possibly
+            // be simplified
+
             // Second condition:
             // All states of i must go to j under a if there is a successor
             // Note that not all states are possible src in i
@@ -2457,17 +2478,24 @@ namespace
               {
                 if (!succ_classes[j])//Not possible
                   continue;
-                for (auto& eit : edge_it)
+//                for (auto& eit : edge_it)
+//                  {
+//                    if (eit.first == eit.second)
+//                      continue; // Already all edges treated
+//                    if (eit.first->cond.id() != abddid)//Has no successor
+//                      continue;
+//                    // If src can not be in i -> skip
+//                    unsigned x = eit.first->src;
+//                    if ((i < n_psol) && incompmat(psol_v[i], x))
+//                      continue;
+//                    unsigned xprime = get_dst(eit.first);
+                for (unsigned x = 0; x < n_env; ++x)
                   {
-                    if (eit.first == eit.second)
-                      continue; // Already all edges treated
-                    if (eit.first->cond.id() != abddid)//Has no successor
+                    // Check if edge is active
+                    if (!active_edge_[x])
                       continue;
-                    // If src can not be in i -> skip
-                    unsigned x = eit.first->src;
-                    if ((i < n_psol) && incompmat(psol_v[i], x))
-                      continue;
-                    unsigned xprime = get_dst(eit.first);
+                    unsigned xprime = has_a_edge_[x];
+                    assert(xprime != -1u);
                     // Add the clause
 //                    S.add({-lm.ziaj2lit({i, aidx, j}),
 //                           -lm.sxi2lit({x, i}), lm.sxi2lit({xprime, j}), 0});
@@ -2725,22 +2753,23 @@ namespace
       }
     // Check if a successor class exists
     // for each class and input
-    for (unsigned i = 0; i < n_classes; ++i)
-      //Note only loop over minimal letters
-      for (unsigned aidx = 0; aidx < n_sigma_red; ++aidx)
-        {
-          bool has_succ = false;
-          for (unsigned j = 0; j < n_classes; ++j)
-            try
-              {
-                has_succ |= sol[lm.ziaj2lit({i, aidx, j})];
-              }
-            catch (const std::out_of_range&)
-              {
-              }
-          trace << "Class has no successor under a\n";
-        }
+//    for (unsigned i = 0; i < n_classes; ++i)
+//      //Note only loop over minimal letters
+//      for (unsigned aidx = 0; aidx < n_sigma_red; ++aidx)
+//        {
+//          bool has_succ = false;
+//          for (unsigned j = 0; j < n_classes; ++j)
+//            try
+//              {
+//                has_succ |= sol[lm.ziaj2lit({i, aidx, j})];
+//              }
+//            catch (const std::out_of_range&)
+//              {
+//              }
+//          trace << "Class has no successor under a\n";
+//        }
     //Check that no incompatible states are in the same class
+    trace << n_sigma_red << "\n";
     return true;
   }
 
