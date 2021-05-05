@@ -533,7 +533,8 @@ namespace spot
     return split;
   }
 
-  twa_graph_ptr unsplit_2step(const const_twa_graph_ptr& aut)
+  twa_graph_ptr
+  unsplit_2step(const const_twa_graph_ptr& aut)
   {
     constexpr unsigned unseen_mark = std::numeric_limits<unsigned>::max();
 
@@ -600,7 +601,6 @@ namespace spot
       out->set_named_prop("synthesis-outputs", new bdd(*outptr));
     return out;
   }
-
 
   spot::twa_graph_ptr
   apply_strategy(const spot::twa_graph_ptr& arena,
@@ -745,7 +745,7 @@ namespace spot
 
   static spot::translator
   create_translator(spot::option_map& extra_options, spot::solver sol,
-                    spot::bdd_dict_ptr dict)
+                    const spot::bdd_dict_ptr& dict)
   {
     for (auto&& p : std::vector<std::pair<const char*, int>>
                       {{"simul", 0},
@@ -1085,6 +1085,7 @@ namespace spot
       if ((std::find(in_aps.begin(), in_aps.end(), name) == in_aps.end()) == in)
         return false;
     }
+    free(f_props);
     return true;
   }
 
@@ -1120,14 +1121,17 @@ namespace spot
     // TODO: game_info not updated
     auto trans = create_translator(extra_opt, gi.s, gi.dict);
     trans.set_type(postprocessor::Buchi);
-    trans.set_pref(postprocessor::Complete);
-    trans.set_pref(postprocessor::Deterministic);
+    trans.set_pref(postprocessor::Deterministic | postprocessor::Complete);
+    auto &bv = gi.bv;
+    spot::stopwatch sw;
+
     if (f.kind() == op::Equiv)
     {
       // A strategy for recurrence <-> GF(bool) can be created by translating
-      // the left part to a deterministic Terminal Büchi automaton and adding
+      // the left part to a deterministic Büchi automaton and adding
       // bool to the transitions with {0}.
-      // TODO: It is the same for guarantee <-> FG(bool)
+      // TODO: It is the same for persistence <-> FG(bool)
+      // FIXME: Dans le cas GFa <-> GFb on peut se retrouver avec GFb à droite
       formula left, right;
       if ((f[0].kind() == op::G) && (f[0][0].kind() == op::F)
                                        && f[0][0][0].is_boolean())
@@ -1146,20 +1150,19 @@ namespace spot
         if (!has_props(left, output_aps, false) || !has_props(right, output_aps, true))
           return nullptr;
         // We want a deterministic Büchi automaton. Do we want to translate?
-        // if (!(left.is_syntactic_recurrence() || left.is_syntactic_safety()))
-        //   return nullptr;
-
-        auto left_aut = trans.run(left);
-
-        if (!spot::is_recurrence(left, left_aut) && !spot::is_safety_automaton(left_aut))
+        if (!left.is_syntactic_recurrence())
           return nullptr;
-        if (!is_complete(left_aut))
-            left_aut = complete(left_aut);
+        if (bv)
+          sw.start();
+        auto left_aut = trans.run(left);
+        if (bv)
+          bv->trans_time = sw.stop();
 
         if (!spot::is_deterministic(left_aut))
         {
           left_aut = tgba_determinize(left_aut);
-          assert(left_aut->acc().is_buchi());
+          if (!left_aut->acc().is_buchi())
+            return nullptr;
         }
 
         bdd right_bdd = formula_to_bdd(right[0][0], left_aut->get_dict(), left_aut);
@@ -1169,9 +1172,12 @@ namespace spot
         for (auto& out : output_aps)
           output_bdd &= bdd_ithvar(left_aut->register_ap(out));
 
-        spot::scc_info si(left_aut, spot::scc_info_options::TRACK_STATES);
+        spot::scc_info si(left_aut, spot::scc_info_options::NONE);
         for (auto& e : left_aut->edges())
         {
+          // A transition between 2 SCC is seen finitely often so it does not
+          // influence the right part of the equivalence. We don't assign an
+          // output and it will be decided later.
           if (si.scc_of(e.src) == si.scc_of(e.dst))
             e.cond &= e.acc ? right_bdd : neg_right_bdd;
           e.acc = {};
@@ -1183,6 +1189,324 @@ namespace spot
       }
     }
     return nullptr;
+  }
+
+  namespace
+  {
+    // Checks that 2 sets have a common element.
+    static bool
+    are_intersecting(const std::set<spot::formula> &v1,
+                     const std::set<spot::formula> &v2)
+    {
+      auto v1_pos = v1.begin(), v2_pos = v2.begin(), v1_end = v1.end(),
+            v2_end = v2.end();
+      while (v1_pos != v1_end && v2_pos != v2_end)
+      {
+        if (*v1_pos < *v2_pos)
+          ++v1_pos;
+        else if (*v2_pos < *v1_pos)
+          ++v2_pos;
+        else
+          return true;
+      }
+      return false;
+    }
+
+    static std::pair<std::set<std::string>, std::set<std::string>>
+    split_set(std::set<std::string>& orig_set, const std::set<std::string>& outs)
+    {
+      // TODO: Can be faster.
+      std::set<std::string> left, right;
+      for (auto& x : orig_set)
+        if (outs.find(x) != outs.end())
+          right.insert(x);
+        else
+          left.insert(x);
+      return { left, right };
+    }
+  }
+
+  std::map<formula,
+           std::pair<std::set<formula>, std::set<formula>>> ap_cache;
+
+  static std::pair<std::set<formula>, std::set<formula>>
+  aps_of(const formula &f, const std::set<std::string>& outs)
+  {
+    auto cache_value = ap_cache.find(f);
+    if (cache_value != ap_cache.end())
+      return cache_value->second;
+    auto f_aps = atomic_prop_collect(f);
+    std::set<std::string> f_aps_str;
+    for (auto& x : *f_aps)
+      f_aps_str.insert(x.ap_name());
+    free(f_aps);
+    auto [ins_f_str, outs_f_str] = split_set(f_aps_str, outs);
+    std::set<formula> ins_f, outs_f;
+    for (auto& x : ins_f_str)
+      ins_f.insert(formula::ap(x));
+    for (auto& x : outs_f_str)
+      outs_f.insert(formula::ap(x));
+    std::pair<std::set<formula>, std::set<formula>> res({ins_f, outs_f});
+    ap_cache.insert({f, res});
+    return res;
+  }
+
+  // Use LTL rewritings to have as many conjunctions as possible
+  static formula
+  extract_and(formula f, const std::set<formula> &outs)
+  {
+    if (f.kind() == spot::op::And)
+    {
+      std::vector<spot::formula> children;
+      std::transform(f.begin(), f.end(), std::back_inserter(children),
+                     [outs](const spot::formula f)
+                     { return extract_and(f, outs); });
+      auto res = spot::formula::And(children);
+      assert(spot::are_equivalent(res, f));
+    }
+    if (f.kind() == spot::op::Not)
+    {
+      // ¬¬φ ≡ φ
+      auto child = extract_and(f[0], outs);
+      if (child.kind() == spot::op::Not)
+      {
+        assert(spot::are_equivalent(child[0], f));
+        return child[0];
+      }
+      // ¬Fφ ≡ G¬φ
+      else if (child.kind() == spot::op::F)
+      {
+        // The result can be G(And).
+        auto f2 = spot::formula::G(extract_and(spot::formula::Not(child[0]), outs));
+        assert(spot::are_equivalent(f, f2));
+        f = f2;
+      }
+      // ¬(φ→ψ) ≡ φ ∧ ¬ψ
+      else if (child.kind() == spot::op::Implies)
+      {
+        auto res = spot::formula::And({extract_and(child[0], outs),
+                                       extract_and(spot::formula::Not(child[1]), outs)});
+        assert(spot::are_equivalent(res, f));
+        return res;
+      }
+      // TODO: Can't be in 2 classes?
+      // ¬(φ ↔ ψ) ≡ ¬(φ ∧ ψ) ∧ ¬(¬φ ∧ ¬ψ)
+      else if (child.kind() == spot::op::Equiv)
+      {
+        auto h_and_s = spot::formula::And({child[0], child[1]});
+        auto neg_h_and_s = spot::formula::Not(h_and_s);
+        auto neg_h = spot::formula::Not(child[0]);
+        auto neg_s = spot::formula::Not(child[1]);
+        auto neg_h_and_neg_s = extract_and(spot::formula::And({neg_h, neg_s}), outs);
+        auto neg_above = extract_and(spot::formula::Not(neg_h_and_neg_s), outs);
+        auto res = spot::formula::And({neg_h_and_s, neg_above});
+        assert(spot::are_equivalent(res, f));
+        return res;
+      }
+      // ¬(φ ∨ ψ) ≡ φ ∧ ψ
+      else if (child.kind() == spot::op::Or)
+      {
+        std::vector<spot::formula> children;
+        std::transform(child.begin(), child.end(), std::back_inserter(children),
+                       [outs](spot::formula f)
+                       { return extract_and(spot::formula::Not(f), outs); });
+        auto res = spot::formula::And(children);
+        assert(spot::are_equivalent(res, f));
+      }
+    }
+    // φ ∨ ψ ≡ ¬(¬φ ∧ ¬ψ), can be used in a recursive call
+    if (f.kind() == spot::op::Or)
+    {
+      std::vector<spot::formula> children;
+      std::transform(f.begin(), f.end(), std::back_inserter(children),
+                     [outs](const spot::formula f)
+                      { return extract_and(spot::formula::Not(f), outs); });
+      auto res = spot::formula::Not(spot::formula::And(children));
+      assert(spot::are_equivalent(res, f));
+      return res;
+    }
+    // G(⋀φᵢ) = ⋀(G(φᵢ))
+    // X(⋀φᵢ) = ⋀(X(φᵢ))
+    if (f.is(spot::op::G, spot::op::X))
+    {
+      auto child_ex = extract_and(f[0], outs);
+      if (child_ex.kind() == spot::op::And)
+      {
+        std::vector<spot::formula> children;
+        std::transform(child_ex.begin(), child_ex.end(), std::back_inserter(children),
+                       [f, outs](const spot::formula fi)
+                        { return extract_and(spot::formula::unop(f.kind(), fi),
+                                             outs); });
+        auto res = spot::formula::And(children);
+        assert(spot::are_equivalent(f, res));
+        return res;
+      }
+    }
+    // ⋀φᵢ U ψ ≡ ⋀(φᵢ U ψ)
+    if (f.kind() == spot::op::U)
+    {
+      auto left_child_ex = extract_and(f[0], outs);
+      if (left_child_ex.kind() == spot::op::And)
+      {
+        std::vector<spot::formula> children;
+        std::transform(left_child_ex.begin(), left_child_ex.end(),
+                       std::back_inserter(children),
+                       [&f](const spot::formula fi)
+                          { return spot::formula::U(fi, f[1]); });
+        auto res = spot::formula::And(children);
+        assert(spot::are_equivalent(res, f));
+        return res;
+      }
+    }
+    if (f.kind() == spot::op::Implies)
+    {
+      auto right_extr = extract_and(f[1], outs);
+      assert(spot::are_equivalent(right_extr, f[1]));
+      auto left_extr = extract_and(f[0], outs);
+      assert(spot::are_equivalent(left_extr, f[0]));
+      // φ → (⋀ψᵢ) ≡ ⋀(φ → ψᵢ)
+      if (left_extr.kind() != spot::op::And)
+      {
+        if (right_extr.kind() == spot::op::And)
+        {
+          std::vector<spot::formula> children;
+          std::transform(right_extr.begin(), right_extr.end(),
+                         std::back_inserter(children),
+                         [f, left_extr](const spot::formula fi)
+                          { return spot::formula::Implies(left_extr, fi); });
+
+          auto res = spot::formula::And(children);
+          assert(spot::are_equivalent(f, res));
+          return res;
+        }
+      }
+      // ⋀φᵢ → ⋀ψᵢ
+      // else
+      // {
+      //   auto extr_f = spot::formula::Implies(left_extr, right_extr);
+      //   return split_impl(extr_f, outs);
+      // }
+    }
+    return f;
+  }
+
+  static std::set<formula>
+  algo4(std::vector<formula> assumptions, std::set<std::string> outs)
+  {
+    std::vector<bool> done(assumptions.size(), false);
+    std::set<formula> result;
+    std::stack<unsigned> todo;
+    todo.push(0);
+    while (!todo.empty())
+    {
+      unsigned i = todo.top();
+      todo.pop();
+      if (done[i])
+        continue;
+      auto& f = assumptions[i];
+      auto [ins_f, out_f] = aps_of(f, outs);
+      done[i] = true;
+      if (out_f.size() != 0)
+      {
+        result.insert(ins_f.begin(), ins_f.end());
+        result.insert(out_f.begin(), out_f.end());
+        for (unsigned j = 0; j < assumptions.size(); ++j)
+        {
+          if (done[j])
+            continue;
+          auto [j_ins, j_outs] = aps_of(assumptions[j], outs);
+          if (are_intersecting(ins_f, j_ins) || are_intersecting(out_f, j_outs))
+            todo.push(j);
+        }
+      }
+    }
+    return result;
+  }
+
+  static formula
+  split_implication(formula f, std::set<std::string> outs)
+  {
+    assert(f.kind() == op::Equiv);
+    assert(f[0].kind() == op::And);
+    assert(f[1].kind() == op::And);
+    std::vector<formula> assumptions, guarantees;
+    for (auto a : f[0])
+      assumptions.push_back(a);
+    for (auto g : f[1])
+      guarantees.push_back(g);
+    std::set<formula> decRelProps = algo4(assumptions, outs);
+    std::vector<spot::formula> free_assumptions;
+    std::vector<std::pair<std::vector<formula>, std::vector<formula>>> specs;
+    for (auto& ass : assumptions)
+    {
+      std::set<formula> propositions;
+      auto [left_aps, right_aps] = aps_of(ass, outs);
+      std::set<formula> ass_aps;
+      ass_aps.insert(left_aps.begin(), left_aps.end());
+      ass_aps.insert(right_aps.begin(), right_aps.end());
+      std::set_intersection(ass_aps.begin(), ass_aps.end(), decRelProps.begin(),
+          decRelProps.end(), std::inserter(propositions, propositions.begin()));
+      if (propositions.size() == 0)
+        free_assumptions.push_back(ass);
+      else
+      {
+        // TODO:
+      }
+    }
+  }
+
+  std::pair<std::vector<formula>, std::vector<std::set<spot::formula>>>
+  split_independant_formulas(formula f, const std::set<std::string> outs)
+  {
+    (void) split_implication;
+    std::set<spot::formula> outs_f;
+    std::transform(outs.begin(), outs.end(), std::inserter(outs_f, outs_f.begin()),
+        [](const std::string name) { return formula::ap(name); });
+    f = extract_and(f, outs_f);
+    if (f.kind() != op::And)
+    {
+      auto [_, outs_f] = aps_of(f, outs);
+      return { {f}, { outs_f } };
+    }
+    // Atomics prop of children
+    std::vector<std::set<spot::formula>> children_outs;
+    // Independent formulas
+    std::vector<spot::formula> res;
+    // For each conj, we calculate the set of output AP
+    for (auto child : f)
+      children_outs.push_back(aps_of(child, outs).second);
+    unsigned nb_children = f.size();
+    // flag to test if a conj is in a "class"
+    std::vector<bool> children_class(nb_children, false);
+    // The first element not in a class
+    unsigned first_free = 0;
+    std::stack<unsigned> todo;
+    while (first_free < nb_children)
+    {
+      todo.emplace(first_free);
+      std::vector<spot::formula> current_and;
+      while (!todo.empty())
+      {
+        auto current = todo.top();
+        todo.pop();
+        children_class[current] = true;
+        current_and.push_back(f[current]);
+        // TODO: Start with i = current + 1?
+        for (unsigned i = 0; i < nb_children; ++i)
+          if (!children_class[i]
+                && are_intersecting(children_outs[current], children_outs[i]))
+          {
+            todo.emplace(i);
+            children_class[i] = true;
+          }
+      }
+      auto elem = formula::And(current_and);
+      res.push_back(elem);
+
+      while (first_free < nb_children && children_class[first_free])
+        ++first_free;
+    }
+    return { res, children_outs };
   }
 
 } // spot

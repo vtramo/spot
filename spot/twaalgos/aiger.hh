@@ -19,7 +19,6 @@
 
 #pragma once
 
-#include <iosfwd>
 #include <spot/misc/bddlt.hh>
 #include <spot/misc/common.hh>
 #include <spot/misc/minato.hh>

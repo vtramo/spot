@@ -19,8 +19,6 @@
 
 #include <config.h>
 
-#include <sstream>
-
 #include "argmatch.h"
 
 #include "common_aoutput.hh"
@@ -31,21 +29,12 @@
 #include <spot/misc/bddlt.hh>
 #include <spot/misc/escape.hh>
 #include <spot/misc/timer.hh>
-#include <spot/tl/apcollect.hh>
 #include <spot/tl/formula.hh>
 #include <spot/twa/twagraph.hh>
 #include <spot/twaalgos/aiger.hh>
-#include <spot/twaalgos/degen.hh>
-#include <spot/twaalgos/determinize.hh>
 #include <spot/twaalgos/game.hh>
 #include <spot/twaalgos/hoa.hh>
-#include <spot/twaalgos/parity.hh>
-#include <spot/twaalgos/sbacc.hh>
-#include <spot/twaalgos/simulation.hh>
 #include <spot/twaalgos/synthesis.hh>
-#include <spot/twaalgos/toparity.hh>
-#include <spot/twaalgos/totgba.hh>
-#include <spot/twaalgos/translate.hh>
 
 enum
 {
@@ -288,23 +277,49 @@ namespace
     if (gi.bv)
       gi.bv->nb_states_arena = arena->num_states();
 
-    if (opt_print_pg)
-      {
-        pg_print(std::cout, arena);
-        safe_tot_time();
-        return 0;
-      }
-    if (opt_print_hoa)
-      {
-        spot::print_hoa(std::cout, arena, opt_print_hoa_args) << '\n';
-        safe_tot_time();
-        return 0;
-      }
+    /////////// TODO: This part split
+    auto [sub_form, sub_outs] = split_independant_formulas(f, output_aps);
+    std::vector<std::set<std::string>> sub_outs_str(sub_form.size(), std::set<std::string>{});
+    unsigned pos = 0;
+    for (auto& x : sub_outs)
+    {
+      for (auto& y : x)
+        sub_outs_str[pos].insert(y.ap_name());
+      ++pos;
+    }
+    std::vector<spot::twa_graph_ptr> arenas;
 
-    // We need a solved game
-    is_winning = (int) spot::solve_game(arena, gi);
+    // We always need an arena, specific needs are passed via gi
+    for (auto sub : sub_form)
+    {
+      auto arena = spot::create_game(f, output_aps, extra_options, gi);
+      arenas.push_back(arena);
+      // FIXME: Est-ce que c'est vraiment la somme des tailles des sous-arènes ?
+      if (gi.bv)
+        gi.bv->nb_states_arena += arena->num_states();
+      if (opt_print_pg)
+        {
+          pg_print(std::cout, arena);
+          safe_tot_time();
+          return 0;
+        }
+      if (opt_print_hoa)
+        {
+          spot::print_hoa(std::cout, arena, opt_print_hoa_args) << '\n';
+          safe_tot_time();
+          return 0;
+        }
+    }
+
     if (gi.bv)
-      gi.bv->realizable = is_winning;
+      gi.bv->realizable = true;
+    for (auto& arena : arenas)
+    {
+      is_winning = (int) spot::solve_game(arena, gi);
+      if (gi.bv)
+        gi.bv->realizable &= is_winning;
+    }
+    // We need a solved game
 
     if (opt_real)
       {
@@ -312,39 +327,48 @@ namespace
         safe_tot_time();
         return (int) not is_winning;
       }
+    std::vector<spot::twa_graph_ptr> strategies;
     // From here on we need the strat if winning
     std::cout << (is_winning ? "REALIZABLE" : "UNREALIZABLE") << std::endl;
     if (is_winning)
       {
-        // We need the strategy automaton
-        if (gi.bv)
-          sw.start();
-        auto strat_aut = spot::create_strategy(arena, extra_options, gi);
-        if (gi.bv)
-          gi.bv->strat2aut_time = sw.stop();
-
+        for (auto& arena : arenas)
+        {
+          // We need the strategy automaton
+          if (gi.bv)
+            sw.start();
+          auto strat_aut = spot::create_strategy(arena, extra_options, gi);
+          if (gi.bv)
+            gi.bv->strat2aut_time += sw.stop();
+          strategies.push_back(strat_aut);
+        }
         if (opt_print_aiger)
-          {
-            auto saig = spot::strategy_to_aig(strat_aut, opt_print_aiger,
+        {
+          auto saig = spot::strategies_to_aig(strategies, opt_print_aiger,
                                               input_aps,
-                                              output_aps);
-            if (gi.bv)
-              {
-                gi.bv->nb_latches = saig->num_latches();
-                gi.bv->nb_gates = saig->num_gates();
-              }
-            spot::print_aiger(std::cout, saig, "circuit");
+                                              sub_outs_str);
+          if (gi.bv)
+          {
+            gi.bv->nb_latches = saig->num_latches();
+            gi.bv->nb_gates = saig->num_gates();
           }
+          spot::print_aiger(std::cout, saig, "circuit");
+        }
         else
           {
             spot::process_timer timer;
             automaton_printer printer;
-            printer.print(strat_aut, timer);
+            // FIXME: On fait quoi là ?
+            (void) timer;
+            (void) printer;
+            // printer.print(strat_aut, timer);
           }
 
         if (opt_do_verify)
           {
             // Test the strat
+            ///////// TODO: Now we have a set of strategies.
+            spot::twa_graph_ptr strat_aut;
             if (neg_spec->intersects(strat_aut))
               throw std::runtime_error("Strategy and negated specification "
                                        "do intersect -> strategy not OK.");
@@ -497,10 +521,9 @@ main(int argc, char **argv)
 
       ltl_processor processor(all_input_aps, all_output_aps);
 
+      auto res = processor.run();
       // Diagnose unused -x options
-      // FIXME: Maintenant que c'est déplacé, il ne voit pas que les options
-      // sont utilisées
-      // extra_options.report_unused_options();
-      return processor.run();
+      extra_options.report_unused_options();
+      return res;
     });
 }
