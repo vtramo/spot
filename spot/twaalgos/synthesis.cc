@@ -1040,6 +1040,15 @@ namespace spot
     bool do_unsplit = sl < 3;
     twa_graph_ptr strat_aut = apply_strategy(arena, do_unsplit,
                                              false);
+    //Test
+    if (!do_unsplit)
+      {
+        std::cout << "try" << std::endl;
+        alternate_players(strat_aut, false, false);
+        std::cout << std::endl;
+        std::cerr << std::endl;
+        std::cout << "Passed\n";
+      }
     strat_aut->prop_universal(true);
     minimize_strategy_here(strat_aut, opt);
     if (!do_unsplit)

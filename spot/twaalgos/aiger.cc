@@ -872,6 +872,10 @@ namespace spot
       bdd all_inputs = bddtrue;
       bdd all_outputs = bddtrue;
 
+      // Join all the outputs
+      for (auto& astrat : strat_vec)
+        all_outputs &= astrat.second;
+
       std::vector<bdd> all_inputs_vec;
       std::unordered_map<unsigned, unsigned> bddvar_to_num;
 
@@ -879,7 +883,6 @@ namespace spot
         std::unordered_map<std::string, int> stash_;
         for (auto& astrat : strat_vec)
           {
-            all_outputs &= astrat.second;
             for (const auto& ap : astrat.first->ap())
               {
                 int bddvar =
@@ -888,7 +891,7 @@ namespace spot
                 assert(bddvar >= 0);
                 stash_.emplace(std::make_pair(ap.ap_name(), bddvar));
                 bdd b = bdd_ithvar(bddvar);
-                if (bdd_implies(astrat.second, b)) // ap is an output AP
+                if (bdd_implies(all_outputs, b)) // ap is an output AP
                   {
                     if (output_names.count(ap.ap_name()))
                       throw std::runtime_error("Outputs not disjoint!\n"

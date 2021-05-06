@@ -23,6 +23,8 @@
 #include <spot/misc/bddlt.hh>
 #include <spot/twaalgos/sccinfo.hh>
 
+#include <spot/twaalgos/hoa.hh>
+
 namespace spot
 {
   namespace
@@ -806,7 +808,8 @@ namespace spot
   }
 
   void alternate_players(spot::twa_graph_ptr& arena,
-                         bool first_player, bool complete0)
+                         bool first_player, bool complete0,
+                         bool clean_up)
   {
     auto umt = acc_cond::mark_t({});
     if (complete0)
@@ -822,11 +825,45 @@ namespace spot
     unsigned sink_env = 0;
     unsigned sink_con = 0;
 
+    auto is_sink_like = [&arena, &umt](unsigned s)
+      {
+        // Sink-like : a loop with two states
+        // each of them only having one transition with
+        // cond true and acc = unsat
+        auto eit1 = arena->out(s);
+        auto eit1_b = eit1.begin();
+
+        if ((eit1_b->cond != bddtrue)
+            || (eit1_b->acc != umt))
+          return std::make_pair(-1u, -1u);
+
+        unsigned dst = eit1_b->dst;
+
+        if ((++eit1_b) != eit1.end())
+          return std::make_pair(-1u, -1u);
+
+        auto eit2 = arena->out(dst);
+        auto eit2_b = eit2.begin();
+
+        unsigned dstprime = eit2_b->dst;
+
+        if ((eit2_b->cond != bddtrue)
+            || (eit2_b->acc != umt)
+            || (dstprime != s))
+          return std::make_pair(-1u, -1u);
+
+        if ((++eit2_b) != eit2.end())
+          return std::make_pair(-1u, -1u);
+
+        return std::make_pair(s, dst);
+      };
     std::vector<bool> seen(arena->num_states(), false);
     unsigned init = arena->get_init_state_number();
     std::vector<unsigned> todo({init});
     auto owner = new std::vector<bool>(arena->num_states(), false);
     (*owner)[init] = first_player;
+
+    auto* outbddptr = arena->get_named_prop<bdd>("synthesis-outputs");
     while (!todo.empty())
       {
         unsigned src = todo.back();
@@ -846,9 +883,81 @@ namespace spot
               }
             else if ((*owner)[e.dst] == osrc)
               {
-//                delete owner;
-//                throw
-//                  std::runtime_error("alternate_players(): odd cycle detected");
+                auto err_ = [&owner]()
+                  {
+                    delete owner;
+                    throw
+                        std::runtime_error("alternate_players(): "
+                                           "odd cycle detected");
+                  };
+                if (!clean_up)
+                  err_();
+
+                // Self-loop ?
+                // We can also find a simple fix if the condition
+                // only contains input or output propositions
+                if ((e.dst == e.src)
+                    && (e.acc == umt))
+                  {
+                    assert(e.cond != bddfalse);
+                    bdd conde = bddfalse;
+                    bdd condp = bddfalse;
+
+                    if (e.cond == bddtrue)
+                      {
+                        conde = bddtrue;
+                        condp = bddtrue;
+                      }
+                    else if (outbddptr
+                             && (bdd_exist(e.cond, *outbddptr) == e.cond))
+                      {
+                        //There are only input propositions in cond
+                        conde = e.cond;
+                        condp = bddtrue;
+                      }
+                    else if (outbddptr
+                             && (bdd_existcomp(e.cond, *outbddptr) == e.cond))
+                      {
+                        //There are only output propositions in cond
+                        conde = bddtrue;
+                        condp = e.cond;
+                      }
+                    if (conde != bddfalse)
+                      {
+                        unsigned s_split = arena->new_state();
+                        seen.push_back(true);
+                        owner->push_back(!osrc);
+
+                        auto& emod = arena->edge_storage(arena->edge_number(e));
+                        emod.dst = s_split;
+                        emod.cond = osrc ? condp : conde;
+                        arena->new_edge(s_split, e.src,
+                                        osrc ? condp : conde, umt);
+                      }
+                    else
+                      err_();
+                  }
+                else
+                  {
+                    // Sometimes, the transitions to sink are wrong
+                    // in this case we can simply redirect the edge to
+                    // the other sink-state
+                    auto s_p = is_sink_like(e.dst);
+                    if (s_p.first == e.dst)
+                      {
+                        if (seen[s_p.second])
+                          assert((*owner)[s_p.first] != (*owner)[s_p.second]);
+                        else
+                          {
+                            seen[s_p.second] = true;
+                            (*owner)[s_p.second] = !(*owner)[s_p.first];
+                          }
+                        arena->edge_storage(arena->edge_number(e)).dst
+                              = s_p.second;
+                      }
+                    else
+                      err_();
+                  }
               }
           }
         if (complete0 && !(*owner)[src] && missing != bddfalse)
@@ -859,6 +968,8 @@ namespace spot
                 sink_con = arena->new_state();
                 owner->push_back(true);
                 owner->push_back(false);
+                seen.push_back(true);
+                seen.push_back(true);
                 arena->new_edge(sink_con, sink_env, bddtrue, umt);
                 arena->new_edge(sink_env, sink_con, bddtrue, umt);
               }
@@ -1051,4 +1162,19 @@ namespace spot
 
     return (*winners)[game->get_init_state_number()];
   }
+
+  void set_synthesis_outputs(twa_graph_ptr arena, bdd outs)
+  {
+    arena->set_named_prop("synthesis-outputs", new bdd(outs));
+  }
+
+  bdd get_synthesis_outputs(twa_graph_ptr arena)
+  {
+    if (auto* obddptr = arena->get_named_prop<bdd>("synthesis-outputs"))
+      return *obddptr;
+    throw std::runtime_error("Named property \"synthesis-outputs\" no set!");
+  }
+
+
+
 }
