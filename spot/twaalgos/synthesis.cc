@@ -268,12 +268,12 @@ namespace{
         return;
       case 1:
         {
-          minimize_mealy_fast_here(strat, false);
+          minimize_mealy_fast_here(strat, true);
           break;
         }
       case 2:
         {
-          minimize_mealy_fast_here(strat, true);
+          minimize_mealy_fast_here(strat, false);
           break;
         }
       case 3:
@@ -1043,11 +1043,7 @@ namespace spot
     //Test
     if (!do_unsplit)
       {
-        std::cout << "try" << std::endl;
         alternate_players(strat_aut, false, false);
-        std::cout << std::endl;
-        std::cerr << std::endl;
-        std::cout << "Passed\n";
       }
     strat_aut->prop_universal(true);
     minimize_strategy_here(strat_aut, opt);
@@ -1055,7 +1051,11 @@ namespace spot
       strat_aut = unsplit_2step(strat_aut);
 
     if (bv)
+      {
         bv->strat2aut_time = sw.stop();
+        bv->nb_states_strat = strat_aut->num_states();
+        bv->nb_edges_strat = strat_aut->num_edges();
+      }
 
     return strat_aut;
   }

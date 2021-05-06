@@ -226,7 +226,8 @@ namespace
               out << ",\"strat2aut_time\"";
             out << ",\"realizable\""; //-1: Unknown, 0: Unreal, 1: Real
           }
-        out << ",\"dpa_num_states\",\"parity_game_num_states\"";
+        out << ",\"dpa_num_states\",\"parity_game_num_states\""
+            << ",\"strat_num_states\",\"strat_num_edges\"";
         if (opt_print_aiger)
             out << ",\"nb latches\",\"nb gates\"";
         out << '\n';
@@ -247,7 +248,9 @@ namespace
         out << ',' << bv->realizable;
       }
     out << ',' << bv->nb_states_arena
-        << ',' << bv->nb_states_parity_game;
+        << ',' << bv->nb_states_parity_game
+        << ',' << bv->nb_states_strat
+        << ',' << bv->nb_edges_strat;
     if (opt_print_aiger)
     {
       out << "," << bv->nb_latches

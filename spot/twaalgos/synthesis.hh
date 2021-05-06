@@ -104,6 +104,8 @@ namespace spot
       double strat2aut_time = 0.0;
       unsigned nb_states_arena = 0;
       unsigned nb_states_parity_game = 0;
+      unsigned nb_states_strat = 0;
+      unsigned nb_edges_strat = 0;
       unsigned nb_latches = 0;
       unsigned nb_gates = 0;
       bool realizable = false;
