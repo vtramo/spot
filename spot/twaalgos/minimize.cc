@@ -3071,6 +3071,8 @@ namespace spot{
       if (!spptr)
         throw std::runtime_error("\"state-player\" must be defined!");
       const auto& spref = *spptr;
+      assert((spref.size() == mmw->num_states())
+             && "Inconsistent state players");
 
       // Compute the alphabet and create new edges
       // Also the machine is such that
@@ -3138,7 +3140,7 @@ namespace spot{
       // Set state players!
       if (!minmachine)
         {
-          minmachine = make_twa_graph(mm, twa::prop_set::all());
+          minmachine = make_twa_graph(mmw, twa::prop_set::all());
           assert(spptr != nullptr);
           minmachine->set_named_prop("state-player",
                                      new std::vector<bool>(*spptr));
