@@ -1450,6 +1450,7 @@ namespace spot
         // TODO:
       }
     }
+    return formula::ff();//todo compil fix
   }
 
   std::pair<std::vector<formula>, std::vector<std::set<spot::formula>>>
