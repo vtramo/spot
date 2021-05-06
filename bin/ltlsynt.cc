@@ -35,6 +35,7 @@
 #include <spot/twaalgos/game.hh>
 #include <spot/twaalgos/hoa.hh>
 #include <spot/twaalgos/synthesis.hh>
+#include <spot/twaalgos/product.hh>
 
 enum
 {
@@ -215,7 +216,8 @@ namespace
               out << ",\"strat2aut_time\"";
             out << ",\"realizable\""; //-1: Unknown, 0: Unreal, 1: Real
           }
-        out << ",\"dpa_num_states\",\"parity_game_num_states\"";
+        out << ",\"dpa_num_states\",\"parity_game_num_states\""
+            << ",\"strat_num_states\",\"strat_num_edges\"";
         if (opt_print_aiger)
             out << ",\"nb latches\",\"nb gates\"";
         out << '\n';
@@ -236,7 +238,10 @@ namespace
         out << ',' << bv->realizable;
       }
     out << ',' << bv->nb_states_arena
-        << ',' << bv->nb_states_parity_game;
+        << ',' << bv->nb_states_parity_game
+        << ',' << bv->nb_strat_states
+        << ',' << bv->nb_strat_edges;
+
     if (opt_print_aiger)
     {
       out << "," << bv->nb_latches
@@ -332,6 +337,7 @@ namespace
     std::cout << (is_winning ? "REALIZABLE" : "UNREALIZABLE") << std::endl;
     if (is_winning)
       {
+        spot::twa_graph_ptr tot_strat;
         for (auto& arena : arenas)
         {
           // We need the strategy automaton
@@ -339,12 +345,17 @@ namespace
             sw.start();
           auto strat_aut = spot::create_strategy(arena, extra_options, gi);
           if (gi.bv)
+          {
             gi.bv->strat2aut_time += sw.stop();
+            gi.bv->nb_strat_states = strat_aut->num_states();
+            gi.bv->nb_strat_edges = strat_aut->num_edges();
+          }
           strategies.push_back(strat_aut);
         }
+        spot::aig_ptr saig;
         if (opt_print_aiger)
         {
-          auto saig = spot::strategies_to_aig(strategies, opt_print_aiger,
+          saig = spot::strategies_to_aig(strategies, opt_print_aiger,
                                               input_aps,
                                               sub_outs_str);
           if (gi.bv)
@@ -359,33 +370,33 @@ namespace
             spot::process_timer timer;
             automaton_printer printer;
             // FIXME: On fait quoi là ?
-            (void) timer;
-            (void) printer;
-            // printer.print(strat_aut, timer);
+            // Product of all "local" strategies
+            // -> "global" strategy
+            tot_strat = strategies.front();
+            for (size_t i = 1; i < strategies.size(); ++i)
+              tot_strat = product(tot_strat, strategies[i]);
+            printer.print(tot_strat, timer);
           }
 
         if (opt_do_verify)
           {
-            // Test the strat
-            ///////// TODO: Now we have a set of strategies.
-            spot::twa_graph_ptr strat_aut;
-            if (neg_spec->intersects(strat_aut))
-              throw std::runtime_error("Strategy and negated specification "
-                                       "do intersect -> strategy not OK.");
             // Test the aiger
             if (opt_print_aiger)
               {
-                auto saig = spot::strategy_to_aig(strat_aut, opt_print_aiger,
-                                                  input_aps,
-                                                  output_aps);
                 auto saigaut = saig->aig2aut(false);
-                if (neg_spec->intersects(strat_aut))
+                if (neg_spec->intersects(saigaut))
                   throw std::runtime_error("Aiger and negated specification "
                                            "do intersect -> strategy not OK.");
                 std::cout << "#Circuit was verified\n";
               }
             else
-              std::cout << "/*Strategy was verified*/\n";
+              {
+                // Test the strat
+                if (neg_spec->intersects(tot_strat))
+                  throw std::runtime_error("Strategy and negated specification "
+                                           "do intersect -> strategy not OK.");
+                std::cout << "/*Strategy was verified*/\n";
+              }
           }
       }
 
