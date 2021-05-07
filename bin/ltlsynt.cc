@@ -279,7 +279,7 @@ namespace
 
     /////////// TODO: This part split
     auto [sub_form, sub_outs] = split_independant_formulas(f, output_aps);
-    std::vector<std::set<std::string>> sub_outs_str(sub_form.size(), std::set<std::string>{});
+    std::vector<std::set<std::string>> sub_outs_str(sub_form.size());
     unsigned pos = 0;
     for (auto& x : sub_outs)
     {
