@@ -255,7 +255,7 @@ namespace{
         opt.get("minimization-level", 1);
     // 0 -> No minimization
     // 1 -> Regular monitor minimization
-    // 2 -> Fast mealy minimization
+    // 2 -> Mealy minimization based on language inclusion
     // 3 -> Exact mealy minimization
     // 4 -> Monitor min then exact minimization
     // 5 -> Fast mealy then exact minimization
@@ -268,12 +268,12 @@ namespace{
         return;
       case 1:
         {
-          minimize_mealy_fast_here(strat, false);
+          minimize_mealy_fast_here(strat, true);
           break;
         }
       case 2:
         {
-          minimize_mealy_fast_here(strat, true);
+          minimize_mealy_fast_here(strat, false);
           break;
         }
       case 3:
@@ -1031,19 +1031,16 @@ namespace spot
     // Depending on the minimization we need it split or unsplit
     // 0 -> No minimization -> unsplit
     // 1 -> Regular monitor minimization -> unsplit
-    // 2 -> Fast mealy minimization -> unsplit
+    // 2 -> Mealy minimization based on language inclusion -> unsplit
     // 3 -> Exact mealy minimization -> split
     // 4 -> Monitor min then exact minimization -> split
-    // 5 -> Fast mealy then exact minimization -> split
-    unsigned sl =
-        opt.get("minimization-level", 1);
-    bool do_unsplit = sl < 3;
-    twa_graph_ptr strat_aut = apply_strategy(arena, do_unsplit,
+    // 5 -> Mealy minimization based on language inclusion
+    //      then exact minimization -> split
+    twa_graph_ptr strat_aut = apply_strategy(arena, false,
                                              false);
     strat_aut->prop_universal(true);
     minimize_strategy_here(strat_aut, opt);
-    if (!do_unsplit)
-      strat_aut = unsplit_2step(strat_aut);
+    strat_aut = unsplit_2step(strat_aut);
 
     if (bv)
         bv->strat2aut_time = sw.stop();

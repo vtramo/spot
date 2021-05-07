@@ -1142,29 +1142,73 @@ namespace
   get_repres(twa_graph_ptr& a, bool rec)
   {
     const auto a_num_states = a->num_states();
+    // We can only assign a new destination for the transitions that
+    // go to a controller state.
+    auto owner_ptr = a->get_named_prop<std::vector<bool>>("state-player");
 
-    std::vector<unsigned> repr;
-    repr.reserve(a_num_states);
+    std::vector<unsigned> repr(a_num_states);
     bdd_tree tree;
     std::unordered_set<bdd, spot::bdd_hash> bdd_done;
     bdd_done.insert(bddtrue);
-    std::vector<bdd> signatures;
+    std::vector<bdd> signatures(a_num_states);
     sig_calculator red(a);
     red.main_loop();
     for (unsigned i = 0; i < a_num_states; ++i)
       {
+        if (owner_ptr && (*owner_ptr)[i] == 0)
+          continue;
         bdd sig = red.compute_sig(i);
-        signatures.push_back(sig);
+        signatures.insert(signatures.begin() + i, sig);
         if (bdd_done.find(sig) == bdd_done.end())
           {
             tree.add_child(sig, i, rec);
             bdd_done.insert(sig);
           }
       }
-    // tree.print();
     auto repr_map = tree.flatten();
     for (unsigned i = 0; i < a_num_states; ++i)
-      repr[i] = repr_map[signatures[i]];
+    {
+      if (owner_ptr && (*owner_ptr)[i] == 0)
+        repr[i] = i;
+      else
+        repr[i] = repr_map[signatures[i]];
+    }
+    // With rec we are able to change the initial state if the automaton is
+    // splitted.
+    if (rec && owner_ptr)
+    {
+      unsigned orig_init = a->get_init_state_number();
+      unsigned new_init = orig_init;
+      bdd init_bdd = red.compute_sig(new_init);
+      for (unsigned i = 0; i < a_num_states; ++i)
+      {
+        if ((*owner_ptr)[i] == 0)
+        {
+          bdd other_bdd = red.compute_sig(i);
+          if (bdd_implies(other_bdd, init_bdd))
+          {
+            new_init = i;
+            init_bdd = other_bdd;
+          }
+        }
+      }
+      repr[orig_init] = new_init;
+    }
+    else if (!rec && owner_ptr)
+    {
+      unsigned orig_init = a->get_init_state_number();
+      bdd init_bdd = red.compute_sig(orig_init);
+      for (auto& e : a->edges())
+        if ((*owner_ptr)[e.dst] == 0)
+        {
+          auto other_bdd = red.compute_sig(e.dst);
+          if (other_bdd == init_bdd)
+          {
+            repr[orig_init] = e.dst;
+            break;
+          }
+        }
+    }
     return repr;
   }
 }
@@ -1177,6 +1221,10 @@ namespace spot
     auto mmc = make_twa_graph(mm, twa::prop_set::all());
     mmc->copy_ap_of(mm);
     mmc->copy_acceptance_of(mm);
+    auto sp = mm->get_named_prop<std::vector<bool>>("state-player");
+    assert(sp);
+    auto nsp = new std::vector<bool>(*sp);
+    mmc->set_named_prop("state-player", nsp);
     minimize_mealy_fast_here(mmc, extra_fast);
     // Try to set outputs
     if (bdd* outptr = mm->get_named_prop<bdd>("synthesis-outputs"))
@@ -1228,7 +1276,9 @@ namespace spot
               todo.emplace(repr_dst);
           }
       }
-    mm->purge_dead_states();
+    mm->purge_unreachable_states();
+    if (mm->get_named_prop<std::vector<bool>>("state-player"))
+      alternate_players(mm, false, false);
   }
 }
 
@@ -3005,8 +3055,8 @@ namespace spot{
             return mm;
           else
             {
-              auto mm_res = minimize_mealy_fast(mm, preminfast == 1);
-              alternate_players(mm_res, false, false);
+              auto mm_res = minimize_mealy_fast(mm, preminfast == 0);
+              // alternate_players(mm_res, false, false);
               return mm_res;
             }
         };
