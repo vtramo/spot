@@ -22,7 +22,7 @@
 #include <spot/kripke/kripke.hh>
 #include <spot/mc/mc_instanciator.hh>
 #include <spot/mc/deadlock.hh>
-#include <spot/mc/deadlock_bitstate2.hh>
+#include <spot/mc/deadlock_bitstate.hh>
 #include <spot/misc/memusage.hh>
 #include <spot/misc/timer.hh>
 
@@ -43,7 +43,7 @@ template<typename kripke_ptr, typename State,
          typename Iterator, typename Hash, typename Equal>
 ec_stats run_deadlock_bitstate(kripke_ptr sys, size_t size)
 {
-  return instanciate<swarmed_deadlock_bitstate2<State, Iterator, Hash, Equal, std::true_type>,
+  return instanciate<swarmed_deadlock_bitstate<State, Iterator, Hash, Equal, std::true_type>,
         kripke_ptr, State, Iterator, Hash, Equal> (sys, nullptr, false, size);
 }
 
