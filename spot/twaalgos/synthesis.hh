@@ -131,9 +131,11 @@ namespace spot
     bdd_dict_ptr dict;
   };
 
-  SPOT_API std::ostream&
-  operator<<(std::ostream& os, const game_info& gi);
+  SPOT_API formula
+  split_implication(formula f, std::set<std::string> outs);
 
+  SPOT_API std::ostream &
+  operator<<(std::ostream &os, const game_info &gi);
 
   SPOT_API spot::twa_graph_ptr
   create_game(const formula& f,
