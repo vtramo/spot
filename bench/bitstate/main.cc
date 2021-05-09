@@ -15,20 +15,20 @@
 
 int main(int argc, char** argv)
 {
-  if (argc != 4)
+  if (argc != 5)
   {
-    std::cout << "Usage: ./bench [MODEL] [ALGO] [MEM_SIZES]\n";
+    std::cout << "Usage: ./bench [MODEL] [ALGO] [NB_THREAD] [MEM_SIZES]\n";
     return 1;
   }
 
   const unsigned compression_level = 0;
-  const unsigned nb_threads = 4;
 
   std::string model_path = argv[1];
   std::string algo = argv[2];
+  unsigned nb_threads = std::atoi(argv[3]);
   // Parse comma separated values
   std::vector<size_t> mem_sizes;
-  std::istringstream iss(argv[3]);
+  std::istringstream iss(argv[4]);
   std::string mem_size;
   while (std::getline(iss, mem_size, ','))
     mem_sizes.push_back(std::atoi(mem_size.c_str()));
