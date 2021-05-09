@@ -194,6 +194,7 @@ namespace spot
     State push(State s)
     {
       std::scoped_lock<std::mutex> lock(*mtx_);
+
       // Prepare data for a newer allocation
       int* ref = (int*) p_.allocate();
       for (unsigned i = 0; i < nb_th_; ++i)
@@ -204,7 +205,7 @@ namespace spot
       auto r = map_->find(v);
       if (!r.first && r.second)
       {
-        if (bloom_filter_.contains(state_hash_(s)))
+        if (filter_size_ != 0 && bloom_filter_.contains(state_hash_(s)))
           return nullptr;
         r = map_->insert(v);
       }
@@ -226,57 +227,65 @@ namespace spot
       if (it->colors[tid_] == static_cast<int>(OPEN))
         return nullptr;
 
-      // Rare case: no more threads is using the state
-      if (it->equal({s,nullptr})) // TODO: lock
+      if (it->equal({s,nullptr}))
       {
-        int* unbox_s = sys_.unbox_bitstate_metadata(it->st);
-        int cnt = __atomic_load_n(&unbox_s[0], __ATOMIC_RELAXED);
-        if (SPOT_UNLIKELY(cnt == 0))
-          return nullptr;
+        if (filter_size_ != 0)
+        {
+          // Rare case: no more threads is using the state
+          int* unbox_s = sys_.unbox_bitstate_metadata(it->st);
+          int cnt = __atomic_load_n(&unbox_s[0], __ATOMIC_RELAXED);
+          if (SPOT_UNLIKELY(cnt == 0))
+            return nullptr;
 
-        // Set bitstate metadata
-        while (!(cnt & (1 << tid_)))
-          cnt = __atomic_fetch_or(unbox_s, (1 << tid_), __ATOMIC_RELAXED);
+          // Set bitstate metadata
+          while (!(cnt & (1 << tid_)))
+            cnt = __atomic_fetch_or(unbox_s, (1 << tid_), __ATOMIC_RELAXED);
+        }
+
+        // Keep a ptr over the array of colors
+        refs_.push_back(it->colors);
+
+        // Mark state as visited.
+        it->colors[tid_] = OPEN;
+        ++states_;
+
+        return it->st;
       }
       else
         return nullptr;
-
-      // Keep a ptr over the array of colors
-      refs_.push_back(it->colors);
-
-      // Mark state as visited.
-      it->colors[tid_] = OPEN;
-      ++states_;
-
-      return it->st;
     }
 
     bool pop()
     {
       std::scoped_lock<std::mutex> lock(*mtx_);
+
       // Insert the state into the filter
       State st = todo_.back().s;
-      bloom_filter_.insert(state_hash_(st));
+      if (filter_size_ != 0)
+        bloom_filter_.insert(state_hash_(st));
 
       // Don't avoid pop but modify the status of the state
       // during backtrack
       refs_.back()[tid_] = CLOSED;
       refs_.pop_back();
 
-      // Clear bitstate metadata
-      int* unbox_s = sys_.unbox_bitstate_metadata(st);
-      int cnt = __atomic_load_n(&unbox_s[0], __ATOMIC_RELAXED);
-      while (cnt & (1 << tid_))
+      if (filter_size_ != 0)
       {
-        cnt = __atomic_fetch_and(unbox_s, ~(1 << tid_), __ATOMIC_RELAXED);
-      }
+        // Clear bitstate metadata
+        int* unbox_s = sys_.unbox_bitstate_metadata(st);
+        int cnt = __atomic_load_n(&unbox_s[0], __ATOMIC_RELAXED);
+        while (cnt & (1 << tid_))
+        {
+          cnt = __atomic_fetch_and(unbox_s, ~(1 << tid_), __ATOMIC_RELAXED);
+        }
 
-      // Release memory if no thread is using the state
-      if (cnt == 0)
-      {
-        deadlock_pair2<State, StateHash, StateEqual> p { st, nullptr };
-        map_->erase(p);
-        sys_.recycle_state(st);
+        // Release memory if no thread is using the state
+        if (cnt == 0)
+        {
+          deadlock_pair2<State, StateHash, StateEqual> p { st, nullptr };
+          map_->erase(p);
+          sys_.recycle_state(st);
+        }
       }
 
       // Track maximum dfs size
