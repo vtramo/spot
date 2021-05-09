@@ -253,6 +253,8 @@ namespace{
     strat->set_acceptance(acc_cond::acc_code::t());
     unsigned simplification_level =
         opt.get("minimization-level", 1);
+//    std::cout << "Before " << simplification_level << "\n";
+//    print_hoa(std::cout, strat) << '\n';
     // 0 -> No minimization
     // 1 -> Regular monitor minimization
     // 2 -> Mealy minimization based on language inclusion
@@ -262,6 +264,8 @@ namespace{
     bdd *obddptr = strat->get_named_prop<bdd>("synthesis-outputs");
     assert(obddptr);
     bdd obdd = *obddptr;
+    if (simplification_level < 3)
+      strat->set_named_prop("synthesis-outputs", nullptr);
     switch (simplification_level)
     {
       case 0:
@@ -298,7 +302,8 @@ namespace{
 
     strat->set_named_prop("synthesis-outputs", new bdd(obdd));
     // restore_form(strat, *new_bdd);
-    // print_hoa(std::cout, strat) << '\n';
+//    std::cout << "After \n";
+//    print_hoa(std::cout, strat) << '\n';
     // print_hoa(std::cout, copy) << '\n';
   }
 }
@@ -1036,11 +1041,13 @@ namespace spot
     // 4 -> Monitor min then exact minimization -> split
     // 5 -> Mealy minimization based on language inclusion
     //      then exact minimization -> split
-    twa_graph_ptr strat_aut = apply_strategy(arena, false,
+    bool do_unsplit = opt.get("minimization-level", 1) < 3;
+    twa_graph_ptr strat_aut = apply_strategy(arena, do_unsplit,
                                              false);
     strat_aut->prop_universal(true);
     minimize_strategy_here(strat_aut, opt);
-    strat_aut = unsplit_2step(strat_aut);
+    if (!do_unsplit)
+      strat_aut = unsplit_2step(strat_aut);
 
     if (bv)
         bv->strat2aut_time = sw.stop();
@@ -1191,6 +1198,7 @@ namespace spot
   namespace
   {
     // Checks that 2 sets have a common element.
+    // todo : std::set_intersection?
     static bool
     are_intersecting(const std::set<spot::formula> &v1,
                      const std::set<spot::formula> &v2)
@@ -1236,7 +1244,7 @@ namespace spot
     std::set<std::string> f_aps_str;
     for (auto& x : *f_aps)
       f_aps_str.insert(x.ap_name());
-    free(f_aps);
+    free(f_aps);//todo delete?
     auto [ins_f_str, outs_f_str] = split_set(f_aps_str, outs);
     std::set<formula> ins_f, outs_f;
     for (auto& x : ins_f_str)
@@ -1470,6 +1478,8 @@ namespace spot
     std::vector<std::set<spot::formula>> children_outs;
     // Independent formulas
     std::vector<spot::formula> res;
+    // And the appearing propositions
+    std::vector<std::set<spot::formula>> res_outs;
     // For each conj, we calculate the set of output AP
     for (auto child : f)
       children_outs.push_back(aps_of(child, outs).second);
@@ -1483,12 +1493,15 @@ namespace spot
     {
       todo.emplace(first_free);
       std::vector<spot::formula> current_and;
+      std::set<spot::formula> current_outs;
       while (!todo.empty())
       {
         auto current = todo.top();
         todo.pop();
         children_class[current] = true;
         current_and.push_back(f[current]);
+        current_outs.insert(children_outs[current].begin(),
+                            children_outs[current].end());
         // TODO: Start with i = current + 1?
         for (unsigned i = 0; i < nb_children; ++i)
           if (!children_class[i]
@@ -1500,11 +1513,12 @@ namespace spot
       }
       auto elem = formula::And(current_and);
       res.push_back(elem);
+      res_outs.push_back(current_outs);
 
       while (first_free < nb_children && children_class[first_free])
         ++first_free;
     }
-    return { res, children_outs };
+    return { res, res_outs };
   }
 
 } // spot
