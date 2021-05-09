@@ -1395,11 +1395,11 @@ namespace spot
     return f;
   }
 
-  static std::set<formula>
+  static std::pair<std::set<formula>, std::set<formula>>
   algo4(std::vector<formula> assumptions, std::set<std::string> outs)
   {
     std::vector<bool> done(assumptions.size(), false);
-    std::set<formula> result;
+    std::pair<std::set<formula>, std::set<formula>> result;
     std::stack<unsigned> todo;
     todo.push(0);
     while (!todo.empty())
@@ -1413,8 +1413,8 @@ namespace spot
       done[i] = true;
       if (out_f.size() != 0)
       {
-        result.insert(ins_f.begin(), ins_f.end());
-        result.insert(out_f.begin(), out_f.end());
+        result.first.insert(ins_f.begin(), ins_f.end());
+        result.second.insert(out_f.begin(), out_f.end());
         for (unsigned j = 0; j < assumptions.size(); ++j)
         {
           if (done[j])
@@ -1428,37 +1428,168 @@ namespace spot
     return result;
   }
 
-  static formula
+  formula
   split_implication(formula f, std::set<std::string> outs)
   {
-    assert(f.kind() == op::Equiv);
+    assert(f.kind() == op::Implies);
     assert(f[0].kind() == op::And);
     assert(f[1].kind() == op::And);
     std::vector<formula> assumptions, guarantees;
+    std::cout << "Ass : " << std::endl;
     for (auto a : f[0])
-      assumptions.push_back(a);
-    for (auto g : f[1])
-      guarantees.push_back(g);
-    std::set<formula> decRelProps = algo4(assumptions, outs);
-    std::vector<spot::formula> free_assumptions;
-    std::vector<std::pair<std::vector<formula>, std::vector<formula>>> specs;
-    for (auto& ass : assumptions)
     {
-      std::set<formula> propositions;
+      std::cout << a << std::endl;
+      assumptions.push_back(a);
+    }
+    std::cout << "Gua : " << std::endl;
+    for (auto g : f[1])
+    {
+      std::cout << g << std::endl;
+      guarantees.push_back(g);
+    }
+    // Set of input/output props that cannot be shared between subspectifications
+    auto [decRelProps_ins, decRelProps_outs] = algo4(assumptions, outs);
+    std::cout << "DecRelIns : [";
+    for (auto x : decRelProps_ins)
+      std::cout << x << ",";
+    std::cout << "]" << std::endl;
+    std::cout << "DecRelOuts : [";
+    for (auto x : decRelProps_outs)
+      std::cout << x << ",";
+    std::cout << "]" << std::endl;
+    // Assumptions that don't contain an atomic proposition in decRelProps
+    auto free_assumptions = formula::tt();
+    // The set of subspecifications described as [(assum, guar), (assum, guar)]
+    std::vector<std::pair<formula, formula>> specs;
+    // We merge two assumpt or guar. that share a proposition from decRelProps
+    std::vector<spot::formula> assumptions_split, guarantees_split;
+
+    auto fus = [&outs](std::vector<spot::formula>& forms, std::vector<spot::formula>& res)
+    {
+      std::stack<unsigned> todo;
+      todo.emplace(0);
+      unsigned first_free = 1;
+      std::vector<bool> done(forms.size(), false);
+      while(!todo.empty())
+      {
+        auto current_res = spot::formula::tt();
+        while (!todo.empty())
+        {
+          auto current_index = todo.top();
+          todo.pop();
+          done[current_index] = true;
+          auto current_form = forms[current_index];
+          std::cout << "Traitement de l'indice " << current_index << "(" << current_form << ")" << std::endl;
+          // FIXME: Là je cherche si deux trucs ont des OUTS en commun, pas
+          // des decRelProps. Ca doit pouvoir se faire en remplacant outs
+          // par decRelProps mais ça désactive le cache.
+          auto [ins_f, outs_f] = aps_of(current_form, outs);
+          for (unsigned i = 0; i < forms.size(); ++i)
+          {
+            if (done[i])
+              continue;
+            auto [ins_i, outs_i] = aps_of(current_form, outs);
+            if (are_intersecting(ins_i, ins_f) || are_intersecting(outs_i, outs_f))
+            {
+              todo.emplace(i);
+              current_res = spot::formula::And({current_res, current_form});
+            }
+          }
+        }
+        res.push_back(current_res);
+        while(first_free < forms.size() && done[first_free])
+          ++first_free;
+        if (first_free < forms.size())
+        {
+          todo.emplace(first_free);
+          ++first_free;
+        }
+      }
+    };
+
+    fus(assumptions, assumptions_split);
+    fus(guarantees, guarantees_split);
+
+    std::cout << "Assump_split : [";
+    for (auto x : assumptions_split)
+      std::cout << x << ", ";
+    std::cout << std::endl;
+    std::cout << "Guar_split : [";
+    for (auto x : guarantees_split)
+      std::cout << x << ", ";
+    std::cout << std::endl;
+    // Now we just have to find connected components in a bipartite graph
+    std::function<void(formula f, std::vector<formula>&,
+                                  std::vector<spot::formula>&,
+                                  std::set<formula>&,
+                                  std::set<formula>&,
+                                  formula&, formula&,
+                                  std::vector<bool>&,
+                                  std::vector<bool>&)> bip;
+    bip = [&outs, &bip](formula f, std::vector<formula>& src_vect,
+                                  std::vector<spot::formula>& dst_vect,
+                                  std::set<formula>& ins_dec,
+                                  std::set<formula>& outs_dec,
+                                  formula& left_res, formula& right_res,
+                                  std::vector<bool>& done_left,
+                                  std::vector<bool>& done_right)
+    {
+      // TODO: Faire un vector done
+      left_res = formula::And({left_res, f});
+      std::stack<unsigned> todo;
+      for (unsigned i = 0; i < dst_vect.size(); ++i)
+      {
+        if (done_right[i])
+          continue;
+        auto f2 = dst_vect[i];
+        auto [f2_ins, f2_outs] = aps_of(f2, outs);
+        if (are_intersecting(f2_ins, ins_dec) || are_intersecting(f2_outs, outs_dec))
+        {
+          todo.push(i);
+          right_res = formula::And({right_res, f2});
+          done_right[i] = true;
+        }
+      }
+      while (!todo.empty())
+      {
+        auto right_index = todo.top();
+        todo.pop();
+        bip(dst_vect[right_index], dst_vect, src_vect, ins_dec, outs_dec, right_res, left_res, done_right, done_left);
+      }
+    };
+
+    std::vector<bool> done_ass(assumptions_split.size(), false),
+                      done_gua(guarantees_split.size(), false);
+    for (unsigned i = 0; i < assumptions_split.size(); ++i)
+    {
+      if (done_ass[i])
+        continue;
+      done_ass[i] = true;
+      auto& ass = assumptions_split[i];
       auto [left_aps, right_aps] = aps_of(ass, outs);
-      std::set<formula> ass_aps;
-      ass_aps.insert(left_aps.begin(), left_aps.end());
-      ass_aps.insert(right_aps.begin(), right_aps.end());
-      std::set_intersection(ass_aps.begin(), ass_aps.end(), decRelProps.begin(),
-          decRelProps.end(), std::inserter(propositions, propositions.begin()));
-      if (propositions.size() == 0)
-        free_assumptions.push_back(ass);
+      // If an assumption hasn't any decRelProp, it is considered as
+      // a free assumption.
+      if (!are_intersecting(left_aps, decRelProps_ins) && right_aps.empty())
+      {
+        free_assumptions = formula::And({free_assumptions, ass});
+        std::cout << ass << " est une free ass" << std::endl;
+      }
       else
       {
-        // TODO:
+        auto left = formula::tt(), right = formula::tt();
+        bip(ass, assumptions_split, guarantees_split, decRelProps_ins, decRelProps_outs, left, right, done_ass, done_gua);
+        left = formula::And({left, free_assumptions});
+        std::cout << "Il y a la spec " << left << " et " << right << std::endl;
+        specs.push_back({left, right});
       }
     }
-    return formula::ff();//todo compil fix
+    std::vector<formula> elems;
+    for (auto [ass, gua] : specs)
+    {
+      auto new_impl = formula::Implies(ass, gua);
+      elems.push_back(new_impl);
+    }
+    return formula::And(elems);
   }
 
   std::pair<std::vector<formula>, std::vector<std::set<spot::formula>>>
