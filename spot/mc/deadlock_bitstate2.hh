@@ -79,7 +79,7 @@ namespace spot
   template<typename State, typename SuccIterator,
            typename StateHash, typename StateEqual,
            typename Deadlock>
-  class SPOT_API swarmed_deadlock2
+  class SPOT_API swarmed_deadlock_bitstate2
   {
     /// \brief Describes the status of a state
     enum st_status
@@ -112,27 +112,25 @@ namespace spot
       return new hs_mtx_wrapper{ mtx_ptr, hs_ptr };
     }
 
-    swarmed_deadlock2(kripkecube<State, SuccIterator>& sys,
+    swarmed_deadlock_bitstate2(kripkecube<State, SuccIterator>& sys,
                       twacube_ptr, /* useless here */
                       shared_map& map, shared_struct* ss,
                       unsigned tid,
                       std::atomic<bool>& stop,
-                      int arg):
+                      size_t filter_size):
       sys_(sys), tid_(tid), map_(ss->hs),
-      bloom_filter_(1000000), mtx_(ss->mtx),
+      bloom_filter_(filter_size), mtx_(ss->mtx),
       nb_th_(std::thread::hardware_concurrency()),
       p_(sizeof(int)*std::thread::hardware_concurrency()),
-      stop_(stop)
+      stop_(stop), filter_size_(filter_size)
     {
-      std::cout << "arg : " << arg << std::endl;
-
       static_assert(spot::is_a_kripkecube_ptr<decltype(&sys),
                                              State, SuccIterator>::value,
                     "error: does not match the kripkecube requirements");
       SPOT_ASSERT(nb_th_ > tid);
     }
 
-    virtual ~swarmed_deadlock2()
+    virtual ~swarmed_deadlock_bitstate2()
     {
       while (!todo_.empty())
         {
@@ -371,6 +369,7 @@ namespace spot
     /// concurent access to the shared map.
     std::vector<int*> refs_;
     bool finisher_ = false;
+    size_t filter_size_;
   };
 
   template<typename State,

@@ -23,7 +23,6 @@
 #include <spot/mc/mc_instanciator.hh>
 #include <spot/mc/deadlock.hh>
 #include <spot/mc/deadlock_bitstate2.hh>
-//#include <spot/mc/deadlock_bitstate.hh>
 #include <spot/misc/memusage.hh>
 #include <spot/misc/timer.hh>
 
@@ -36,16 +35,16 @@ template<typename kripke_ptr, typename State,
          typename Iterator, typename Hash, typename Equal>
 ec_stats run_deadlock_ref(kripke_ptr sys)
 {
-  return instanciate<swarmed_deadlock2<State, Iterator, Hash, Equal, std::true_type>,
-                     kripke_ptr, State, Iterator, Hash, Equal> (sys, nullptr, false, 1000000);
+  return instanciate<swarmed_deadlock<State, Iterator, Hash, Equal, std::true_type>,
+                     kripke_ptr, State, Iterator, Hash, Equal> (sys);
 }
 
 template<typename kripke_ptr, typename State,
          typename Iterator, typename Hash, typename Equal>
-ec_stats run_deadlock_bitstate(kripke_ptr sys)
+ec_stats run_deadlock_bitstate(kripke_ptr sys, size_t size)
 {
-  return instanciate<swarmed_deadlock_bitstate<State, Iterator, Hash, Equal, std::true_type>,
-        kripke_ptr, State, Iterator, Hash, Equal> (sys);
+  return instanciate<swarmed_deadlock_bitstate2<State, Iterator, Hash, Equal, std::true_type>,
+        kripke_ptr, State, Iterator, Hash, Equal> (sys, nullptr, false, size);
 }
 
 template<typename kripke_ptr, typename State,
@@ -66,27 +65,25 @@ void bench_deadlock(kripke_ptr sys, std::vector<size_t> mem_sizes)
   std::cout << "Reference:\n" << ref << "\n";
   std::cout << "mem_used (nb pages): " << mem_used_ref << "\n";
 
-  // TODO: deadlock with bitstate hashing is not working ATM in parallel
-  /*for (size_t mem_size : mem_sizes)
+  for (size_t mem_size : mem_sizes)
   {
     const std::string round = "Using " + std::to_string(mem_size) + " bits";
 
     timer.start(round);
     mem_used = spot::memusage();
-    // TODO: pass mem_size parameter
     auto res = run_deadlock_bitstate<spot::ltsmin_kripkecube_ptr,
        spot::cspins_state,
        spot::cspins_iterator,
        spot::cspins_state_hash,
        spot::cspins_state_equal>
-       (sys);
+       (sys, mem_size);
     mem_used = spot::memusage() - mem_used;
     timer.stop(round);
 
     std::cout << "\n" << round << "\n";
     std::cout << "Bitstate version:\n" << res << "\n";
-    std::cout << "mem_used (nb pages): " << mem_used_ref << "\n";
-  }*/
+    std::cout << "mem_used (nb pages): " << mem_used << "\n";
+  }
 
   std::cout << "\n";
   timer.print(std::cout);
