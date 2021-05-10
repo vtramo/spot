@@ -49,7 +49,7 @@
 #include <spot/twaalgos/game.hh>
 #include <spot/tl/hierarchy.hh>
 #include <spot/misc/satsolver.hh>
-
+#include <spot/twaalgos/hoa.hh>
 namespace spot
 {
   // This is called hash_set for historical reason, but we need the
@@ -1427,6 +1427,7 @@ namespace
             }
         }
       splitmm->new_states(mm->num_states());
+      splitmm->set_init_state(smap[mm->get_init_state_number()]);
       // Split all the env edges
       // only keep active edges
       // Copy player edges
