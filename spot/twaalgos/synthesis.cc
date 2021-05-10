@@ -1274,15 +1274,27 @@ namespace spot
     }
     if (f.kind() == spot::op::Not)
     {
-      // ¬¬φ ≡ φ
       auto child = extract_and(f[0], outs);
-      if (child.kind() == spot::op::Not)
+      // ¬(⋀¬xᵢ) ≡ ⋁xᵢ
+      if (child.kind() == spot::op::And)
       {
-        // assert(spot::are_equivalent(child[0], f));
-        return child[0];
+        bool ok = true;
+        for (auto sub : child)
+          if (sub.kind() != op::Not)
+          {
+            ok = false;
+            break;
+          }
+        if (ok)
+        {
+          std::vector<spot::formula> children;
+          std::transform(child.begin(), child.end(), std::back_inserter(children),
+                        [outs](spot::formula f) { return extract_and(spot::formula::Not(f), outs); });
+          return formula::Or(children);
+        }
       }
       // ¬Fφ ≡ G¬φ
-      else if (child.kind() == spot::op::F)
+      if (child.kind() == spot::op::F)
       {
         // The result can be G(And).
         auto f2 = spot::formula::G(extract_and(spot::formula::Not(child[0]), outs));
@@ -1312,16 +1324,16 @@ namespace spot
       }
     }
     // φ ∨ ψ ≡ ¬(¬φ ∧ ¬ψ), can be used in a recursive call
-    if (f.kind() == spot::op::Or)
-    {
-      std::vector<spot::formula> children;
-      std::transform(f.begin(), f.end(), std::back_inserter(children),
-                     [outs](const spot::formula f)
-                      { return extract_and(spot::formula::Not(f), outs); });
-      auto res = spot::formula::Not(spot::formula::And(children));
-      // assert(spot::are_equivalent(res, f));
-      return res;
-    }
+    // if (f.kind() == spot::op::Or)
+    // {
+    //   std::vector<spot::formula> children;
+    //   std::transform(f.begin(), f.end(), std::back_inserter(children),
+    //                  [outs](const spot::formula f)
+    //                   { return extract_and(spot::formula::Not(f), outs); });
+    //   auto res = spot::formula::Not(spot::formula::And(children));
+    //   // assert(spot::are_equivalent(res, f));
+    //   return res;
+    // }
     // G(⋀φᵢ) = ⋀(G(φᵢ))
     // X(⋀φᵢ) = ⋀(X(φᵢ))
     if (f.is(spot::op::G, spot::op::X))
@@ -1335,7 +1347,6 @@ namespace spot
                         { return extract_and(spot::formula::unop(f.kind(), fi),
                                              outs); });
         auto res = spot::formula::And(children);
-        std::cout << "1348" << res <<  std::endl;
         // assert(spot::are_equivalent(f, res));
         return res;
       }
@@ -1455,28 +1466,16 @@ namespace spot
     // FIXME: Le cas (a & b) -> c ça peut devenir (a -> c) & (b -> c)
     assert(f[1].kind() == op::And);
     std::vector<formula> assumptions, guarantees;
-    std::cout << "Ass : " << std::endl;
     for (auto a : f[0])
     {
-      std::cout << a << std::endl;
       assumptions.push_back(a);
     }
-    std::cout << "Gua : " << std::endl;
     for (auto g : f[1])
     {
-      std::cout << g << std::endl;
       guarantees.push_back(g);
     }
     // Set of input/output props that cannot be shared between subspectifications
     auto [decRelProps_ins, decRelProps_outs] = algo4(assumptions, outs);
-    std::cout << "DecRelIns : [";
-    for (auto x : decRelProps_ins)
-      std::cout << x << ",";
-    std::cout << "]" << std::endl;
-    std::cout << "DecRelOuts : [";
-    for (auto x : decRelProps_outs)
-      std::cout << x << ",";
-    std::cout << "]" << std::endl;
     // Assumptions that don't contain an atomic proposition in decRelProps
     auto free_assumptions = formula::tt();
     // The set of subspecifications described as [(assum, guar), (assum, guar)]
@@ -1501,7 +1500,6 @@ namespace spot
           done[current_index] = true;
           auto current_form = forms[current_index];
           current_res = spot::formula::And({current_res, current_form});
-          std::cout << "Traitement de l'indice " << current_index << "(" << current_form << ")" << std::endl;
           auto [ins_f, outs_f] = aps_of(current_form, outs);
           std::set<formula> ins_f_dec, outs_f_dec;
           std::set_intersection(ins_f.begin(), ins_f.end(),
@@ -1514,13 +1512,11 @@ namespace spot
           {
             if (done[i])
             {
-              std::cout << i << " est déjà fait" << std::endl;
               continue;
             }
             auto [ins_i, outs_i] = aps_of(forms[i], outs);
             if (are_intersecting(ins_i, ins_f_dec) || are_intersecting(outs_i, outs_f_dec))
             {
-              std::cout << forms[i] << " et " << current_form << std::endl;
               todo.emplace(i);
             }
           }
@@ -1539,14 +1535,7 @@ namespace spot
     fus(assumptions, assumptions_split);
     fus(guarantees, guarantees_split);
 
-    std::cout << "Assump_split : [";
-    for (auto x : assumptions_split)
-      std::cout << x << ", ";
-    std::cout << std::endl;
-    std::cout << "Guar_split : [";
-    for (auto x : guarantees_split)
-      std::cout << x << ", ";
-    std::cout << std::endl;
+
     // Now we just have to find connected components in a bipartite graph
     std::function<void(formula f, std::vector<formula>&,
                                   std::vector<spot::formula>&,
@@ -1644,7 +1633,6 @@ namespace spot
       auto [_, outs_f] = aps_of(f, outs);
       return { {f}, { outs_f } };
     }
-    std::cout << "f extrait : " << f << std::endl;
     // Atomics prop of children
     std::vector<std::set<spot::formula>> children_outs;
     // Independent formulas
@@ -1690,15 +1678,15 @@ namespace spot
         ++first_free;
     }
     assert(res.size() == res_outs.size());
-    std::cout << res.size() << " sous formules : " << std::endl;
-    for (unsigned i = 0; i < res.size(); ++i)
-    {
-      auto x = res[i];
-      std::cout << x << " [";
-      for (auto y : res_outs[i])
-        std::cout << y << ", ";
-      std::cout << "]" << std::endl;
-    }
+    // std::cout << res.size() << " sous formules : " << std::endl;
+    // for (unsigned i = 0; i < res.size(); ++i)
+    // {
+    //   auto x = res[i];
+    //   std::cout << x << " [";
+    //   for (auto y : res_outs[i])
+    //     std::cout << y << ", ";
+    //   std::cout << "]" << std::endl;
+    // }
 
 
     return { res, res_outs };
