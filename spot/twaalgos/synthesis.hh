@@ -177,4 +177,7 @@ namespace spot
 
   SPOT_API std::pair<std::vector<formula>, std::vector<std::set<spot::formula>>>
   split_independant_formulas(formula f, std::set<std::string> outs);
+
+  SPOT_API formula
+  extract_and(formula f, const std::set<std::string> &outs);
 }
