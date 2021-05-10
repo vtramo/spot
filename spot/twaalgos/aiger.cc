@@ -893,9 +893,9 @@ namespace spot
                 bdd b = bdd_ithvar(bddvar);
                 if (bdd_implies(all_outputs, b)) // ap is an output AP
                   {
-                    if (output_names.count(ap.ap_name()))
-                      throw std::runtime_error("Outputs not disjoint!\n"
-                                               "Problem ap: " + ap.ap_name());
+//                    if (output_names.count(ap.ap_name()))
+//                      throw std::runtime_error("Outputs not disjoint!\n"
+//                                               "Problem ap: " + ap.ap_name());
                     output_names.emplace(ap.ap_name());
                   }
                 else // ap is an input AP
@@ -944,6 +944,7 @@ namespace spot
       unsigned n_latches = 0;
       for (auto&& astrat : strat_vec)
         {
+          // Largest index to encode -> num_states()-1
           log2n.push_back(std::ceil(std::log2(astrat.first->num_states())));
           latch_offset.push_back(n_latches);
           n_latches += log2n.back();
