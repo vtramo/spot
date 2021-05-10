@@ -384,7 +384,6 @@ namespace spot
   class concurrent_hash_set
   {
     using T = deadlock_pair<State, StateHash, StateEqual>;
-    static constexpr auto LOAD_FACTOR = 0.80;
 
   public:
     concurrent_hash_set(std::mutex *mtx, std::size_t hs_size)
@@ -394,7 +393,7 @@ namespace spot
     }
 
     concurrent_hash_set(std::mutex *mtx)
-      : concurrent_hash_set(mtx, 1000000) {}
+      : concurrent_hash_set(mtx, 5000000) {}
 
     ~concurrent_hash_set()
     {
@@ -419,8 +418,6 @@ namespace spot
     std::pair<T*, bool> find(T element)
     {
       //std::scoped_lock<std::mutex> lock(*mtx_);
-      if (SPOT_UNLIKELY((double) nb_elements_ / hs_size_ >= LOAD_FACTOR))
-        return {nullptr, false};
 
       if (auto idx = search(element))
       {
@@ -456,6 +453,9 @@ namespace spot
       //std::scoped_lock<std::mutex> lock(*mtx_);
       if (auto idx = search(element))
       {
+        if (hs_[*idx] == nullptr)
+          return false;
+
         delete hs_[*idx];
         --nb_elements_;
 
@@ -468,6 +468,11 @@ namespace spot
         while (hs_[(cur + 1) % hs_size_] != nullptr)
         {
           T* next = hs_[(cur + 1) % hs_size_];
+          // Special case: when an element is already at its original hashing
+          // position, stop moving the block otherwise we would move the element
+          // to a wrong position.
+          if ((next->hash() % hs_size_) == ((cur + 1) % hs_size_))
+            break;
           hs_[cur] = next;
           cur = (cur + 1) % hs_size_;
         }
