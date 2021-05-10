@@ -294,28 +294,38 @@ namespace
         sub_outs_str[pos].insert(y.ap_name());
       ++pos;
     }
+
     std::vector<spot::twa_graph_ptr> arenas;
 
     // We always need an arena, specific needs are passed via gi
-    for (auto sub : sub_form)
+//    for (auto sub : sub_form)
+    auto sub_f = sub_form.begin();
+    auto sub_o = sub_outs.begin();
+    for (; sub_f != sub_form.end(); ++sub_f, ++sub_o)
     {
-      auto arena = spot::create_game(f, output_aps, extra_options, gi);
+//      auto arena = spot::create_game(f, output_aps, extra_options, gi);
+      std::set<std::string> ao;
+      std::for_each(sub_o->begin(), sub_o->end(),
+                     [&ao](auto& af){ao.insert(af.ap_name());});
+      auto arena = spot::create_game(*sub_f, ao, extra_options, gi);
       arenas.push_back(arena);
       // FIXME: Est-ce que c'est vraiment la somme des tailles des sous-arènes ?
       if (gi.bv)
         gi.bv->nb_states_arena += arena->num_states();
+    }
+
+    if (opt_print_pg || opt_print_hoa)
+    {
+      spot::twa_graph_ptr arena = arenas.front();
+      for (size_t i = 1; i < arenas.size(); ++i)
+        arena = spot::product(arena, arenas[i]);
+      spot::alternate_players(arena, false, false);
       if (opt_print_pg)
-        {
-          pg_print(std::cout, arena);
-          safe_tot_time();
-          return 0;
-        }
-      if (opt_print_hoa)
-        {
-          spot::print_hoa(std::cout, arena, opt_print_hoa_args) << '\n';
-          safe_tot_time();
-          return 0;
-        }
+        pg_print(std::cout, arena);
+      else
+        spot::print_hoa(std::cout, arena, opt_print_hoa_args) << '\n';
+      safe_tot_time();
+      return 0;
     }
 
     if (gi.bv)
