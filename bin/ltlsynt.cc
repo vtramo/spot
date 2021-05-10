@@ -270,6 +270,8 @@ namespace
         gi.bv->total_time = sw.stop();
     };
 
+    // FIXME: Le create_game est fait 2 fois, une là et une autre après
+    // découpage.
     // We always need an arena, specific needs are passed via gi
     auto arena = spot::create_game(f, output_aps, extra_options, gi);
     if (opt_do_verify)
@@ -279,8 +281,8 @@ namespace
       }
     // FIXME: Voir tout en bas
     // extra_options.report_unused_options();
-    if (gi.bv)
-      gi.bv->nb_states_arena = arena->num_states();
+    // if (gi.bv)
+    //   gi.bv->nb_states_arena = arena->num_states();
 
     /////////// TODO: This part split
     auto [sub_form, sub_outs] = split_independant_formulas(f, output_aps);
