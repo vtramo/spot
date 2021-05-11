@@ -171,7 +171,7 @@ State: 1
 --END--
 #+end_SRC
 
-#+BEGIN_SRC sh :results silent
+#+BEGIN_SRC sh :results silent :exports results
 rm -f tut31.hoa
 #+END_SRC
 
