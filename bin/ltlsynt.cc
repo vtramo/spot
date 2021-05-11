@@ -214,9 +214,12 @@ namespace
             out << ",\"solve_time\"";
             if (!opt_real)
               out << ",\"strat2aut_time\"";
+            if (opt_print_aiger)
+              out << ",\"aig_time\"";
             out << ",\"realizable\""; //-1: Unknown, 0: Unreal, 1: Real
           }
-        out << ",\"dpa_num_states\",\"parity_game_num_states\""
+        out << ",\"dpa_num_states\",\"dpa_num_states_env\""
+            << ",\"parity_game_num_states\""
             << ",\"strat_num_states\",\"strat_num_edges\"";
         if (opt_print_aiger)
             out << ",\"nb latches\",\"nb gates\"";
@@ -235,9 +238,12 @@ namespace
         out << ',' << bv->solve_time;
         if (!opt_real)
           out << ',' << bv->strat2aut_time;
+        if (opt_print_aiger)
+          out << ',' << bv->aig_time;
         out << ',' << bv->realizable;
       }
     out << ',' << bv->nb_states_arena
+        << ',' << bv->nb_states_arena_env
         << ',' << bv->nb_states_parity_game
         << ',' << bv->nb_strat_states
         << ',' << bv->nb_strat_edges;
@@ -256,9 +262,6 @@ namespace
                 const std::set<std::string>& input_aps,
                 const std::set<std::string>& output_aps)
   {
-    //Negated specification if verify is demanded
-    spot::twa_graph_ptr neg_spec = nullptr;
-
     spot::stopwatch sw;
     if (gi.bv)
       sw.start();
@@ -305,51 +308,59 @@ namespace
                         r.insert(f.ap_name());
                       return r;
                     });
+    // We always need an arena, specific needs are passed via gi
+//    auto arena = spot::create_game(f, output_aps, extra_options, gi);
+
+//    // FIXME: Voir tout en bas
+//    // extra_options.report_unused_options();
+//    if (gi.bv)
+//      gi.bv->nb_states_arena = arena->num_states();
 
     assert((sub_form.size() == sub_outs.size())
            && (sub_form.size() == sub_outs_str.size()));
 
-    const unsigned nb_sub_games = sub_form.size();
     const bool want_game = opt_print_pg || opt_print_hoa;
 
     std::vector<spot::twa_graph_ptr> arenas;
 
     auto sub_f = sub_form.begin();
-    auto sub_o = sub_outs.begin();
+    auto sub_o = sub_outs_str.begin();
     spot::twa_graph_ptr game_prod = nullptr;
-    std::vector<spot::twa_graph_ptr> strategies(nb_sub_games, nullptr);
+    std::vector<spot::twa_graph_ptr> strategies;
 
-    // TODO: Est-ce qu'il y a une raison pour qu'on ait 2 pointeurs + un indice ?
-    unsigned i = 0;
-    for (; sub_f != sub_form.end(); ++sub_f, ++sub_o, ++i)
+    for (; sub_f != sub_form.end(); ++sub_f, ++sub_o)
     {
       // if we don't want a game, we can try to create a strategy from the
       // formula
       if (!want_game)
       {
         // FIXME: N'utilise pas encore la minimisation car n'est pas splitté.
-        auto [simp_aut, _] = try_create_strategy_from_simple(*sub_f, sub_outs_str[i], extra_options, gi);
+        auto [simp_aut, _] = try_create_strategy_from_simple(*sub_f, *sub_o, extra_options, gi);
         // TODO: If we are able to detect that the formula is not realizable, we can
         // stop here.
         // if (real_code == -1)
         // { }
         if (simp_aut != nullptr)
         {
-          strategies[i] = simp_aut;
+          //Unused fix
+          extra_options.get("minimization-level");
+          strategies.push_back(simp_aut);
           continue;
         }
       }
       // 1) We create a game
-      // TODO: J'ai l'impression que ce qu'il se passe c'est que sub_outs_str
-      // est recalculé
-      // std::set<std::string> ao;
-      // std::for_each(sub_o->begin(), sub_o->end(),
-      //               [&ao](auto &af)
-      //               { ao.insert(af.ap_name()); });
-      auto arena = spot::create_game(*sub_f, sub_outs_str[i], extra_options, gi);
+      auto arena = spot::create_game(*sub_f, *sub_o, extra_options, gi);
       arenas.push_back(arena);
       if (gi.bv)
+      {
         gi.bv->nb_states_arena += arena->num_states();
+        auto spptr = arena->get_named_prop<std::vector<bool>>("state-player");
+        assert(spptr);
+        gi.bv->nb_states_arena_env +=
+            std::count(spptr->cbegin(), spptr->cend(), false);
+        assert((spptr->at(arena->get_init_state_number()) == false)
+               && "Env needs first turn");
+      }
 
       // 2) If the goal is to show the game, we do the product
       if (want_game)
@@ -440,45 +451,34 @@ namespace
     // From here on we need the strat if winning
     if (is_winning)
       {
-        spot::twa_graph_ptr tot_strat;
-        for (unsigned i = 0; i < nb_sub_games; ++i)
-        {
-          auto& arena = arenas[i];
-          // A strategy may have been created without going through games.
-          // In this case, it is already present here.
-          if (strategies[i] != nullptr)
-            continue;
-          // We need the strategy automaton
-          if (gi.bv)
-            sw.start();
-          auto strat_aut = spot::create_strategy(arena, extra_options, gi);
-          if (gi.bv)
-          {
-            gi.bv->strat2aut_time += sw.stop();
-            gi.bv->nb_strat_states += strat_aut->num_states();
-            gi.bv->nb_strat_edges += strat_aut->num_edges();
-          }
-          strategies[i] = strat_aut;
-        }
-
+        //Negated specification if verify is demanded
+        spot::twa_graph_ptr neg_spec = nullptr;
         if (opt_do_verify)
         {
-          assert(strategies.size() > 0);
           // TODO: Là on traduit avec les mêmes options que celles qui permettent
           // de traduire la formule LTL de départ. On considère ça comme un
           // équilibre entre taille de l'automate et vitesse. Là la taille est
           // peut être moins importante, on pourrait chercher à traduire plus vite.
-          spot::translator trans(strategies[0]->get_dict(), &extra_options);
+          spot::translator trans(gi.dict, &extra_options);
           neg_spec = trans.run(spot::formula::Not(f));
         }
+        spot::twa_graph_ptr tot_strat;
+        for (const auto& arena : arenas)
+          // We need the strategy automaton
+          strategies.push_back(spot::create_strategy(arena, extra_options, gi));
+
         spot::aig_ptr saig;
         if (opt_print_aiger)
         {
+          spot::stopwatch sw2;
+          if (gi.bv)
+            sw2.start();
           saig = spot::strategies_to_aig(strategies, opt_print_aiger,
                                               input_aps,
                                               sub_outs_str);
           if (gi.bv)
           {
+            gi.bv->aig_time = sw2.stop();
             gi.bv->nb_latches = saig->num_latches();
             gi.bv->nb_gates = saig->num_gates();
           }
@@ -518,12 +518,10 @@ namespace
           }
       }
       else
-      {
         // ltlsynt has an option minimization-level not used when the
         // specification is unrealizable. We need to "use" this option
         // so that report_unused_option does not pose a problem.
         extra_options.get("minimization-level");
-      }
     safe_tot_time();
     return (int) not is_winning;
   }
