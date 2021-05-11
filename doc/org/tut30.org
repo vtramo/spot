@@ -231,7 +231,7 @@ State: 4
 --END--
 #+end_SRC
 
-#+BEGIN_SRC sh :results silent
+#+BEGIN_SRC sh :results silent :exports results
 rm -f tut30.hoa
 #+END_SRC
 

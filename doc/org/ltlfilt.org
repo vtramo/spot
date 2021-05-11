@@ -588,7 +588,7 @@ wc -l scheck*.ltl
 :   4 scheck.ltl
 :   8 total
 
-#+BEGIN_SRC sh
+#+BEGIN_SRC sh :results silent :exports results
 rm -f ltlex.def ltlex.never scheck.ltl
 #+END_SRC
 
