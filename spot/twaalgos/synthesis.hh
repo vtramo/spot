@@ -101,7 +101,9 @@ namespace spot
       double paritize_time = 0.0;
       double solve_time = 0.0;
       double strat2aut_time = 0.0;
+      double aig_time = 0.0;
       unsigned nb_states_arena = 0;
+      unsigned nb_states_arena_env = 0;
       unsigned nb_states_parity_game = 0;
       unsigned nb_strat_states = 0;
       unsigned nb_strat_edges = 0;
