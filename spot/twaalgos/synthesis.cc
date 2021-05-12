@@ -1593,13 +1593,11 @@ namespace spot
       if (!are_intersecting(left_aps, decRelProps_ins))
       {
         free_assumptions = formula::And({free_assumptions, ass});
-        std::cout << ass << " est une free ass" << std::endl;
       }
       else
       {
         auto left = formula::tt(), right = formula::tt();
         bip(ass, assumptions_split, guarantees_split, decRelProps_ins, decRelProps_outs, left, right, done_ass, done_gua);
-        std::cout << "Il y a la spec " << left << " et " << right << std::endl;
         specs.push_back({left, right});
       }
     }
