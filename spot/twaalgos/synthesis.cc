@@ -47,68 +47,6 @@
 
 #define KEEP_STRAT_UNSPLIT
 
-namespace spot
-{
-//  static void
-//  restore_form(const twa_graph_ptr &aut, bdd all_outputs)
-//  {
-//    bdd all_inputs = bddtrue;
-//    for (const auto &ap : aut->ap())
-//    {
-//      int bddvar = aut->get_dict()->has_registered_proposition(ap, aut);
-//      assert(bddvar >= 0);
-//      bdd b = bdd_ithvar(bddvar);
-//      if (!bdd_implies(all_outputs, b)) // ap is not an output AP
-//        all_inputs &= b;
-//    }
-//
-//    // Loop over all edges and split those that do not have the form
-//    // (in)&(out)
-//    // Note new_edge are always appended at the end
-//    unsigned n_old_edges = aut->num_edges();
-//    // Temp storage
-//    // Output condition to possible input conditions
-//    std::map<bdd, bdd, bdd_less_than> edge_map_;
-//    for (unsigned i = 1; i <= n_old_edges; ++i)
-//    {
-//      // get the edge
-//      auto &e = aut->edge_storage(i);
-//      // Check if cond already has the correct form
-//      if ((bdd_exist(e.cond, all_inputs) & bdd_existcomp(e.cond, all_inputs)) == e.cond)
-//        // Nothing to do here
-//        continue;
-//      // Do the actual split
-//      edge_map_.clear();
-//      bdd old_cond = e.cond;
-//      while (old_cond != bddfalse)
-//      {
-//        bdd minterm = bdd_satone(old_cond);
-//        bdd minterm_in = bdd_exist(minterm, all_outputs);
-//        // Get all possible valid outputs
-//        bdd valid_out = bdd_exist((minterm_in & e.cond), all_inputs);
-//        // Check if this out already exists
-//        auto it = edge_map_.find(valid_out);
-//        if (it == edge_map_.end())
-//          edge_map_[valid_out] = minterm_in;
-//        else
-//          // Reuse the outs for this in
-//          it->second |= minterm_in;
-//
-//        // Remove this minterm
-//        old_cond -= minterm;
-//      }
-//      // Computed the splitted edges.
-//      // Replace the current edge cond with the first pair
-//      auto it = edge_map_.begin();
-//      e.cond = (it->first & it->second);
-//      ++it;
-//      for (; it != edge_map_.end(); ++it)
-//        aut->new_edge(e.src, e.dst, it->first & it->second, e.acc);
-//    }
-//    // Done
-//  }
-
-} // namespace spot
 
 // Helper function/structures for split_2step
 namespace{
