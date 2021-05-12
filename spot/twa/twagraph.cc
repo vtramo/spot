@@ -319,9 +319,6 @@ namespace spot
     const unsigned nb_states = num_states();
     std::vector<unsigned> remap(nb_states, -1U);
     for (unsigned i = 0; i != nb_states; ++i)
-    {
-      auto out1 = out(i);
-      for (unsigned j = 0; j != i; ++j)
       {
         auto out1 = out(i);
         for (unsigned j = 0; j != i; ++j)
@@ -339,7 +336,6 @@ namespace spot
             }
           }
       }
-    }
 
     for (auto& e: edges())
       if (remap[e.dst] != -1U)
