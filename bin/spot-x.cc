@@ -236,7 +236,7 @@ sets.  By default this is only enabled when options -B or -S are used.") },
           "Chose which simulation based reduction to use: 1 force the \
 signature-based BDD implementation, 2 force matrix-based and 0, the default, \
 is a heristic wich choose which implementation to use.") },
-    { nullptr, 0, nullptr, 0, nullptr, 0 },
+    { nullptr, 0, nullptr, 0, nullptr, 0 }
   };
 
 const struct argp_child children[] =

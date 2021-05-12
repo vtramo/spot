@@ -1,4 +1,4 @@
-New in spot 2.9.6.dev (not yet released)
+New in spot 2.9.7.dev (not yet released)
 
   Build:
 
@@ -237,18 +237,27 @@ New in spot 2.9.6.dev (not yet released)
   - tgba_determinize() could create parity automata using more colors
     than necessary.  (Related to issue #298)
 
-  - Some formulas using ->, <->, or xor were not properly detected as
-    purely universal or pure eventualities.
-
-  - autfilt --keep-states=... could incorrectly mention --mask-acc
-    when diagnosing errors.
-
   Deprecation notices:
 
   - twa_graph::defrag_states() and digraph::defrag_states() now take
     the renaming vector by reference instead of rvalue reference.  The
     old prototype is still supported but will emit a deprecation
     warning.
+
+New in spot 2.9.7 (2021-05-12)
+
+  Bugs fixed:
+
+  - Some formulas using ->, <->, or xor were not properly detected as
+    purely universal or pure eventualities.
+
+  - autfilt --keep-states=... could incorrectly mention --mask-acc
+    when diagnosing errors.
+
+  - Work around GraphViz issue 1931, causing spurious failures in the
+    test suite.
+
+  - Miscelaneous documentation fixes.
 
 New in spot 2.9.6 (2021-01-18)
 
