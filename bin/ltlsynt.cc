@@ -273,9 +273,10 @@ namespace
     // FIXME: Le create_game est fait 2 fois, une là et une autre après
     // découpage.
     // We always need an arena, specific needs are passed via gi
-    auto arena = spot::create_game(f, output_aps, extra_options, gi);
+    spot::twa_graph_ptr arena = nullptr;
     if (opt_do_verify)
       {
+        arena = spot::create_game(f, output_aps, extra_options, gi);
         spot::translator trans(arena->get_dict(), &extra_options);
         neg_spec = trans.run(spot::formula::Not(f));
       }
