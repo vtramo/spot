@@ -1,4 +1,4 @@
-New in spot 2.9.6.dev  (not yet released)
+New in spot 2.9.7 (2021-05-12)
 
   Bugs fixed:
 
@@ -7,6 +7,11 @@ New in spot 2.9.6.dev  (not yet released)
 
   - autfilt --keep-states=... could incorrectly mention --mask-acc
     when diagnosing errors.
+
+  - Work around GraphViz issue 1931, causing spurious failures in the
+    test suite.
+
+  - Miscelaneous documentation fixes.
 
 New in spot 2.9.6 (2021-01-18)
 
