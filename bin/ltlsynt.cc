@@ -285,7 +285,23 @@ namespace
     //   gi.bv->nb_states_arena = arena->num_states();
 
     /////////// TODO: This part split
-    auto [sub_form, sub_outs] = split_independant_formulas(f, output_aps);
+    bool opt_decompose_ltl = extra_options.get("specification-decomposition", 0);
+    std::vector<spot::formula> sub_form;
+    std::vector<std::set<spot::formula>> sub_outs;
+    if (opt_decompose_ltl)
+    {
+      auto subs = split_independant_formulas(f, output_aps);
+      sub_form = subs.first;
+      sub_outs = subs.second;
+    }
+    else
+    {
+      sub_form = { f };
+      sub_outs.resize(1);
+      std::transform(output_aps.begin(), output_aps.end(),
+            std::inserter(sub_outs[0], sub_outs[0].begin()),
+            [](const std::string& name) { return spot::formula::ap(name);});
+    }
     std::vector<std::set<std::string>> sub_outs_str(sub_form.size());
     assert((sub_form.size() == sub_outs.size())
            && (sub_form.size() == sub_outs_str.size()));
