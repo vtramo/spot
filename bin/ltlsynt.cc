@@ -413,7 +413,13 @@ namespace
               }
           }
       }
-
+      else
+      {
+        // ltlsynt has an option minimization-level not used when the
+        // specification is unrealizable. We need to "use" this option
+        // so that report_unused_option does not pose a problem.
+        extra_options.get("minimization-level");
+      }
     safe_tot_time();
     return (int) not is_winning;
   }
