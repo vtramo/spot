@@ -354,6 +354,10 @@ namespace
       is_winning = (int) spot::solve_game(arena, gi);
       if (gi.bv)
         gi.bv->realizable &= is_winning;
+      // If one of the arenas is unrealizable, there is no need to
+      // process the others
+      if (!is_winning)
+        break;
     }
     // We need a solved game
 
