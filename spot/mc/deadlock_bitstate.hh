@@ -96,17 +96,20 @@ namespace spot
     {
       std::mutex *mtx;
       concurrent_hash_set<State, StateHash, StateEqual> *hs;
+      concurrent_bloom_filter *bf;
     };
 
     ///< \brief Shortcut to ease shared map manipulation
     using shared_map = concurrent_hash_set<State, StateHash, StateEqual>*;
     using shared_struct = hs_mtx_wrapper;
 
-    static shared_struct* make_shared_structure(shared_map, unsigned)
+    static shared_struct* make_shared_structure(shared_map, unsigned,
+                      size_t filter_size)
     {
       auto mtx_ptr = new std::mutex();
       auto hs_ptr = new concurrent_hash_set<State, StateHash, StateEqual>(mtx_ptr);
-      return new hs_mtx_wrapper{ mtx_ptr, hs_ptr };
+      auto bf_ptr = new concurrent_bloom_filter(filter_size);
+      return new hs_mtx_wrapper{ mtx_ptr, hs_ptr, bf_ptr };
     }
 
     swarmed_deadlock_bitstate(kripkecube<State, SuccIterator>& sys,
@@ -116,7 +119,7 @@ namespace spot
                       std::atomic<bool>& stop,
                       size_t filter_size):
       sys_(sys), tid_(tid), map_(ss->hs),
-      bloom_filter_(filter_size), mtx_(ss->mtx),
+      bloom_filter_(ss->bf), mtx_(ss->mtx),
       nb_th_(std::thread::hardware_concurrency()),
       p_(sizeof(int)*std::thread::hardware_concurrency()),
       stop_(stop), filter_size_(filter_size)
@@ -202,7 +205,7 @@ namespace spot
       auto r = map_->find(v);
       if (!r.first && r.second)
       {
-        if (filter_size_ != 0 && bloom_filter_.contains(state_hash_(s)))
+        if (filter_size_ != 0 && bloom_filter_->contains(state_hash_(s)))
           return nullptr;
         r = map_->insert(v);
       }
@@ -259,7 +262,7 @@ namespace spot
       // Insert the state into the filter
       State st = todo_.back().s;
       if (filter_size_ != 0)
-        bloom_filter_.insert(state_hash_(st));
+        bloom_filter_->insert(state_hash_(st));
 
       // Don't avoid pop but modify the status of the state
       // during backtrack
@@ -361,7 +364,7 @@ namespace spot
     unsigned tid_;                         ///< \brief Thread's current ID
     shared_map map_;                       ///< \brief Map shared by threads
     StateHash state_hash_;
-    concurrent_bloom_filter bloom_filter_;
+    concurrent_bloom_filter* bloom_filter_;///< \brief BF shared by threads
     std::mutex *mtx_;
     spot::timer_map tm_;                   ///< \brief Time execution
     unsigned states_ = 0;                  ///< \brief Number of states

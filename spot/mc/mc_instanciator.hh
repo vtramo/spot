@@ -99,7 +99,8 @@ namespace spot
 
     tm.start("Initialisation");
     // FIXME: use singleton instead? (only used in bloemen)
-    ss[0] = algo_name::make_shared_structure(map, 0);
+    // FIXME: different params for make_shared_structure and constructor?
+    ss[0] = algo_name::make_shared_structure(map, 0, std::forward<Params>(params)...);
     for (unsigned i = 0; i < nbth; ++i)
       {
         swarmed[i] = new algo_name(*sys, prop, map, ss[0], i, stop,
