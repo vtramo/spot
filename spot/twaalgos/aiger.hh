@@ -287,7 +287,7 @@ namespace spot
     static aig_ptr parse_aag(const std::string& aig_txt,
                              bdd_dict_ptr dict = make_bdd_dict());
 
-    // Transform an Aiger into an euqivalent monitor/strategy
+    // Transform an Aiger into an equivalent monitor/strategy
     twa_graph_ptr aig2aut(bool keepsplit = false) const;
 
   };
