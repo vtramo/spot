@@ -422,7 +422,7 @@ namespace
                 if (neg_spec->intersects(saigaut))
                   throw std::runtime_error("Aiger and negated specification "
                                            "do intersect -> strategy not OK.");
-                std::cout << "#Circuit was verified\n";
+                std::cout << "c\nCircuit was verified\n";
               }
             else
               {
