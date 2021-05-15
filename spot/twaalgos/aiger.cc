@@ -151,7 +151,8 @@ namespace
     // Here we need some restrictions to get a set...
     getline(iss, line);
     ++line_number;
-    while (iss)
+    bool comment_sec = false;
+    while (iss && !comment_sec)
     {
       unsigned pos_var_name;
       char first_char = line[0];
@@ -201,6 +202,7 @@ namespace
         break;
       }
       case 'c':
+        comment_sec = true;
         break;
       default:
       {
