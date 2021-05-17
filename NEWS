@@ -1,4 +1,16 @@
 New in spot 2.9.7 (2021-05-12)
+  - spot::twa_graph::merge_states() will now sort the vector of edges
+    before attempting to detect mergeable states.  When merging states
+    with identical outgoing transitions, it will now also consider
+    self-looping transitions has having identical destinations.
+
+  Python:
+
+  - Bindings for functions related to games.
+    See https://spot.lrde.epita.fr/ipynb/games.html for examples.
+
+  - spot::twa::prop_set was previously abstent from the Python
+    binding.  It is now available as spot.twa_prop_set (issue #453).
 
   Bugs fixed:
 
