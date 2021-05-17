@@ -295,6 +295,27 @@ namespace spot
       throw std::runtime_error(
           "twa_graph::merge_states() does not work on alternating automata");
 
+    typedef graph_t::edge_storage_t tr_t;
+    g_.sort_edges_([](const tr_t& lhs, const tr_t& rhs)
+    {
+      if (lhs.src < rhs.src)
+        return true;
+      if (lhs.src > rhs.src)
+        return false;
+      if (lhs.acc < rhs.acc)
+        return true;
+      if (lhs.acc > rhs.acc)
+        return false;
+      if (bdd_less_than_stable lt; lt(lhs.cond, rhs.cond))
+        return true;
+      if (rhs.cond != lhs.cond)
+        return false;
+      // The destination must be sorted last
+      // for our self-loop optimization to work.
+      return lhs.dst < rhs.dst;
+    });
+    g_.chain_edges_();
+
     const unsigned nb_states = num_states();
     std::vector<unsigned> remap(nb_states, -1U);
     for (unsigned i = 0; i != nb_states; ++i)
@@ -306,7 +327,9 @@ namespace spot
             if (std::equal(out1.begin(), out1.end(), out2.begin(), out2.end(),
                            [](const edge_storage_t& a,
                               const edge_storage_t& b)
-                           { return a.dst == b.dst && a.data() == b.data(); }))
+                           { return ((a.dst == b.dst
+                                      || (a.dst == a.src && b.dst == b.src))
+                                     && a.data() == b.data()); }))
             {
               remap[i] = j;
               break;

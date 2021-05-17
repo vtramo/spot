@@ -572,10 +572,14 @@ namespace spot
 
     /// \brief Merge states that can be merged.
     ///
-    /// This merges states that have the exact same outgoing edges. This method
-    /// compares the successors of states in the order in which they are stored.
-    /// Therefore, it is better to call it when you know that the edges are
-    /// stored, e.g. after a call to merge_edges().
+    /// Two states can be merged if the set of outgoing transitions
+    /// is identical, i.e., same condition, same colors, same destination.
+    /// Two self-loops with the same condition and colors are considered
+    /// identical even if they do not actually have the same destination.
+    ///
+    /// The implementation will sort the edges of the automaton to
+    /// ease the comparison between two states.  This may miss some
+    /// self-loop based in non-deterministic automata.
     void merge_states();
 
     /// \brief Remove all dead states

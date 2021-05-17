@@ -224,6 +224,11 @@ New in spot 2.9.7.dev (not yet released)
     that error messages should be emitted as if the next automaton
     was read from "filename" starting on line 10.  (Issue #232)
 
+  - spot::twa_graph::merge_states() will now sort the vector of edges
+    before attempting to detect mergeable states.  When merging states
+    with identical outgoing transitions, it will now also consider
+    self-looping transitions has having identical destinations.
+
   Python:
 
   - Bindings for functions related to games.

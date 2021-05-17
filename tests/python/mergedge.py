@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2020 Laboratoire de Recherche et Développement de
+# Copyright (C) 2020, 2021 Laboratoire de Recherche et Développement de
 # l'EPITA.
 #
 # This file is part of Spot, a model checking library.
@@ -53,3 +53,33 @@ assert aut.num_edges() == 9
 aut.merge_edges()
 assert aut.num_edges() == 5
 assert spot.is_deterministic(aut)
+
+aut = spot.automaton("""
+HOA: v1
+States: 3
+Start: 0
+AP: 1 "a"
+acc-name: Buchi
+Acceptance: 1 Inf(0)
+properties: trans-labels explicit-labels trans-acc complete
+--BODY--
+State: 0
+[!0] 1 {0}
+[0] 2 {0}
+State: 1
+[!0] 1 {0}
+[0] 1
+State: 2
+[!0] 2 {0}
+[0] 1
+--END--""")
+aut.merge_states()
+assert aut.num_edges() == 4
+assert aut.num_states() == 2
+assert spot.is_deterministic(aut)
+assert aut.prop_complete()
+aut.merge_states()
+assert aut.num_edges() == 4
+assert aut.num_states() == 2
+assert spot.is_deterministic(aut)
+assert aut.prop_complete()
