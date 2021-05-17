@@ -1229,7 +1229,7 @@ namespace spot
     /// \brief Reconstruct the chain of outgoing edges
     ///
     /// Should be called only when it is known that all edges
-    /// with the same destination are consecutive in the vector.
+    /// with the same source are consecutive in the vector.
     void chain_edges_()
     {
       state last_src = -1U;
