@@ -1071,6 +1071,10 @@ namespace spot
       {
         if (!circuit)
           return;
+        auto is_input = [nb_in = circuit->num_inputs()](unsigned val)
+        {
+          return (val & ~1) <= (2 * nb_in);
+        };
 
         std::vector<std::string> in_names(circuit->input_names().begin(),
                                           circuit->input_names().end());
@@ -1084,6 +1088,9 @@ namespace spot
         auto outputs = circuit->outputs();
         auto num_gates = circuit->num_gates();
         auto gates = circuit->gates();
+
+        // If a circuit doesn't use an input, we need a special placement
+        bool uses_in = false;
 
         auto add_edge = [](std::ostream &stream, const unsigned src,
                            const unsigned dst) {
@@ -1125,6 +1132,7 @@ namespace spot
         for (unsigned i = 0; i < num_gates; ++i)
           if ((gates[i].first != 0) && (gates[i].second != 0))
           {
+            uses_in |= is_input(gates[i].first) | is_input(gates[i].second);
             auto gate_var = circuit->gate_var(i);
             os_ << "node [shape=circle, label=\"" << gate_var
                 << "\"] " << gate_var << ";\n";
@@ -1166,6 +1174,7 @@ namespace spot
              << out_names[i] << "\"] o" << i
              << out_names[i] << ";\n";
           auto z = outputs[i];
+          uses_in |= is_input(z);
           if (z <= 1 && !has_alone_gate)
           {
             os_ << "node[shape=box, label=\"Const\"] 0" << std::endl;
@@ -1179,7 +1188,7 @@ namespace spot
 
         if (has_alone_gate || num_inputs > 0)
         {
-          os_ << "{rank = source; ";
+          os_ << (uses_in ? "{rank = source; " : "{rank = same; ");
           for (unsigned i = 0; i < num_inputs; ++i)
             os_ << circuit->input_var(i) << "; ";
           if (has_alone_gate)
