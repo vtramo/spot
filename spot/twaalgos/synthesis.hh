@@ -131,9 +131,6 @@ namespace spot
     bdd_dict_ptr dict;
   };
 
-  SPOT_API formula
-  split_implication(formula f, std::set<std::string> outs);
-
   SPOT_API std::ostream &
   operator<<(std::ostream &os, const game_info &gi);
 
@@ -169,15 +166,12 @@ namespace spot
   SPOT_API twa_graph_ptr
   create_strategy(twa_graph_ptr arena);
 
-  SPOT_API twa_graph_ptr
+  SPOT_API std::pair<twa_graph_ptr, int>
   try_create_strategy_from_simple(formula f,
-                                  std::vector<std::string> output_aps,
+                                  const std::set<std::string>& output_aps,
                                   option_map &extra_opt,
                                   game_info &gi);
 
   SPOT_API std::pair<std::vector<formula>, std::vector<std::set<spot::formula>>>
-  split_independant_formulas(formula f, std::set<std::string> outs);
-
-  SPOT_API formula
-  extract_and(formula f, const std::set<std::string> &outs);
+  split_independant_formulas(formula f, const std::set<std::string> &outs);
 }
