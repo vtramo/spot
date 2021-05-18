@@ -437,7 +437,7 @@ namespace spot
       } // v-src
 
     split->merge_edges();
-    split->prop_universal(spot::trival::maybe());
+    split->prop_universal(trival::maybe());
 
     // The named property
     // compute the owners
@@ -520,8 +520,8 @@ namespace spot
     return out;
   }
 
-  spot::twa_graph_ptr
-  apply_strategy(const spot::twa_graph_ptr& arena,
+  twa_graph_ptr
+  apply_strategy(const twa_graph_ptr& arena,
                  bool unsplit, bool keep_acc)
   {
     std::vector<bool>* w_ptr =
@@ -542,7 +542,7 @@ namespace spot
     std::vector<bool>& w = *w_ptr;
     std::vector<unsigned>& s = *s_ptr;
 
-    auto strat_aut = spot::make_twa_graph(arena->get_dict());
+    auto strat_aut = make_twa_graph(arena->get_dict());
     strat_aut->copy_ap_of(arena);
     if (keep_acc)
       strat_aut->copy_acceptance_of(arena);
@@ -586,7 +586,7 @@ namespace spot
                               pg2aut[v],
                               pg2aut[e1.dst],
                               e1.cond,
-                              keep_acc ? e1.acc : spot::acc_cond::mark_t({}));
+                              keep_acc ? e1.acc : acc_cond::mark_t({}));
                 // Done
                 continue;
               }
@@ -597,7 +597,7 @@ namespace spot
                   pg2aut[e1.dst] = strat_aut->new_state();
                 strat_aut->new_edge(
                               pg2aut[v], pg2aut[e1.dst], e1.cond,
-                              keep_acc ? e1.acc : spot::acc_cond::mark_t({}));
+                              keep_acc ? e1.acc : acc_cond::mark_t({}));
               }
             // Player strat
             auto &e2 = arena->edge_storage(s[e1.dst]);
@@ -615,7 +615,7 @@ namespace spot
                     pg2aut[e2.dst],
                     e2.cond,
                     keep_acc ? e2.acc
-                             : spot::acc_cond::mark_t({}));
+                             : acc_cond::mark_t({}));
               }
             else
               strat_aut->new_edge(
@@ -623,7 +623,7 @@ namespace spot
                             pg2aut[e2.dst],
                             (e1.cond & e2.cond),
                             keep_acc ? (e1.acc | e2.acc)
-                                     : spot::acc_cond::mark_t({}));
+                                     : acc_cond::mark_t({}));
           }
       }
 
@@ -661,9 +661,9 @@ namespace spot
 
   }
 
-  static spot::translator
-  create_translator(spot::option_map& extra_options, spot::solver sol,
-                    const spot::bdd_dict_ptr& dict)
+  static translator
+  create_translator(option_map& extra_options, solver sol,
+                    const bdd_dict_ptr& dict)
   {
     for (auto&& p : std::vector<std::pair<const char*, int>>
                       {{"simul", 0},
@@ -673,30 +673,30 @@ namespace spot
                        {"wdba-minimize", 2}})
       extra_options.set(p.first, extra_options.get(p.first, p.second));
 
-    spot::translator trans(dict, &extra_options);
+    translator trans(dict, &extra_options);
     // extra_options.report_unused_options();
     switch (sol)
     {
-    case spot::solver::LAR:
+    case solver::LAR:
       SPOT_FALLTHROUGH;
-    case spot::solver::LAR_OLD:
-      trans.set_type(spot::postprocessor::Generic);
-      trans.set_pref(spot::postprocessor::Deterministic);
+    case solver::LAR_OLD:
+      trans.set_type(postprocessor::Generic);
+      trans.set_pref(postprocessor::Deterministic);
       break;
-    case spot::solver::DPA_SPLIT:
-      trans.set_type(spot::postprocessor::ParityMaxOdd);
-      trans.set_pref(spot::postprocessor::Deterministic | spot::postprocessor::Colored);
+    case solver::DPA_SPLIT:
+      trans.set_type(postprocessor::ParityMaxOdd);
+      trans.set_pref(postprocessor::Deterministic | postprocessor::Colored);
       break;
-    case spot::solver::DET_SPLIT:
+    case solver::DET_SPLIT:
       SPOT_FALLTHROUGH;
-    case spot::solver::SPLIT_DET:
+    case solver::SPLIT_DET:
       break;
     }
     return trans;
   }
 
-  spot::twa_graph_ptr
-  create_game(const spot::formula& f,
+  twa_graph_ptr
+  create_game(const formula& f,
               const std::set<std::string>& all_outs,
               option_map& extra_opt,
               game_info& gi)
@@ -706,7 +706,7 @@ namespace spot
     auto& bv = gi.bv;
     auto& vs = gi.verbose_stream;
 
-    spot::stopwatch sw;
+    stopwatch sw;
 
     if (bv)
       sw.start();
@@ -740,7 +740,7 @@ namespace spot
           ins &= tobdd(aap.ap_name());
       }
 
-    spot::twa_graph_ptr dpa = nullptr;
+    twa_graph_ptr dpa = nullptr;
 
     switch (gi.s)
     {
@@ -764,7 +764,7 @@ namespace spot
         if (bv)
           sw.start();
         dpa = split_2step(tmp, outs, true, false);
-        spot::colorize_parity_here(dpa, true);
+        colorize_parity_here(dpa, true);
         if (bv)
           bv->split_time = sw.stop();
         if (vs)
@@ -787,7 +787,7 @@ namespace spot
         if (bv)
           sw.start();
         dpa = split_2step(aut, outs, true, false);
-        spot::colorize_parity_here(dpa, true);
+        colorize_parity_here(dpa, true);
         if (bv)
           bv->split_time = sw.stop();
         if (vs)
@@ -835,18 +835,18 @@ namespace spot
           sw.start();
         if (gi.s == solver::LAR)
           {
-            dpa = spot::to_parity(aut);
+            dpa = to_parity(aut);
             // reduce_parity is called by to_parity(),
             // but with colorization turned off.
-            spot::colorize_parity_here(dpa, true);
+            colorize_parity_here(dpa, true);
           }
         else
           {
-            dpa = spot::to_parity_old(aut);
+            dpa = to_parity_old(aut);
             dpa = reduce_parity_here(dpa, true);
           }
-        spot::change_parity_here(dpa, spot::parity_kind_max,
-                                 spot::parity_style_odd);
+        change_parity_here(dpa, parity_kind_max,
+                                 parity_style_odd);
         if (bv)
           bv->paritize_time = sw.stop();
         if (vs)
@@ -858,7 +858,7 @@ namespace spot
         if (bv)
           sw.start();
         dpa = split_2step(dpa, outs, true, false);
-        spot::colorize_parity_here(dpa, true);
+        colorize_parity_here(dpa, true);
         if (bv)
           bv->split_time = sw.stop();
         if (vs)
@@ -875,7 +875,7 @@ namespace spot
     return dpa;
   }
 
-  spot::twa_graph_ptr
+  twa_graph_ptr
   create_game(const formula& f,
               const std::set<std::string>& all_outs)
   {
@@ -884,20 +884,20 @@ namespace spot
     return create_game(f, all_outs, dummy1, dummy2);
   }
 
-  spot::twa_graph_ptr
+  twa_graph_ptr
   create_game(const std::string& f,
               const std::set<std::string>& all_outs)
   {
-    return create_game(spot::parse_formula(f), all_outs);
+    return create_game(parse_formula(f), all_outs);
   }
 
-  SPOT_API spot::twa_graph_ptr
+  SPOT_API twa_graph_ptr
   create_game(const std::string& f,
               const std::set<std::string>& all_outs,
               option_map& opt,
               game_info& gi)
   {
-    return create_game(spot::parse_formula(f), all_outs, opt, gi);
+    return create_game(parse_formula(f), all_outs, opt, gi);
   }
 
 
@@ -905,10 +905,10 @@ namespace spot
   bool solve_game(twa_graph_ptr arena, game_info& gi)
   {
     // todo adapt to new interface
-    spot::stopwatch sw;
+    stopwatch sw;
     if (gi.bv)
       sw.start();
-    auto ret = spot::solve_parity_game(arena);
+    auto ret = solve_parity_game(arena);
     if (gi.bv)
       gi.bv->solve_time = sw.stop();
     if (gi.verbose_stream)
@@ -931,7 +931,7 @@ namespace spot
       throw std::runtime_error("Arena can not be null");
 
     auto& bv = gi.bv;
-    spot::stopwatch sw;
+    stopwatch sw;
 
     if (auto* sw = arena->get_named_prop<std::vector<bool>>("state-winner"))
       {
@@ -969,7 +969,7 @@ namespace spot
     return strat_aut;
   }
 
-  spot::twa_graph_ptr
+  twa_graph_ptr
   create_strategy(twa_graph_ptr arena)
   {
     option_map dummy1;
@@ -1046,8 +1046,8 @@ namespace spot
     // element because it avoids going through the rest of the sets after an
     // element is found.
     static bool
-    are_intersecting(const std::set<spot::formula> &v1,
-                     const std::set<spot::formula> &v2)
+    are_intersecting(const std::set<formula> &v1,
+                     const std::set<formula> &v2)
     {
       auto v1_pos = v1.begin(), v2_pos = v2.begin(), v1_end = v1.end(),
            v2_end = v2.end();
@@ -1083,7 +1083,7 @@ namespace spot
     trans.set_pref(postprocessor::Deterministic | postprocessor::Complete);
     // TODO: Update gi.bv
     // auto &bv = gi.bv;
-    spot::stopwatch sw;
+    stopwatch sw;
     twa_graph_ptr res;
 
     formula left = f[0],
@@ -1137,7 +1137,7 @@ namespace spot
       bdd neg_right_bdd = bdd_not(right_bdd);
       assert(right_ins.empty());
       const bool is_true = res->acc().is_t();
-      spot::scc_info si(res, spot::scc_info_options::NONE);
+      scc_info si(res, scc_info_options::NONE);
       for (auto& e : res->edges())
       {
         // Here the part describing the outputs is based on the fact that
@@ -1164,9 +1164,9 @@ namespace spot
         output_bdd &= bdd_ithvar(res->register_ap(out));
 
       res->set_named_prop("synthesis-outputs", new bdd(output_bdd));
-      res->set_acceptance(spot::acc_cond::acc_code::t());
+      res->set_acceptance(acc_cond::acc_code::t());
 
-      res->prop_complete(spot::trival::maybe());
+      res->prop_complete(trival::maybe());
       print_hoa(std::cout, res);
       return {res, 1};
     }
@@ -1253,9 +1253,9 @@ namespace spot
     // The set of subspecifications described as [(assum, guar), (assum, guar)]
     std::vector<std::pair<formula, formula>> specs;
     // We merge two assumpt or guar. that share a proposition from decRelProps
-    std::vector<spot::formula> assumptions_split, guarantees_split;
+    std::vector<formula> assumptions_split, guarantees_split;
 
-    auto fus = [&outs, &decRelProps_ins, &decRelProps_outs](std::vector<spot::formula> &forms, std::vector<spot::formula> &res)
+    auto fus = [&outs, &decRelProps_ins, &decRelProps_outs](std::vector<formula> &forms, std::vector<formula> &res)
     {
       std::stack<unsigned> todo;
       todo.emplace(0);
@@ -1264,14 +1264,14 @@ namespace spot
       std::vector<bool> done(forms_size, false);
       while (!todo.empty())
       {
-        auto current_res = spot::formula::tt();
+        auto current_res = formula::tt();
         while (!todo.empty())
         {
           auto current_index = todo.top();
           todo.pop();
           done[current_index] = true;
           auto current_form = forms[current_index];
-          current_res = spot::formula::And({current_res, current_form});
+          current_res = formula::And({current_res, current_form});
           auto [ins_f, outs_f] = aps_of(current_form, outs);
           std::set<formula> ins_f_dec, outs_f_dec;
           std::set_intersection(ins_f.begin(), ins_f.end(),
@@ -1305,7 +1305,7 @@ namespace spot
 
     // Now we just have to find connected components in a bipartite graph
     std::function<void(formula f, std::vector<formula> &,
-                       std::vector<spot::formula> &,
+                       std::vector<formula> &,
                        std::set<formula> &,
                        std::set<formula> &,
                        formula &, formula &,
@@ -1313,7 +1313,7 @@ namespace spot
                        std::vector<bool> &)>
         bip;
     bip = [&outs, &bip](formula f, std::vector<formula> &src_vect,
-                        std::vector<spot::formula> &dst_vect,
+                        std::vector<formula> &dst_vect,
                         std::set<formula> &ins_dec,
                         std::set<formula> &outs_dec,
                         formula &left_res, formula &right_res,
@@ -1390,19 +1390,19 @@ namespace spot
   static formula
   extract_and(const formula& f, const std::set<std::string>& outs)
   {
-    if (f.is(spot::op::And))
+    if (f.is(op::And))
     {
-      std::vector<spot::formula> children;
+      std::vector<formula> children;
       std::transform(f.begin(), f.end(), std::back_inserter(children),
-                     [&outs](const spot::formula f)
+                     [&outs](const formula f)
                      { return extract_and(f, outs); });
-      return spot::formula::And(children);
+      return formula::And(children);
     }
-    if (f.is(spot::op::Not))
+    if (f.is(op::Not))
     {
       auto child = extract_and(f[0], outs);
       // ¬(⋀¬xᵢ) ≡ ⋁xᵢ
-      if (child.is(spot::op::And))
+      if (child.is(op::And))
       {
         bool ok = true;
         for (auto sub : child)
@@ -1413,81 +1413,81 @@ namespace spot
           }
         if (ok)
         {
-          std::vector<spot::formula> children;
+          std::vector<formula> children;
           std::transform(child.begin(), child.end(), std::back_inserter(children),
-                        [&outs](spot::formula f) { return extract_and(spot::formula::Not(f), outs); });
+                        [&outs](formula f) { return extract_and(formula::Not(f), outs); });
           return formula::Or(children);
         }
       }
       // ¬Fφ ≡ G¬φ
-      if (child.is(spot::op::F))
+      if (child.is(op::F))
       {
         // The result can be G(And).
-        auto f2 = spot::formula::G(extract_and(spot::formula::Not(child[0]), outs));
+        auto f2 = formula::G(extract_and(formula::Not(child[0]), outs));
         // What ?
         return f2;
       }
       // ¬(φ→ψ) ≡ φ ∧ ¬ψ
-      else if (child.is(spot::op::Implies))
+      else if (child.is(op::Implies))
       {
-        return spot::formula::And({extract_and(child[0], outs),
-                                       extract_and(spot::formula::Not(child[1]), outs)});
+        return formula::And({extract_and(child[0], outs),
+                                       extract_and(formula::Not(child[1]), outs)});
       }
       // ¬(φ ∨ ψ) ≡ ¬φ ∧ ¬ψ
-      else if (child.is(spot::op::Or))
+      else if (child.is(op::Or))
       {
-        std::vector<spot::formula> children;
+        std::vector<formula> children;
         std::transform(child.begin(), child.end(), std::back_inserter(children),
-                       [&outs](spot::formula f)
-                       { return extract_and(spot::formula::Not(f), outs); });
-        return spot::formula::And(children);
+                       [&outs](formula f)
+                       { return extract_and(formula::Not(f), outs); });
+        return formula::And(children);
       }
     }
     // G(⋀φᵢ) = ⋀(G(φᵢ))
     // X(⋀φᵢ) = ⋀(X(φᵢ))
-    if (f.is(spot::op::G, spot::op::X))
+    if (f.is(op::G, op::X))
     {
       auto child_ex = extract_and(f[0], outs);
-      if (child_ex.is(spot::op::And))
+      if (child_ex.is(op::And))
       {
-        std::vector<spot::formula> children;
+        std::vector<formula> children;
         std::transform(child_ex.begin(), child_ex.end(), std::back_inserter(children),
-                       [&f, &outs](const spot::formula fi)
-                        { return extract_and(spot::formula::unop(f.kind(), fi),
+                       [&f, &outs](const formula fi)
+                        { return extract_and(formula::unop(f.kind(), fi),
                                              outs); });
-        return spot::formula::And(children);
+        return formula::And(children);
       }
     }
     // ⋀φᵢ U ψ ≡ ⋀(φᵢ U ψ)
-    if (f.is(spot::op::U))
+    if (f.is(op::U))
     {
       auto left_child_ex = extract_and(f[0], outs);
-      if (left_child_ex.is(spot::op::And))
+      if (left_child_ex.is(op::And))
       {
-        std::vector<spot::formula> children;
+        std::vector<formula> children;
         std::transform(left_child_ex.begin(), left_child_ex.end(),
                        std::back_inserter(children),
-                       [&f](const spot::formula fi)
-                          { return spot::formula::U(fi, f[1]); });
-        return spot::formula::And(children);
+                       [&f](const formula fi)
+                          { return formula::U(fi, f[1]); });
+        return formula::And(children);
       }
     }
-    if (f.is(spot::op::Implies))
+    if (f.is(op::Implies))
     {
       auto right_extr = extract_and(f[1], outs);
       auto left_extr = extract_and(f[0], outs);
       // φ → (⋀ψᵢ) ≡ ⋀(φ → ψᵢ)
-      if (!(left_extr.is(spot::op::And)))
+      if (!(left_extr.is(op::And)))
       {
-        if (right_extr.is(spot::op::And))
+        if (right_extr.is(op::And))
         {
-          std::vector<spot::formula> children;
+          std::vector<formula> children;
           std::transform(right_extr.begin(), right_extr.end(),
                          std::back_inserter(children),
-                         [&f, &left_extr](const spot::formula fi)
-                          { return spot::formula::Implies(left_extr, fi); });
+                         [&f, &left_extr](const formula fi)
+                          { return formula::Implies(left_extr, fi); });
 
-          return spot::formula::And(children);
+          return formula::And(children);
         }
       }
       // ⋀φᵢ → ⋀ψᵢ
@@ -1500,7 +1500,7 @@ namespace spot
     return f;
   }
 
-  std::pair<std::vector<formula>, std::vector<std::set<spot::formula>>>
+  std::pair<std::vector<formula>, std::vector<std::set<formula>>>
   split_independant_formulas(formula f, const std::set<std::string>& outs)
   {
     f = extract_and(f, outs);
@@ -1510,11 +1510,11 @@ namespace spot
       return { {f}, { outs_f } };
     }
     // Atomics prop of children
-    std::vector<std::set<spot::formula>> children_outs;
+    std::vector<std::set<formula>> children_outs;
     // Independent formulas
-    std::vector<spot::formula> res;
+    std::vector<formula> res;
     // And the appearing propositions
-    std::vector<std::set<spot::formula>> res_outs;
+    std::vector<std::set<formula>> res_outs;
     // For each conj, we calculate the set of output AP
     for (auto child : f)
       children_outs.push_back(aps_of(child, outs).second);
@@ -1527,8 +1527,8 @@ namespace spot
     while (first_free < nb_children)
     {
       todo.emplace(first_free);
-      std::vector<spot::formula> current_and;
-      std::set<spot::formula> current_outs;
+      std::vector<formula> current_and;
+      std::set<formula> current_outs;
       while (!todo.empty())
       {
         auto current = todo.top();
