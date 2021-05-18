@@ -244,8 +244,8 @@ namespace
 
     if (opt_print_aiger)
     {
-      out << "," << bv->nb_latches
-          << "," << bv->nb_gates;
+      out << ',' << bv->nb_latches
+          << ',' << bv->nb_gates;
     }
     out << '\n';
     outf.close(opt_csv);
@@ -291,7 +291,9 @@ namespace
       sub_outs.resize(1);
       std::transform(output_aps.begin(), output_aps.end(),
             std::inserter(sub_outs[0], sub_outs[0].begin()),
-            [](const std::string& name) { return spot::formula::ap(name);});
+            [](const std::string& name) {
+              return spot::formula::ap(name);
+            });
     }
     std::vector<std::set<std::string>> sub_outs_str;
     std::transform(sub_outs.begin(), sub_outs.end(),

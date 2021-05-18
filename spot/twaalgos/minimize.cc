@@ -1079,7 +1079,7 @@ namespace
     bdd
     get_lowest_bdd()
     {
-      if (children.size() == 0)
+      if (children.empty())
         return label;
       return children[0].get_lowest_bdd();
     }
@@ -1087,7 +1087,7 @@ namespace
     unsigned
     flatten_aux(std::map<bdd, unsigned, bdd_less_than> &res)
     {
-      if (children.size() == 0)
+      if (children.empty())
         {
           res.insert({label, state_});
           return state_;
@@ -1111,7 +1111,7 @@ namespace
     void
     print()
     {
-      std::cout << "(" << this->label << ", " << this->state_ << ") : " << std::endl;
+      std::cout << '(' << this->label << ", " << this->state_ << ") : " << std::endl;
       for (auto c : children)
         std::cout << c.state_ << std::endl;
       for (auto c : children)
@@ -1298,7 +1298,7 @@ namespace
     return;
 #endif
     std::cout << init << '\n';
-    for(; beg != end; ++beg)
+    for (; beg != end; ++beg)
       std::cout << *beg << sep;
     std::cout << '\n';
   }
@@ -1314,7 +1314,7 @@ namespace
       if (alit == 0)
         trace << alit << '\n';
       else
-        trace << alit << " ";
+        trace << alit << ' ';
     }
     assert(count == L.size());
   }
@@ -1365,13 +1365,13 @@ namespace
         }
       // Sort the used_bdds with respect to their id
       std::sort(used_bdds.begin(), used_bdds.end(),
-                [](const auto& c1, const auto& c2){return c1.id() < c2.id();});
+                [](const auto& c1, const auto& c2){return c1.id() < c2.id(); });
       assert([&](){
         for (size_t i1 = 0; i1 < used_bdds.size(); ++i1)
           for (size_t i2 = i1+1; i2 < used_bdds.size(); ++i2)
             if ((used_bdds[i1] & used_bdds[i2]) != bddfalse)
               return false;
-        return true;}());
+        return true; }());
 
 #ifdef TRACE
       trace << "Resulting alphabet has size " << used_bdds.size() <<'\n';
@@ -1388,7 +1388,7 @@ namespace
       splitmm->copy_ap_of(mm);
 
       // We want the env state to be the "first"
-      std::unordered_map<unsigned, unsigned> smap;//mm->splitmm
+      std::unordered_map<unsigned, unsigned> smap; //mm->splitmm
       smap.reserve(mm->num_states());
       const size_t n_player = std::count(spref.cbegin(), spref.cend(), true);
       size_t next_player = mm->num_states() - n_player;
@@ -1621,7 +1621,7 @@ namespace
     inline size_t idx(size_t i, size_t j) const
       {
         assert(i<dim_ && j<dim_);
-        return idx_(i,j);
+        return idx_(i, j);
       }
     inline T operator()(size_t i, size_t j) const
     {
@@ -1651,7 +1651,7 @@ namespace
       for (size_t i = 0; i < dim_; ++i)
         {
           for (size_t j = 0; j < dim_; ++j)
-            std::cout << (int)(*this)(i, j) << " ";
+            std::cout << (int)(*this)(i, j) << ' ';
           std::cout << std::endl;
         }
     }
@@ -1792,7 +1792,7 @@ namespace
                    std::sort(v.begin(), v.end(),
                      [](const auto& p1,
                         const auto& p2){ return p1.first.id()
-                                                < p2.first.id();});});
+                                                < p2.first.id(); }); });
 
     // We only need incompatibility for env states
     square_matrix<uint8_t> incompmat(n_env, false); //Everyone is compatible
@@ -1908,7 +1908,7 @@ namespace
                     {
                       // No common ocond possible
                       incompmat(si, sj) = true;
-                      incompmat(sj, si) = true;//sym
+                      incompmat(sj, si) = true; //sym
                       // tag predescessors
                       tag_common_pred(si, sj);
                       // We do not need to continue
@@ -1922,7 +1922,7 @@ namespace
                     }
                 }
             } // while
-          assert(ei == ei_end || ej == ej_end || incompmat(si,sj));
+          assert(ei == ei_end || ej == ej_end || incompmat(si, sj));
         } // sj
     //si
 #ifdef TRACE
@@ -1959,7 +1959,7 @@ namespace
     // Sort in reverse order
     std::sort(incompvec.begin(), incompvec.end(),
               [](const auto& p1, const auto& p2)
-                {return p1.second > p2.second;});
+                { return p1.second > p2.second; });
 
     part_sol_t part_sol_p;
     auto& part_sol = part_sol_p.psol_v;
@@ -1987,7 +1987,7 @@ namespace
     auto& part_sol_i = part_sol_p.incompvec;
     part_sol_i.reserve(n_states);
     std::for_each(incompvec.begin(), incompvec.end(),
-                  [&part_sol_i](auto&p ){part_sol_i.push_back(p.first);});
+                  [&part_sol_i](auto& p){ part_sol_i.push_back(p.first); });
     return part_sol_p;
   }
 
@@ -2050,7 +2050,7 @@ namespace
       // Search for a compatible class
       // and add the state
       unsigned iclass = -1u;
-      for ( unsigned i = 0; i < n_classes_; ++i)
+      for (unsigned i = 0; i < n_classes_; ++i)
         if (!incomp_classes(i, idx_distrib))
           {
             iclass = i;
@@ -2097,15 +2097,16 @@ namespace
     std::shared_ptr<satsolver> S_;
     int next_var_;
     bool frozen_xi_, frozen_iaj_;
-    std::unordered_map<xi_t, int, hash_xi, equal_to_xi> sxi_map_;//xi -> lit
-    std::unordered_map<iaj_t, int, hash_iaj, equal_to_iaj> ziaj_map_;//iaj -> lit
+    std::unordered_map<xi_t, int, hash_xi, equal_to_xi> sxi_map_; //xi -> lit
+    //iaj -> lit
+    std::unordered_map<iaj_t, int, hash_iaj, equal_to_iaj> ziaj_map_;
 
     std::deque<int> all_clauses_;
 
     lit_mapper(std::weak_ptr<satsolver> S, unsigned n_classes,
                unsigned n_env, unsigned n_sigma_red)
       : Sw_{S}
-      ,n_classes_{n_classes}
+      , n_classes_{n_classes}
       , n_env_{n_env}
       , n_sigma_red_{n_sigma_red}
       , S_{nullptr}
@@ -2201,7 +2202,7 @@ namespace
 
     void add(std::initializer_list<int> l)
     {
-      for(auto&& v : l)
+      for (auto&& v : l)
         add(v);
     }
 
@@ -2370,7 +2371,7 @@ namespace
         info_struct.part_feas = 1;
         lm.finalize();
         trace << "#partial prob\np cnf " << S.get_nb_vars()
-              << " " << S.get_nb_clauses()
+              << ' ' << S.get_nb_clauses()
               << std::endl;
         info_struct.n_part_vars = S.get_nb_vars();
         info_struct.n_part_clauses = S.get_nb_clauses();
@@ -2469,9 +2470,9 @@ namespace
                 for (unsigned j = 0; j < n_classes; ++j)
                   {
                     if (succ_classes[j])
-                      continue;//Already possible
+                      continue; //Already possible
                     if ((j < n_psol) && incompmat(psol_v[j], dst))
-                      continue;//dst can not be in class j
+                      continue; //dst can not be in class j
                     succ_classes[j] = true;
                   }
 //                if (std::all_of(succ_classes.begin(), succ_classes.end(),
@@ -2482,7 +2483,7 @@ namespace
             // It can happen that a state has no successor class under a
             // if the initial machine is not complete
             if (std::none_of(succ_classes.begin(), succ_classes.end(),
-                             [](auto e){return e;}))
+                             [](auto e){ return e; }))
               continue;
             // Z_iaj -> Under a all states of i go to j
             // First condition: For each i and a there must exist an j
@@ -2549,7 +2550,7 @@ namespace
                        }));
     lm.finalize();
     info_struct.build_closure = sw.stop();
-    trace << "p cnf " << S.get_nb_vars() << " " << S.get_nb_clauses()
+    trace << "p cnf " << S.get_nb_vars() << ' ' << S.get_nb_clauses()
           << std::endl;
     info_struct.n_vars = S.get_nb_vars();
     info_struct.n_clauses = S.get_nb_clauses();
@@ -2723,7 +2724,7 @@ namespace
         assert(eit == splitmm->out(x).end() && "Untreated edge");
       }
 
-    trace << "p cnf " << S.get_nb_vars() << " " << S.get_nb_clauses() << std::endl;
+    trace << "p cnf " << S.get_nb_vars() << ' ' << S.get_nb_clauses() << std::endl;
 
     // Solve it
     auto solpair = S.get_solution();
@@ -2802,7 +2803,7 @@ namespace
 //          trace << "Class has no successor under a\n";
 //        }
     //Check that no incompatible states are in the same class
-    trace << n_sigma_red << "\n";
+    trace << n_sigma_red << '\n';
     return true;
   }
 
@@ -2877,9 +2878,10 @@ namespace
       {
         std::for_each(splitmm->out(x).begin(), splitmm->out(x).end(),
                       [&m = x_a_ocond[x], &splitmm](const auto& e)
-                      {m.emplace_hint(m.end(), e.cond.id(),
+                      { m.emplace_hint(m.end(), e.cond.id(),
                           std::make_pair(splitmm->out(e.dst).begin()->cond,
-                                         splitmm->out(e.dst).begin()->dst));});
+                                         splitmm->out(e.dst).begin()->dst));
+                      });
       }
     // Have edges of states contiguous
     //(dst, ocond) -> player state
@@ -2889,7 +2891,7 @@ namespace
         {
           // Get the class and the linear index
           auto [aclass, aidx] = reduction_map[a];
-          assert(aidx <= aclass);//Condition for minimal letter
+          assert(aidx <= aclass); //Condition for minimal letter
           assert(aidx < n_sigma_red);
           // todo heuristic to chose
           // Take the first possible target class
@@ -2923,12 +2925,12 @@ namespace
           if (j == -1u)
             {
               assert(!has_trans);
-              continue;//No successor of this class under this letter
+              continue; //No successor of this class under this letter
             }
           // Does this out to this state exist?
           // Cheap identifier for bounded pairs
           unsigned long long id_dc = j;
-          id_dc<<=32;
+          id_dc <<= 32;
           id_dc += ocond.id(); // This is unique
           auto it = player_hash.find(id_dc);
           if (it == player_hash.end())
@@ -3002,7 +3004,8 @@ namespace
   }
 }//anonymous
 
-namespace spot{
+namespace spot
+{
   twa_graph_ptr minimize_mealy(const const_twa_graph_ptr& mm,
                                int preminfast)
     {
