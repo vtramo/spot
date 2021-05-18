@@ -270,32 +270,22 @@ namespace
         gi.bv->total_time = sw.stop();
     };
 
-    // FIXME: Le create_game est fait 2 fois, une là et une autre après
-    // découpage.
-    // We always need an arena, specific needs are passed via gi
-    spot::twa_graph_ptr arena = nullptr;
-    if (opt_do_verify)
-      {
-        arena = spot::create_game(f, output_aps, extra_options, gi);
-        spot::translator trans(arena->get_dict(), &extra_options);
-        neg_spec = trans.run(spot::formula::Not(f));
-      }
-    // FIXME: Voir tout en bas
-    // extra_options.report_unused_options();
-    // if (gi.bv)
-    //   gi.bv->nb_states_arena = arena->num_states();
-
-    /////////// TODO: This part split
     bool opt_decompose_ltl = extra_options.get("specification-decomposition", 0);
     std::vector<spot::formula> sub_form;
     std::vector<std::set<spot::formula>> sub_outs;
     if (opt_decompose_ltl)
     {
       auto subs = split_independant_formulas(f, output_aps);
-      sub_form = subs.first;
-      sub_outs = subs.second;
+      if (subs.first.size() > 1)
+      {
+        sub_form = subs.first;
+        sub_outs = subs.second;
+      }
     }
-    else
+    // When trying to split the formula, we can apply transformations that
+    // increase its size. This is why we will use the original formula if it
+    // has not been cut.
+    if (!opt_decompose_ltl || sub_form.empty())
     {
       sub_form = { f };
       sub_outs.resize(1);
@@ -303,78 +293,159 @@ namespace
             std::inserter(sub_outs[0], sub_outs[0].begin()),
             [](const std::string& name) { return spot::formula::ap(name);});
     }
-    std::vector<std::set<std::string>> sub_outs_str(sub_form.size());
+    std::vector<std::set<std::string>> sub_outs_str;
+    std::transform(sub_outs.begin(), sub_outs.end(),
+                   std::back_inserter(sub_outs_str),
+                   [](std::set<spot::formula> forms)
+                    {
+                      std::set<std::string> r;
+                      for (auto f : forms)
+                        r.insert(f.ap_name());
+                      return r;
+                    });
+
     assert((sub_form.size() == sub_outs.size())
            && (sub_form.size() == sub_outs_str.size()));
-    unsigned pos = 0;
-    for (auto& x : sub_outs)
-    {
-      for (auto& y : x)
-        sub_outs_str[pos].insert(y.ap_name());
-      ++pos;
-    }
+
+    const unsigned nb_sub_games = sub_form.size();
+    const bool want_game = opt_print_pg || opt_print_hoa;
 
     std::vector<spot::twa_graph_ptr> arenas;
 
-    // We always need an arena, specific needs are passed via gi
-//    for (auto sub : sub_form)
     auto sub_f = sub_form.begin();
     auto sub_o = sub_outs.begin();
-    for (; sub_f != sub_form.end(); ++sub_f, ++sub_o)
+    spot::twa_graph_ptr game_prod = nullptr;
+    std::vector<spot::twa_graph_ptr> strategies(nb_sub_games, nullptr);
+
+    // TODO: Est-ce qu'il y a une raison pour qu'on ait 2 pointeurs + un indice ?
+    unsigned i = 0;
+    for (; sub_f != sub_form.end(); ++sub_f, ++sub_o, ++i)
     {
-//      auto arena = spot::create_game(f, output_aps, extra_options, gi);
-      std::set<std::string> ao;
-      std::for_each(sub_o->begin(), sub_o->end(),
-                     [&ao](auto& af){ao.insert(af.ap_name());});
-      auto arena = spot::create_game(*sub_f, ao, extra_options, gi);
+      // if we don't want a game, we can try to create a strategy from the
+      // formula
+      if (!want_game)
+      {
+        // FIXME: N'utilise pas encore la minimisation car n'est pas splitté.
+        auto [simp_aut, _] = try_create_strategy_from_simple(*sub_f, sub_outs_str[i], extra_options, gi);
+        // TODO: If we are able to detect that the formula is not realizable, we can
+        // stop here.
+        // if (real_code == -1)
+        // { }
+        if (simp_aut != nullptr)
+        {
+          strategies[i] = simp_aut;
+          continue;
+        }
+      }
+      // 1) We create a game
+      // TODO: J'ai l'impression que ce qu'il se passe c'est que sub_outs_str
+      // est recalculé
+      // std::set<std::string> ao;
+      // std::for_each(sub_o->begin(), sub_o->end(),
+      //               [&ao](auto &af)
+      //               { ao.insert(af.ap_name()); });
+      auto arena = spot::create_game(*sub_f, sub_outs_str[i], extra_options, gi);
       arenas.push_back(arena);
-      // FIXME: Est-ce que c'est vraiment la somme des tailles des sous-arènes ?
       if (gi.bv)
         gi.bv->nb_states_arena += arena->num_states();
+
+      // 2) If the goal is to show the game, we do the product
+      if (want_game)
+      {
+        if (game_prod == nullptr)
+          game_prod = arena;
+        else
+          game_prod = spot::product(game_prod, arena);
+      }
+      else
+      {
+        // 3) Otherwise, we solve the game…
+        is_winning = (int) spot::solve_game(arena, gi);
+        if (gi.bv)
+          gi.bv->realizable &= is_winning;
+        // 4) If this part is not realizable, we can stop
+        if (!is_winning)
+          break;
+      }
     }
 
-    if (opt_print_pg || opt_print_hoa)
+    std::cout << (is_winning ? "REALIZABLE" : "UNREALIZABLE") << std::endl;
+    if (gi.bv)
+      gi.bv->realizable = is_winning;
+
+    if (opt_real)
+      return (int) !is_winning;
+    else if (want_game)
     {
-      spot::twa_graph_ptr arena = arenas.front();
-      for (size_t i = 1; i < arenas.size(); ++i)
-        arena = spot::product(arena, arenas[i]);
-      spot::alternate_players(arena, false, false);
+      spot::alternate_players(game_prod);
       if (opt_print_pg)
-        pg_print(std::cout, arena);
+        pg_print(std::cout, game_prod);
       else
-        spot::print_hoa(std::cout, arena, opt_print_hoa_args) << '\n';
-      safe_tot_time();
+        spot::print_hoa(std::cout, game_prod, opt_print_hoa_args) << '\n';
       return 0;
     }
 
-    if (gi.bv)
-      gi.bv->realizable = true;
-    for (auto& arena : arenas)
-    {
-      is_winning = (int) spot::solve_game(arena, gi);
-      if (gi.bv)
-        gi.bv->realizable &= is_winning;
-      // If one of the arenas is unrealizable, there is no need to
-      // process the others
-      if (!is_winning)
-        break;
-    }
-    // We need a solved game
 
-    if (opt_real)
-      {
-        std::cout << (is_winning ? "REALIZABLE" : "UNREALIZABLE") << std::endl;
-        safe_tot_time();
-        return (int) not is_winning;
-      }
-    std::vector<spot::twa_graph_ptr> strategies;
+    ///////////// AU DESSUS C'EST CA REECRIT
+    // std::vector<spot::twa_graph_ptr> strategies(sub_form.size(), nullptr);
+
+    // auto sub_f = sub_form.begin();
+    // auto sub_o = sub_outs.begin();
+    // for (; sub_f != sub_form.end(); ++sub_f, ++sub_o)
+    // {
+    //   std::set<std::string> ao;
+    //   std::for_each(sub_o->begin(), sub_o->end(),
+    //                  [&ao](auto& af){ao.insert(af.ap_name());});
+    //   auto arena = spot::create_game(*sub_f, ao, extra_options, gi);
+    //   arenas.push_back(arena);
+    //   if (gi.bv)
+    //     gi.bv->nb_states_arena += arena->num_states();
+    // }
+
+    // if (want_game)
+    // {
+    //   spot::twa_graph_ptr arena = arenas.front();
+    //   for (size_t i = 1; i < arenas.size(); ++i)
+    //     arena = spot::product(arena, arenas[i]);
+    //   spot::alternate_players(arena, false, false);
+    //   if (opt_print_pg)
+    //     pg_print(std::cout, arena);
+    //   else
+    //     spot::print_hoa(std::cout, arena, opt_print_hoa_args) << '\n';
+    //   safe_tot_time();
+    //   return 0;
+    // }
+
+    // if (gi.bv)
+    //   gi.bv->realizable = true;
+    // for (auto& arena : arenas)
+    // {
+    //   is_winning = (int) spot::solve_game(arena, gi);
+    //   if (gi.bv)
+    //     gi.bv->realizable &= is_winning;
+    //   // If one of the arenas is unrealizable, there is no need to
+    //   // process the others
+    //   if (!is_winning)
+    //     break;
+    // }
+    // We need a solved game
+    // std::cout << (is_winning ? "REALIZABLE" : "UNREALIZABLE") << std::endl;
+    // if (opt_real)
+    //   {
+    //     safe_tot_time();
+    //     return (int) not is_winning;
+    //   }
     // From here on we need the strat if winning
-    std::cout << (is_winning ? "REALIZABLE" : "UNREALIZABLE") << std::endl;
     if (is_winning)
       {
         spot::twa_graph_ptr tot_strat;
-        for (auto& arena : arenas)
+        for (unsigned i = 0; i < nb_sub_games; ++i)
         {
+          auto& arena = arenas[i];
+          // A strategy may have been created without going through games.
+          // In this case, it is already present here.
+          if (strategies[i] != nullptr)
+            continue;
           // We need the strategy automaton
           if (gi.bv)
             sw.start();
@@ -382,10 +453,21 @@ namespace
           if (gi.bv)
           {
             gi.bv->strat2aut_time += sw.stop();
-            gi.bv->nb_strat_states = strat_aut->num_states();
-            gi.bv->nb_strat_edges = strat_aut->num_edges();
+            gi.bv->nb_strat_states += strat_aut->num_states();
+            gi.bv->nb_strat_edges += strat_aut->num_edges();
           }
-          strategies.push_back(strat_aut);
+          strategies[i] = strat_aut;
+        }
+
+        if (opt_do_verify)
+        {
+          assert(strategies.size() > 0);
+          // TODO: Là on traduit avec les mêmes options que celles qui permettent
+          // de traduire la formule LTL de départ. On considère ça comme un
+          // équilibre entre taille de l'automate et vitesse. Là la taille est
+          // peut être moins importante, on pourrait chercher à traduire plus vite.
+          spot::translator trans(strategies[0]->get_dict(), &extra_options);
+          neg_spec = trans.run(spot::formula::Not(f));
         }
         spot::aig_ptr saig;
         if (opt_print_aiger)
@@ -401,17 +483,16 @@ namespace
           spot::print_aiger(std::cout, saig, "circuit");
         }
         else
-          {
-            spot::process_timer timer;
-            automaton_printer printer;
-            // FIXME: On fait quoi là ?
-            // Product of all "local" strategies
-            // -> "global" strategy
-            tot_strat = strategies.front();
-            for (size_t i = 1; i < strategies.size(); ++i)
-              tot_strat = product(tot_strat, strategies[i]);
-            printer.print(tot_strat, timer);
-          }
+        {
+          spot::process_timer timer;
+          automaton_printer printer;
+          // Product of all "local" strategies
+          // -> "global" strategy
+          tot_strat = strategies.front();
+          for (size_t i = 1; i < strategies.size(); ++i)
+            tot_strat = product(tot_strat, strategies[i]);
+          printer.print(tot_strat, timer);
+        }
 
         if (opt_do_verify)
           {
