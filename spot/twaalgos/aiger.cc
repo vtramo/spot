@@ -681,7 +681,7 @@ namespace spot
         // the first latch corresponds to the most significant digit
         unsigned dst = 0;
         unsigned off = 1;
-        for (unsigned i = 0; i < num_latches_ ; ++i)
+        for (unsigned i = 0; i < num_latches_; ++i)
           {
             bdd ilatch = nxtlbddvec[i];
             // evaluate
@@ -1191,7 +1191,7 @@ namespace spot
   {
 
     if (not circuit)
-      return os;//Print nothing in case of nullptr
+      return os; //Print nothing in case of nullptr
 
     std::vector<std::string> in_names(circuit->input_names().begin(),
                                       circuit->input_names().end());
