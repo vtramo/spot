@@ -609,7 +609,7 @@ namespace spot
             if (!unsplit)
               {
                 auto eit = strat_aut->out(pg2aut[e1.dst]);
-                if (eit.begin()==eit.end())
+                if (eit.begin() == eit.end())
                   strat_aut->new_edge(
                     pg2aut[e1.dst],
                     pg2aut[e2.dst],
@@ -891,7 +891,7 @@ namespace spot
     return create_game(parse_formula(f), all_outs);
   }
 
-  SPOT_API twa_graph_ptr
+  twa_graph_ptr
   create_game(const std::string& f,
               const std::set<std::string>& all_outs,
               option_map& opt,
@@ -1027,7 +1027,7 @@ namespace spot
     std::set<std::string> f_aps_str;
     for (auto &x : *f_aps)
       f_aps_str.insert(x.ap_name());
-    delete (f_aps);
+    delete f_aps;
     auto [ins_f_str, outs_f_str] = split_set(f_aps_str, outs);
     std::set<formula> ins_f, outs_f;
     for (auto &x : ins_f_str)
@@ -1507,7 +1507,11 @@ namespace spot
     if (!(f.is(op::And)))
     {
       auto [_, outs_f] = aps_of(f, outs);
-      return { {f}, { outs_f } };
+      return
+      {
+        {f},
+        {outs_f}
+      };
     }
     // Atomics prop of children
     std::vector<std::set<formula>> children_outs;

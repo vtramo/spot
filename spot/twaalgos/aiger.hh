@@ -190,7 +190,7 @@ namespace spot
 
     unsigned latch_var(unsigned i, bool neg = false) const
     {
-      assert(i < num_latches_);
+      SPOT_ASSERT(i < num_latches_);
       return (1 + num_inputs_ + i) * 2 + neg;
     }
     bdd latch_bdd(unsigned i, bool neg = false) const
@@ -200,7 +200,7 @@ namespace spot
 
     unsigned gate_var(unsigned i, bool neg = false) const
     {
-      assert(i < num_gates());
+      SPOT_ASSERT(i < num_gates());
       return (1 + num_inputs_ + num_latches_ + i) * 2 + neg;
     }
     bdd gate_bdd(unsigned i, bool neg = false) const

@@ -26,7 +26,6 @@
 #include <spot/twaalgos/aiger.hh>
 #include <spot/twaalgos/translate.hh>
 #include <spot/tl/formula.hh>
-#include <spot/misc/optionmap.hh>
 
 namespace spot
 {
