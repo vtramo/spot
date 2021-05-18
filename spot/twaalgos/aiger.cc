@@ -31,7 +31,6 @@
 #include <string>
 
 #include <spot/twa/twagraph.hh>
-#include <spot/misc/bddlt.hh>
 #include <spot/misc/minato.hh>
 
 namespace

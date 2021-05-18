@@ -21,7 +21,7 @@
 
 #include <spot/misc/bddlt.hh>
 #include <spot/misc/common.hh>
-#include <spot/misc/minato.hh>
+#include <stack>
 #include <spot/twa/fwd.hh>
 #include <unordered_map>
 #include <vector>
