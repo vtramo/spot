@@ -76,8 +76,8 @@ namespace spot
   /// \param unsplit      Whether or not to unsplit the automaton
   /// \param keep_acc     Whether or not keep the acceptance condition
   /// \return             the resulting twa_graph
-  SPOT_API spot::twa_graph_ptr
-  apply_strategy(const spot::twa_graph_ptr& arena,
+  SPOT_API twa_graph_ptr
+  apply_strategy(const twa_graph_ptr& arena,
                  bool unsplit, bool keep_acc);
 
   enum class solver
@@ -118,7 +118,7 @@ namespace spot
         out_choice{0},
         bv{},
         verbose_stream{nullptr},
-        dict(spot::make_bdd_dict())
+        dict(make_bdd_dict())
     {
     }
 
@@ -134,21 +134,21 @@ namespace spot
   SPOT_API std::ostream &
   operator<<(std::ostream &os, const game_info &gi);
 
-  SPOT_API spot::twa_graph_ptr
+  SPOT_API twa_graph_ptr
   create_game(const formula& f,
               const std::set<std::string>& all_outs,
               option_map& opt,
               game_info& gi);
 
-  SPOT_API spot::twa_graph_ptr
+  SPOT_API twa_graph_ptr
   create_game(const formula& f,
               const std::set<std::string>& all_outs);
 
-  SPOT_API spot::twa_graph_ptr
+  SPOT_API twa_graph_ptr
   create_game(const std::string& f,
               const std::set<std::string>& all_outs);
 
-  SPOT_API spot::twa_graph_ptr
+  SPOT_API twa_graph_ptr
   create_game(const std::string& f,
               const std::set<std::string>& all_outs,
               option_map& opt,
@@ -172,6 +172,6 @@ namespace spot
                                   option_map &extra_opt,
                                   game_info &gi);
 
-  SPOT_API std::pair<std::vector<formula>, std::vector<std::set<spot::formula>>>
+  SPOT_API std::pair<std::vector<formula>, std::vector<std::set<formula>>>
   split_independant_formulas(formula f, const std::set<std::string> &outs);
 }
