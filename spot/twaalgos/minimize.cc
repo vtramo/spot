@@ -777,7 +777,8 @@ namespace
     int states;
   };
 
-  // TODO: This part is just a copy of a part of simulation.cc
+  // This part is just a copy of a part of simulation.cc only suitable for
+  // deterministic monitors.
   class sig_calculator final
   {
   protected:
@@ -787,8 +788,9 @@ namespace
 
   public:
 
-    sig_calculator(twa_graph_ptr aut) : a_(aut),
+    sig_calculator(twa_graph_ptr aut, bool implications) : a_(aut),
         po_size_(0),
+        want_implications_(implications),
         all_class_var_(bddtrue),
         record_implications_(nullptr)
     {
@@ -1151,7 +1153,7 @@ namespace
     std::unordered_set<bdd, spot::bdd_hash> bdd_done;
     bdd_done.insert(bddtrue);
     std::vector<bdd> signatures(a_num_states);
-    sig_calculator red(a);
+    sig_calculator red(a, rec);
     red.main_loop();
     for (unsigned i = 0; i < a_num_states; ++i)
       {
