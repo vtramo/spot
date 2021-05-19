@@ -777,8 +777,7 @@ namespace
     int states;
   };
 
-  // This part is just a copy of a part of simulation.cc only suitable for
-  // deterministic monitors.
+  // TODO: This part is just a copy of a part of simulation.cc
   class sig_calculator final
   {
   protected:
@@ -793,8 +792,6 @@ namespace
         all_class_var_(bddtrue),
         record_implications_(nullptr)
     {
-      assert(aut->acc().is_t());
-      assert(is_deterministic(aut));
       unsigned ns = a_->num_states();
       size_a_ = ns;
       // Now, we have to get the bdd which will represent the
@@ -824,6 +821,8 @@ namespace
         free_var_.push(i);
         all_class_var_ &= bdd_ithvar(i);
       }
+
+      relation_[init] = init;
     }
 
     // Reverse all the acceptance condition at the destruction of
@@ -887,7 +886,7 @@ namespace
         // to_add is a conjunction of the acceptance condition,
         // the label of the edge and the class of the
         // destination and all the class it implies.
-        bdd to_add = t.cond & previous_class_[t.dst];
+        bdd to_add = t.cond & relation_[previous_class_[t.dst]];
 
         res |= to_add;
       }
@@ -970,12 +969,27 @@ namespace
       {
         bdd n_sig = now_to_next[n].first;
         bdd n_class = now_to_next[n].second;
+        if (want_implications_)
+          for (unsigned m = 0; m < sz; ++m)
+          {
+            if (n == m)
+              continue;
+            if (bdd_implies(n_sig, now_to_next[m].first))
+            {
+              n_class &= now_to_next[m].second;
+              ++po_size_;
+            }
+          }
+        relation_[now_to_next[n].second] = n_class;
       }
     }
 
   protected:
     // The automaton which is reduced.
     twa_graph_ptr a_;
+
+    // Implications between classes.
+    map_bdd_bdd relation_;
 
     // Represent the class of each state at the previous iteration.
     vector_state_bdd previous_class_;
@@ -1000,6 +1014,10 @@ namespace
 
     // Used to know when there is no evolution in the partial order.
     unsigned int po_size_;
+
+    // Whether to compute implications between classes.  This is costly
+    // and useless for deterministic automata.
+    bool want_implications_;
 
     // All the class variable:
     bdd all_class_var_;
