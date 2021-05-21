@@ -173,7 +173,8 @@ namespace{
     // 2 -> Mealy minimization based on language inclusion
     // 3 -> Exact mealy minimization
     // 4 -> Monitor min then exact minimization
-    // 5 -> Mealy minimization based on language inclusion then exact minimization
+    // 5 -> Mealy minimization based on language inclusion then exact
+    //      minimization
     bdd *obddptr = strat->get_named_prop<bdd>("synthesis-outputs");
     assert(obddptr);
     bdd obdd = *obddptr;
@@ -1345,7 +1346,8 @@ namespace spot
   }
 
   static std::pair<std::set<formula>, std::set<formula>>
-  algo4(const std::vector<formula> &assumptions, const std::set<std::string> &outs)
+  algo4(const std::vector<formula> &assumptions,
+        const std::set<std::string> &outs)
   {
     // Two variables are "connected" if they share an assumption.
     // It creates a dependency graph and our goal is to find the propositions
@@ -1415,7 +1417,8 @@ namespace spot
       assumptions.push_back(a);
     for (auto g : f[1])
       guarantees.push_back(g);
-    // Set of input/output props that cannot be shared between subspectifications
+    // Set of input/output props that cannot be shared between
+    // subspectifications
     auto decRelProps = algo4(assumptions, outs);
     auto &decRelProps_ins = decRelProps.first;
     auto &decRelProps_outs = decRelProps.second;
@@ -1426,7 +1429,7 @@ namespace spot
     // We merge two assumpt or guar. that share a proposition from decRelProps
     std::vector<formula> assumptions_split, guarantees_split;
 
-    auto fus = [&outs, &decRelProps_ins, &decRelProps_outs](std::vector<formula> &forms, std::vector<formula> &res)
+    auto fus = [&](std::vector<formula> &forms, std::vector<formula> &res)
     {
       std::stack<unsigned> todo;
       todo.emplace(0);
@@ -1449,14 +1452,16 @@ namespace spot
                                 decRelProps_ins.begin(), decRelProps_ins.end(),
                                 std::inserter(ins_f_dec, ins_f_dec.begin()));
           std::set_intersection(outs_f.begin(), outs_f.end(),
-                                decRelProps_outs.begin(), decRelProps_outs.end(),
+                                decRelProps_outs.begin(),
+                                decRelProps_outs.end(),
                                 std::inserter(ins_f_dec, ins_f_dec.begin()));
           for (unsigned i = 0; i < forms_size; ++i)
           {
             if (done[i])
               continue;
             auto [ins_i, outs_i] = aps_of(forms[i], outs);
-            if (are_intersecting(ins_i, ins_f_dec) || are_intersecting(outs_i, outs_f_dec))
+            if (are_intersecting(ins_i, ins_f_dec)
+             || are_intersecting(outs_i, outs_f_dec))
               todo.emplace(i);
           }
         }
@@ -1481,8 +1486,7 @@ namespace spot
                        std::set<formula> &,
                        formula &, formula &,
                        std::vector<bool> &,
-                       std::vector<bool> &)>
-        bip;
+                       std::vector<bool> &)> bip;
     bip = [&outs, &bip](formula f, std::vector<formula> &src_vect,
                         std::vector<formula> &dst_vect,
                         std::set<formula> &ins_dec,
@@ -1494,8 +1498,12 @@ namespace spot
       left_res = formula::And({left_res, f});
       auto [ins_f, outs_f] = aps_of(f, outs);
       std::set<formula> f_ins_dec, f_outs_dec;
-      std::set_intersection(ins_f.begin(), ins_f.end(), ins_dec.begin(), ins_dec.end(), std::inserter(f_ins_dec, f_ins_dec.begin()));
-      std::set_intersection(outs_f.begin(), outs_f.end(), outs_dec.begin(), outs_dec.end(), std::inserter(f_outs_dec, f_outs_dec.begin()));
+      std::set_intersection(ins_f.begin(), ins_f.end(), ins_dec.begin(),
+                            ins_dec.end(), std::inserter(f_ins_dec,
+                            f_ins_dec.begin()));
+      std::set_intersection(outs_f.begin(), outs_f.end(), outs_dec.begin(),
+                            outs_dec.end(),
+                            std::inserter(f_outs_dec, f_outs_dec.begin()));
       std::stack<unsigned> todo;
       for (unsigned i = 0; i < dst_vect.size(); ++i)
       {
@@ -1503,7 +1511,8 @@ namespace spot
           continue;
         auto f2 = dst_vect[i];
         auto [f2_ins, f2_outs] = aps_of(f2, outs);
-        if (are_intersecting(f2_ins, f_ins_dec) || are_intersecting(f2_outs, f_outs_dec))
+        if (are_intersecting(f2_ins, f_ins_dec)
+          || are_intersecting(f2_outs, f_outs_dec))
         {
           todo.push(i);
           right_res = formula::And({right_res, f2});
@@ -1514,7 +1523,8 @@ namespace spot
       {
         auto right_index = todo.top();
         todo.pop();
-        bip(dst_vect[right_index], dst_vect, src_vect, ins_dec, outs_dec, right_res, left_res, done_right, done_left);
+        bip(dst_vect[right_index], dst_vect, src_vect, ins_dec, outs_dec,
+            right_res, left_res, done_right, done_left);
       }
     };
 
@@ -1536,7 +1546,8 @@ namespace spot
       else
       {
         auto left = formula::tt(), right = formula::tt();
-        bip(ass, assumptions_split, guarantees_split, decRelProps_ins, decRelProps_outs, left, right, done_ass, done_gua);
+        bip(ass, assumptions_split, guarantees_split, decRelProps_ins,
+            decRelProps_outs, left, right, done_ass, done_gua);
         specs.push_back({left, right});
       }
     }
@@ -1585,8 +1596,10 @@ namespace spot
         if (ok)
         {
           std::vector<formula> children;
-          std::transform(child.begin(), child.end(), std::back_inserter(children),
-                        [&outs](formula f) { return extract_and(formula::Not(f), outs); });
+          std::transform(child.begin(), child.end(),
+                         std::back_inserter(children),
+                        [&](formula f)
+                          { return extract_and(formula::Not(f), outs); });
           return formula::Or(children);
         }
       }
@@ -1602,7 +1615,7 @@ namespace spot
       else if (child.is(op::Implies))
       {
         return formula::And({extract_and(child[0], outs),
-                                       extract_and(formula::Not(child[1]), outs)});
+                             extract_and(formula::Not(child[1]), outs)});
       }
       // ¬(φ ∨ ψ) ≡ ¬φ ∧ ¬ψ
       else if (child.is(op::Or))
@@ -1622,7 +1635,8 @@ namespace spot
       if (child_ex.is(op::And))
       {
         std::vector<formula> children;
-        std::transform(child_ex.begin(), child_ex.end(), std::back_inserter(children),
+        std::transform(child_ex.begin(), child_ex.end(),
+                       std::back_inserter(children),
                        [&f, &outs](const formula fi)
                         { return extract_and(formula::unop(f.kind(), fi),
                                              outs); });
