@@ -32,6 +32,7 @@
 
 #include <spot/twa/twagraph.hh>
 #include <spot/misc/minato.hh>
+#include <spot/priv/synt_utils.hh>
 
 namespace
 {
@@ -258,6 +259,101 @@ namespace spot
     register_new_lit_(input_var(i), b);
   }
 
+  // Unregisters positive and negative form of a literal
+  // which has to be given in positive form
+  void aig::unregister_lit_(unsigned v)
+  {
+    assert(((v&1) == 0) && "Expected positive form");
+    unsigned n_del;
+    n_del = bdd2var_.erase(var2bdd_[v]);
+    assert(n_del);
+    n_del = var2bdd_.erase(v);
+    assert(n_del);
+    v = v ^ 1;
+    n_del = bdd2var_.erase(var2bdd_[v]);
+    assert(n_del);
+    n_del = var2bdd_.erase(v);
+    assert(n_del);
+  }
+
+  aig::safe_point aig::get_safe_point_() const
+  {
+    return {max_var_, and_gates_.size()};
+  }
+
+  aig::safe_stash
+  aig::roll_back_(safe_point sf, bool do_stash)
+  {
+    // todo spezialise for safe_all?
+    safe_stash ss;
+    if (do_stash)
+      {
+        unsigned dn = max_var_ - sf.first;
+        assert((dn&1) == 0);
+        dn /= 2;
+        assert(dn == std::distance(and_gates_.begin()+sf.second,
+                                   and_gates_.end()));
+        ss.first.resize(dn);
+        ss.second.reserve(dn);
+        //Copy and erase the lits
+        for (unsigned v = sf.first+2; v <= max_var_; v += 2)
+            ss.second.emplace_back(v, var2bdd_[v]);
+        // Copy the gates
+        std::copy(and_gates_.begin()+sf.second, and_gates_.end(),
+                  ss.first.begin());
+      }
+    // 1 Delete all literals
+    // max_var_old was used before
+    // max_var_ is currently used
+    for (unsigned v = sf.first+2; v <= max_var_; v += 2)
+      unregister_lit_(v);
+    // 2 Set back the gates
+    and_gates_.erase(and_gates_.begin()+sf.second, and_gates_.end());
+    max_var_ = sf.first;
+    return ss;
+  }
+
+  void
+  aig::reapply_(safe_point sf, const safe_stash& ss)
+  {
+    // Do some check_ups
+    assert(ss.first.size() == ss.second.size());
+    assert(sf.first == max_var_);
+    assert(sf.second == and_gates_.size());
+    unsigned new_max_var_ = max_var_ + ss.first.size()*2;
+    for (auto& p : ss.second)
+      {
+        assert(p.first <= new_max_var_+1);
+        register_new_lit_(p.first, p.second);
+      }
+    and_gates_.insert(and_gates_.end(),
+                      ss.first.begin(), ss.first.end());
+    max_var_ = new_max_var_;
+  }
+
+  // Get propositions that are commun to all
+  // possible productsso that they can be anded at the end
+  bdd aig::accum_commun_(const bdd& b) const
+  {
+    bdd commun_bdd = bddtrue;
+    for (unsigned i = 0; i < num_inputs(); ++i)
+    {
+      if (bdd_implies(b, input_bdd(i)))
+        commun_bdd &= input_bdd(i);
+      else if(bdd_implies(b, input_bdd(i, true)))
+        commun_bdd &= input_bdd(i, true);
+    }
+    for (unsigned i = 0; i < num_latches(); ++i)
+    {
+      if (bdd_implies(b, latch_bdd(i)))
+        commun_bdd &= latch_bdd(i);
+      else if(bdd_implies(b, latch_bdd(i, true)))
+        commun_bdd &= latch_bdd(i, true);
+    }
+    assert(commun_bdd != bddfalse);
+    return commun_bdd;
+  }
+
   void aig::set_output(unsigned i, unsigned v)
   {
     assert(v <= max_var() + 1);
@@ -288,6 +384,8 @@ namespace spot
     max_var_ += 2;
     and_gates_.emplace_back(v1, v2);
     register_new_lit_(max_var_, b);
+//    if (use_and_split_)
+//      left_gate_map_[v1].insert(v2);
     return max_var_;
   }
 
@@ -297,19 +395,19 @@ namespace spot
       return aig_true();
     if (vs.size() == 1)
       return vs[0];
-    if (vs.size() == 2)
-      return aig_and(vs[0], vs[1]);
 
     std::sort(vs.begin(), vs.end());
     auto new_end = std::unique(vs.begin(), vs.end());
     vs.erase(new_end, vs.end());
 
-    unsigned add_elem = -1u;
+    if (vs.size() == 2)
+      return aig_and(vs[0], vs[1]);
 
+    unsigned add_elem = -1u;
+//    if (!use_and_split_)
+//    {
     do
     {
-      // Sort to increase reusage gates
-      std::sort(vs.begin(), vs.end());
 
       if (vs.size() & 1)
         {
@@ -328,7 +426,94 @@ namespace spot
           vs.push_back(add_elem);
           add_elem = -1u;
         }
+      // Sort to increase reusage gates
+      std::sort(vs.begin(), vs.end());
     } while (vs.size() > 1);
+//    }
+//    else
+//    {
+//      std::vector<unsigned> vs_[2];
+//      vs_[0] = vs;
+//
+//      std::vector<bool> ex_(vs.size());
+//
+//      auto add_1 = [&](auto& vsi)
+//      {
+//        unsigned add_elem = -1u;
+//        if (vsi.size() & 1)
+//        {
+//          // Odd size -> make even
+//          add_elem = vsi.back();
+//          vsi.pop_back();
+//        }
+//
+//        // Reduce two by two inplace
+//        unsigned svsi = vsi.size();
+//        for (unsigned i = 0; i < svsi / 2; ++i)
+//          vsi[i] = aig_and(vsi[2 * i], vsi[2 * i + 1]);
+//        vsi.resize(vsi.size() / 2);
+//        // Add the odd elem if necessary
+//        if (add_elem != -1u)
+//        {
+//          vsi.push_back(add_elem);
+//          add_elem = -1u;
+//        }
+//        // Sort to increase reusage gates
+//        std::sort(vsi.begin(), vsi.end());
+//      };
+//
+//      do
+//      {
+//        // todo, make this faster
+//        std::fill(ex_.begin(), ex_.end(), false);
+//        unsigned svs = vs_[0].size();
+//        for (unsigned il = 0; il < svs-1; ++il)
+//        {
+//          auto gli = left_gate_map_.find(vs_[0][il]);
+//          if (gli == left_gate_map_.end())
+//            continue;
+//          for (unsigned ir = il+1; ir < svs; ++ir)
+//            if (gli->second.count(vs_[0][ir]))
+//              {
+//                ex_[il] = true;
+//                ex_[ir] = true;
+//              }
+//        }
+//        unsigned i0 = 0;
+//        for (unsigned i = 0; i < svs; ++i)
+//        {
+//          if (ex_[i])
+//          {
+//            vs_[0][i0] = vs_[0][i];
+//            ++i0;
+//          }
+//          else
+//            vs_[1].push_back(vs_[0][i]);
+//        }
+//        vs_[0].resize(i0);
+//        if (i0 == 0)
+//          vs_[0].push_back(aig_true());
+//
+//        add_1(vs_[0]);
+//      } while (vs_[0].size() > 1);
+//
+//      // Compress the unknown
+//      if (vs_[1].size() == 0)
+//        vs_[1].push_back(aig_true());
+//      else
+//      {
+//        do
+//        {
+//          add_1(vs_[1]);
+//        } while (vs_[1].size() > 1);
+//      }
+//      // Set the result
+//      if (vs_[0][0] < vs_[1][0])
+//        vs[0] = aig_and(vs_[0][0], vs_[1][0]);
+//      else
+//        vs[0] = aig_and(vs_[1][0], vs_[0][0]);
+//    }
+
     return vs[0];
   }
 
@@ -419,7 +604,8 @@ namespace spot
   unsigned aig::bdd2DNFvar(bdd b)
   {
     static std::vector<unsigned> plus_vars;
-    static std::vector<unsigned> prod_vars(num_inputs());
+    static std::vector<unsigned> prod_vars(num_inputs()
+                                           +num_latches());
 
     plus_vars.clear();
     prod_vars.clear();
@@ -473,7 +659,164 @@ namespace spot
     return aig_or(plus_vars);
   }
 
-  unsigned aig::bdd2INFvar(bdd b)
+  unsigned aig::prod2partitionedDNFvar_impl_(const bdd& prodin)
+  {
+    static std::vector<unsigned> prod_vars_;
+
+    auto it = bdd2var_.find(prodin);
+    if ( it != bdd2var_.end())
+      return it->second;
+
+    bdd prods_[2];
+
+    unsigned vp_[2];
+
+    // Split ins/latches
+    prods_[0] = bdd_exist(prodin, all_ins_);//latch bdd
+    prods_[1] = bdd_exist(prodin, all_latches_);//ins bdd
+
+    for (int c : {0,1})
+      {
+        prod_vars_.clear();
+        bdd& prod = prods_[c];
+        // Check if existing
+        auto it = bdd2var_.find(prod);
+//        if (it != bdd2var_.end())
+//          vp_[c] = it->second;
+//        else
+//        {
+          // Create
+        while (prod != bddtrue)
+        {
+          //Check if we know the sub-bdd
+          if ((it = bdd2var_.find(prod)) != bdd2var_.end())
+            {
+              // We already constructed prod
+              prod_vars_.push_back(it->second);
+              break;
+            }
+          // if the next lines failes,
+          // it is probably due to unregistered latches or ins
+          unsigned v = bdd2var_.at(bdd_ithvar(bdd_var(prod)));
+          if (bdd_high(prod) == bddfalse)
+          {
+            v = aig_not(v);
+            prod = bdd_low(prod);
+          }
+          else
+            prod = bdd_high(prod);
+          prod_vars_.push_back(v);
+        }
+        vp_[c] = aig_and(prod_vars_);
+      }
+//      }
+    prod_vars_.clear();
+    if (vp_[0] < vp_[1])
+      return aig_and(vp_[0], vp_[1]);
+    else
+    return aig_and(vp_[1], vp_[0]);
+  }
+
+
+  unsigned aig::bdd2partitionedDNFvar_impl_(const bdd& b)
+  {
+    static std::vector<unsigned> plus_vars_;
+
+    auto it = bdd2var_.find(b);
+    if (it != bdd2var_.end())
+      return it->second;
+
+    bdd prod;
+    minato_isop cond(b);
+
+    while ((prod = cond.next()) != bddfalse)
+      plus_vars_.push_back(prod2partitionedDNFvar_impl_(prod));
+
+    // Done building
+    unsigned res = aig_or(plus_vars_);
+    plus_vars_.clear();
+    return res; // Sum them
+  }
+
+  unsigned aig::bdd2partitionedDNFvar_(bdd b)
+  {
+    // Check if dual is better
+//    return bdd2partitionedDNFvar_impl_(b);
+//    unsigned max_var_old = max_var_;
+//    unsigned gate_size_old = and_gates_.size();
+    auto sf = get_safe_point_();
+    unsigned res_prim = bdd2partitionedDNFvar_impl_(b);
+    unsigned add_gates_pos = and_gates_.size() - sf.second;
+    auto ss_prim = roll_back_(sf, true);
+    unsigned v_neg = bdd2partitionedDNFvar_impl_(bdd_not(b));
+    unsigned add_gates_neg = and_gates_.size() - sf.second;
+    if (add_gates_neg <= add_gates_pos)
+      return aig_not(v_neg);
+
+    // Undo-Redo
+    roll_back_(sf);
+    reapply_(sf, ss_prim);
+    return res_prim;
+  }
+
+  unsigned aig::bdd2partitionedDNFvar(bdd b)
+  {
+    if (split_off_)
+      {
+
+
+//        unsigned max_var_old = max_var_;
+//        unsigned gate_size_old = and_gates_.size();
+        auto sf = get_safe_point_();
+        unsigned final_prim;
+        {
+          //Primal
+          bdd commun_bdd = accum_commun_(b);
+          // Remove communs
+          bdd b_prim_single = bdd_exist(b, commun_bdd);
+          // Combine them
+          unsigned commun_var = prod2partitionedDNFvar_impl_(commun_bdd);
+          // Get remaining prods
+          unsigned var_p = bdd2partitionedDNFvar_(b_prim_single);
+          // And the commungs and the product
+          final_prim = aig_and(commun_var, var_p);
+        }
+        // Check, rollback, dualize, redo
+        unsigned add_gates_pos = and_gates_.size() - sf.second;
+        auto ss_prim = roll_back_(sf, true);
+
+        //Dual
+        unsigned final_dual;
+        {
+          bdd b_dual = bdd_not(b);
+//          auto [communs, commun_bdd] = accum_commun_(b_dual);
+          bdd commun_bdd = accum_commun_(b_dual);
+          // Remove communs
+          bdd b_dual_single = bdd_exist(b_dual, commun_bdd);
+          // Combine them
+          unsigned commun_var = prod2partitionedDNFvar_impl_(commun_bdd);
+          // Get remaining prods
+          unsigned var_p = bdd2partitionedDNFvar_(b_dual_single);
+          // And the commungs and the product
+          final_dual = aig_not(aig_and(commun_var, var_p));
+        }
+        // Check, rollback, dualize, redo
+        unsigned add_gates_neg = and_gates_.size() - sf.second;
+
+        if (add_gates_neg <= add_gates_pos)
+          return final_dual;
+
+        roll_back_(sf);
+        reapply_(sf, ss_prim);
+        return final_prim;
+      }
+    else
+      return bdd2partitionedDNFvar_(b);
+  }
+
+
+
+  unsigned aig::bdd2INFvar_impl_1_(const bdd& b)
   {
     // F = !v&low | v&high
     // De-morgan
@@ -485,12 +828,515 @@ namespace spot
 
     unsigned v_var = bdd2var_.at(bdd_ithvar(bdd_var(b)));
 
-    unsigned b_branch_var[2] = {bdd2INFvar(bdd_low(b)),
-                                bdd2INFvar(bdd_high(b))};
+    unsigned b_branch_var[2] = {bdd2INFvar_impl_1_(bdd_low(b)),
+                                bdd2INFvar_impl_1_(bdd_high(b))};
 
     unsigned r = aig_not(aig_and(v_var, b_branch_var[1]));
     unsigned l = aig_not(aig_and(aig_not(v_var), b_branch_var[0]));
     return aig_not(aig_and(l, r));
+  }
+
+  unsigned aig::bdd2INFvar_impl_(const bdd& b, bool do_min)
+  {
+    if (!do_min)
+      return bdd2INFvar_impl_1_(b);
+    else
+      {
+        auto sf = get_safe_point_();
+
+        unsigned var_p = bdd2INFvar_impl_1_(b);
+        unsigned add_gates_pos = and_gates_.size() - sf.second;
+        auto ss_prim = roll_back_(sf, true);
+
+        unsigned var_neg = aig_not(bdd2INFvar_impl_1_(bdd_not(b)));
+        unsigned add_gates_neg = and_gates_.size() - sf.second;
+
+        if (add_gates_neg <= add_gates_pos)
+          return var_neg;
+
+        roll_back_(sf);
+        reapply_(sf, ss_prim);
+
+        return var_p;
+      }
+  }
+
+  unsigned aig::bdd2INFvar(bdd b,
+                           bool do_min)
+  {
+    if (split_off_)
+      {
+        auto sf = get_safe_point_();
+
+        unsigned var_p;
+        unsigned add_gates_pos;
+        {
+          bdd comm = accum_commun_(b);
+          bdd b_single = bdd_exist(b, comm);
+          unsigned comm_var = prod2partitionedDNFvar_impl_(comm);
+          var_p = aig_and(comm_var, bdd2INFvar_impl_(b_single, do_min));
+          add_gates_pos = and_gates_.size() - sf.second;
+        }
+
+        auto ss_prim = roll_back_(sf, true);
+
+        unsigned var_neg;
+        unsigned add_gates_neg;
+        {
+          bdd bn = bdd_not(b);
+          bdd comm = accum_commun_(bn);
+          bdd b_single = bdd_exist(bn, comm);
+          unsigned comm_var = prod2partitionedDNFvar_impl_(comm);
+          var_neg = aig_not(aig_and(comm_var,
+                                    bdd2INFvar_impl_(b_single, do_min)));
+          add_gates_neg = and_gates_.size() - sf.second;
+        }
+
+        if (add_gates_neg <= add_gates_pos)
+          return var_neg;
+
+        roll_back_(sf);
+        reapply_(sf, ss_prim);
+        return var_p;
+      }
+    else
+      return bdd2INFvar_impl_(b, do_min);
+
+  }
+
+  void aig::build_all_bdds(const std::vector<bdd>& all_bdd)
+  {
+
+    // Build a set of all bdds needed in a "smart" way
+    // We only need the bdd or its negation, never both
+    std::set<bdd, bdd_less_than> needed_bdd;
+    for (const auto& b : all_bdd)
+      {
+        if (needed_bdd.count(bdd_not(b)))
+          continue;
+        needed_bdd.insert(b);
+      }
+
+    std::vector<std::vector<bdd>> sum_terms;
+    sum_terms.reserve(all_bdd.size());
+    std::set<bdd, bdd_less_than> needed_prods;
+    // Do sth smart here
+    std::vector<bdd> sum_terms_pos;
+    std::vector<bdd> sum_terms_neg;
+    std::vector<bdd> intersect;
+    for (const auto& b : needed_bdd)
+      {
+        sum_terms_pos.clear();
+        sum_terms_neg.clear();
+        // Compute the ISOP of the primal and dual
+        // Use the repr that adds less terms
+
+        bdd prod;
+
+        minato_isop cond_isop(b);
+        while ((prod = cond_isop.next()) != bddfalse)
+          sum_terms_pos.push_back(prod);
+
+        cond_isop = minato_isop(bdd_not(b));
+        while ((prod = cond_isop.next()) != bddfalse)
+          sum_terms_neg.push_back(prod);
+
+        std::sort(sum_terms_pos.begin(), sum_terms_pos.end(),
+                  bdd_less_than());
+        std::sort(sum_terms_neg.begin(), sum_terms_neg.end(),
+                  bdd_less_than());
+
+        intersect.clear();
+        std::set_intersection(needed_prods.cbegin(), needed_prods.end(),
+                              sum_terms_pos.cbegin(), sum_terms_pos.cend(),
+                              std::back_inserter(intersect), bdd_less_than());
+//        unsigned n_add_pos = sum_terms_pos.size() - intersect.size();
+        unsigned n_add_pos = 0;
+        std::for_each(sum_terms_pos.begin(), sum_terms_pos.end(),
+                      [&n_add_pos, &intersect](const auto& b)
+                      {
+                        if (std::find(intersect.cbegin(), intersect.cend(),
+                                      b) == intersect.cend())
+                          n_add_pos += bdd_nodecount(b);
+                      });
+
+        intersect.clear();
+        std::set_intersection(needed_prods.cbegin(), needed_prods.end(),
+                              sum_terms_neg.cbegin(), sum_terms_neg.cend(),
+                              std::back_inserter(intersect), bdd_less_than());
+//        unsigned n_add_neg = sum_terms_neg.size() - intersect.size();
+        unsigned n_add_neg = 0;//sum_terms_neg.size() - intersect.size();
+        std::for_each(sum_terms_neg.begin(), sum_terms_neg.end(),
+                      [&n_add_neg, &intersect](const auto& b)
+                      {
+                        if (std::find(intersect.cbegin(), intersect.cend(),
+                                      b) == intersect.cend())
+                          n_add_neg += bdd_nodecount(b);
+                      });
+
+        if (n_add_pos <= n_add_neg)
+          {
+            needed_prods.insert(sum_terms_pos.begin(), sum_terms_pos.end());
+            sum_terms.emplace_back(std::move(sum_terms_pos));
+          }
+        else
+          {
+            needed_prods.insert(sum_terms_neg.begin(), sum_terms_neg.end());
+            sum_terms.emplace_back(std::move(sum_terms_neg));
+          }
+      }
+
+    // Now we need to compute the prod_terms
+    // todo switch to using id() to avoid ref count
+    // and use a map
+    std::vector<std::vector<bdd>> prod_terms;
+    prod_terms.reserve(needed_prods.size());
+    for (bdd aprod : needed_prods) //apord : i1&ni2...
+      {
+        prod_terms.emplace_back();
+        auto& ptv = prod_terms.back();
+
+        while (aprod != bddtrue)
+        {
+          bdd topvar = bdd_ithvar(bdd_var(aprod));
+          bdd aprod_low = bdd_low(aprod);
+          if (aprod_low == bddfalse)
+            {
+              ptv.push_back(topvar);
+              aprod = bdd_high(aprod);
+            }
+          else
+            {
+              ptv.push_back(bdd_not(topvar));
+              aprod = aprod_low;
+            }
+        }
+        std::sort(ptv.begin(), ptv.end(),
+                  bdd_less_than());
+      }
+
+      // Now we need to count and then create the stack
+      // We start with the products
+//      struct bdd_pair_hash:
+//      {
+//        template <class P>
+//        size_t operator()(const P& p) const
+//        {
+//          size_t h = (size_t) p.first.id();
+//          h <<= 32;
+//          h += p.second.id();
+//          return h;
+//        }
+//      };
+//      struct bdd_pair_equal
+//      {
+//        bool operator()(const std::pair<bdd, bdd>& p1,
+//                        const std::pair<bdd, bdd>& p2) const
+//        {
+//          return (p1.first == p2.first)
+//                 && (p1.second == p2.second);
+//        }
+//      };
+    auto bdd_pair_hash = [](const auto& p) noexcept
+      {
+        size_t h = (size_t) p.first.id();
+        h <<= 32;
+        h += p.second.id();
+        return h;
+      };
+    auto bdd_pair_equal = [](const auto& p1, const auto& p2) noexcept
+      {
+          return (p1.first == p2.first)
+                 && (p1.second == p2.second);
+      };
+
+    std::unordered_map<std::pair<bdd, bdd>, unsigned,
+                       decltype(bdd_pair_hash),
+                       decltype(bdd_pair_equal)> occur_map(prod_terms.size(),
+                                                           bdd_pair_hash,
+                                                           bdd_pair_equal);
+    auto count_occ = [&occur_map](const auto& term)
+      {
+//          std::cout << "count ";
+//          for (auto& e : term)
+//            std::cout << e << " ";
+//          std::cout << std::endl;
+        unsigned l = term.size();
+        for (unsigned i = 0; i < l; ++i)
+          for (unsigned j = i + 1; j < l; ++j)
+          {
+            auto [it, ins] =
+              occur_map.try_emplace({term[i], term[j]} , 0);
+            it->second += 1;
+//              std::cout << term[i] << " " << term[j] << " " << it->second << std::endl;
+          }
+      };
+    auto uncount_occ = [&occur_map](const auto& term)
+    {
+//        std::cout << "uncount ";
+//        for (auto& e : term)
+//          std::cout << e << " ";
+//        std::cout << std::endl;
+      unsigned l = term.size();
+      for (unsigned i = 0; i < l; ++i)
+        for (unsigned j = i + 1; j < l; ++j)
+          {
+            assert(occur_map.at({term[i], term[j]}) >= 1);
+            occur_map[{term[i], term[j]}] -= 1;
+//              std::cout << term[i] << " " << term[j] << " " << occur_map[{term[i], term[j]}] << std::endl;
+          }
+    };
+//      std::cout << "count\n";
+    for (const auto& pterm : prod_terms)
+      count_occ(pterm);
+
+//      struct prod_heap_e
+//      {
+//        bdd left;
+//        bdd right;
+//        unsigned occ;
+//      };
+//      auto comp_prod_heap_e = [](const prod_heap_e& l,const prod_heap_e& r)
+//        {
+//          return l.occ < r.occ;
+//        };
+//      std::deque<prod_heap_e> prod_heap;
+////      prod_heap.reserve(occur_map.size());
+//      std::transform(occur_map.cbegin(), occur_map.cend(),
+//                     std::back_inserter(prod_heap),
+//                     [](auto& it)->prod_heap_e
+//                     {return {it.first.first, it.first.second, it.second};});
+//      occur_map.clear();
+//      std::make_heap(prod_heap.begin(), prod_heap.end(),
+//                     comp_prod_heap_e);
+
+    // Now we have the heap
+    // Successively construct the largest and put in the new ones
+//      auto and_ = [this](const prod_heap_e& pe)
+//        {
+//          assert(bdd2var_.count(pe.left));
+//          assert(bdd2var_.count(pe.right));
+//          // Internal creation
+//          aig_and(bdd2var_[pe.left], bdd2var_[pe.right]);
+//          return pe.left & pe.right;
+//        };
+    auto and_ = [this](const auto& mi)
+      {
+        assert(bdd2var_.count(mi.first.first));
+        assert(bdd2var_.count(mi.first.second));
+        // Internal creation
+        aig_and(bdd2var_[mi.first.first], bdd2var_[mi.first.second]);
+        return mi.first.first & mi.first.second;
+      };
+
+//      auto pop_heap = [&prod_heap, &comp_prod_heap_e]()
+//        {
+//          auto max_elem = prod_heap.front();
+//          std::pop_heap(prod_heap.begin(), prod_heap.end(),
+//                        comp_prod_heap_e);
+//          prod_heap.pop_back();
+//          return max_elem;
+//        };
+//
+//      auto push_heap = [&prod_heap, &comp_prod_heap_e](prod_heap_e&& e)
+//        {
+//          prod_heap.push_back(e);
+//          std::push_heap(prod_heap.begin(), prod_heap.end(),
+//                         comp_prod_heap_e);
+//        };
+
+//      while (!prod_heap.empty())
+    auto get_max = [&occur_map]
+    {
+      auto itm =
+              std::max_element(occur_map.cbegin(), occur_map.cend(),
+                               [](const auto& it1, const auto& it2)
+                                 {return std::make_tuple(it1.second, it1.first.first.id(), it1.first.second.id())
+                                         < std::make_tuple(it2.second, it2.first.first.id(), it2.first.second.id());});
+      assert(itm != occur_map.cend());
+      return *itm;
+    };
+
+//      while (!occur_map.empty())
+    while (!occur_map.empty())
+    {
+//          auto max_elem = pop_heap();
+//          std::cout << "mod " << max_elem.left << " " << max_elem.right << " " << max_elem.occ << std::endl;
+      auto max_elem = get_max();
+          unsigned n_occur_old = max_elem.second;
+//      std::cout << "mod " << max_elem.first.first << " " << max_elem.first.second << " " << max_elem.second << std::endl;
+      if (max_elem.second == 0)
+        break;
+
+    // Create the gate
+      bdd andcond = and_(max_elem);
+      // Update
+      // Check in all prods if this exists and update
+      unsigned n_occur = 0;
+//          occur_map.clear(); // Holds new products
+
+      for (auto& pterm : prod_terms)
+        {
+//              for (auto& e : pterm)
+//                std::cout << e << " ";
+//              std::cout << std::endl;
+          // todo, too costly right now
+          // Find left and right
+          // Note, left is always to the left of right
+//          auto itl = std::find(pterm.begin(), pterm.end(), max_elem.first.first);
+//          auto itr = std::find(itl+1, pterm.end(), max_elem.first.second);
+          auto itl = std::find(pterm.begin(), pterm.end(), max_elem.first.first);
+          auto itr =
+              itl == pterm.end() ? pterm.end()
+                                 : std::find(itl+1, pterm.end(), max_elem.first.second);
+
+          if ((itl != pterm.end()) && (itr != pterm.end()))
+            {
+              ++n_occur;
+              // uncount -> modifiy -> count
+              uncount_occ(pterm);
+//                  std::cout << n_occur_old << std::endl;
+              pterm.erase(itr); //Order matters
+              pterm.erase(itl);
+              pterm.push_back(andcond);
+              std::sort(pterm.begin(), pterm.end(),
+                        bdd_less_than());
+              count_occ(pterm);
+//                  for (unsigned i = 0; i < pterm.size(); ++i)
+//                    {
+//                      if (bdd_less_than()(pterm[i], andcond))
+//                        occur_map[{pterm[i], andcond}] += 1;
+//                      else if (bdd_less_than()(andcond, pterm[i]))
+//                        occur_map[{andcond, pterm[i]}] += 1;
+//                    }
+            }
+        }
+      assert(n_occur_old == n_occur);
+      // Insert into the heap
+//          for (auto& it : occur_map)
+//            push_heap({it.first.first, it.first.second, it.second});
+//          occur_map.clear();
+    }
+    // All products should now be created
+//    std::cout << "Needed p terms\n";
+//    for (auto& p : needed_prods)
+//      {
+//        std::cout << p << " : " << p.id() << std::endl;
+//      }
+//    std::cout << "Generated p terms\n";
+//    for (auto& pterm : prod_terms)
+//    {
+//      for (auto& e : pterm)
+//        std::cout<< e << " : " << e.id() << ";;";
+//      std::cout << std::endl;
+//    }
+//    std::cout << "Safed bdds\n";
+//    for (const auto& it : bdd2var_)
+//      std::cout << it.first << " - " << it.first.id() << " : " << it.second << "\n";
+//    std::cout << std::endl;
+    assert(std::all_of(needed_prods.cbegin(), needed_prods.cend(),
+                       [this](const bdd& aprod)
+                       {return bdd2aigvar(aprod) > 0;}));
+
+      // We have created all products, now we need the sums
+      // We basically do the same but with or
+    occur_map.clear();
+    for (const auto& sterm : sum_terms)
+      {
+        // a & b = b & a only count once
+        count_occ(sterm);
+//        unsigned l = sterm.size();
+//        for (unsigned i = 0; i < l; ++i)
+//          for (unsigned j = i + 1; j < l; ++j)
+//            occur_map[{sterm[i], sterm[j]}] += 1;
+      }
+    // The data structures do not change
+//    auto& sum_heap = prod_heap;
+//    assert(sum_heap.empty());
+//
+////    sum_heap.reserve(occur_map.size());
+//    std::transform(occur_map.cbegin(), occur_map.cend(),
+//                   std::back_inserter(sum_heap),
+//                   [](auto& it)->prod_heap_e
+//                   {return {it.first.first, it.first.second, it.second};});
+//    occur_map.clear();
+//    std::make_heap(sum_heap.begin(), sum_heap.end(),
+//                   comp_prod_heap_e);
+
+//    auto or_ = [this](const prod_heap_e& pe)
+//    {
+//      assert(bdd2var_.count(pe.left));
+//      assert(bdd2var_.count(pe.right));
+//      // Internal creation
+//      aig_or(bdd2var_[pe.left], bdd2var_[pe.right]);
+//      return pe.left | pe.right;
+//    };
+    auto or_ = [this](const auto& mi)
+    {
+      assert(bdd2var_.count(mi.first.first));
+      assert(bdd2var_.count(mi.first.second));
+      // Internal creation
+      aig_or(bdd2var_[mi.first.first], bdd2var_[mi.first.second]);
+      return mi.first.first | mi.first.second;
+    };
+
+//    while (!sum_heap.empty())
+//    while (true)
+    while (!occur_map.empty())
+    {
+//      auto max_elem = pop_heap();
+      auto max_elem = get_max();
+//      std::cout << "mod " << max_elem.first.first << " " << max_elem.first.second << " " << max_elem.second << std::endl;
+      unsigned n_occur_old = max_elem.second;
+      if (max_elem.second == 0)
+        break;
+      // Create the gate
+      bdd orcond = or_(max_elem);
+      // Update
+      // Check in all prods if this exists and update
+      unsigned n_occur = 0;
+//      occur_map.clear(); // Holds new products
+
+      for (auto& sterm : sum_terms)
+      {
+//        for (auto& e : sterm)
+//          std::cout << e << " ";
+//        std::cout << std::endl;
+        // todo, too costly right now
+        // Find left and right
+        auto itl = std::find(sterm.begin(), sterm.end(), max_elem.first.first);
+        auto itr =
+            itl == sterm.end() ? sterm.end()
+                : std::find(itl+1, sterm.end(), max_elem.first.second);
+
+        if ((itl != sterm.end()) && (itr != sterm.end()))
+        {
+          ++n_occur;
+          // uncount -> modifiy -> count
+          uncount_occ(sterm);
+//          std::cout << n_occur << std::endl;
+          sterm.erase(itr);//Order matters
+          sterm.erase(itl);
+          sterm.push_back(orcond);
+          std::sort(sterm.begin(), sterm.end(),
+                    bdd_less_than());
+          count_occ(sterm);
+//          for (unsigned i = 0; i < sterm.size(); ++i)
+//          {
+//            if (bdd_less_than()(sterm[i], orcond))
+//              occur_map[{sterm[i], orcond}] += 1;
+//            else if (bdd_less_than()(orcond, sterm[i]))
+//              occur_map[{orcond, sterm[i]}] += 1;
+//          }
+        }
+      }
+      assert(n_occur_old == n_occur);
+      // Insert into the heap
+//      for (auto& it : occur_map)
+//        push_heap({it.first.first, it.first.second, it.second});
+//      occur_map.clear();
+    }
+
   }
 
   aig_ptr
@@ -767,6 +1613,9 @@ namespace spot
 
   namespace
   {
+    using namespace spot;
+    using namespace minutils;
+
     static void
     state_to_vec(std::vector<unsigned>& v, unsigned s,
                  unsigned offset)
@@ -803,11 +1652,11 @@ namespace spot
 
     // Switch initial state and 0 in the AIGER encoding, so that the
     // 0-initialized latches correspond to the initial state.
-    static unsigned
-    encode_init_0(unsigned src, unsigned init)
-    {
-      return src == init ? 0 : src == 0 ? init : src;
-    }
+//    static unsigned
+//    encode_init_0(unsigned src, unsigned init)
+//    {
+//      return src == init ? 0 : src == 0 ? init : src;
+//    }
 
     // Heuristic to minimize the number of gates
     // in the resulting aiger
@@ -846,6 +1695,325 @@ namespace spot
       return used_outc;
     }
 
+    std::vector<std::vector<bdd>>
+    reuse_outc(const std::vector<std::pair<const_twa_graph_ptr, bdd>>&
+                    strat_vec,
+                const bdd& all_inputs)
+    {
+
+      //todo filter out minterms!
+
+      //edge outcond -> used outcond (minterm)
+      std::unordered_map<bdd, bdd, bdd_hash> cond_map;
+
+      std::vector<std::vector<bdd>> used_outc;
+      // First fill with base out cond, then replace by minterm
+      for (auto&& astrat : strat_vec)
+        {
+          used_outc.emplace_back(astrat.first->num_edges()+1, bddfalse);
+          auto& this_outc = used_outc.back();
+          for (auto&& e: astrat.first->edges())
+            {
+              assert(e.cond != bddfalse);
+              bdd bout = bdd_exist(e.cond, all_inputs);
+              assert(((bout & bdd_existcomp(e.cond, all_inputs)) == e.cond) &&
+                     "Precondition (in) & (out) == cond violated");
+              this_outc[astrat.first->edge_number(e)] = bout;
+              cond_map[bout] = bddfalse;
+            }
+        }
+      // All conditions are stored in cond_map
+      const size_t n_cond = cond_map.size();
+      std::vector<bdd> bddvec;
+      bddvec.reserve(n_cond);
+      for (auto& it : cond_map)
+        bddvec.push_back(it.first);
+
+//      std::cout << "Conditions:\n";
+//      for (size_t i = 0; i < bddvec.size(); ++i)
+//        std::cout << i << " : " << bddvec[i] << "\n";
+
+      // todo symmetric specialisation?
+      // todo vectorized functions?
+      square_matrix<char> incomp_mat(n_cond, false);
+
+      // Compute pair-wise compatibility
+      for (size_t i = 0; i < n_cond; ++i)
+        for (size_t j = i+1; j < n_cond; ++j)
+          if ((bddvec[i] & bddvec[j]) == bddfalse)
+            {
+              incomp_mat(i,j) = true;
+              incomp_mat(j,i) = true;
+            }
+
+//      std::cout << "Incomp:\n";
+//      incomp_mat.print();
+
+
+      // Here the "states" are infact the out edge conditions
+      auto psol = get_part_sol(incomp_mat);
+      if (psol.psol_v.size() == n_cond)
+        return maxlow_outc(strat_vec, all_inputs);//todo
+
+      const auto& psol_v = psol.psol_v;
+      const auto& psol_s = psol.psol_s;
+      const unsigned n_psol = psol_v.size();
+      std::vector<unsigned> free_v;
+      free_v.reserve(n_cond - psol_v.size());
+      for (unsigned i = 0; i < n_cond; ++i)
+        if (psol_s.count(i) == 0)
+          free_v.push_back(i);
+      const unsigned n_free = free_v.size();
+//      std::cout << "p sol\n";
+//      for (auto v : psol_v)
+//        std::cout << v << " ";
+//      std::cout << "\n";
+//      std::cout << "free\n";
+//      for (auto v : free_v)
+//        std::cout << v << " ";
+//      std::cout << "\n";
+
+      // Covering condition -> each condition needs to be
+      // update when a new class is added
+      std::deque<std::deque<int>> cover_cond(n_cond); // Those for psol are emtpy
+      std::deque<int> incomp_cond;
+
+      // The lit mapper
+      // We have to create a new satsolver each time
+      // n_env_ <-> n_cond
+      auto Sptr = std::make_shared<satsolver>();
+      lit_mapper lm(Sptr, n_psol, n_cond, 0);
+
+      // Create the initial/partial solution
+      // This reamins unchanged -> incomp_cond
+      lm.unfreeze_xi();
+      // Cover cond: we can assign free edges
+      // only to partial solutions if they are compatible
+      for (auto fe : free_v)
+        for (unsigned i = 0; i < n_psol; ++i)
+          if (!incomp_mat(psol_v[i], fe))
+            cover_cond[fe].push_back(lm.sxi2lit({fe, i}));
+      lm.freeze_xi();
+
+      // Incompatible conditions:
+      // If fi and fj are both compatible with
+      // a partial solution k, but incompatible with one another -> add
+      for (unsigned k = 0; k < n_psol; ++k)
+      {
+        unsigned fk = psol_v[k];
+        for (unsigned i = 0; i < n_free; ++i)
+        {
+          unsigned fi = free_v[i];
+          if (incomp_mat(fi,fk))
+            continue; //fi can not be in k
+          for (unsigned j = i + 1; j < n_free; ++j)
+          {
+            unsigned fj = free_v[j];
+            if (incomp_mat(fj, fk))
+              continue;
+            if (incomp_mat(fi,fj))
+            {
+              incomp_cond.push_back(-lm.sxi2lit({fi, k}));
+              incomp_cond.push_back(-lm.sxi2lit({fj, k}));
+              incomp_cond.push_back(0);
+            }
+          }
+        }
+      }
+
+
+//      for (unsigned i = 0; i < n_psol; ++i)
+//        {
+//          incomp_cond.push_back(lm.sxi2lit({psol_v[i], i}));
+//          incomp_cond.push_back(0);
+//        }
+//      // covering cond for partial solutions
+//      for (unsigned x = 0; x < n_cond; ++x)
+//        {
+//          if (psol_s.count(x))
+//            continue; // No need, it has its own class
+//          for (unsigned i = 0; i < n_psol; ++i)
+//          {
+//            if (incomp_mat(psol_v[i], x))
+//              // Skip this literal as they are incomp
+//              continue;
+//            cover_cond[x].push_back(lm.sxi2lit({x, i}));
+//            // The partial solution edges are exactly in its own class
+//
+//            // Note this has to be finalised with 0
+//          }
+//        }
+//
+//      // Incomp condition for partial solution
+//      // No finalise needed
+//      for (unsigned i = 0; i < n_psol; ++i)
+//        for (unsigned x = 0; x < n_cond; ++x)
+//          if (incomp_mat(psol_v[i], x))
+//          {
+//            incomp_cond.push_back(-lm.sxi2lit({x, i})); // x can not be in class i
+//            incomp_cond.push_back(0);
+//          }
+//      lm.freeze_xi();
+
+      //Base conditions done
+      std::vector<bool> satsol;
+      unsigned n_classes = n_psol;
+      while (true)
+        {
+//          std::cout << n_classes << "\n";
+          lm.print();
+
+          // Search a solution for current instance
+          // Get a fresh solver and adjust
+          Sptr = std::make_shared<satsolver>();
+          lm.Sw_ = Sptr;
+          Sptr->adjust_nvars(lm.next_var_ - 1);
+          //Add
+          // The incomp-conditions are already proper clauses
+          Sptr->add(incomp_cond);
+//          std::cout << "inc\n";
+//          for (auto e : incomp_cond)
+//            std::cout << e << (e == 0 ? "\n" : " ");
+//          std::cout << "\n";
+          // The others need to be zero terminated
+          for (auto& dq : cover_cond)
+            {
+              if (dq.empty())
+              {
+//                std::cout << "jump\n";
+                continue;
+              }
+              dq.push_back(0);
+//              for (auto e : dq)
+//                std::cout << e << " ";
+//              std::cout << "\n";
+              Sptr->add(dq);
+              dq.pop_back();
+            }
+          std::cerr << "### " << n_cond << " " << n_classes << " " << Sptr->get_nb_vars() << " " << Sptr->get_nb_clauses() << "\n";
+          auto solpair = Sptr->get_solution();
+          if (!solpair.second.empty())
+            {
+              // We have a solution
+              satsol.reserve(solpair.second.size()+1);
+              satsol.push_back(0);
+              satsol.insert(satsol.end(), solpair.second.begin(),
+                            solpair.second.end());
+              break;
+            }
+
+          // Increase the number of classes
+          // A solution has to exist for n_classes == n_cond
+          assert(n_classes < n_cond);
+          // New class has index n_classes, increment afterwards
+          unsigned idx_c = n_classes;
+          ++n_classes;
+          lm.n_classes_ = n_classes;
+          if (n_classes == n_cond)
+            return maxlow_outc(strat_vec, all_inputs);//todo
+          // Update cover cond of existing classes
+          // The new class is apriori compatible with all states
+          // Note, only free states need to be distributed
+          lm.unfreeze_xi();
+//          for (unsigned x = 0; x < n_cond; ++x)
+          for (unsigned x : free_v)
+            cover_cond[x].push_back(lm.sxi2lit({x, idx_c}));
+          lm.freeze_xi();
+          //Add all new incomps
+          for (unsigned i = 0; i < n_free; ++i)
+          {
+            unsigned fi = free_v[i];
+            for (unsigned j = i + 1; j < n_free; ++j)
+            {
+              unsigned fj = free_v[j];
+              if (incomp_mat(fi, fj))
+              {
+                incomp_cond.push_back(-lm.sxi2lit({fi, idx_c}));
+                incomp_cond.push_back(-lm.sxi2lit({fj, idx_c}));
+                incomp_cond.push_back(0);
+              }
+            }
+          }
+//          for (unsigned x = 0; x < n_cond; ++x)
+//            for (unsigned y = x + 1; y < n_cond; ++y)
+//              if (incomp_mat(x,y))
+//                {
+//                  incomp_cond.push_back(-lm.sxi2lit({x, idx_c}));
+//                  incomp_cond.push_back(-lm.sxi2lit({y, idx_c}));
+//                  incomp_cond.push_back(0);
+//                }
+      }
+      assert(!satsol.empty());
+      // Each class at least one member
+      // Find the intersection and assign
+      // Attention, a cond may be in multiple classes
+      // -> Use only in first class (heuristic?) in order to
+      // minimize highs
+      std::vector<bool> assigned(n_cond, false);
+      std::vector<unsigned> in_class;
+      for (unsigned i = 0; i < n_classes; ++i)
+        {
+          in_class.clear();
+          bdd cond_class = bddtrue;
+          bool has_one = false;
+
+          // Adding the partial solution
+          if (i < n_psol)
+          {
+            unsigned x = psol_v[i];
+            cond_class = bddvec[x];
+            has_one = true;
+            assigned[x] = true;
+            in_class.push_back(x);
+          }
+
+          for (unsigned x = 0; x < n_cond; ++x)
+          {
+            if (assigned[x])
+              continue;
+            int lxi = lm.get_sxi({x, i});
+            //std::cout << cond_class << " " << x << " " << i << " " << lxi << " " << std::endl;
+            assert( (i>=n_psol) || ((psol_s.count(x) == 1) && lxi == 0)
+                    || (psol_s.count(x) == 0) );//psol has no lit
+            if ((lxi != 0) && satsol.at(lxi))
+              {
+                has_one = true;
+                assigned[x] = true;
+                cond_class &= bddvec[x];
+                assert(cond_class != bddfalse);
+                in_class.push_back(x);
+              }
+          }
+          assert(has_one);
+          // Get the minterm with least highs
+          cond_class = bdd_satone(cond_class);
+          //std::cout << cond_class << std::endl;
+          // Set them
+          for (unsigned x : in_class)
+            cond_map.at(bddvec[x]) = cond_class;
+        }
+
+      // "0" edge is bddfalse
+      cond_map[bddfalse] = bddfalse;
+
+//      std::cout << "Res\n";
+//      for (auto& it : cond_map)
+//        std::cout << it.first << " -> " << it.second << "\n";
+//      std::cout << std::endl;
+
+      // Assign the results
+      for (auto& bvec : used_outc)
+        {
+          std::transform(bvec.begin(), bvec.end(), bvec.begin(),
+                         [&cond_map](const bdd& b){return cond_map.at(b);});
+          assert(std::none_of(bvec.begin()+1, bvec.end(),
+                              [](const bdd& b){return b == bddfalse;}));
+        }
+
+      // Done
+      return used_outc;
+    }
+
     // Transforms an automaton into an AIGER circuit
     // using irreducible sums-of-products
     static aig_ptr
@@ -854,8 +2022,13 @@ namespace spot
                   const char* mode)
     {
       if (not ((strcasecmp(mode, "ITE") == 0)
-               or (strcasecmp(mode, "ISOP") == 0)))
-        throw std::runtime_error("mode must be \"ITE\" or \"ISOP\"!\n");
+               or (strcasecmp(mode, "ITEMIN") == 0)
+               or (strcasecmp(mode, "ISOP") == 0)
+               or (strcasecmp(mode, "ISOPMIN") == 0)
+               or (strcasecmp(mode, "OPTIM") == 0)
+               or (strcasecmp(mode, "BEST") == 0)))
+        throw std::runtime_error("mode must be \"ITE\", \"ISOP\", "
+                                 "\"ISOPMIN\" or \"OPTIM\"!\n");
       // The aiger circuit cannot encode the acceptance condition
       // Test that the acceptance condition is true
       for (auto&& astrat : strat_vec)
@@ -929,14 +2102,25 @@ namespace spot
       // however we need the edge to be deterministic in out too
       // So we need determinism and we also want the resulting aiger
       // to have as few gates as possible
-      std::vector<std::vector<bdd>> used_outc =
-          maxlow_outc(strat_vec, all_inputs);
+
+      std::vector<std::vector<bdd>> used_outc;
+      if (strat_vec.size() < 10000) //Dummy
+        used_outc = maxlow_outc(strat_vec, all_inputs);
+      else
+        used_outc = reuse_outc(strat_vec, all_inputs);//Still a bug?
 
       // Encode state in log2(num_states) latches.
       // The latches of each strategy have to be separated
       // so we get latches = [latches_0, latches_1, ....]
 
       // latches per strat
+      // If the states in the automaton are named,
+      // it is assumed that they are named by integers
+      // and these values will be used for encoding
+      // This coding has to ensure that the initial state
+      // is zero
+      // attention : least significant bit -> left / idx 0
+      std::vector<std::vector<unsigned>> state_numbers;
       std::vector<unsigned> log2n;
       log2n.reserve(strat_vec.size());
       // cumulative sum of latches across strats
@@ -945,8 +2129,34 @@ namespace spot
       unsigned n_latches = 0;
       for (auto&& astrat : strat_vec)
         {
+          state_numbers.emplace_back();
+          state_numbers.back().reserve(astrat.first->num_states());
+          unsigned max_index = 0;
+          // Check if named
+          if (const auto* s_names =
+                  astrat.first->get_named_prop<std::vector<std::string>>("state-names"))
+            {
+              std::transform(s_names->cbegin(), s_names->cend(),
+                             std::back_inserter(state_numbers.back()),
+                             [&max_index](const auto& sn)
+                             {
+                               unsigned su = std::stoul(sn);
+                               max_index = std::max(max_index, su);
+                               return su;
+                             });
+              ++max_index;
+            }
+          else
+            {
+              max_index = astrat.first->num_states();
+              state_numbers.back().resize(astrat.first->num_states());
+              std::iota(state_numbers.back().begin(),
+                        state_numbers.back().end(), 0);
+              std::swap(state_numbers.back()[0],
+                        state_numbers.back()[astrat.first->get_init_state_number()]);
+            }
           // Largest index to encode -> num_states()-1
-          log2n.push_back(std::ceil(std::log2(astrat.first->num_states())));
+          log2n.push_back(std::ceil(std::log2(max_index)));
           latch_offset.push_back(n_latches);
           n_latches += log2n.back();
         }
@@ -978,10 +2188,15 @@ namespace spot
         auto latchoff_next = latch_offset.at(i+1);
 
         auto alog2n = log2n[i];
+//        auto enc_init =
+//            [&, inum = astrat->get_init_state_number()](auto s)
+//            {
+//              return encode_init_0(s, inum);
+//            };
         auto enc_init =
-            [&, inum = astrat->get_init_state_number()](auto s)
+            [&sn = state_numbers.at(i)](unsigned s)
             {
-              return encode_init_0(s, inum);
+              return sn[s];
             };
         auto state2bdd = [&](auto s)
         {
@@ -1034,18 +2249,57 @@ namespace spot
         } // state
       } //strat
 
-      std::function<unsigned(bdd)> bdd2var;
-      if (strcasecmp(mode, "ITE") == 0)
-        bdd2var = [&circuit](auto b)->unsigned{return circuit.bdd2INFvar(b); };
-      else
-        bdd2var = [&circuit](auto b)->unsigned{return circuit.bdd2DNFvar(b); };
+      //todo make this more beautiful
+      auto sf = circuit.get_safe_point_();
+      unsigned min_gates = -1u;
+      aig::safe_stash ss;
 
-      // Create the vars
-      for (unsigned i = 0; i < output_names.size(); ++i)
-        circuit.set_output(i, bdd2var(out[i]));
-      for (unsigned i = 0; i < n_latches; ++i)
-        circuit.set_next_latch(i, bdd2var(latch[i]));
+      auto to_treat
+          = (strcasecmp(mode, "BEST") == 0) ? std::vector<std::string>{"ite", "isopmin"}
+                                            : std::vector<std::string>{mode};
+      for (const auto& amodestr : to_treat)
+        {
+          auto amodearr = amodestr.c_str();
+          circuit.use_split_off(isupper(amodearr[0]));
+          std::function<unsigned(bdd)> bdd2var;
+          if (strcasecmp(amodearr, "ITE") == 0)
+            bdd2var = [&circuit](auto b)->unsigned{return circuit.bdd2INFvar(b, false); };
+          else if (strcasecmp(amodearr, "ITEMIN") == 0)
+            bdd2var = [&circuit](auto b)->unsigned{return circuit.bdd2INFvar(b, true); };
+          else if(strcasecmp(amodearr, "ISOP") == 0)
+            bdd2var = [&circuit](auto b)->unsigned{return circuit.bdd2DNFvar(b); };
+          else if(strcasecmp(amodearr, "ISOPMIN") == 0)
+            bdd2var = [&circuit](auto b)->unsigned{return circuit.bdd2partitionedDNFvar(b); };
+          else
+            {
+              // Here it is more tricky
+              // First get a vector with all conditions needed in the
+              // strategy
+              std::vector<bdd> all_cond;
+              all_cond.reserve(out.size() + latch.size());
+              all_cond.insert(all_cond.end(), out.cbegin(), out.cend());
+              all_cond.insert(all_cond.end(), latch.cbegin(), latch.cend());
+              // Then construct it
+              circuit.build_all_bdds(all_cond);
+              bdd2var = [&circuit](auto b)->unsigned{return circuit.bdd2aigvar(b);};
+            }
 
+          // Create the vars
+          for (unsigned i = 0; i < output_names.size(); ++i)
+            circuit.set_output(i, bdd2var(out[i]));
+          for (unsigned i = 0; i < n_latches; ++i)
+            circuit.set_next_latch(i, bdd2var(latch[i]));
+
+          // Overwrite the stash if we generated less gates
+          if (circuit.num_gates() < min_gates)
+            {
+              min_gates = circuit.num_gates();
+              ss = circuit.roll_back_(sf, true);
+            }
+          else
+            circuit.roll_back_(sf, false);
+        }
+      circuit.reapply_(sf, ss);//Use the best sol
       return circuit_ptr;
     } // auts_to_aiger
   }

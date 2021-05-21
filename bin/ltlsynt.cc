@@ -80,7 +80,7 @@ static const argp_option options[] =
       "print the parity game in the HOA format, do not solve it", 0},
     { "realizability", OPT_REAL, nullptr, 0,
       "realizability only, do not compute a winning strategy", 0},
-    { "aiger", OPT_PRINT_AIGER, "ITE|ISOP", OPTION_ARG_OPTIONAL,
+    { "aiger", OPT_PRINT_AIGER, "ITE|ISOP|ISOPMIN|OPTIM", OPTION_ARG_OPTIONAL,
       "prints a winning strategy as an AIGER circuit.  With argument \"ISOP\""
       " conditions are converted to DNF, while the default \"ITE\" uses the "
       "if-the-else normal form.", 0},
@@ -397,7 +397,6 @@ namespace
         spot::print_hoa(std::cout, game_prod, opt_print_hoa_args) << '\n';
       return 0;
     }
-
 
     ///////////// AU DESSUS C'EST CA REECRIT
     // std::vector<spot::twa_graph_ptr> strategies(sub_form.size(), nullptr);
