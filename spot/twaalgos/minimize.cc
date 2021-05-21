@@ -868,7 +868,8 @@ namespace
       unsigned int nb_partition_before = 0;
       unsigned int nb_po_before = po_size_ - 1;
 
-      while (nb_partition_before != bdd_lstate_.size() || nb_po_before != po_size_)
+      while (nb_partition_before != bdd_lstate_.size()
+          || nb_po_before != po_size_)
       {
         update_previous_class();
         nb_partition_before = bdd_lstate_.size();
@@ -937,7 +938,9 @@ namespace
         used_var_.pop_front();
       }
 
-      assert((bdd_lstate_.size() == used_var_.size()) || (bdd_lstate_.find(bddfalse) != bdd_lstate_.end() && bdd_lstate_.size() == used_var_.size() + 1));
+      assert((bdd_lstate_.size() == used_var_.size())
+          || (bdd_lstate_.find(bddfalse) != bdd_lstate_.end()
+            && bdd_lstate_.size() == used_var_.size() + 1));
 
       // This vector links the tuple "C^(i-1), N^(i-1)" to the
       // new class coloring for the next iteration.
@@ -1074,9 +1077,9 @@ namespace
               else if (bdd_implies(children[i].label, value))
                 {
                   bdd_tree new_node(value, state);
-                  // If a child contains a BDD that implies the value, we create a
-                  // new bdd_tree. It must contains all the children that imply
-                  // value
+                  // If a child contains a BDD that implies the value, we
+                  // create a new bdd_tree. It must contains all the children
+                  // that imply value
                   std::vector<bdd_tree> removed;
                   auto impl_filter = [value, &new_node](bdd_tree tree)
                     {
@@ -1129,16 +1132,6 @@ namespace
       std::map<bdd, unsigned, bdd_less_than> res;
       flatten_aux(res);
       return res;
-    }
-
-    void
-    print()
-    {
-      std::cout << '(' << this->label << ", " << this->state_ << ") : " << std::endl;
-      for (auto c : children)
-        std::cout << c.state_ << std::endl;
-      for (auto c : children)
-        c.print();
     }
   };
 
@@ -1515,7 +1508,8 @@ namespace
           return wang32_hash(h);
         };
 
-      std::unordered_multimap<size_t, std::pair<unsigned, std::vector<unsigned>>> tgt_map;
+      std::unordered_multimap<size_t,
+                    std::pair<unsigned, std::vector<unsigned>>> tgt_map;
       // Check for all letters if there is one with the same tgts
       const size_t n_env = splitmm->num_states() - n_player;
       //{equiv class, linear idx}
@@ -1875,7 +1869,8 @@ namespace
                      const MAT& incompmat,
                      const part_sol_t& partsol,
                      const greedy_cover_t& gc,
-                     const std::vector<std::pair<unsigned, unsigned>>& reduction_map,
+                     const std::vector<
+                            std::pair<unsigned, unsigned>>& reduction_map,
                      const size_t n_classes, const size_t n_sigma_red) {
     assert(partsol.psol_v.size() <= n_classes);
     stopwatch sw;
@@ -2195,7 +2190,8 @@ namespace
                      const std::deque<bdd>& used_bdds,
                      const MAT& incompmat,
                      const part_sol_t& partsol,
-                     const std::vector<std::pair<unsigned, unsigned>>& reduction_map,
+                     const std::vector<
+                                std::pair<unsigned, unsigned>>& reduction_map,
                      const size_t n_classes,
                      const size_t n_sigma_red)
   {
@@ -2337,7 +2333,8 @@ namespace
         assert(eit == splitmm->out(x).end() && "Untreated edge");
       }
 
-    trace << "p cnf " << S.get_nb_vars() << ' ' << S.get_nb_clauses() << std::endl;
+    trace << "p cnf " << S.get_nb_vars() << ' ' << S.get_nb_clauses()
+          << std::endl;
 
     // Solve it
     auto solpair = S.get_solution();
@@ -2348,8 +2345,8 @@ namespace
     else
     {
       // MODIFICATION
-      // We prepend the solver solution with 0, so that the number of the literal
-      // corresponds to the index of the solution vector
+      // We prepend the solver solution with 0, so that the number of the
+      // literal corresponds to the index of the solution vector
       decltype(solpair.second) sol;
       sol.reserve(solpair.second.size());
       sol.push_back(0);
@@ -2424,8 +2421,8 @@ namespace
   twa_graph_ptr cstr_min_machine(const const_twa_graph_ptr& splitmm,
                                  const std::deque<bdd>& used_bdds,
                                  const lit_mapper& lm,
-                                 const std::vector<std::pair<unsigned, unsigned>>&
-                                    reduction_map,
+                                 const std::vector<
+                                  std::pair<unsigned, unsigned>>& reduction_map,
                                  const size_t n_env,
                                  const size_t n_classes,
                                  const size_t n_sigma_red,
