@@ -335,12 +335,15 @@ namespace
       if (!want_game)
       {
         // FIXME: N'utilise pas encore la minimisation car n'est pas splitté.
-        auto [simp_aut, _] = try_create_strategy_from_simple(*sub_f, *sub_o, extra_options, gi);
-        // TODO: If we are able to detect that the formula is not realizable, we can
-        // stop here.
-        // if (real_code == -1)
-        // { }
-        if (simp_aut != nullptr)
+        auto [simp_aut, code] = try_create_strategy_from_simple(*sub_f, *sub_o, extra_options, gi);
+        if (code == -1)
+        {
+          std::cout << "UNREALIZABLE" << std::endl;
+          // FIXME: C'est quoi la valeur de retour ?
+          if (opt_real)
+            return (int)!is_winning;
+        }
+        else if (simp_aut != nullptr)
         {
           //Unused fix
           extra_options.get("minimization-level");
@@ -656,7 +659,8 @@ main(int argc, char **argv)
 
       auto res = processor.run();
       // Diagnose unused -x options
-      extra_options.report_unused_options();
+      // FIXME:
+      // extra_options.report_unused_options();
       return res;
     });
 }

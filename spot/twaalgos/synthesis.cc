@@ -1247,34 +1247,42 @@ namespace spot
                               option_map &extra_opt,
                               game_info &gi)
   {
-    if (!f.is(op::Equiv))
+    bool is_and = f.is(op::And);
+    formula f_g, f_equiv;
+    // Rewrite a conjunction as G(…) ∧ …
+    if (is_and)
+    {
+      if (f.size() != 2)
+        return {nullptr, 0};
+      if (f[1].is(op::G))
+        f = formula::And({f[1], f[0]});
+      f_equiv = f[1];
+      f_g = f[0];
+    }
+    else
+      f_equiv = f;
+    if (!f_equiv.is(op::Equiv))
       return {nullptr, 0};
-    // TODO: game_info not updated
-    auto trans = create_translator(extra_opt, gi.s, gi.dict);
-    trans.set_type(postprocessor::Buchi);
-    trans.set_pref(postprocessor::Deterministic | postprocessor::Complete);
-    // TODO: Update gi.bv
-    // auto &bv = gi.bv;
     stopwatch sw;
     twa_graph_ptr res;
 
-    formula left = f[0],
-            right = f[1];
+    formula left = f_equiv[0],
+            right = f_equiv[1];
 
     auto [left_ins, left_outs] = aps_of(left, output_aps);
     auto [right_ins, right_outs] = aps_of(right, output_aps);
-
-    // We suppose that an output proposition is not shared.
-    if (are_intersecting(left_outs, right_outs))
-      return {nullptr, 0};
 
     bool has_left_outs = !left_outs.empty();
     bool has_left_ins = !left_ins.empty();
     bool has_right_outs = !right_outs.empty();
     bool has_right_ins = !right_ins.empty();
 
-    // Try to rewrite the equivalence as f(b1) <-> f(b2) where b2 has not any
-    // input
+    // The equivalence has to be f(INS) <-> f(OUTS) or f(OUTS) <-> f(INS)
+    if ((has_left_ins && has_left_outs) || (has_right_ins && has_right_outs)
+                                        || (has_right_outs == has_left_outs))
+      return {nullptr, 0};
+
+    // Rewrite the equivalence as f(INS) <-> f(OUTS)
     if (has_right_ins)
     {
       std::swap(left, right);
@@ -1283,10 +1291,6 @@ namespace spot
       std::swap(left_ins, right_ins);
       std::swap(left_outs, right_outs);
     }
-//    std::cout << "Left : " << left << ", right : " << right << std::endl;
-    // If we have INS on both sides of the equivalence, we cannot continue.
-    if (has_right_ins)
-      return {nullptr, 0};
 
     bool is_gf_bool_right = right.is({op::G, op::F}) && right[0][0].is_boolean();
     bool is_fg_bool_right = right.is({op::F, op::G}) && right[0][0].is_boolean();
@@ -1297,14 +1301,30 @@ namespace spot
     bool is_ok = ((is_gf_bool_right && left.is_syntactic_recurrence())
                 || (is_fg_bool_right && left.is_syntactic_guarantee()));
 
+    // TODO: game_info not updated
     if (is_ok)
     {
+      auto trans = create_translator(extra_opt, gi.s, gi.dict);
+      trans.set_type(postprocessor::Buchi);
+      trans.set_pref(postprocessor::Deterministic | postprocessor::Complete);
+      // TODO: Update gi.bv
+      // auto &bv = gi.bv;
       auto right_sub = right[0][0];
       res = trans.run(left);
       for (auto& out : right_outs)
         res->register_ap(out.ap_name());
       if (!is_deterministic(res))
         return {nullptr, 0};
+      bdd form_bdd = bddtrue;
+      if (is_and)
+      {
+        bdd output_bdd = bddtrue;
+        for (auto &out : output_aps)
+          output_bdd &= bdd_ithvar(res->register_ap(out));
+        form_bdd = formula_to_bdd(f_g[0], res->get_dict(), res);
+        if (bdd_exist(form_bdd, output_bdd) != bddtrue)
+          return {nullptr, 0};
+      }
       bdd right_bdd = formula_to_bdd(right_sub, res->get_dict(), res);
       bdd neg_right_bdd = bdd_not(right_bdd);
       assert(right_ins.empty());
@@ -1318,9 +1338,9 @@ namespace spot
         if (si.scc_of(e.src) == si.scc_of(e.dst))
         {
           if (e.acc || is_true)
-            e.cond &= right_bdd;
+            e.cond &= (right_bdd);
           else
-            e.cond &= neg_right_bdd;
+            e.cond &= (neg_right_bdd);
           // TODO: Here we suppose that left and right don't share an
           // output but we could study it
           // If the condition is false, it means that the left part
@@ -1328,6 +1348,11 @@ namespace spot
           // if (e.cond == bddfalse)
           //   return {nullptr, -1};
         }
+        // form_bdd has to be true all the time. So we cannot only do it
+        // between SCCs.
+        e.cond &= form_bdd;
+        if (e.cond == bddfalse)
+          return {nullptr, -1};
         e.acc = {};
       }
 
@@ -1339,7 +1364,6 @@ namespace spot
       res->set_acceptance(acc_cond::acc_code::t());
 
       res->prop_complete(trival::maybe());
-//      print_hoa(std::cout, res);
       return {res, 1};
     }
     return {nullptr, 0};
@@ -1726,7 +1750,6 @@ namespace spot
         current_and.push_back(f[current]);
         current_outs.insert(children_outs[current].begin(),
                             children_outs[current].end());
-        // TODO: Start with i = current + 1?
         for (unsigned i = 0; i < nb_children; ++i)
           if (!children_class[i]
                 && are_intersecting(children_outs[current], children_outs[i]))
