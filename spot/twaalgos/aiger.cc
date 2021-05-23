@@ -323,6 +323,7 @@ namespace spot
     unsigned new_max_var_ = max_var_ + ss.first.size()*2;
     for (auto& p : ss.second)
       {
+        assert(max_var_ + 1 < p.first);
         assert(p.first <= new_max_var_+1);
         register_new_lit_(p.first, p.second);
       }
@@ -2301,7 +2302,12 @@ namespace spot
           else
             circuit.roll_back_(sf, false);
         }
-      circuit.reapply_(sf, ss); //Use the best sol
+      circuit.reapply_(sf, ss);//Use the best sol
+      // Reset them
+      for (unsigned i = 0; i < output_names.size(); ++i)
+        circuit.set_output(i, circuit.bdd2aigvar(out[i]));
+      for (unsigned i = 0; i < n_latches; ++i)
+        circuit.set_next_latch(i, circuit.bdd2aigvar(latch[i]));
       return circuit_ptr;
     } // auts_to_aiger
   }

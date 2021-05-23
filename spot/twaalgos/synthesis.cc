@@ -778,15 +778,200 @@ namespace spot
                                          : acc_cond::mark_t({}));
         }
       }
-    unsigned n_old;
-    do
+    // Specialized merge
+    std::vector<bool> sp(strat_split->num_states(), false);
+    for (const auto& p : p_map)
+      sp[p.second] = true;
+
+    // Sorting edges in place
+    auto comp_edge = [](const auto& e1, const auto& e2)
     {
-      n_old = strat_split->num_edges();
-      strat_split->merge_edges();
-      strat_split->merge_states();
-    } while (n_old != strat_split->num_edges());
+      return std::tuple(e1.dst, e1.acc, e1.cond.id())
+             < std::tuple(e2.dst, e2.acc, e2.cond.id());
+    };
+    auto sort_edges_of =
+        [&, &split_graph = strat_split->get_graph()](unsigned s)
+      {
+        static std::vector<unsigned> edge_nums;
+        edge_nums.clear();
+
+        auto eit = strat_split->out(s);
+        const auto eit_e = eit.end();
+        // 0 Check if it is already sorted
+        if (std::is_sorted(eit.begin(), eit_e, comp_edge))
+          return false; // No change
+        // 1 Get all edges numbers and sort them
+        std::transform(eit.begin(), eit_e, std::back_inserter(edge_nums),
+                       [&](const auto& e){return strat_split->edge_number(e);});
+        std::sort(edge_nums.begin(), edge_nums.end(),
+                  [&](unsigned ne1, unsigned ne2)
+                  {return comp_edge(strat_split->edge_storage(ne1),
+                                    strat_split->edge_storage(ne2));});
+        // 2 Correct the order
+        auto& sd = split_graph.state_storage(s);
+        sd.succ = edge_nums.front();
+        sd.succ_tail = edge_nums.back();
+        const unsigned n_edges_p = edge_nums.size()-1;
+        for (unsigned i = 0; i < n_edges_p; ++i)
+          split_graph.edge_storage(edge_nums[i]).next_succ = edge_nums[i+1];
+        split_graph.edge_storage(edge_nums.back()).next_succ = 0; //terminal
+        // All nicely chained
+        return true;
+      };
+    auto merge_edges_of = [&](unsigned s)
+      {
+        // Call this after sort edges of
+        // Mergeable edges are nicely chained
+        bool changed = false;
+        auto eit = strat_split->out_iteraser(s);
+        unsigned idx_last = strat_split->edge_number(*eit);
+        ++eit;
+        while (eit)
+          {
+            auto& e_last = strat_split->edge_storage(idx_last);
+            if (std::tie(e_last.dst, e_last.acc)
+                == std::tie(eit->dst, eit->acc))
+              {
+                //Same dest and acc -> or condition
+                e_last.cond |= eit->cond;
+                eit.erase();
+                changed = true;
+              }
+            else
+              {
+                idx_last = strat_split->edge_number(*eit);
+                ++eit;
+              }
+          }
+        return changed;
+      };
+    auto merge_able = [&](unsigned s1, unsigned s2)
+      {
+        auto eit1 = strat_split->out(s1);
+        auto eit2 = strat_split->out(s2);
+        // Note: No self-loops here
+        return std::equal(eit1.begin(), eit1.end(),
+                          eit2.begin(), eit2.end(),
+                          [](const auto& e1, const auto& e2)
+                          {
+                            return std::tuple(e1.dst, e1.acc, e1.cond.id())
+                                   == std::tuple(e2.dst, e2.acc, e2.cond.id());
+                          });
+      };
+
+//    print_hoa(std::cout, strat_split) << "\n";
+
+    const unsigned n_sstrat = strat_split->num_states();
+    std::vector<unsigned> remap(n_sstrat, -1u);
+    bool changed_any;
+    std::vector<unsigned> to_check;
+    to_check.reserve(n_sstrat);
+    // First iteration -> all env states are candidates
+    for (unsigned i = 0; i < n_sstrat; ++i)
+      if (!sp[i])
+        to_check.push_back(i);
+
+    while (true)
+    {
+      changed_any = false;
+      std::for_each(to_check.begin(), to_check.end(),
+                    [&](unsigned s){sort_edges_of(s); merge_edges_of(s);});
+      // Check if we can merge env states
+      for (unsigned s1 : to_check)
+        for (unsigned s2 = 0; s2 < n_sstrat; ++s2)
+          {
+            if (sp[s2] || (s1 == s2))
+              continue; // Player state or s1 == s2
+            if ((remap[s2] < s2))
+              continue; //s2 is already remapped
+            if (merge_able(s1, s2))
+              {
+                changed_any = true;
+                if (s1 < s2)
+                  remap[s2] = s1;
+                else
+                  remap[s1] = s2;
+                break;
+              }
+          }
+
+//      std::for_each(remap.begin(), remap.end(), [](auto e){std::cout << e << " ";});
+//      std::cout << std::endl;
+
+      if (!changed_any)
+        break;
+      // Redirect changed targets and set possibly mergeable states
+      to_check.clear();
+      for (auto& e : strat_split->edges())
+        if (remap[e.dst] != -1u)
+          {
+            e.dst = remap[e.dst];
+            to_check.push_back(e.src);
+            assert(sp[e.src]);
+          }
+
+      // Now check the player states
+      // We can skip sorting -> only one edge
+      // todo change when multistrat
+      changed_any = false;
+      for (unsigned s1 : to_check)
+        for (unsigned s2 = 0; s2 < n_sstrat; ++s2)
+          {
+            if (!sp[s2] || (s1 == s2))
+              continue; // Env state or s1 == s2
+            if ((remap[s2] < s2))
+              continue; //s2 is already remapped
+            if (merge_able(s1, s2))
+              {
+                changed_any = true;
+                if (s1 < s2)
+                  remap[s2] = s1;
+                else
+                  remap[s1] = s2;
+                break;
+              }
+          }
+
+//      std::for_each(remap.begin(), remap.end(), [](auto e){std::cout << e << " ";});
+//      std::cout << std::endl;
+
+      if (!changed_any)
+        break;
+      // Redirect changed targets and set possibly mergeable states
+      to_check.clear();
+      for (auto& e : strat_split->edges())
+        if (remap[e.dst] != -1u)
+          {
+            e.dst = remap[e.dst];
+            to_check.push_back(e.src);
+            assert(!sp[e.src]);
+          }
+    }
+
+//    print_hoa(std::cout, strat_split) << std::endl;
+
+    // Defrag and alternate
+    if (remap[strat_split->get_init_state_number()] != -1u)
+      strat_split->set_init_state(remap[strat_split->get_init_state_number()]);
+    unsigned st = 0;
+    for (auto& s: remap)
+      if (s == -1U)
+        s = st++;
+      else
+        s = -1U;
+
+    strat_split->defrag_states(std::move(remap), st);
+
+//    unsigned n_old;
+//    do
+//    {
+//      n_old = strat_split->num_edges();
+//      strat_split->merge_edges();
+//      strat_split->merge_states();
+//    } while (n_old != strat_split->num_edges());
 
     alternate_players(strat_split, false, false);
+//    print_hoa(std::cout, strat_split) << std::endl;
     // What we do now depends on whether we unsplit or not
     if (unsplit)
       {
@@ -1251,7 +1436,15 @@ namespace spot
       f_equiv = f;
     if (!f_equiv.is(op::Equiv))
       return {nullptr, 0};
-//    stopwatch sw;
+    // TODO: game_info not updated
+    auto trans = create_translator(extra_opt, gi.s, gi.dict);
+    trans.set_type(postprocessor::Buchi);
+    trans.set_pref(postprocessor::Deterministic | postprocessor::Complete);
+    // TODO: Update gi.bv
+    // auto &bv = gi.bv;
+    stopwatch sw;
+    if (gi.bv)
+      sw.start();
     twa_graph_ptr res;
 
     formula left = f_equiv[0],
@@ -1346,6 +1539,10 @@ namespace spot
       res->set_acceptance(acc_cond::acc_code::t());
 
       res->prop_complete(trival::maybe());
+//      print_hoa(std::cout, res);
+      // Take only the time if succesful, the rest should be almost "free"
+      if (gi.bv)
+        gi.bv->trans_time += sw.stop();//todo count states?
       return {res, 1};
     }
     return {nullptr, 0};
