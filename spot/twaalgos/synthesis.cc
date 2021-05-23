@@ -1702,7 +1702,7 @@ namespace spot
       // ⋀φᵢ → ⋀ψᵢ
       else if (right_extr.is(op::And))
       {
-        auto extr_f = formula::Implies(f[0], f[1]);
+        auto extr_f = formula::Implies(left_extr, right_extr);
         return split_implication(extr_f, outs);
       }
     }
