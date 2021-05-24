@@ -127,8 +127,9 @@ namespace minutils
     std::shared_ptr<satsolver> S_;
     int next_var_;
     bool frozen_xi_, frozen_iaj_;
-    std::unordered_map<xi_t, int, hash_xi, equal_to_xi> sxi_map_;//xi -> lit
-    std::unordered_map<iaj_t, int, hash_iaj, equal_to_iaj> ziaj_map_;//iaj -> lit
+    std::unordered_map<xi_t, int, hash_xi, equal_to_xi> sxi_map_; //xi -> lit
+    //iaj -> lit
+    std::unordered_map<iaj_t, int, hash_iaj, equal_to_iaj> ziaj_map_;
 
     std::deque<int> all_clauses_;
 
@@ -231,7 +232,7 @@ namespace minutils
 
     void add(std::initializer_list<int> l)
     {
-      for(auto&& v : l)
+      for (auto&& v : l)
         add(v);
     }
 
@@ -252,14 +253,14 @@ namespace minutils
         os << "x - i -> lit\n";
         for (auto &it : xi_tmp)
           os << it.first.x << " - " << it.first.i << " -> " << it.second
-             << "\n";
+             << '\n';
       }
       {
         std::map<iaj_t, int, less_iaj> iaj_tmp(ziaj_map_.begin(), ziaj_map_.end());
         os << "i - a - j -> lit\n";
         for (auto &it : iaj_tmp)
             os << it.first.i << " - " << it.first.a << " - " << it.first.j
-             << " -> " << it.second << "\n";
+             << " -> " << it.second << '\n';
       }
       return os;
     }
@@ -346,7 +347,7 @@ namespace minutils
     inline size_t idx(size_t i, size_t j) const
     {
       assert(i<dim_ && j<dim_);
-      return idx_(i,j);
+      return idx_(i, j);
     }
     inline T operator()(size_t i, size_t j) const
     {
@@ -376,7 +377,7 @@ namespace minutils
       for (size_t i = 0; i < dim_; ++i)
       {
         for (size_t j = 0; j < dim_; ++j)
-          std::cout << (int)(*this)(i, j) << " ";
+          std::cout << (int)(*this)(i, j) << ' ';
         std::cout << std::endl;
       }
     }
@@ -409,7 +410,7 @@ namespace minutils
     // Sort in reverse order
     std::sort(incompvec.begin(), incompvec.end(),
               [](const auto& p1, const auto& p2)
-                {return p1.second > p2.second;});
+                { return p1.second > p2.second; });
 
     part_sol_t part_sol_p;
     auto& part_sol = part_sol_p.psol_v;
@@ -437,7 +438,7 @@ namespace minutils
     auto& part_sol_i = part_sol_p.incompvec;
     part_sol_i.reserve(n_states);
     std::for_each(incompvec.begin(), incompvec.end(),
-                  [&part_sol_i](auto&p ){part_sol_i.push_back(p.first);});
+                  [&part_sol_i](auto& p){ part_sol_i.push_back(p.first); });
     return part_sol_p;
   }
 }
