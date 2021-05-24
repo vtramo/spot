@@ -24,6 +24,9 @@
 #include <tuple>
 #include <memory>
 #include <iostream>
+#include <unordered_map>
+#include <set>
+#include <algorithm>
 
 #include <spot/misc/satsolver.hh>
 
