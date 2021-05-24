@@ -2614,7 +2614,8 @@ namespace
   }
 }//anonymous
 
-namespace spot{
+namespace spot
+{
   using namespace minutils;
 
   twa_graph_ptr minimize_mealy(const const_twa_graph_ptr& mm,

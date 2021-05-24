@@ -340,14 +340,14 @@ namespace spot
     {
       if (bdd_implies(b, input_bdd(i)))
         commun_bdd &= input_bdd(i);
-      else if(bdd_implies(b, input_bdd(i, true)))
+      else if (bdd_implies(b, input_bdd(i, true)))
         commun_bdd &= input_bdd(i, true);
     }
     for (unsigned i = 0; i < num_latches(); ++i)
     {
       if (bdd_implies(b, latch_bdd(i)))
         commun_bdd &= latch_bdd(i);
-      else if(bdd_implies(b, latch_bdd(i, true)))
+      else if (bdd_implies(b, latch_bdd(i, true)))
         commun_bdd &= latch_bdd(i, true);
     }
     assert(commun_bdd != bddfalse);
@@ -664,7 +664,7 @@ namespace spot
     static std::vector<unsigned> prod_vars_;
 
     auto it = bdd2var_.find(prodin);
-    if ( it != bdd2var_.end())
+    if (it != bdd2var_.end())
       return it->second;
 
     bdd prods_[2];
@@ -672,10 +672,10 @@ namespace spot
     unsigned vp_[2];
 
     // Split ins/latches
-    prods_[0] = bdd_exist(prodin, all_ins_);//latch bdd
-    prods_[1] = bdd_exist(prodin, all_latches_);//ins bdd
+    prods_[0] = bdd_exist(prodin, all_ins_); //latch bdd
+    prods_[1] = bdd_exist(prodin, all_latches_); //ins bdd
 
-    for (int c : {0,1})
+    for (int c : {0, 1})
       {
         prod_vars_.clear();
         bdd& prod = prods_[c];
@@ -965,7 +965,7 @@ namespace spot
                               sum_terms_neg.cbegin(), sum_terms_neg.cend(),
                               std::back_inserter(intersect), bdd_less_than());
 //        unsigned n_add_neg = sum_terms_neg.size() - intersect.size();
-        unsigned n_add_neg = 0;//sum_terms_neg.size() - intersect.size();
+        unsigned n_add_neg = 0; //sum_terms_neg.size() - intersect.size();
         std::for_each(sum_terms_neg.begin(), sum_terms_neg.end(),
                       [&n_add_neg, &intersect](const auto& b)
                       {
@@ -1059,7 +1059,7 @@ namespace spot
       {
 //          std::cout << "count ";
 //          for (auto& e : term)
-//            std::cout << e << " ";
+//            std::cout << e << ' ';
 //          std::cout << std::endl;
         unsigned l = term.size();
         for (unsigned i = 0; i < l; ++i)
@@ -1068,14 +1068,15 @@ namespace spot
             auto [it, ins] =
               occur_map.try_emplace({term[i], term[j]} , 0);
             it->second += 1;
-//              std::cout << term[i] << " " << term[j] << " " << it->second << std::endl;
+//          std::cout << term[i] << ' ' << term[j] << ' ' << it->second
+                  //  << std::endl;
           }
       };
     auto uncount_occ = [&occur_map](const auto& term)
     {
 //        std::cout << "uncount ";
 //        for (auto& e : term)
-//          std::cout << e << " ";
+//          std::cout << e << ' ';
 //        std::cout << std::endl;
       unsigned l = term.size();
       for (unsigned i = 0; i < l; ++i)
@@ -1083,7 +1084,8 @@ namespace spot
           {
             assert(occur_map.at({term[i], term[j]}) >= 1);
             occur_map[{term[i], term[j]}] -= 1;
-//              std::cout << term[i] << " " << term[j] << " " << occur_map[{term[i], term[j]}] << std::endl;
+//              std::cout << term[i] << ' ' << term[j] << ' '
+                      //  << occur_map[{term[i], term[j]}] << std::endl;
           }
     };
 //      std::cout << "count\n";
@@ -1151,8 +1153,8 @@ namespace spot
       auto itm =
               std::max_element(occur_map.cbegin(), occur_map.cend(),
                                [](const auto& it1, const auto& it2)
-                                 {return std::make_tuple(it1.second, it1.first.first.id(), it1.first.second.id())
-                                         < std::make_tuple(it2.second, it2.first.first.id(), it2.first.second.id());});
+                                 { return std::make_tuple(it1.second, it1.first.first.id(), it1.first.second.id())
+                                         < std::make_tuple(it2.second, it2.first.first.id(), it2.first.second.id()); });
       assert(itm != occur_map.cend());
       return *itm;
     };
@@ -1161,10 +1163,10 @@ namespace spot
     while (!occur_map.empty())
     {
 //          auto max_elem = pop_heap();
-//          std::cout << "mod " << max_elem.left << " " << max_elem.right << " " << max_elem.occ << std::endl;
+//          std::cout << "mod " << max_elem.left << ' ' << max_elem.right << ' ' << max_elem.occ << std::endl;
       auto max_elem = get_max();
           unsigned n_occur_old = max_elem.second;
-//      std::cout << "mod " << max_elem.first.first << " " << max_elem.first.second << " " << max_elem.second << std::endl;
+//      std::cout << "mod " << max_elem.first.first << ' ' << max_elem.first.second << ' ' << max_elem.second << std::endl;
       if (max_elem.second == 0)
         break;
 
@@ -1178,7 +1180,7 @@ namespace spot
       for (auto& pterm : prod_terms)
         {
 //              for (auto& e : pterm)
-//                std::cout << e << " ";
+//                std::cout << e << ' ';
 //              std::cout << std::endl;
           // todo, too costly right now
           // Find left and right
@@ -1232,11 +1234,11 @@ namespace spot
 //    }
 //    std::cout << "Safed bdds\n";
 //    for (const auto& it : bdd2var_)
-//      std::cout << it.first << " - " << it.first.id() << " : " << it.second << "\n";
+//      std::cout << it.first << " - " << it.first.id() << " : " << it.second << '\n';
 //    std::cout << std::endl;
     assert(std::all_of(needed_prods.cbegin(), needed_prods.cend(),
                        [this](const bdd& aprod)
-                       {return bdd2aigvar(aprod) > 0;}));
+                       { return bdd2aigvar(aprod) > 0; }));
 
       // We have created all products, now we need the sums
       // We basically do the same but with or
@@ -1286,7 +1288,7 @@ namespace spot
     {
 //      auto max_elem = pop_heap();
       auto max_elem = get_max();
-//      std::cout << "mod " << max_elem.first.first << " " << max_elem.first.second << " " << max_elem.second << std::endl;
+//      std::cout << "mod " << max_elem.first.first << ' ' << max_elem.first.second << ' ' << max_elem.second << std::endl;
       unsigned n_occur_old = max_elem.second;
       if (max_elem.second == 0)
         break;
@@ -1300,7 +1302,7 @@ namespace spot
       for (auto& sterm : sum_terms)
       {
 //        for (auto& e : sterm)
-//          std::cout << e << " ";
+//          std::cout << e << ' ';
 //        std::cout << std::endl;
         // todo, too costly right now
         // Find left and right
@@ -1315,7 +1317,7 @@ namespace spot
           // uncount -> modifiy -> count
           uncount_occ(sterm);
 //          std::cout << n_occur << std::endl;
-          sterm.erase(itr);//Order matters
+          sterm.erase(itr); //Order matters
           sterm.erase(itl);
           sterm.push_back(orcond);
           std::sort(sterm.begin(), sterm.end(),
@@ -1731,7 +1733,7 @@ namespace spot
 
 //      std::cout << "Conditions:\n";
 //      for (size_t i = 0; i < bddvec.size(); ++i)
-//        std::cout << i << " : " << bddvec[i] << "\n";
+//        std::cout << i << " : " << bddvec[i] << '\n';
 
       // todo symmetric specialisation?
       // todo vectorized functions?
@@ -1742,8 +1744,8 @@ namespace spot
         for (size_t j = i+1; j < n_cond; ++j)
           if ((bddvec[i] & bddvec[j]) == bddfalse)
             {
-              incomp_mat(i,j) = true;
-              incomp_mat(j,i) = true;
+              incomp_mat(i, j) = true;
+              incomp_mat(j, i) = true;
             }
 
 //      std::cout << "Incomp:\n";
@@ -1753,7 +1755,7 @@ namespace spot
       // Here the "states" are infact the out edge conditions
       auto psol = get_part_sol(incomp_mat);
       if (psol.psol_v.size() == n_cond)
-        return maxlow_outc(strat_vec, all_inputs);//todo
+        return maxlow_outc(strat_vec, all_inputs); //todo
 
       const auto& psol_v = psol.psol_v;
       const auto& psol_s = psol.psol_s;
@@ -1766,12 +1768,12 @@ namespace spot
       const unsigned n_free = free_v.size();
 //      std::cout << "p sol\n";
 //      for (auto v : psol_v)
-//        std::cout << v << " ";
-//      std::cout << "\n";
+//        std::cout << v << ' ';
+//      std::cout << '\n';
 //      std::cout << "free\n";
 //      for (auto v : free_v)
-//        std::cout << v << " ";
-//      std::cout << "\n";
+//        std::cout << v << ' ';
+//      std::cout << '\n';
 
       // Covering condition -> each condition needs to be
       // update when a new class is added
@@ -1804,14 +1806,14 @@ namespace spot
         for (unsigned i = 0; i < n_free; ++i)
         {
           unsigned fi = free_v[i];
-          if (incomp_mat(fi,fk))
+          if (incomp_mat(fi, fk))
             continue; //fi can not be in k
           for (unsigned j = i + 1; j < n_free; ++j)
           {
             unsigned fj = free_v[j];
             if (incomp_mat(fj, fk))
               continue;
-            if (incomp_mat(fi,fj))
+            if (incomp_mat(fi, fj))
             {
               incomp_cond.push_back(-lm.sxi2lit({fi, k}));
               incomp_cond.push_back(-lm.sxi2lit({fj, k}));
@@ -1860,7 +1862,7 @@ namespace spot
       unsigned n_classes = n_psol;
       while (true)
         {
-//          std::cout << n_classes << "\n";
+//          std::cout << n_classes << '\n';
           lm.print();
 
           // Search a solution for current instance
@@ -1873,8 +1875,8 @@ namespace spot
           Sptr->add(incomp_cond);
 //          std::cout << "inc\n";
 //          for (auto e : incomp_cond)
-//            std::cout << e << (e == 0 ? "\n" : " ");
-//          std::cout << "\n";
+//            std::cout << e << (e == 0 ? '\n' : ' ');
+//          std::cout << '\n';
           // The others need to be zero terminated
           for (auto& dq : cover_cond)
             {
@@ -1885,12 +1887,12 @@ namespace spot
               }
               dq.push_back(0);
 //              for (auto e : dq)
-//                std::cout << e << " ";
-//              std::cout << "\n";
+//                std::cout << e << ' ';
+//              std::cout << '\n';
               Sptr->add(dq);
               dq.pop_back();
             }
-          std::cerr << "### " << n_cond << " " << n_classes << " " << Sptr->get_nb_vars() << " " << Sptr->get_nb_clauses() << "\n";
+          std::cerr << "### " << n_cond << ' ' << n_classes << ' ' << Sptr->get_nb_vars() << ' ' << Sptr->get_nb_clauses() << '\n';
           auto solpair = Sptr->get_solution();
           if (!solpair.second.empty())
             {
@@ -1910,7 +1912,7 @@ namespace spot
           ++n_classes;
           lm.n_classes_ = n_classes;
           if (n_classes == n_cond)
-            return maxlow_outc(strat_vec, all_inputs);//todo
+            return maxlow_outc(strat_vec, all_inputs); //todo
           // Update cover cond of existing classes
           // The new class is apriori compatible with all states
           // Note, only free states need to be distributed
@@ -1972,9 +1974,9 @@ namespace spot
             if (assigned[x])
               continue;
             int lxi = lm.get_sxi({x, i});
-            //std::cout << cond_class << " " << x << " " << i << " " << lxi << " " << std::endl;
-            assert( (i>=n_psol) || ((psol_s.count(x) == 1) && lxi == 0)
-                    || (psol_s.count(x) == 0) );//psol has no lit
+            //std::cout << cond_class << ' ' << x << ' ' << i << ' ' << lxi << ' ' << std::endl;
+            assert((i >=n_psol) || ((psol_s.count(x) == 1) && lxi == 0)
+                   || (psol_s.count(x) == 0)); //psol has no lit
             if ((lxi != 0) && satsol.at(lxi))
               {
                 has_one = true;
@@ -1998,16 +2000,16 @@ namespace spot
 
 //      std::cout << "Res\n";
 //      for (auto& it : cond_map)
-//        std::cout << it.first << " -> " << it.second << "\n";
+//        std::cout << it.first << " -> " << it.second << '\n';
 //      std::cout << std::endl;
 
       // Assign the results
       for (auto& bvec : used_outc)
         {
           std::transform(bvec.begin(), bvec.end(), bvec.begin(),
-                         [&cond_map](const bdd& b){return cond_map.at(b);});
+                         [&cond_map](const bdd& b){ return cond_map.at(b); });
           assert(std::none_of(bvec.begin()+1, bvec.end(),
-                              [](const bdd& b){return b == bddfalse;}));
+                              [](const bdd& b){ return b == bddfalse; }));
         }
 
       // Done
@@ -2107,7 +2109,7 @@ namespace spot
       if (strat_vec.size() < 10000) //Dummy
         used_outc = maxlow_outc(strat_vec, all_inputs);
       else
-        used_outc = reuse_outc(strat_vec, all_inputs);//Still a bug?
+        used_outc = reuse_outc(strat_vec, all_inputs); //Still a bug?
 
       // Encode state in log2(num_states) latches.
       // The latches of each strategy have to be separated
@@ -2266,9 +2268,9 @@ namespace spot
             bdd2var = [&circuit](auto b)->unsigned{return circuit.bdd2INFvar(b, false); };
           else if (strcasecmp(amodearr, "ITEMIN") == 0)
             bdd2var = [&circuit](auto b)->unsigned{return circuit.bdd2INFvar(b, true); };
-          else if(strcasecmp(amodearr, "ISOP") == 0)
+          else if (strcasecmp(amodearr, "ISOP") == 0)
             bdd2var = [&circuit](auto b)->unsigned{return circuit.bdd2DNFvar(b); };
-          else if(strcasecmp(amodearr, "ISOPMIN") == 0)
+          else if (strcasecmp(amodearr, "ISOPMIN") == 0)
             bdd2var = [&circuit](auto b)->unsigned{return circuit.bdd2partitionedDNFvar(b); };
           else
             {
@@ -2281,7 +2283,8 @@ namespace spot
               all_cond.insert(all_cond.end(), latch.cbegin(), latch.cend());
               // Then construct it
               circuit.build_all_bdds(all_cond);
-              bdd2var = [&circuit](auto b)->unsigned{return circuit.bdd2aigvar(b);};
+              bdd2var = [&circuit](auto b)->unsigned
+                { return circuit.bdd2aigvar(b); };
             }
 
           // Create the vars
@@ -2299,7 +2302,7 @@ namespace spot
           else
             circuit.roll_back_(sf, false);
         }
-      circuit.reapply_(sf, ss);//Use the best sol
+      circuit.reapply_(sf, ss); //Use the best sol
       return circuit_ptr;
     } // auts_to_aiger
   }
