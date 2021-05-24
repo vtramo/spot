@@ -690,7 +690,7 @@ namespace spot
            && "Env needs to have first turn!");
 
     assert(std::all_of(arena->edges().begin(), arena->edges().end(),
-           [&sp_ptr](const auto& e){return sp_ptr->at(e.src) != sp_ptr->at(e.dst);}));
+           [&sp_ptr](const auto& e){ return sp_ptr->at(e.src) != sp_ptr->at(e.dst); }));
 
     auto strat_split = spot::make_twa_graph(arena->get_dict());
     strat_split->copy_ap_of(arena);
