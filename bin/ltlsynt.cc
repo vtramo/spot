@@ -385,7 +385,8 @@ namespace
       }
     }
 
-    std::cout << (is_winning ? "REALIZABLE" : "UNREALIZABLE") << std::endl;
+    if (!want_game)
+      std::cout << (is_winning ? "REALIZABLE" : "UNREALIZABLE") << std::endl;
     if (gi.bv)
       gi.bv->realizable = is_winning;
 
