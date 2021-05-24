@@ -1173,40 +1173,28 @@ namespace spot
   //   return res;
   // }
 
-  // TODO: On peut s'en passer
-  static std::pair<std::set<std::string>, std::set<std::string>>
-  split_set(std::set<std::string> &orig_set, const std::set<std::string> &outs)
-  {
-    // TODO: Can be faster.
-    std::set<std::string> left, right;
-    for (auto &x : orig_set)
-      if (outs.find(x) != outs.end())
-        right.insert(x);
-      else
-        left.insert(x);
-    return {left, right};
-  }
-
   std::map<formula,
            std::pair<std::set<formula>, std::set<formula>>> ap_cache;
 
   static std::pair<std::set<formula>, std::set<formula>>
-  aps_of(const formula f, const std::set<std::string> &outs)
+  aps_of(formula f, const std::set<std::string> &outs)
   {
     auto cache_value = ap_cache.find(f);
     if (cache_value != ap_cache.end())
       return cache_value->second;
-    auto f_aps = atomic_prop_collect(f);
-    std::set<std::string> f_aps_str;
-    for (auto &x : *f_aps)
-      f_aps_str.insert(x.ap_name());
-    delete f_aps;
-    auto [ins_f_str, outs_f_str] = split_set(f_aps_str, outs);
+
     std::set<formula> ins_f, outs_f;
-    for (auto &x : ins_f_str)
-      ins_f.insert(formula::ap(x));
-    for (auto &x : outs_f_str)
-      outs_f.insert(formula::ap(x));
+    f.traverse([&](const formula& f)
+               {
+                 if (f.is(op::ap))
+                 {
+                  if (outs.find(f.ap_name()) != outs.end())
+                    outs_f.insert(f);
+                  else
+                    ins_f.insert(f);
+                 }
+                 return false;
+               });
     std::pair<std::set<formula>, std::set<formula>> res({ins_f, outs_f});
     ap_cache.insert({f, res});
     return res;
@@ -1237,10 +1225,10 @@ namespace spot
     }
   }
 
-  // Retourne la strat et un code :
+  // Returns a strategy and a code:
   //  -1 : Unrealizable
-  //  0 : impossible à traiter
-  //  1 : resultat
+  //  0 : Unknown
+  //  1 : Realizable
   std::pair<twa_graph_ptr, int>
   try_create_strategy_from_simple(formula f,
                               const std::set<std::string>& output_aps,
@@ -1277,12 +1265,8 @@ namespace spot
     bool has_right_outs = !right_outs.empty();
     bool has_right_ins = !right_ins.empty();
 
-    // The equivalence has to be f(INS) <-> f(OUTS) or f(OUTS) <-> f(INS)
-    if ((has_left_ins && has_left_outs) || (has_right_ins && has_right_outs)
-                                        || (has_right_outs == has_left_outs))
-      return {nullptr, 0};
-
-    // Rewrite the equivalence as f(INS) <-> f(OUTS)
+    // Try to rewrite the equivalence as f(b1) <-> f(b2) where b2 has not any
+    // input
     if (has_right_ins)
     {
       std::swap(left, right);
@@ -1291,9 +1275,13 @@ namespace spot
       std::swap(left_ins, right_ins);
       std::swap(left_outs, right_outs);
     }
+    // We need to have f(inputs) <-> f(outputs)
+    if (has_right_ins || has_left_outs || !has_right_outs)
+      return {nullptr, 0};
 
-    bool is_gf_bool_right = right.is({op::G, op::F}) && right[0][0].is_boolean();
-    bool is_fg_bool_right = right.is({op::F, op::G}) && right[0][0].is_boolean();
+    bool right_bool = right[0][0].is_boolean();
+    bool is_gf_bool_right = right.is({op::G, op::F}) && right_bool;
+    bool is_fg_bool_right = right.is({op::F, op::G}) && right_bool;
 
     // Now we have to detect if we have persistence(ins/outs) <-> FG(outs)
     // or Büchi(ins/outs) <-> GF(outs).
@@ -1341,12 +1329,6 @@ namespace spot
             e.cond &= (right_bdd);
           else
             e.cond &= (neg_right_bdd);
-          // TODO: Here we suppose that left and right don't share an
-          // output but we could study it
-          // If the condition is false, it means that the left part
-          // indicates an output and the right part its opposite.
-          // if (e.cond == bddfalse)
-          //   return {nullptr, -1};
         }
         // form_bdd has to be true all the time. So we cannot only do it
         // between SCCs.
