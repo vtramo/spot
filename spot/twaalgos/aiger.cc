@@ -2374,7 +2374,7 @@ namespace spot
         {
           for (auto&& e : inter)
             std::cerr << e << '\n';
-          throw std::runtime_error("The above aps appear in \"ins\" and"
+          throw std::runtime_error("The above aps appear in \"ins\" and "
                                    "\"outs\"");
         }
     }
@@ -2421,7 +2421,7 @@ namespace spot
               std::tie(std::ignore, inserted) = seen_ap.insert(aout);
               if (not inserted)
                 throw std::runtime_error("The ap " + aout + " appears either "
-                                         " in \"ins\" or is shared between "
+                                         "in \"ins\" or is shared between "
                                          "multiple strategies as \"outs\".\n");
             }
         }
@@ -2443,9 +2443,8 @@ namespace spot
 
   // TODO: Le mode n'a rien à faire là
   std::ostream &
-  print_aiger(std::ostream &os, const_aig_ptr circuit, const char* mode)
+  print_aiger(std::ostream &os, const_aig_ptr circuit)
   {
-
     if (not circuit)
       return os; //Print nothing in case of nullptr
 
@@ -2458,48 +2457,42 @@ namespace spot
     auto n_latches = circuit->num_latches();
     auto gates = circuit->gates();
 
-    if (strcasecmp(mode, "circuit") == 0)
-    {
-      // Writing gates to formatted buffer speed-ups output
-      // as it avoids "<<" calls
-      // vars are unsigned -> 10 digits at most
-      char gate_buffer[3 * 10 + 5];
-      auto write_gate = [&](unsigned o, unsigned i0, unsigned i1) {
-        std::sprintf(gate_buffer, "%u %u %u\n", o, i0, i1);
-        os << gate_buffer;
-      };
-      // Count active gates
-      unsigned n_gates = 0;
-      for (auto &g : gates)
-        if ((g.first != 0) && (g.second != 0))
-          ++n_gates;
-      // Note max_var_ is now an upper bound
-      os << "aag " << circuit->max_var() / 2
-          << ' ' << n_inputs
-          << ' ' << n_latches
-          << ' ' << n_outputs
-          << ' ' << n_gates << '\n';
-      for (unsigned i = 0; i < n_inputs; ++i)
-        os << (1 + i) * 2 << '\n';
-      for (unsigned i = 0; i < n_latches; ++i)
-        os << (1 + n_inputs + i) * 2
-           << ' ' << circuit->next_latches()[i] << '\n';
-      for (unsigned i = 0; i < n_outputs; ++i)
-        os << circuit->outputs()[i] << '\n';
-      for (unsigned i = 0; i < n_gates; ++i)
-        if ((gates[i].first != 0)
-            && (gates[i].second != 0))
-          write_gate(circuit->gate_var(i),
-                     gates[i].first,
-                     gates[i].second);
-      for (unsigned i = 0; i < n_inputs; ++i)
-        os << 'i' << i << ' ' << in_names[i] << '\n';
-      for (unsigned i = 0; i < n_outputs; ++i)
-        os << 'o' << i << ' ' << out_names[i] << '\n';
-    }
-    else
-      throw std::runtime_error
-          ("print_aiger(): mode must be \"dot\" or \"circuit\"");
+    // Writing gates to formatted buffer speed-ups output
+    // as it avoids "<<" calls
+    // vars are unsigned -> 10 digits at most
+    char gate_buffer[3 * 10 + 5];
+    auto write_gate = [&](unsigned o, unsigned i0, unsigned i1) {
+      std::sprintf(gate_buffer, "%u %u %u\n", o, i0, i1);
+      os << gate_buffer;
+    };
+    // Count active gates
+    unsigned n_gates = 0;
+    for (auto &g : gates)
+      if ((g.first != 0) && (g.second != 0))
+        ++n_gates;
+    // Note max_var_ is now an upper bound
+    os << "aag " << circuit->max_var() / 2
+        << ' ' << n_inputs
+        << ' ' << n_latches
+        << ' ' << n_outputs
+        << ' ' << n_gates << '\n';
+    for (unsigned i = 0; i < n_inputs; ++i)
+      os << (1 + i) * 2 << '\n';
+    for (unsigned i = 0; i < n_latches; ++i)
+      os << (1 + n_inputs + i) * 2
+          << ' ' << circuit->next_latches()[i] << '\n';
+    for (unsigned i = 0; i < n_outputs; ++i)
+      os << circuit->outputs()[i] << '\n';
+    for (unsigned i = 0; i < n_gates; ++i)
+      if ((gates[i].first != 0)
+          && (gates[i].second != 0))
+        write_gate(circuit->gate_var(i),
+                    gates[i].first,
+                    gates[i].second);
+    for (unsigned i = 0; i < n_inputs; ++i)
+      os << 'i' << i << ' ' << in_names[i] << '\n';
+    for (unsigned i = 0; i < n_outputs; ++i)
+      os << 'o' << i << ' ' << out_names[i] << '\n';
     return os;
   }
 }

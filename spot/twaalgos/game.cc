@@ -817,7 +817,7 @@ namespace spot
         auto um = arena->acc().unsat_mark();
         if (!um.first)
           throw std::runtime_error
-              ("alternate_players(): game winning condition is a tautology,"
+              ("alternate_players(): game winning condition is a tautology, "
                "can not complete the automaton.");
         umt = um.second;
       }
