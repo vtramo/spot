@@ -485,7 +485,7 @@ namespace
             gi.bv->nb_latches = saig->num_latches();
             gi.bv->nb_gates = saig->num_gates();
           }
-          spot::print_aiger(std::cout, saig, "circuit");
+          spot::print_aiger(std::cout, saig);
         }
         else
         {
