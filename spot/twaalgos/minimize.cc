@@ -1496,6 +1496,7 @@ namespace
           size_t vs = v.size();
           size_t h = wang32_hash(vs);
           size_t hh;
+          // FIXME: When size % 3 != 0
           for (size_t i = 0; i < vs; i += 3)
             {
               hh = v[i];
