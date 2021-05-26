@@ -1214,7 +1214,7 @@ namespace
 namespace spot
 {
   twa_graph_ptr minimize_mealy_fast(const const_twa_graph_ptr& mm,
-                                    bool extra_fast)
+                                    bool use_inclusion)
   {
     auto mmc = make_twa_graph(mm, twa::prop_set::all());
     mmc->copy_ap_of(mm);
@@ -1223,14 +1223,14 @@ namespace spot
     assert(sp);
     auto nsp = new std::vector<bool>(*sp);
     mmc->set_named_prop("state-player", nsp);
-    minimize_mealy_fast_here(mmc, extra_fast);
+    minimize_mealy_fast_here(mmc, use_inclusion);
     // Try to set outputs
     if (bdd* outptr = mm->get_named_prop<bdd>("synthesis-outputs"))
       mmc->set_named_prop("synthesis-outputs", new bdd(*outptr));
     return mmc;
   }
 
-  void minimize_mealy_fast_here(twa_graph_ptr& mm, bool extra_fast)
+  void minimize_mealy_fast_here(twa_graph_ptr& mm, bool use_inclusion)
   {
     // Only consider infinite runs
     mm->purge_dead_states();
@@ -1238,7 +1238,7 @@ namespace spot
     if (mm->num_states() == 1)
       return;
 
-    auto repr = get_repres(mm, !extra_fast);
+    auto repr = get_repres(mm, use_inclusion);
     // Check if no reduction is possible
     // This is the case if there are as many classes and states
     // and in this case each state simply represents itself
@@ -2653,7 +2653,7 @@ namespace spot
             return mm;
           else
             {
-              auto mm_res = minimize_mealy_fast(mm, preminfast == 0);
+              auto mm_res = minimize_mealy_fast(mm, preminfast == 1);
               // alternate_players(mm_res, false, false);
               return mm_res;
             }
