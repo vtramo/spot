@@ -785,7 +785,7 @@ namespace
   class sig_calculator final
   {
   protected:
-    typedef std::map<bdd, bdd, bdd_less_than> map_bdd_bdd;
+    typedef std::unordered_map<bdd, bdd, bdd_hash> map_bdd_bdd;
     int acc_vars;
     acc_cond::mark_t all_inf_;
 
@@ -793,20 +793,15 @@ namespace
 
     sig_calculator(twa_graph_ptr aut, bool implications) : a_(aut),
         po_size_(0),
-        want_implications_(implications),
-        all_class_var_(bddtrue),
-        record_implications_(nullptr)
+        want_implications_(implications)
     {
-      unsigned ns = a_->num_states();
-      size_a_ = ns;
+      size_a_ = a_->num_states();
       // Now, we have to get the bdd which will represent the
       // class. We register one bdd by state, because in the worst
       // case, |Class| == |State|.
       unsigned set_num = a_->get_dict()
-                             ->register_anonymous_variables(size_a_ + 1, this);
+                           ->register_anonymous_variables(size_a_, this);
 
-
-      bdd_initial = bdd_ithvar(set_num++);
       bdd init = bdd_ithvar(set_num++);
 
       used_var_.emplace_back(init);
@@ -815,18 +810,10 @@ namespace
       previous_class_.resize(size_a_);
       for (unsigned s = 0; s < size_a_; ++s)
         previous_class_[s] = init;
-
-      // Put all the anonymous variable in a queue, and record all
-      // of these in a variable all_class_var_ which will be used
-      // to understand the destination part in the signature when
-      // building the resulting automaton.
-      all_class_var_ = init;
       for (unsigned i = set_num; i < set_num + size_a_ - 1; ++i)
-      {
         free_var_.push(i);
-        all_class_var_ &= bdd_ithvar(i);
-      }
 
+      relation_.reserve(size_a_);
       relation_[init] = init;
     }
 
@@ -877,7 +864,6 @@ namespace
         po_size_ = 0;
         update_sig();
         go_to_next_it();
-        // print_partition();
       }
       update_previous_class();
     }
@@ -1026,20 +1012,6 @@ namespace
     // Whether to compute implications between classes.  This is costly
     // and useless for deterministic automata.
     bool want_implications_;
-
-    // All the class variable:
-    bdd all_class_var_;
-
-    // The flag to say if the outgoing state is initial or not
-    bdd bdd_initial;
-
-    bdd all_proms_;
-
-    automaton_size stat;
-
-    // const const_twa_graph_ptr original_;
-
-    std::vector<bdd> *record_implications_;
   };
 
   // This class is a tree where the root is ⊤ and a node implies its parent
