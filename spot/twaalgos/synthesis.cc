@@ -1095,8 +1095,8 @@ namespace spot
           return nullptr;
       }
     else
-      throw std::runtime_error("Arena has no named property"
-                                "\"state-winner\". Game not solvedf?\n");
+      throw std::runtime_error("Arena has no named property "
+                                "\"state-winner\". Game not solved?\n");
 
     // todo check what is more expensive:
     // minimizing unsplitted strategy or resplitting in aiger

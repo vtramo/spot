@@ -151,7 +151,7 @@ class aig:
         format = format.lower()
         if format == 'circuit':
             ostr = ostringstream()
-            print_aiger(ostr, self, "circuit")
+            print_aiger(ostr, self)
             return ostr.str()
         if format == 'dot':
             ostr = ostringstream()
