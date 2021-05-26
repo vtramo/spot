@@ -178,7 +178,7 @@ namespace{
     bdd *obddptr = strat->get_named_prop<bdd>("synthesis-outputs");
     assert(obddptr);
     bdd obdd = *obddptr;
-    if (simplification_level < 3)
+    if (simplification_level > 0 && simplification_level < 3)
       strat->set_named_prop("synthesis-outputs", nullptr);
     switch (simplification_level)
     {
