@@ -1581,9 +1581,8 @@ namespace spot
     if (f.is(op::And))
     {
       std::vector<formula> children;
-      std::transform(f.begin(), f.end(), std::back_inserter(children),
-                     [&outs](const formula f)
-                     { return extract_and(f, outs); });
+      for (auto fi : f)
+        children.push_back(extract_and(fi, outs));
       return formula::And(children);
     }
     if (f.is(op::Not))
@@ -1602,10 +1601,8 @@ namespace spot
         if (ok)
         {
           std::vector<formula> children;
-          std::transform(child.begin(), child.end(),
-                         std::back_inserter(children),
-                        [&](formula f)
-                          { return extract_and(formula::Not(f), outs); });
+          for (auto fi : child)
+            children.push_back(extract_and(formula::Not(fi), outs));
           return formula::Or(children);
         }
       }
@@ -1627,9 +1624,8 @@ namespace spot
       else if (child.is(op::Or))
       {
         std::vector<formula> children;
-        std::transform(child.begin(), child.end(), std::back_inserter(children),
-                       [&outs](formula f)
-                       { return extract_and(formula::Not(f), outs); });
+        for (auto fi : child)
+          children.push_back(extract_and(formula::Not(fi), outs));
         return formula::And(children);
       }
     }
@@ -1641,11 +1637,9 @@ namespace spot
       if (child_ex.is(op::And))
       {
         std::vector<formula> children;
-        std::transform(child_ex.begin(), child_ex.end(),
-                       std::back_inserter(children),
-                       [&f, &outs](const formula fi)
-                        { return extract_and(formula::unop(f.kind(), fi),
-                                             outs); });
+        const auto f_kind = f.kind();
+        for (auto fi : child_ex)
+          children.push_back(extract_and(formula::unop(f_kind, fi), outs));
         return formula::And(children);
       }
     }
@@ -1656,10 +1650,8 @@ namespace spot
       if (left_child_ex.is(op::And))
       {
         std::vector<formula> children;
-        std::transform(left_child_ex.begin(), left_child_ex.end(),
-                       std::back_inserter(children),
-                       [&f](const formula fi)
-                          { return formula::U(fi, f[1]); });
+        for (auto fi : left_child_ex)
+          children.push_back(formula::U(fi, f[1]));
         return formula::And(children);
       }
     }
@@ -1673,11 +1665,8 @@ namespace spot
         if (right_extr.is(op::And))
         {
           std::vector<formula> children;
-          std::transform(right_extr.begin(), right_extr.end(),
-                         std::back_inserter(children),
-                         [&f, &left_extr](const formula fi)
-                          { return formula::Implies(left_extr, fi); });
-
+          for (auto fi : right_extr)
+            children.push_back(formula::Implies(left_extr, fi));
           return formula::And(children);
         }
       }
