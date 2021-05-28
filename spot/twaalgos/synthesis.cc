@@ -161,66 +161,7 @@ namespace{
     assert(is_deterministic(dpa));
     return dpa;
   }
-
-  static void
-  minimize_strategy_here(twa_graph_ptr& strat, option_map& opt)
-  {
-    strat->set_acceptance(acc_cond::acc_code::t());
-    unsigned simplification_level =
-        opt.get("minimization-level", 1);
-    // 0 -> No minimization
-    // 1 -> Regular monitor minimization
-    // 2 -> Mealy minimization based on language inclusion
-    // 3 -> Exact mealy minimization
-    // 4 -> Monitor min then exact minimization
-    // 5 -> Mealy minimization based on language inclusion then exact
-    //      minimization
-    bdd *obddptr = strat->get_named_prop<bdd>("synthesis-outputs");
-    assert(obddptr);
-    bdd obdd = *obddptr;
-    if (simplification_level > 0 && simplification_level < 3)
-      strat->set_named_prop("synthesis-outputs", nullptr);
-    switch (simplification_level)
-    {
-      case 0:
-        return;
-      case 1:
-        {
-          minimize_mealy_fast_here(strat, true);
-          break;
-        }
-      case 2:
-        {
-          minimize_mealy_fast_here(strat, false);
-          break;
-        }
-      case 3:
-        {
-          strat = minimize_mealy(strat, -1);
-          break;
-        }
-      case 4:
-        {
-          strat = minimize_mealy(strat, 0);
-          break;
-        }
-      case 5:
-        {
-          strat = minimize_mealy(strat, 1);
-          break;
-        }
-      default:
-          throw std::runtime_error("Unknown minimization option");
-    }
-    opt.report_unused_options();
-
-    strat->set_named_prop("synthesis-outputs", new bdd(obdd));
-    // restore_form(strat, *new_bdd);
-//    std::cout << "After \n";
-//    print_hoa(std::cout, strat) << '\n';
-    // print_hoa(std::cout, copy) << '\n';
-  }
-}
+} // anonymous
 
 namespace spot
 {
@@ -519,6 +460,63 @@ namespace spot
     if (bdd* outptr = aut->get_named_prop<bdd>("synthesis-outputs"))
       out->set_named_prop("synthesis-outputs", new bdd(*outptr));
     return out;
+  }
+
+  void
+  minimize_strategy_here(twa_graph_ptr& strat, option_map& opt)
+  {
+    strat->set_acceptance(acc_cond::acc_code::t());
+    unsigned simplification_level =
+        opt.get("minimization-level", 1);
+    // 0 -> No minimization
+    // 1 -> Regular monitor minimization
+    // 2 -> Mealy minimization based on language inclusion
+    // 3 -> Exact mealy minimization
+    // 4 -> Monitor min then exact minimization
+    // 5 -> Mealy minimization based on language inclusion then exact minimization
+    bdd *obddptr = strat->get_named_prop<bdd>("synthesis-outputs");
+    assert(obddptr);
+    bdd obdd = *obddptr;
+    if (simplification_level < 3)
+      strat->set_named_prop("synthesis-outputs", nullptr);
+    switch (simplification_level)
+    {
+      case 0:
+        return;
+      case 1:
+        {
+          minimize_mealy_fast_here(strat, true);
+          break;
+        }
+      case 2:
+        {
+          minimize_mealy_fast_here(strat, false);
+          break;
+        }
+      case 3:
+        {
+          strat = minimize_mealy(strat, -1);
+          break;
+        }
+      case 4:
+        {
+          strat = minimize_mealy(strat, 0);
+          break;
+        }
+      case 5:
+        {
+          strat = minimize_mealy(strat, 1);
+          break;
+        }
+      default:
+          throw std::runtime_error("Unknown minimization option");
+    }
+
+    strat->set_named_prop("synthesis-outputs", new bdd(obdd));
+    // restore_form(strat, *new_bdd);
+//    std::cout << "After \n";
+//    print_hoa(std::cout, strat) << '\n';
+    // print_hoa(std::cout, copy) << '\n';
   }
 
 //  spot::twa_graph_ptr

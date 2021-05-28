@@ -291,16 +291,19 @@ namespace spot
     // Takes a bdd, computes the corresponding literal
     // using its DNF
     unsigned bdd2DNFvar(bdd b);
+    unsigned bdd2DNFvar(bdd b1, bdd b2);
 
     // Takes a bdd and computes the corresponding literal
     // using partitioned DNF
     // that means that input and latch conditions
     // are computed separately as a balanced tree
     unsigned bdd2partitionedDNFvar(bdd b);
+    unsigned bdd2partitionedDNFvar(bdd b1, bdd b2);
 
     // Takes a bdd, computes the corresponding literal
     // using its INF
     unsigned bdd2INFvar(bdd b, bool do_min);
+    unsigned bdd2INFvar(bdd b1, bdd b2, bool do_min);
 
     // Tries to construct an optimal controller
     // by taking into account all conditions needed
