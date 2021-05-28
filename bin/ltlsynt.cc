@@ -58,9 +58,9 @@ static const argp_option options[] =
     { "outs", OPT_OUTPUT, "PROPS", 0,
       "comma-separated list of controllable (a.k.a. output) atomic"
       " propositions", 0},
-    { "ins", OPT_INPUT, "PROPS", OPTION_ARG_OPTIONAL,
+    { "ins", OPT_INPUT, "PROPS", 0,
       "comma-separated list of controllable (a.k.a. output) atomic"
-      " propositions. If unspecified its the complement of \"outs\"", 0},
+      " propositions. If unspecified it is the complement of \"outs\"", 0},
     /**************************************************/
     { nullptr, 0, nullptr, 0, "Fine tuning:", 10 },
     { "algo", OPT_ALGO, "sd|ds|ps|lar|lar.old", 0,
@@ -80,7 +80,7 @@ static const argp_option options[] =
       "print the parity game in the HOA format, do not solve it", 0},
     { "realizability", OPT_REAL, nullptr, 0,
       "realizability only, do not compute a winning strategy", 0},
-    { "aiger", OPT_PRINT_AIGER, "ITE|ISOP|ISOPMIN|OPTIM", OPTION_ARG_OPTIONAL,
+    { "aiger", OPT_PRINT_AIGER, "ITE|ISOP|ISOPMIN|OPTIM", 0,
       "prints a winning strategy as an AIGER circuit.  With argument \"ISOP\""
       " conditions are converted to DNF, while the default \"ITE\" uses the "
       "if-the-else normal form.", 0},
