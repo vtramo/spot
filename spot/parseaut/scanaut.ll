@@ -1,5 +1,5 @@
 /* -*- coding: utf-8 -*-
-** Copyright (C) 2014-2018, 2020 Laboratoire de Recherche et DÃŠveloppement
+** Copyright (C) 2014-2018, 2020, 2021 Laboratoire de Recherche et Développement
 ** de l'Epita (LRDE).
 **
 ** This file is part of Spot, a model checking library.
@@ -90,6 +90,27 @@ identifier  [[:alpha:]_][[:alnum:]_.-]*
 			  BEGIN(in_COMMENT);
 			  yyextra->comment_level = 1;
 			}
+<INITIAL>"#line"[ \t]+[0-9]+[ \t]+\"[^\"\n]*\" {
+			    errno = 0;
+			    char* end;
+			    unsigned long n = strtoul(yytext + 5, &end, 10);
+			    yylval->num = n;
+			    if (errno || yylval->num != n)
+                              {
+			         error_list.push_back(spot::parse_aut_error(*yylloc, "value too large"));                             }
+                            else if (error_list.empty())
+                              {
+			         char* beg = strchr(end, '"');
+                                 end = strrchr(beg + 1, '"');
+			         yylval->str = new std::string(beg + 1, end);
+                                 yylloc->initialize(nullptr, n - 1, yylloc->begin.column);
+                                 return token::LINEDIRECTIVE;
+                              }
+                            else
+                              {
+			         error_list.push_back(spot::parse_aut_error(*yylloc, "#line may not occur after any error"));
+                              }
+                          }
 <INITIAL>"HOA:"           BEGIN(in_HOA); return token::HOA;
 <INITIAL,in_HOA>"--ABORT--" BEGIN(INITIAL); throw spot::hoa_abort{*yylloc};
 <INITIAL>"never"	  BEGIN(in_NEVER); return token::NEVER;

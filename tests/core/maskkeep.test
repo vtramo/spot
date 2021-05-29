@@ -139,3 +139,10 @@ grep 'failed to parse' error
 run 2 autfilt --keep-states=3-2 input1 2> error
 cat error
 grep 'non-negative: --keep-states' error
+
+run 2 autfilt --kill-states=a3 input1 2> error
+cat error
+grep 'failed to parse' error
+run 2 autfilt --kill-states=3-2 input1 2> error
+cat error
+grep 'non-negative: --kill-states' error

@@ -1302,7 +1302,9 @@ namespace spot
     ///
     /// \param used_states the number of states used (after
     /// renumbering)
-    void defrag_states(std::vector<unsigned>&& newst, unsigned used_states)
+    ///
+    ///@{
+    void defrag_states(const std::vector<unsigned>& newst, unsigned used_states)
     {
       SPOT_ASSERT(newst.size() >= states_.size());
       SPOT_ASSERT(used_states > 0);
@@ -1368,5 +1370,13 @@ namespace spot
       //std::cerr << "\nafter defrag\n";
       //dump_storage(std::cerr);
     }
+
+    // prototype was changed in Spot 2.10
+    SPOT_DEPRECATED("use reference version of this method")
+    void defrag_states(std::vector<unsigned>&& newst, unsigned used_states)
+    {
+      return defrag_states(newst, used_states);
+    }
+    ///@}
   };
 }

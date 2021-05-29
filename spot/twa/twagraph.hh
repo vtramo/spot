@@ -552,11 +552,7 @@ namespace spot
     /// This makes two passes over the automaton to reduce the number
     /// of edges with an identical pair of source and destination.
     ///
-    /// In the first pass, edges that share their source, destination,
-    /// and acceptance marks are merged into a single edge whose condition
-    /// is the disjunction of the conditions of the original edges.
-    ///
-    /// In the second pass, which is performed only on automata with
+    /// In the first pass, which is performed only on automata with
     /// Fin-less acceptance, edges with the same source, destination,
     /// and conditions are merged into a single edge whose set of
     /// acceptance marks is the intersection of the sets of the edges.
@@ -697,6 +693,7 @@ namespace spot
                         dests2.begin());
     }
 
+#ifndef SWIG
     /// \brief Renumber all states, and drop some.
     ///
     /// This semi-internal function is a wrapper around
@@ -713,11 +710,34 @@ namespace spot
     /// \param newst A vector indicating how each state should be
     /// renumbered.  Use -1U to mark an unreachable state for removal.
     /// Ignoring the occurrences of -1U, the renumbering is expected
-    /// to satisfy newst[i] ≤ i for all i.
+    /// to satisfy newst[i] ≤ i for all i.   If the automaton contains
+    /// universal branching, this vector is likely to be modified by
+    /// this function, so do not reuse it afterwards.
     ///
     /// \param used_states the number of states used after
     /// renumbering.
-    void defrag_states(std::vector<unsigned>&& newst, unsigned used_states);
+    ///@{
+    void defrag_states(std::vector<unsigned>& newst,
+                       unsigned used_states);
+
+    // prototype was changed in Spot 2.10
+    SPOT_DEPRECATED("use reference version of this method")
+    void defrag_states(std::vector<unsigned>&& newst,
+                       unsigned used_states)
+    {
+      return defrag_states(newst, used_states);
+    }
+    ///@}
+#endif // SWIG
+
+    /// \brief Make a state dead.
+    ///
+    /// A state is dead if it has no successors.  So this function
+    /// simply erases all edges leaving \a state.
+    ///
+    /// It can be used together with purge_dead_states() to remove a
+    /// set of states from an automaton.
+    void kill_state(unsigned state);
 
     /// \brief Print the data structures used to represent the
     /// automaton in dot's format.
