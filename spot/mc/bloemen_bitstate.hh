@@ -25,7 +25,6 @@
 #include <thread>
 #include <vector>
 #include <utility>
-#include <spot/bricks/brick-hashset>
 #include <spot/kripke/kripke.hh>
 #include <spot/misc/common.hh>
 #include <spot/misc/fixpool.hh>
@@ -36,6 +35,11 @@
 
 namespace spot
 {
+  template<typename State,
+           typename StateHash,
+           typename StateEqual>
+  class concurrent_hash_set_uf;
+
   template<typename State,
            typename StateHash,
            typename StateEqual>
@@ -62,44 +66,30 @@ namespace spot
       std::atomic<uf_status> uf_status_;
       ///< \brief current status for the list
       std::atomic<list_status> list_status_;
-    };
 
-    /// \brief The haser for the previous uf_element.
-    struct uf_element_hasher : brq::hash_adaptor<uf_element*>
-    {
-      uf_element_hasher(const uf_element*)
-      { }
-
-      uf_element_hasher() = default;
-
-      auto hash(const uf_element* lhs) const
+      auto hash() const
       {
         StateHash hash;
-        // Not modulo 31 according to brick::hashset specifications.
-        unsigned u = hash(lhs->st_) % (1<<30);
-        return u;
+        return hash(st_);
       }
 
-      bool equal(const uf_element* lhs,
-                 const uf_element* rhs) const
+      bool equal(const uf_element& other) const
       {
         StateEqual equal;
-        return equal(lhs->st_, rhs->st_);
+        return equal(st_, other.st_);
       }
+    };
 
-      // WARNING: temporary technical fix to have pointers in brick hash table
-      using hash64_t = uint64_t;
-      template<typename cell>
-      typename cell::pointer match(cell &c, const uf_element* t,
-                                   hash64_t h) const
-      {
-        // NOT very sure that dereferencing will not kill some brick property
-        return c.match(h) && equal(c.fetch() , t) ? c.value() : nullptr;
-      }
+    struct hs_mtx_wrapper
+    {
+      std::mutex *mtx;
+      concurrent_hash_set_uf<State, StateHash, StateEqual> *hs;
+      //concurrent_bloom_filter *bf;
     };
 
     ///< \brief Shortcut to ease shared map manipulation
-    using shared_map = brq::concurrent_hash_set<uf_element*>;
+    using shared_map = concurrent_hash_set_uf<State, StateHash, StateEqual>*;
+    using shared_struct = hs_mtx_wrapper;
 
     iterable_uf_bitstate(const iterable_uf_bitstate<State, StateHash, StateEqual>& uf):
       map_(uf.map_), tid_(uf.tid_), size_(std::thread::hardware_concurrency()),
@@ -131,8 +121,13 @@ namespace spot
       v->uf_status_ = uf_status::LIVE;
       v->list_status_ = list_status::BUSY;
 
-      auto it = map_.insert(v, uf_element_hasher());
-      bool b = it.isnew();
+      auto r = map_->find(v);
+      if (!r.first && r.second)
+      {
+        r = map_->insert(v);
+      }
+      auto it = r.first;
+      auto b = r.second;
 
       // Insertion failed, delete element
       // FIXME Should we add a local cache to avoid useless allocations?
@@ -141,13 +136,13 @@ namespace spot
       else
         ++inserted_;
 
-      uf_element* a_root = find(*it);
+      uf_element* a_root = find(it);
       if (a_root->uf_status_.load() == uf_status::DEAD)
-        return {claim_status::CLAIM_DEAD, *it};
+        return {claim_status::CLAIM_DEAD, it};
       // TODO: est-ce qu'on peut faire ce même test pour le cas de DONE ?
 
       if ((a_root->worker_.load() & w_id) != 0)
-        return {claim_status::CLAIM_FOUND, *it};
+        return {claim_status::CLAIM_FOUND, it};
 
       atomic_fetch_or(&(a_root->worker_), w_id);
       while (a_root->parent.load() != a_root)
@@ -156,7 +151,7 @@ namespace spot
           atomic_fetch_or(&(a_root->worker_), w_id);
         }
 
-      return {claim_status::CLAIM_NEW, *it};
+      return {claim_status::CLAIM_NEW, it};
     }
 
     uf_element* find(uf_element* a)
@@ -435,9 +430,11 @@ namespace spot
     using shared_struct = uf;
     using shared_map = typename uf::shared_map;
 
-    static shared_struct* make_shared_structure(shared_map m, unsigned i)
+    static shared_struct* make_shared_structure(shared_map, unsigned i)
     {
-      return new uf(m, i);
+      auto mtx_ptr = new std::mutex();
+      auto hs_ptr = new concurrent_hash_set_uf<State, StateHash, StateEqual>(mtx_ptr);
+      return new uf(hs_ptr, i);
     }
 
    swarmed_bloemen_bitstate(kripkecube<State, SuccIterator>& sys,
@@ -585,5 +582,123 @@ namespace spot
     spot::timer_map tm_;              ///< \brief Time execution
     std::atomic<bool>& stop_;
     bool finisher_ = false;
+  };
+
+  template<typename State,
+           typename StateHash,
+           typename StateEqual>
+  class concurrent_hash_set_uf
+  {
+    using T = iterable_uf_bitstate<State, StateHash, StateEqual>::uf_element*;
+
+  public:
+    concurrent_hash_set_uf(std::mutex *mtx, std::size_t hs_size)
+      : mtx_(mtx), hs_size_(hs_size)
+    {
+      hs_ = new std::atomic<T>[hs_size]{nullptr};
+    }
+
+    concurrent_hash_set_uf(std::mutex *mtx)
+      : concurrent_hash_set_uf(mtx, 5000000) {}
+
+    ~concurrent_hash_set_uf()
+    {
+      for (std::size_t i = 0; i < hs_size_; i++)
+        delete hs_[i];
+      delete[] hs_;
+    }
+
+    std::optional<std::size_t> search(T element) const
+    {
+      // Linear probing
+      std::size_t idx = element->hash() % hs_size_;
+      std::size_t nb_loop = 0;
+      while (hs_[idx] != nullptr && !(element->equal(*hs_[idx])))
+      {
+        if (nb_loop == hs_size_)
+          return std::nullopt;
+        idx = (idx + 1) % hs_size_;
+        nb_loop++;
+      }
+      return std::optional<std::size_t>(idx);
+    }
+
+    std::pair<T, bool> find(T element)
+    {
+      //std::scoped_lock<std::mutex> lock(*mtx_);
+
+      if (auto idx = search(element))
+      {
+        if (hs_[*idx] != nullptr)
+          return {hs_[*idx], false};
+        else
+          return {nullptr, true};
+      }
+      else
+        return {nullptr, false};
+    }
+
+    std::pair<T, bool> insert(T element)
+    {
+      //std::scoped_lock<std::mutex> lock(*mtx_);
+      if (auto idx = search(element))
+      {
+        if (hs_[*idx] != nullptr)
+          return {hs_[*idx], false};
+        else
+        {
+          hs_[*idx] = element;
+          // XXX(thibault): move allocation/deallocation out of HM
+          // hs_[*idx] = new iterable_uf_bitstate<State, StateHash, StateEqual>::uf_element{element};
+          ++nb_elements_;
+          return {hs_[*idx], true};
+        }
+      }
+      else
+        return {nullptr, false};
+    }
+
+    bool erase(T element)
+    {
+      //std::scoped_lock<std::mutex> lock(*mtx_);
+      if (auto idx = search(element))
+      {
+        if (hs_[*idx] == nullptr)
+          return false;
+
+        // XXX(thibault): move allocation/deallocation out of HM
+        // delete hs_[*idx];
+        --nb_elements_;
+
+        // Only deleting the element will break the linear probing
+        // mechanism, thus we need to either move the cells to keep the
+        // continuous probing block, or use a tombstone. Here we mostly care
+        // about memory and not speed performance so we chose the first
+        // option.
+        std::size_t cur = *idx;
+        while (hs_[(cur + 1) % hs_size_] != nullptr)
+        {
+          T next = hs_[(cur + 1) % hs_size_];
+          // Special case: when an element is already at its original hashing
+          // position, stop moving the block otherwise we would move the element
+          // to a wrong position.
+          if ((next->hash() % hs_size_) == ((cur + 1) % hs_size_))
+            break;
+          hs_[cur] = next;
+          cur = (cur + 1) % hs_size_;
+        }
+        hs_[cur] = nullptr;
+
+        return true;
+      }
+      else
+        return false;
+    }
+
+  private:
+    std::atomic<T> *hs_;
+    std::atomic<std::size_t> nb_elements_;
+    std::mutex *mtx_;
+    std::size_t hs_size_;
   };
 }
