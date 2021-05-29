@@ -161,6 +161,9 @@ namespace spot
   SPOT_API bool
   solve_game(twa_graph_ptr arena);
 
+  SPOT_API void
+  minimize_strategy_here(twa_graph_ptr& strat, option_map& opt);
+
   SPOT_API twa_graph_ptr
   create_strategy(twa_graph_ptr arena, option_map& opt, game_info& gi);
 

@@ -323,6 +323,7 @@ namespace spot
     unsigned new_max_var_ = max_var_ + ss.first.size()*2;
     for (auto& p : ss.second)
       {
+        assert(max_var_ + 1 < p.first);
         assert(p.first <= new_max_var_+1);
         register_new_lit_(p.first, p.second);
       }
@@ -408,7 +409,6 @@ namespace spot
 //    {
     do
     {
-
       if (vs.size() & 1)
         {
           // Odd size -> make even
@@ -659,6 +659,34 @@ namespace spot
     return aig_or(plus_vars);
   }
 
+  unsigned aig::bdd2DNFvar(bdd b1, bdd b2)
+  {
+    for (auto b : {b1, b2})
+      {
+        auto it = bdd2var_.find(b);
+        if ( it != bdd2var_.end())
+          return it->second;
+      }
+
+
+    if (b1 == b2)
+      return aig::bdd2DNFvar(b1);
+
+    auto sf = get_safe_point_();
+    unsigned var1 = bdd2DNFvar(b1);
+    unsigned add_gates1 = and_gates_.size() - sf.second;
+    auto ss1 = roll_back_(sf, true);
+    unsigned var2 = bdd2DNFvar(b2);
+    unsigned add_gates2 = and_gates_.size() - sf.second;
+
+    if (add_gates2 <= add_gates1)
+      return var2;
+
+    roll_back_(sf);
+    reapply_(sf, ss1);
+    return var1;
+  }
+
   unsigned aig::prod2partitionedDNFvar_impl_(const bdd& prodin)
   {
     static std::vector<unsigned> prod_vars_;
@@ -763,8 +791,6 @@ namespace spot
   {
     if (split_off_)
       {
-
-
 //        unsigned max_var_old = max_var_;
 //        unsigned gate_size_old = and_gates_.size();
         auto sf = get_safe_point_();
@@ -814,7 +840,31 @@ namespace spot
       return bdd2partitionedDNFvar_(b);
   }
 
+  unsigned aig::bdd2partitionedDNFvar(bdd b1, bdd b2)
+  {
+    for (auto b : {b1, b2})
+      {
+        auto it = bdd2var_.find(b);
+        if ( it != bdd2var_.end())
+          return it->second;
+      }
 
+    if (b1 == b2)
+      return aig::bdd2partitionedDNFvar(b1);
+    auto sf = get_safe_point_();
+    unsigned var1 = bdd2partitionedDNFvar(b1);
+    unsigned add_gates1 = and_gates_.size() - sf.second;
+    auto ss1 = roll_back_(sf, true);
+    unsigned var2 = bdd2partitionedDNFvar(b2);
+    unsigned add_gates2 = and_gates_.size() - sf.second;
+
+    if (add_gates2 <= add_gates1)
+      return var2;
+
+    roll_back_(sf);
+    reapply_(sf, ss1);
+    return var1;
+  }
 
   unsigned aig::bdd2INFvar_impl_1_(const bdd& b)
   {
@@ -902,6 +952,34 @@ namespace spot
     else
       return bdd2INFvar_impl_(b, do_min);
 
+  }
+
+  unsigned aig::bdd2INFvar(bdd b1, bdd b2,
+                           bool do_min)
+  {
+    for (auto b : {b1, b2})
+      {
+        auto it = bdd2var_.find(b);
+        if ( it != bdd2var_.end())
+          return it->second;
+      }
+
+    if (b1 == b2)
+      return aig::bdd2INFvar(b1, do_min);
+
+    auto sf = get_safe_point_();
+    unsigned var1 = bdd2INFvar(b1, do_min);
+    unsigned add_gates1 = and_gates_.size() - sf.second;
+    auto ss1 = roll_back_(sf, true);
+    unsigned var2 = bdd2INFvar(b2, do_min);
+    unsigned add_gates2 = and_gates_.size() - sf.second;
+
+    if (add_gates2 <= add_gates1)
+      return var2;
+
+    roll_back_(sf);
+    reapply_(sf, ss1);
+    return var1;
   }
 
   void aig::build_all_bdds(const std::vector<bdd>& all_bdd)
@@ -1634,14 +1712,19 @@ namespace spot
     }
 
     static void
-    output_to_vec(std::vector<unsigned>& v, bdd b,
+    output_to_vec(std::vector<unsigned>& v,
+                  std::map<unsigned, bool>& out_dc_vec, bdd b,
                   const std::unordered_map<unsigned, unsigned>&
                   bddvar_to_outputnum)
     {
+      // We do not care about an output if it does not appear in the bdd
+      for (auto& [_, v] : out_dc_vec)
+        v = true;
       v.clear();
       while (b != bddtrue)
         {
           unsigned i = bddvar_to_outputnum.at(bdd_var(b));
+          out_dc_vec[i] = false;
           if (bdd_low(b) == bddfalse)
             {
               v.push_back(i);
@@ -1697,131 +1780,133 @@ namespace spot
       return used_outc;
     }
 
-    std::vector<std::vector<bdd>>
-    reuse_outc(const std::vector<std::pair<const_twa_graph_ptr, bdd>>&
-                    strat_vec,
-                const bdd& all_inputs)
-    {
 
-      //todo filter out minterms!
-
-      //edge outcond -> used outcond (minterm)
-      std::unordered_map<bdd, bdd, bdd_hash> cond_map;
-
-      std::vector<std::vector<bdd>> used_outc;
-      // First fill with base out cond, then replace by minterm
-      for (auto&& astrat : strat_vec)
-        {
-          used_outc.emplace_back(astrat.first->num_edges()+1, bddfalse);
-          auto& this_outc = used_outc.back();
-          for (auto&& e: astrat.first->edges())
-            {
-              assert(e.cond != bddfalse);
-              bdd bout = bdd_exist(e.cond, all_inputs);
-              assert(((bout & bdd_existcomp(e.cond, all_inputs)) == e.cond) &&
-                     "Precondition (in) & (out) == cond violated");
-              this_outc[astrat.first->edge_number(e)] = bout;
-              cond_map[bout] = bddfalse;
-            }
-        }
-      // All conditions are stored in cond_map
-      const size_t n_cond = cond_map.size();
-      std::vector<bdd> bddvec;
-      bddvec.reserve(n_cond);
-      for (auto& it : cond_map)
-        bddvec.push_back(it.first);
-
-//      std::cout << "Conditions:\n";
-//      for (size_t i = 0; i < bddvec.size(); ++i)
-//        std::cout << i << " : " << bddvec[i] << '\n';
-
-      // todo symmetric specialisation?
-      // todo vectorized functions?
-      square_matrix<char> incomp_mat(n_cond, false);
-
-      // Compute pair-wise compatibility
-      for (size_t i = 0; i < n_cond; ++i)
-        for (size_t j = i+1; j < n_cond; ++j)
-          if ((bddvec[i] & bddvec[j]) == bddfalse)
-            {
-              incomp_mat(i, j) = true;
-              incomp_mat(j, i) = true;
-            }
-
-//      std::cout << "Incomp:\n";
-//      incomp_mat.print();
-
-
-      // Here the "states" are infact the out edge conditions
-      auto psol = get_part_sol(incomp_mat);
-      if (psol.psol_v.size() == n_cond)
-        return maxlow_outc(strat_vec, all_inputs); //todo
-
-      const auto& psol_v = psol.psol_v;
-      const auto& psol_s = psol.psol_s;
-      const unsigned n_psol = psol_v.size();
-      std::vector<unsigned> free_v;
-      free_v.reserve(n_cond - psol_v.size());
-      for (unsigned i = 0; i < n_cond; ++i)
-        if (psol_s.count(i) == 0)
-          free_v.push_back(i);
-      const unsigned n_free = free_v.size();
-//      std::cout << "p sol\n";
-//      for (auto v : psol_v)
-//        std::cout << v << ' ';
-//      std::cout << '\n';
-//      std::cout << "free\n";
-//      for (auto v : free_v)
-//        std::cout << v << ' ';
-//      std::cout << '\n';
-
-      // Covering condition -> each condition needs to be
-      // update when a new class is added
-      std::deque<std::deque<int>> cover_cond(n_cond); // Those for psol are emtpy
-      std::deque<int> incomp_cond;
-
-      // The lit mapper
-      // We have to create a new satsolver each time
-      // n_env_ <-> n_cond
-      auto Sptr = std::make_shared<satsolver>();
-      lit_mapper lm(Sptr, n_psol, n_cond, 0);
-
-      // Create the initial/partial solution
-      // This reamins unchanged -> incomp_cond
-      lm.unfreeze_xi();
-      // Cover cond: we can assign free edges
-      // only to partial solutions if they are compatible
-      for (auto fe : free_v)
-        for (unsigned i = 0; i < n_psol; ++i)
-          if (!incomp_mat(psol_v[i], fe))
-            cover_cond[fe].push_back(lm.sxi2lit({fe, i}));
-      lm.freeze_xi();
-
-      // Incompatible conditions:
-      // If fi and fj are both compatible with
-      // a partial solution k, but incompatible with one another -> add
-      for (unsigned k = 0; k < n_psol; ++k)
-      {
-        unsigned fk = psol_v[k];
-        for (unsigned i = 0; i < n_free; ++i)
-        {
-          unsigned fi = free_v[i];
-          if (incomp_mat(fi, fk))
-            continue; //fi can not be in k
-          for (unsigned j = i + 1; j < n_free; ++j)
-          {
-            unsigned fj = free_v[j];
-            if (incomp_mat(fj, fk))
-              continue;
-            if (incomp_mat(fi, fj))
-            {
-              incomp_cond.push_back(-lm.sxi2lit({fi, k}));
-              incomp_cond.push_back(-lm.sxi2lit({fj, k}));
-              incomp_cond.push_back(0);
-            }
-          }
-        }
-      }
+    // Heuristic
+//    std::vector<std::vector<bdd>>
+//    reuse_outc(const std::vector<std::pair<const_twa_graph_ptr, bdd>>&
+//                    strat_vec,
+//                const bdd& all_inputs)
+//    {
+//
+//      //todo filter out minterms!
+//
+//      //edge outcond -> used outcond (minterm)
+//      std::unordered_map<bdd, bdd, bdd_hash> cond_map;
+//
+//      std::vector<std::vector<bdd>> used_outc;
+//      // First fill with base out cond, then replace by minterm
+//      for (auto&& astrat : strat_vec)
+//        {
+//          used_outc.emplace_back(astrat.first->num_edges()+1, bddfalse);
+//          auto& this_outc = used_outc.back();
+//          for (auto&& e: astrat.first->edges())
+//            {
+//              assert(e.cond != bddfalse);
+//              bdd bout = bdd_exist(e.cond, all_inputs);
+//              assert(((bout & bdd_existcomp(e.cond, all_inputs)) == e.cond) &&
+//                     "Precondition (in) & (out) == cond violated");
+//              this_outc[astrat.first->edge_number(e)] = bout;
+//              cond_map[bout] = bddfalse;
+//            }
+//        }
+//      // All conditions are stored in cond_map
+//      const size_t n_cond = cond_map.size();
+//      std::vector<bdd> bddvec;
+//      bddvec.reserve(n_cond);
+//      for (auto& it : cond_map)
+//        bddvec.push_back(it.first);
+//
+////      std::cout << "Conditions:\n";
+////      for (size_t i = 0; i < bddvec.size(); ++i)
+////        std::cout << i << " : " << bddvec[i] << "\n";
+//
+//      // todo symmetric specialisation?
+//      // todo vectorized functions?
+//      square_matrix<char> incomp_mat(n_cond, false);
+//
+//      // Compute pair-wise compatibility
+//      for (size_t i = 0; i < n_cond; ++i)
+//        for (size_t j = i+1; j < n_cond; ++j)
+//          if ((bddvec[i] & bddvec[j]) == bddfalse)
+//            {
+//              incomp_mat(i,j) = true;
+//              incomp_mat(j,i) = true;
+//            }
+//
+////      std::cout << "Incomp:\n";
+////      incomp_mat.print();
+//
+//
+//      // Here the "states" are infact the out edge conditions
+//      auto psol = get_part_sol(incomp_mat);
+//      if (psol.psol_v.size() == n_cond)
+//        return maxlow_outc(strat_vec, all_inputs);//todo
+//
+//      const auto& psol_v = psol.psol_v;
+//      const auto& psol_s = psol.psol_s;
+//      const unsigned n_psol = psol_v.size();
+//      std::vector<unsigned> free_v;
+//      free_v.reserve(n_cond - psol_v.size());
+//      for (unsigned i = 0; i < n_cond; ++i)
+//        if (psol_s.count(i) == 0)
+//          free_v.push_back(i);
+//      const unsigned n_free = free_v.size();
+////      std::cout << "p sol\n";
+////      for (auto v : psol_v)
+////        std::cout << v << " ";
+////      std::cout << "\n";
+////      std::cout << "free\n";
+////      for (auto v : free_v)
+////        std::cout << v << " ";
+////      std::cout << "\n";
+//
+//      // Covering condition -> each condition needs to be
+//      // update when a new class is added
+//      std::deque<std::deque<int>> cover_cond(n_cond); // Those for psol are emtpy
+//      std::deque<int> incomp_cond;
+//
+//      // The lit mapper
+//      // We have to create a new satsolver each time
+//      // n_env_ <-> n_cond
+//      auto Sptr = std::make_shared<satsolver>();
+//      lit_mapper lm(Sptr, n_psol, n_cond, 0);
+//
+//      // Create the initial/partial solution
+//      // This reamins unchanged -> incomp_cond
+//      lm.unfreeze_xi();
+//      // Cover cond: we can assign free edges
+//      // only to partial solutions if they are compatible
+//      for (auto fe : free_v)
+//        for (unsigned i = 0; i < n_psol; ++i)
+//          if (!incomp_mat(psol_v[i], fe))
+//            cover_cond[fe].push_back(lm.sxi2lit({fe, i}));
+//      lm.freeze_xi();
+//
+//      // Incompatible conditions:
+//      // If fi and fj are both compatible with
+//      // a partial solution k, but incompatible with one another -> add
+//      for (unsigned k = 0; k < n_psol; ++k)
+//      {
+//        unsigned fk = psol_v[k];
+//        for (unsigned i = 0; i < n_free; ++i)
+//        {
+//          unsigned fi = free_v[i];
+//          if (incomp_mat(fi,fk))
+//            continue; //fi can not be in k
+//          for (unsigned j = i + 1; j < n_free; ++j)
+//          {
+//            unsigned fj = free_v[j];
+//            if (incomp_mat(fj, fk))
+//              continue;
+//            if (incomp_mat(fi,fj))
+//            {
+//              incomp_cond.push_back(-lm.sxi2lit({fi, k}));
+//              incomp_cond.push_back(-lm.sxi2lit({fj, k}));
+//              incomp_cond.push_back(0);
+//            }
+//          }
+//        }
+//      }
 
 
 //      for (unsigned i = 0; i < n_psol; ++i)
@@ -1856,165 +1941,165 @@ namespace spot
 //            incomp_cond.push_back(0);
 //          }
 //      lm.freeze_xi();
-
-      //Base conditions done
-      std::vector<bool> satsol;
-      unsigned n_classes = n_psol;
-      while (true)
-        {
-//          std::cout << n_classes << '\n';
-          lm.print();
-
-          // Search a solution for current instance
-          // Get a fresh solver and adjust
-          Sptr = std::make_shared<satsolver>();
-          lm.Sw_ = Sptr;
-          Sptr->adjust_nvars(lm.next_var_ - 1);
-          //Add
-          // The incomp-conditions are already proper clauses
-          Sptr->add(incomp_cond);
-//          std::cout << "inc\n";
-//          for (auto e : incomp_cond)
-//            std::cout << e << (e == 0 ? '\n' : ' ');
-//          std::cout << '\n';
-          // The others need to be zero terminated
-          for (auto& dq : cover_cond)
-            {
-              if (dq.empty())
-              {
-//                std::cout << "jump\n";
-                continue;
-              }
-              dq.push_back(0);
-//              for (auto e : dq)
-//                std::cout << e << ' ';
-//              std::cout << '\n';
-              Sptr->add(dq);
-              dq.pop_back();
-            }
-          std::cerr << "### " << n_cond << ' ' << n_classes << ' ' << Sptr->get_nb_vars() << ' ' << Sptr->get_nb_clauses() << '\n';
-          auto solpair = Sptr->get_solution();
-          if (!solpair.second.empty())
-            {
-              // We have a solution
-              satsol.reserve(solpair.second.size()+1);
-              satsol.push_back(0);
-              satsol.insert(satsol.end(), solpair.second.begin(),
-                            solpair.second.end());
-              break;
-            }
-
-          // Increase the number of classes
-          // A solution has to exist for n_classes == n_cond
-          assert(n_classes < n_cond);
-          // New class has index n_classes, increment afterwards
-          unsigned idx_c = n_classes;
-          ++n_classes;
-          lm.n_classes_ = n_classes;
-          if (n_classes == n_cond)
-            return maxlow_outc(strat_vec, all_inputs); //todo
-          // Update cover cond of existing classes
-          // The new class is apriori compatible with all states
-          // Note, only free states need to be distributed
-          lm.unfreeze_xi();
+//
+//      //Base conditions done
+//      std::vector<bool> satsol;
+//      unsigned n_classes = n_psol;
+//      while (true)
+//        {
+////          std::cout << n_classes << "\n";
+//          lm.print();
+//
+//          // Search a solution for current instance
+//          // Get a fresh solver and adjust
+//          Sptr = std::make_shared<satsolver>();
+//          lm.Sw_ = Sptr;
+//          Sptr->adjust_nvars(lm.next_var_ - 1);
+//          //Add
+//          // The incomp-conditions are already proper clauses
+//          Sptr->add(incomp_cond);
+////          std::cout << "inc\n";
+////          for (auto e : incomp_cond)
+////            std::cout << e << (e == 0 ? "\n" : " ");
+////          std::cout << "\n";
+//          // The others need to be zero terminated
+//          for (auto& dq : cover_cond)
+//            {
+//              if (dq.empty())
+//              {
+////                std::cout << "jump\n";
+//                continue;
+//              }
+//              dq.push_back(0);
+////              for (auto e : dq)
+////                std::cout << e << " ";
+////              std::cout << "\n";
+//              Sptr->add(dq);
+//              dq.pop_back();
+//            }
+//          std::cerr << "### " << n_cond << " " << n_classes << " " << Sptr->get_nb_vars() << " " << Sptr->get_nb_clauses() << "\n";
+//          auto solpair = Sptr->get_solution();
+//          if (!solpair.second.empty())
+//            {
+//              // We have a solution
+//              satsol.reserve(solpair.second.size()+1);
+//              satsol.push_back(0);
+//              satsol.insert(satsol.end(), solpair.second.begin(),
+//                            solpair.second.end());
+//              break;
+//            }
+//
+//          // Increase the number of classes
+//          // A solution has to exist for n_classes == n_cond
+//          assert(n_classes < n_cond);
+//          // New class has index n_classes, increment afterwards
+//          unsigned idx_c = n_classes;
+//          ++n_classes;
+//          lm.n_classes_ = n_classes;
+//          if (n_classes == n_cond)
+//            return maxlow_outc(strat_vec, all_inputs);//todo
+//          // Update cover cond of existing classes
+//          // The new class is apriori compatible with all states
+//          // Note, only free states need to be distributed
+//          lm.unfreeze_xi();
+////          for (unsigned x = 0; x < n_cond; ++x)
+//          for (unsigned x : free_v)
+//            cover_cond[x].push_back(lm.sxi2lit({x, idx_c}));
+//          lm.freeze_xi();
+//          //Add all new incomps
+//          for (unsigned i = 0; i < n_free; ++i)
+//          {
+//            unsigned fi = free_v[i];
+//            for (unsigned j = i + 1; j < n_free; ++j)
+//            {
+//              unsigned fj = free_v[j];
+//              if (incomp_mat(fi, fj))
+//              {
+//                incomp_cond.push_back(-lm.sxi2lit({fi, idx_c}));
+//                incomp_cond.push_back(-lm.sxi2lit({fj, idx_c}));
+//                incomp_cond.push_back(0);
+//              }
+//            }
+//          }
+////          for (unsigned x = 0; x < n_cond; ++x)
+////            for (unsigned y = x + 1; y < n_cond; ++y)
+////              if (incomp_mat(x,y))
+////                {
+////                  incomp_cond.push_back(-lm.sxi2lit({x, idx_c}));
+////                  incomp_cond.push_back(-lm.sxi2lit({y, idx_c}));
+////                  incomp_cond.push_back(0);
+////                }
+//      }
+//      assert(!satsol.empty());
+//      // Each class at least one member
+//      // Find the intersection and assign
+//      // Attention, a cond may be in multiple classes
+//      // -> Use only in first class (heuristic?) in order to
+//      // minimize highs
+//      std::vector<bool> assigned(n_cond, false);
+//      std::vector<unsigned> in_class;
+//      for (unsigned i = 0; i < n_classes; ++i)
+//        {
+//          in_class.clear();
+//          bdd cond_class = bddtrue;
+//          bool has_one = false;
+//
+//          // Adding the partial solution
+//          if (i < n_psol)
+//          {
+//            unsigned x = psol_v[i];
+//            cond_class = bddvec[x];
+//            has_one = true;
+//            assigned[x] = true;
+//            in_class.push_back(x);
+//          }
+//
 //          for (unsigned x = 0; x < n_cond; ++x)
-          for (unsigned x : free_v)
-            cover_cond[x].push_back(lm.sxi2lit({x, idx_c}));
-          lm.freeze_xi();
-          //Add all new incomps
-          for (unsigned i = 0; i < n_free; ++i)
-          {
-            unsigned fi = free_v[i];
-            for (unsigned j = i + 1; j < n_free; ++j)
-            {
-              unsigned fj = free_v[j];
-              if (incomp_mat(fi, fj))
-              {
-                incomp_cond.push_back(-lm.sxi2lit({fi, idx_c}));
-                incomp_cond.push_back(-lm.sxi2lit({fj, idx_c}));
-                incomp_cond.push_back(0);
-              }
-            }
-          }
-//          for (unsigned x = 0; x < n_cond; ++x)
-//            for (unsigned y = x + 1; y < n_cond; ++y)
-//              if (incomp_mat(x,y))
-//                {
-//                  incomp_cond.push_back(-lm.sxi2lit({x, idx_c}));
-//                  incomp_cond.push_back(-lm.sxi2lit({y, idx_c}));
-//                  incomp_cond.push_back(0);
-//                }
-      }
-      assert(!satsol.empty());
-      // Each class at least one member
-      // Find the intersection and assign
-      // Attention, a cond may be in multiple classes
-      // -> Use only in first class (heuristic?) in order to
-      // minimize highs
-      std::vector<bool> assigned(n_cond, false);
-      std::vector<unsigned> in_class;
-      for (unsigned i = 0; i < n_classes; ++i)
-        {
-          in_class.clear();
-          bdd cond_class = bddtrue;
-          bool has_one = false;
-
-          // Adding the partial solution
-          if (i < n_psol)
-          {
-            unsigned x = psol_v[i];
-            cond_class = bddvec[x];
-            has_one = true;
-            assigned[x] = true;
-            in_class.push_back(x);
-          }
-
-          for (unsigned x = 0; x < n_cond; ++x)
-          {
-            if (assigned[x])
-              continue;
-            int lxi = lm.get_sxi({x, i});
-            //std::cout << cond_class << ' ' << x << ' ' << i << ' ' << lxi << ' ' << std::endl;
-            assert((i >=n_psol) || ((psol_s.count(x) == 1) && lxi == 0)
-                   || (psol_s.count(x) == 0)); //psol has no lit
-            if ((lxi != 0) && satsol.at(lxi))
-              {
-                has_one = true;
-                assigned[x] = true;
-                cond_class &= bddvec[x];
-                assert(cond_class != bddfalse);
-                in_class.push_back(x);
-              }
-          }
-          assert(has_one);
-          // Get the minterm with least highs
-          cond_class = bdd_satone(cond_class);
-          //std::cout << cond_class << std::endl;
-          // Set them
-          for (unsigned x : in_class)
-            cond_map.at(bddvec[x]) = cond_class;
-        }
-
-      // "0" edge is bddfalse
-      cond_map[bddfalse] = bddfalse;
-
-//      std::cout << "Res\n";
-//      for (auto& it : cond_map)
-//        std::cout << it.first << " -> " << it.second << '\n';
-//      std::cout << std::endl;
-
-      // Assign the results
-      for (auto& bvec : used_outc)
-        {
-          std::transform(bvec.begin(), bvec.end(), bvec.begin(),
-                         [&cond_map](const bdd& b){ return cond_map.at(b); });
-          assert(std::none_of(bvec.begin()+1, bvec.end(),
-                              [](const bdd& b){ return b == bddfalse; }));
-        }
-
-      // Done
-      return used_outc;
-    }
+//          {
+//            if (assigned[x])
+//              continue;
+//            int lxi = lm.get_sxi({x, i});
+//            //std::cout << cond_class << " " << x << " " << i << " " << lxi << " " << std::endl;
+//            assert( (i>=n_psol) || ((psol_s.count(x) == 1) && lxi == 0)
+//                    || (psol_s.count(x) == 0) );//psol has no lit
+//            if ((lxi != 0) && satsol.at(lxi))
+//              {
+//                has_one = true;
+//                assigned[x] = true;
+//                cond_class &= bddvec[x];
+//                assert(cond_class != bddfalse);
+//                in_class.push_back(x);
+//              }
+//          }
+//          assert(has_one);
+//          // Get the minterm with least highs
+//          cond_class = bdd_satone(cond_class);
+//          //std::cout << cond_class << std::endl;
+//          // Set them
+//          for (unsigned x : in_class)
+//            cond_map.at(bddvec[x]) = cond_class;
+//        }
+//
+//      // "0" edge is bddfalse
+//      cond_map[bddfalse] = bddfalse;
+//
+////      std::cout << "Res\n";
+////      for (auto& it : cond_map)
+////        std::cout << it.first << " -> " << it.second << "\n";
+////      std::cout << std::endl;
+//
+//      // Assign the results
+//      for (auto& bvec : used_outc)
+//        {
+//          std::transform(bvec.begin(), bvec.end(), bvec.begin(),
+//                         [&cond_map](const bdd& b){return cond_map.at(b);});
+//          assert(std::none_of(bvec.begin()+1, bvec.end(),
+//                              [](const bdd& b){return b == bddfalse;}));
+//        }
+//
+//      // Done
+//      return used_outc;
+//    }
 
     // Transforms an automaton into an AIGER circuit
     // using irreducible sums-of-products
@@ -2106,10 +2191,11 @@ namespace spot
       // to have as few gates as possible
 
       std::vector<std::vector<bdd>> used_outc;
-      if (strat_vec.size() < 10000) //Dummy
-        used_outc = maxlow_outc(strat_vec, all_inputs);
-      else
-        used_outc = reuse_outc(strat_vec, all_inputs); //Still a bug?
+//      if (strat_vec.size() < 10000) //Dummy
+      used_outc = maxlow_outc(strat_vec, all_inputs);
+      // Heuristic but has shown not a lot of positive effect
+//      else
+//        used_outc = reuse_outc(strat_vec, all_inputs);//Still a bug?
 
       // Encode state in log2(num_states) latches.
       // The latches of each strategy have to be separated
@@ -2175,9 +2261,21 @@ namespace spot
       // relying on different strategies
       std::vector<bdd> latch(n_latches, bddfalse);
       std::vector<bdd> out(output_names.size(), bddfalse);
+      std::vector<bdd> out_dc(output_names.size(), bddfalse);
 
       std::vector<unsigned> out_vec;
       out_vec.reserve(output_names.size());
+      std::map<unsigned, bool> out_dc_vec; //Bdd where out can be high
+      {
+        bdd r_outs = all_outputs;
+        while (r_outs != bddtrue)
+          {
+            out_dc_vec[bddvar_to_num.at(bdd_var(r_outs))] = false;
+            r_outs = bdd_high(r_outs);
+          }
+        assert(out_dc_vec.size() == output_names.size());
+      }
+
       std::vector<unsigned> next_state_vec;
       next_state_vec.reserve(n_latches);
 
@@ -2190,11 +2288,6 @@ namespace spot
         auto latchoff_next = latch_offset.at(i+1);
 
         auto alog2n = log2n[i];
-//        auto enc_init =
-//            [&, inum = astrat->get_init_state_number()](auto s)
-//            {
-//              return encode_init_0(s, inum);
-//            };
         auto enc_init =
             [&sn = state_numbers.at(i)](unsigned s)
             {
@@ -2226,7 +2319,7 @@ namespace spot
             state_to_vec(next_state_vec, enc_init(e.dst), latchoff);
 
             // Get high outs depending on cond
-            output_to_vec(out_vec,
+            output_to_vec(out_vec, out_dc_vec,
                           used_outc[i][astrat->edge_number(e)],
                           bddvar_to_num);
 
@@ -2247,6 +2340,10 @@ namespace spot
               // todo test?
               out.at(ao) |= tot_cond;
             }
+            for (const auto& [ao, v] : out_dc_vec)
+              if (v)
+                out_dc.at(ao) |= tot_cond;
+
           } // edges
         } // state
       } //strat
@@ -2255,23 +2352,44 @@ namespace spot
       auto sf = circuit.get_safe_point_();
       unsigned min_gates = -1u;
       aig::safe_stash ss;
+      std::function<unsigned(bdd, bdd)> bdd2var_min;
 
       auto to_treat
-          = (strcasecmp(mode, "BEST") == 0) ? std::vector<std::string>{"ite", "isopmin"}
-                                            : std::vector<std::string>{mode};
+          = (strcasecmp(mode, "BEST") == 0)
+              ? (isupper(mode[1]) ? std::vector<std::string>{"iTe", "iSopmin"} : std::vector<std::string>{"ite", "isopmin"})
+              : std::vector<std::string>{mode};
       for (const auto& amodestr : to_treat)
         {
           auto amodearr = amodestr.c_str();
           circuit.use_split_off(isupper(amodearr[0]));
-          std::function<unsigned(bdd)> bdd2var;
+          bool use_dc = isupper(amodearr[1]);
+          std::function<unsigned(bdd, bdd)> bdd2var;
           if (strcasecmp(amodearr, "ITE") == 0)
-            bdd2var = [&circuit](auto b)->unsigned{return circuit.bdd2INFvar(b, false); };
+          {
+            if (use_dc)
+              bdd2var = [&circuit](auto b, auto dc)->unsigned{return circuit.bdd2INFvar(b, b|dc, false); };
+            else
+              bdd2var = [&circuit](auto b, auto)->unsigned{return circuit.bdd2INFvar(b, false); };
+          }
           else if (strcasecmp(amodearr, "ITEMIN") == 0)
-            bdd2var = [&circuit](auto b)->unsigned{return circuit.bdd2INFvar(b, true); };
-          else if (strcasecmp(amodearr, "ISOP") == 0)
-            bdd2var = [&circuit](auto b)->unsigned{return circuit.bdd2DNFvar(b); };
-          else if (strcasecmp(amodearr, "ISOPMIN") == 0)
-            bdd2var = [&circuit](auto b)->unsigned{return circuit.bdd2partitionedDNFvar(b); };
+          {
+            if (use_dc)
+              bdd2var = [&circuit](auto b, auto dc)->unsigned{return circuit.bdd2INFvar(b, b|dc, true); };
+            else
+              bdd2var = [&circuit](auto b, auto)->unsigned{return circuit.bdd2INFvar(b, true); };
+          }
+          else if(strcasecmp(amodearr, "ISOP") == 0)
+          {
+            if (use_dc)
+              bdd2var = [&circuit](auto b, auto dc)->unsigned{return circuit.bdd2DNFvar(b, b|dc); };
+            else
+              bdd2var = [&circuit](auto b, auto)->unsigned{return circuit.bdd2DNFvar(b); };
+          }
+          else if(strcasecmp(amodearr, "ISOPMIN") == 0)
+            if (use_dc)
+              bdd2var = [&circuit](auto b, auto dc)->unsigned{return circuit.bdd2partitionedDNFvar(b, b|dc); };
+            else
+              bdd2var = [&circuit](auto b, auto)->unsigned{return circuit.bdd2partitionedDNFvar(b); };
           else
             {
               // Here it is more tricky
@@ -2283,26 +2401,39 @@ namespace spot
               all_cond.insert(all_cond.end(), latch.cbegin(), latch.cend());
               // Then construct it
               circuit.build_all_bdds(all_cond);
-              bdd2var = [&circuit](auto b)->unsigned
-                { return circuit.bdd2aigvar(b); };
+              bdd2var = [&circuit](auto b, auto)->unsigned{return circuit.bdd2aigvar(b);};
             }
 
           // Create the vars
           for (unsigned i = 0; i < output_names.size(); ++i)
-            circuit.set_output(i, bdd2var(out[i]));
+            {
+              if (circuit.num_gates() > min_gates)
+                break;
+              circuit.set_output(i, bdd2var(out[i], out_dc[i]));
+            }
           for (unsigned i = 0; i < n_latches; ++i)
-            circuit.set_next_latch(i, bdd2var(latch[i]));
+            {
+              if (circuit.num_gates() > min_gates)
+                break;
+              circuit.set_next_latch(i, bdd2var(latch[i], bddfalse));
+            }
 
           // Overwrite the stash if we generated less gates
           if (circuit.num_gates() < min_gates)
             {
               min_gates = circuit.num_gates();
               ss = circuit.roll_back_(sf, true);
+              bdd2var_min = bdd2var;
             }
           else
             circuit.roll_back_(sf, false);
         }
-      circuit.reapply_(sf, ss); //Use the best sol
+      circuit.reapply_(sf, ss);//Use the best sol
+      // Reset them
+      for (unsigned i = 0; i < output_names.size(); ++i)
+        circuit.set_output(i, bdd2var_min(out[i], out_dc[i]));
+      for (unsigned i = 0; i < n_latches; ++i)
+        circuit.set_next_latch(i, bdd2var_min(latch[i], bddfalse));
       return circuit_ptr;
     } // auts_to_aiger
   }

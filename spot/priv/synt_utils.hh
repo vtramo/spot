@@ -19,15 +19,7 @@
 
 #pragma once
 
-#include <string>
-#include <vector>
-#include <tuple>
-#include <memory>
-#include <iostream>
-#include <unordered_map>
-#include <set>
-#include <algorithm>
-
+#include <spot/priv/synt_utils_struct.hh>
 #include <spot/misc/satsolver.hh>
 
 
@@ -35,92 +27,6 @@ namespace spot
 {
 namespace minutils
 {
-  struct xi_t
-  {
-    size_t hash() const noexcept
-    {
-      size_t h = x;
-      h <<= 32;
-      h += i;
-      return std::hash<size_t>()(h);
-    }
-    bool operator<(const xi_t& rhs) const
-    {
-      return std::tie(x, i) < std::tie(rhs.x, rhs.i);
-    }
-    bool operator==(const xi_t& rhs) const
-    {
-      return std::tie(x, i) == std::tie(rhs.x, rhs.i);
-    }
-
-    unsigned x, i;
-  };
-  struct hash_xi
-  {
-    size_t operator()(const xi_t& xi) const noexcept
-      {
-        return xi.hash();
-      }
-  };
-  struct less_xi
-  {
-    bool operator()(const xi_t& lhs, const xi_t& rhs) const
-    {
-      return lhs < rhs;
-    }
-  };
-  struct equal_to_xi
-  {
-    bool operator()(const xi_t& lhs, const xi_t& rhs) const
-    {
-      return lhs == rhs;
-    }
-  };
-
-  struct iaj_t
-  {
-    size_t hash() const noexcept
-    {
-      size_t h = i;
-      h <<= 21;
-      h += a;
-      h <<= 20;
-      h += j;
-      return std::hash<size_t>()(h);
-    }
-    bool operator==(const iaj_t& rhs) const
-    {
-      return std::tie(i, a, j) == std::tie(rhs.i, rhs.a, rhs.j);
-    }
-    bool operator<(const iaj_t& rhs) const
-    {
-      return std::tie(i, a, j) < std::tie(rhs.i, rhs.a, rhs.j);
-    }
-
-    unsigned i, a, j;
-  };
-  struct hash_iaj
-  {
-    size_t operator()(const iaj_t& iaj) const noexcept
-      {
-        return iaj.hash();
-      }
-  };
-  struct less_iaj
-  {
-    bool operator()(const iaj_t& lhs, const iaj_t& rhs) const
-    {
-      return lhs < rhs;
-    }
-  };
-  struct equal_to_iaj
-  {
-    bool operator()(const iaj_t& lhs, const iaj_t& rhs) const
-    {
-      return lhs == rhs;
-    }
-  };
-
 #define USE_OPT_LIT
 #ifdef USE_OPT_LIT
   struct lit_mapper
@@ -129,10 +35,10 @@ namespace minutils
     unsigned n_classes_, n_env_, n_sigma_red_;
     std::shared_ptr<satsolver> S_;
     int next_var_;
-    bool frozen_xi_, frozen_iaj_;
-    std::unordered_map<xi_t, int, hash_xi, equal_to_xi> sxi_map_; //xi -> lit
-    //iaj -> lit
-    std::unordered_map<iaj_t, int, hash_iaj, equal_to_iaj> ziaj_map_;
+    bool frozen_xi_, frozen_iaj_, frozen_si_;
+    std::unordered_map<xi_t, int, hash_xi, equal_to_xi> sxi_map_;//xi -> lit
+    std::unordered_map<iaj_t, int, hash_iaj, equal_to_iaj> ziaj_map_;//iaj -> lit
+    std::vector<int> si_map_;//class -> lit, only for multi version
 
     std::deque<int> all_clauses_;
 
@@ -146,8 +52,41 @@ namespace minutils
       , next_var_{1}
       , frozen_xi_{false}
       , frozen_iaj_{false}
+      , frozen_si_{false}
+      , si_map_(n_classes, 0)
     {
       assert(Sw_.lock()->get_nb_vars() == 0);
+    }
+
+    int si2lit(unsigned si)
+    {
+      assert(si < n_classes_);
+      assert(!frozen_si_ || (si_map_[si] != 0));
+      if (si_map_[si] == 0)
+        si_map_[si] = next_var_++;
+      return si_map_[si];
+    }
+
+    int si2lit(unsigned si) const
+    {
+      assert(si_map_[si]);
+      return si_map_[si];
+    }
+
+    int get_si(unsigned si)
+    {
+      return si_map_[si];
+    }
+
+    void freeze_si()
+    {
+      frozen_si_ = true;
+      S_ = nullptr;
+    }
+    void unfreeze_si()
+    {
+      frozen_si_ = false;
+      S_ = Sw_.lock();
     }
 
     int sxi2lit(xi_t xi)
@@ -235,8 +174,14 @@ namespace minutils
 
     void add(std::initializer_list<int> l)
     {
-      for (auto&& v : l)
+      for(auto&& v : l)
         add(v);
+    }
+
+    template<class C>
+    void add(const C& c)
+    {
+      all_clauses_.insert(all_clauses_.end(), c.begin(), c.end());
     }
 
     void finalize()
@@ -256,14 +201,14 @@ namespace minutils
         os << "x - i -> lit\n";
         for (auto &it : xi_tmp)
           os << it.first.x << " - " << it.first.i << " -> " << it.second
-             << '\n';
+             << "\n";
       }
       {
         std::map<iaj_t, int, less_iaj> iaj_tmp(ziaj_map_.begin(), ziaj_map_.end());
         os << "i - a - j -> lit\n";
         for (auto &it : iaj_tmp)
             os << it.first.i << " - " << it.first.a << " - " << it.first.j
-             << " -> " << it.second << '\n';
+             << " -> " << it.second << "\n";
       }
       return os;
     }
@@ -272,11 +217,14 @@ namespace minutils
   struct lit_mapper
   {
     unsigned n_classes_, n_env_, n_sigma_red_;
+    bool is_joint_
 
-    lit_mapper(unsigned n_classes, unsigned n_env, unsigned n_sigma_red)
+    lit_mapper(unsigned n_classes, unsigned n_env, unsigned n_sigma_red,
+               bool is_joint = false)
       : n_classes_{n_classes}
       , n_env_{n_env}
       , n_sigma_red_{n_sigma_red}
+      , is_joint_(is_joint)
     {
     }
 
@@ -304,145 +252,19 @@ namespace minutils
       return ziaj2lit(iaj);
     }
 
+    int si2lit(unsigned i) const
+    {
+      assert(is_joint_);
+      assert(i < n_classes_);
+      return (int) 1 + n_classes_*n_env_ +  n_classes_*n_sigma_red_*n_classes_
+             + n_sigma_red_*n_classes_ + n_classes_ + i;
+    }
+    int get_si(int i) const
+    {
+      return si2lit(i);
+    }
   };
 #endif
 
-
-  template<class T>
-  class square_matrix: private std::vector<T>
-  {
-  private:
-    size_t dim_;
-
-  public:
-    square_matrix()
-        : std::vector<T>()
-        , dim_(0)
-    {}
-
-    square_matrix(size_t dim)
-        :  std::vector<T>(dim*dim)
-        ,  dim_{dim}
-    {}
-
-    square_matrix(size_t dim, const T& t)
-        :  std::vector<T>(dim*dim, t)
-        ,  dim_{dim}
-    {}
-
-    using typename std::vector<T>::value_type;
-    using typename std::vector<T>::size_type;
-    using typename std::vector<T>::difference_type;
-    using typename std::vector<T>::iterator;
-    using typename std::vector<T>::const_iterator;
-
-    inline size_t dim() const
-    {
-      return dim_;
-    }
-    // i: row number
-    // j: column number
-    // Stored in row major
-    inline size_t idx_(size_t i, size_t j) const
-    {
-      return i * dim_ + j;
-    }
-    inline size_t idx(size_t i, size_t j) const
-    {
-      assert(i<dim_ && j<dim_);
-      return idx_(i, j);
-    }
-    inline T operator()(size_t i, size_t j) const
-    {
-      return this->at(idx(i, j));
-    }
-    inline T& operator()(size_t i, size_t j)
-    {
-      return this->at(idx(i, j));
-    }
-    std::pair<const_iterator, const_iterator> get_cline(size_t i) const
-    {
-      assert(i < dim_);
-      return {cbegin() + idx(i, 0), cbegin() + idx_(i+1, 0)};
-    }
-    std::pair<iterator, iterator> get_line(size_t i)
-    {
-      assert(i < dim_);
-      return {begin() + idx(i, 0), begin() + idx_(i+1, 0)};
-    }
-    using std::vector<T>::begin;
-    using std::vector<T>::cbegin;
-    using std::vector<T>::end;
-    using std::vector<T>::cend;
-
-    void print() const
-    {
-      for (size_t i = 0; i < dim_; ++i)
-      {
-        for (size_t j = 0; j < dim_; ++j)
-          std::cout << (int)(*this)(i, j) << ' ';
-        std::cout << std::endl;
-      }
-    }
-  };
-
-  struct part_sol_t
-  {
-    std::set<unsigned> psol_s; //Keep two copies for access and look-up
-    std::vector<unsigned> psol_v;
-    std::vector<unsigned> incompvec;
-  };
-
-  template <class MAT>
-  part_sol_t get_part_sol(const MAT& incompmat)
-  {
-    // Use the "most" incompatible states as partial sol
-    unsigned n_states = incompmat.dim();
-    std::vector<std::pair<unsigned, size_t>> incompvec(n_states);
-
-    // square_matrix is row major!
-    for (size_t ns = 0; ns < n_states; ++ns)
-      {
-        auto line_it = incompmat.get_cline(ns);
-        incompvec[ns] = {ns,
-                         std::count(line_it.first,
-                                    line_it.second,
-                                    true)};
-      }
-
-    // Sort in reverse order
-    std::sort(incompvec.begin(), incompvec.end(),
-              [](const auto& p1, const auto& p2)
-                { return p1.second > p2.second; });
-
-    part_sol_t part_sol_p;
-    auto& part_sol = part_sol_p.psol_v;
-    part_sol.reserve(n_states/2);
-    // Add states that are incompatible with ALL states in part_sol
-    for (auto& p : incompvec)
-      {
-        auto ns = p.first;
-        if (std::all_of(part_sol.begin(), part_sol.end(),
-                        [&](auto npart)
-                          {
-                            return incompmat(ns, npart);
-                          }))
-          part_sol.push_back(ns);
-      }
-    std::sort(part_sol.begin(), part_sol.end());
-    //Also construct the set
-    std::for_each(part_sol.begin(), part_sol.end(),
-                  [&psols  = part_sol_p.psol_s](auto s)
-                  {
-                    psols.emplace_hint(psols.end(), s);
-                  });
-
-    // Also store the states in their compatibility order
-    auto& part_sol_i = part_sol_p.incompvec;
-    part_sol_i.reserve(n_states);
-    std::for_each(incompvec.begin(), incompvec.end(),
-                  [&part_sol_i](auto& p){ part_sol_i.push_back(p.first); });
-    return part_sol_p;
-  }
 }
 }

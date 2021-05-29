@@ -36,6 +36,9 @@
 #include <spot/twaalgos/hoa.hh>
 #include <spot/twaalgos/synthesis.hh>
 #include <spot/twaalgos/product.hh>
+#include <spot/twaalgos/minimize.hh>
+
+#include <spot/priv/synt_utils_struct.hh>
 
 enum
 {
@@ -58,9 +61,9 @@ static const argp_option options[] =
     { "outs", OPT_OUTPUT, "PROPS", 0,
       "comma-separated list of controllable (a.k.a. output) atomic"
       " propositions", 0},
-    { "ins", OPT_INPUT, "PROPS", 0,
+    { "ins", OPT_INPUT, "PROPS", OPTION_ARG_OPTIONAL,
       "comma-separated list of controllable (a.k.a. output) atomic"
-      " propositions. If unspecified it is the complement of \"outs\"", 0},
+      " propositions. If unspecified its the complement of \"outs\"", 0},
     /**************************************************/
     { nullptr, 0, nullptr, 0, "Fine tuning:", 10 },
     { "algo", OPT_ALGO, "sd|ds|ps|lar|lar.old", 0,
@@ -80,7 +83,7 @@ static const argp_option options[] =
       "print the parity game in the HOA format, do not solve it", 0},
     { "realizability", OPT_REAL, nullptr, 0,
       "realizability only, do not compute a winning strategy", 0},
-    { "aiger", OPT_PRINT_AIGER, "ITE|ISOP|ISOPMIN|OPTIM", 0,
+    { "aiger", OPT_PRINT_AIGER, "ITE|ISOP|ISOPMIN|OPTIM", OPTION_ARG_OPTIONAL,
       "prints a winning strategy as an AIGER circuit.  With argument \"ISOP\""
       " conditions are converted to DNF, while the default \"ITE\" uses the "
       "if-the-else normal form.", 0},
@@ -189,6 +192,65 @@ namespace
 //        throw std::runtime_error("Nonzero exit code\n");
 //      return result;
 //    }
+  static void
+  split_fast_here(spot::twa_graph_ptr strat)
+  {
+    // Pre : Acceptance is true
+    //       The graph is uncolored
+    //       all edge conds have the form in&out
+    // Post : edges are env state - in > player state - out > env_state
+
+    bdd all_outs = bddtrue;
+    if (auto* outsptr = strat->get_named_prop<bdd>("synthesis-outputs"))
+      all_outs = *outsptr;
+    else
+      throw std::runtime_error("Need \"synthesis-outputs\"!");
+
+    using dst_cond_t = spot::minutils::xi_t;
+    std::unordered_map<dst_cond_t, unsigned,
+                       spot::minutils::hash_xi,
+                       spot::minutils::equal_to_xi> player_map;
+
+    auto get_ps = [&](unsigned dst, const bdd& ocond)
+      {
+        dst_cond_t key{dst, (unsigned) ocond.id()};
+        auto it = player_map.find(key);
+        if (it != player_map.end())
+          return it->second;
+        unsigned value = strat->new_state();
+        strat->new_edge(value, dst, ocond);
+        player_map[key] = value;
+        return value;
+      };
+
+    std::vector<unsigned> to_treat(strat->num_edges());
+    std::transform(strat->edges().begin(), strat->edges().end(),
+                   to_treat.begin(), [&](const auto& e)
+                   {return strat->edge_number(e);});
+
+    std::for_each(to_treat.begin(), to_treat.end(),
+                  [&](unsigned eidx)
+                  {
+                    const auto& e = strat->edge_storage(eidx);
+                    assert(!e.acc.count() && "Uncolored only!");
+                    bdd incond = bdd_exist(e.cond, all_outs);
+                    bdd outcond = bdd_existcomp(e.cond, all_outs);
+                    assert(((incond&outcond) == e.cond) && "Precondition violated");
+                    // Modify
+                    unsigned new_dst = get_ps(e.dst, outcond);
+                    strat->edge_storage(eidx).dst = new_dst;
+                    strat->edge_storage(eidx).cond = incond;
+                  });
+
+    auto* sp_ptr =
+        strat->get_or_set_named_prop<std::vector<bool>>("state-player");
+
+    sp_ptr->resize(strat->num_states());
+    std::fill(sp_ptr->begin(), sp_ptr->end(), false);
+    for (auto& eit : player_map)
+      (*sp_ptr)[eit.second] = true;
+    //Done
+  }
 
   static void
   print_csv(const spot::formula& f)
@@ -341,12 +403,16 @@ namespace
           std::cout << "UNREALIZABLE" << std::endl;
           // FIXME: C'est quoi la valeur de retour ?
           if (opt_real)
-            return (int)!is_winning;
+            return 1;
         }
         else if (simp_aut != nullptr)
         {
-          //Unused fix
-          extra_options.get("minimization-level");
+          bool do_split = 3 <= extra_options.get("minimization-level", 1);
+          if (do_split)
+            split_fast_here(simp_aut);
+          minimize_strategy_here(simp_aut, extra_options);
+          if (do_split)
+            simp_aut = spot::unsplit_2step(simp_aut);
           strategies.push_back(simp_aut);
           continue;
         }
@@ -473,18 +539,20 @@ namespace
         spot::aig_ptr saig;
         if (opt_print_aiger)
         {
+          if (strategies.size() != 1)
+            std::cerr << "#### nstrats " << strategies.size() << "\n";
           spot::stopwatch sw2;
           if (gi.bv)
             sw2.start();
           saig = spot::strategies_to_aig(strategies, opt_print_aiger,
-                                              input_aps,
-                                              sub_outs_str);
+                                         input_aps,
+                                         sub_outs_str);
           if (gi.bv)
-          {
-            gi.bv->aig_time = sw2.stop();
-            gi.bv->nb_latches = saig->num_latches();
-            gi.bv->nb_gates = saig->num_gates();
-          }
+            {
+              gi.bv->aig_time = sw2.stop();
+              gi.bv->nb_latches = saig->num_latches();
+              gi.bv->nb_gates = saig->num_gates();
+            }
           spot::print_aiger(std::cout, saig);
         }
         else

@@ -1291,6 +1291,23 @@ namespace
       std::cout << *beg << sep;
     std::cout << '\n';
   }
+  template<class T>
+  void printlit(T L)
+  {
+#ifndef TRACE
+    return;
+#endif
+    size_t count = 0;
+    for (int alit : L)
+    {
+      ++count;
+      if (alit == 0)
+        trace << alit << '\n';
+      else
+        trace << alit << ' ';
+    }
+    assert(count == L.size());
+  }
   void printlit(std::initializer_list<int> L)
   {
 #ifndef TRACE
@@ -1308,6 +1325,8 @@ namespace
     assert(count == L.size());
   }
 
+#define REDUCEFIRST
+#ifdef REDUCEFIRST
   template<class SP>
   auto reduce_and_split(const const_twa_graph_ptr& mm, const SP& spref)
     {
@@ -1463,22 +1482,38 @@ namespace
 //            h = wang32_hash(h ^ ((size_t) e));
 //          return h;
 //        };
+
+
       auto vctr_hash = [](const auto& v) -> size_t
         {
           size_t vs = v.size();
-          size_t h = wang32_hash(vs);
-          size_t hh;
-          // FIXME: When size % 3 != 0
-          for (size_t i = 0; i < vs; i += 3)
+          switch (vs)
+          {
+            case 0:
+              return 0;
+            case 1:
+              return v[0];
+            case 2:
+              return (((size_t) v[0])<<32)+v[1];
+            default:
             {
-              hh = v[i];
-              hh <<= 20;
-              hh += v[i+1];
-              hh <<= 20;
-              hh += v[i+2];
-              h = h ^ wang32_hash(hh);
+              size_t h = wang32_hash(vs);
+              size_t hh;
+              size_t i = 0;
+              for (; i < vs-2; i += 3)
+              {
+                hh = v[i];
+                hh <<= 20;
+                hh += v[i+1];
+                hh <<= 20;
+                hh += v[i+2];
+                h = h^wang32_hash(hh);
+              }
+              for (; i < vs; ++i)
+                h = h^wang32_hash(v[i]);
+              return h;
             }
-          return wang32_hash(h);
+          }
         };
 
       std::unordered_multimap<size_t,
@@ -1737,6 +1772,10 @@ namespace
 #endif
     return incompmat;
   }
+
+#else
+
+#endif
 
   struct greedy_cover_t
   {
@@ -2413,21 +2452,24 @@ namespace
 
     // Get the init state
     unsigned x_init = splitmm->get_init_state_number();
+    std::vector<unsigned> init_class_v;
     assert(x_init < n_env);
     {
-      unsigned initclass = -1u;
+//      unsigned initclass = -1u;
       for (unsigned i = 0; i < n_classes; ++i)
         {
           int litsxi = lm.get_sxi({x_init, i});
           if (litsxi && sol.at(litsxi))
-            {
-              // x_init belongs class i
-              minmach->set_init_state(i);
-              initclass = i;
-              break;
-            }
+            init_class_v.push_back(i);
+//            {
+//              // x_init belongs class i
+//              minmach->set_init_state(i);
+//              initclass = i;
+//              break;
+//            }
         }
-      assert(initclass != -1u);
+//      assert(initclass != -1u);
+      assert(!init_class_v.empty());
     }
 
 
@@ -2469,6 +2511,8 @@ namespace
     // Have edges of states contiguous
     //(dst, ocond) -> player state
     std::unordered_map<unsigned long long, unsigned> player_hash;
+#define OPTOUT
+// todo check if there can be unreachable parts
     for (unsigned i = 0; i < n_classes; ++i)
       for (unsigned a = 0; a < n_sigma; ++a)
         {
@@ -2479,6 +2523,9 @@ namespace
           // todo heuristic to chose
           // Take the first possible target class
           unsigned j = -1u; // target class
+          bool has_trans = false;
+          bdd ocond = bddtrue;
+#ifndef OPTOUT
           for (unsigned jj=0; jj < n_classes; ++jj)
             {
               int jjlit = lm.get_iaj({i, aidx, jj});
@@ -2490,8 +2537,6 @@ namespace
             }
           // The out-condition is the conjunction of all
           // transitions in the class
-          bdd ocond = bddtrue;
-          bool has_trans = false;
           for (auto x : x_in_class[i])
             {
               //Use the actual a here
@@ -2504,6 +2549,85 @@ namespace
                 }
               assert((ocond != bddfalse) && "Incompatible states in class");
             }
+#else
+          auto count_highs_ = [](unsigned dst, bdd cond)
+            {
+              // NOTE : this only has sense if standard encoding is used
+              unsigned n_highs = 0;
+              // High latches
+              while (dst > 0)
+                {
+                  n_highs += (dst & 1);
+                  dst >>= 1;
+                }
+              // Later on the minter
+              while (cond != bddtrue)
+                {
+                  if (bdd_low(cond) == bddfalse)
+                    {
+                      cond = bdd_high(cond);
+                      ++n_highs;
+                    }
+                  else
+                    cond = bdd_low(cond);
+                }
+              return n_highs;
+            };
+          unsigned min_highs = -1u;
+          for (unsigned jj=0; jj < n_classes; ++jj)
+            {
+              int jjlit = lm.get_iaj({i, aidx, jj});
+              // Actually all successors might be in class jj
+              // but the transition is not required for the sat,
+              // so Ziaj is false even though it could be true
+              auto xpi_in_jj = [&]()
+                {
+                  return std::all_of(x_in_class[i].begin(), x_in_class[i].end(),
+                                     [&lm, &x_a_ocond, &sol, &used_bdds,
+                                      a, jj](unsigned xi)
+                                     {
+                                       auto it = x_a_ocond[xi].find(used_bdds[a].id());
+                                       if (it == x_a_ocond[xi].end())
+                                         return true;
+                                       auto xpjjlit = lm.get_sxi({it->second.second, jj});
+                                       assert(xpjjlit > 0);
+                                       return sol[xpjjlit];
+                                     });
+                };
+              if ((jjlit != 0)
+                  && (sol[jjlit] || xpi_in_jj()))
+                {
+                  // A possible target
+                  bool this_has_trans = false;
+                  bdd jj_ocond = bddtrue;
+                  for (auto x : x_in_class[i])
+                    {
+                      //Use the actual a here
+                      auto it = x_a_ocond[x].find(used_bdds[a].id());
+                      if (it != x_a_ocond[x].end())
+                        {
+                          assert(sol.at(lm.get_sxi({it->second.second, jj})));
+                          this_has_trans = true;
+                          jj_ocond &= it->second.first;
+                        }
+                      assert((jj_ocond != bddfalse) && "Incompatible states in class");
+                    }
+                  // todo: we use the minterm with the least highs to determine
+                  // which edge to take, but keep the actual condition
+                  // if other heuristics might be applied.
+                  unsigned this_highs = count_highs_(jj, bdd_satone(jj_ocond));
+                  if (this_highs < min_highs)
+                    {
+                      if (min_highs != -1u)
+                        std::cerr << "cc " << this_highs << " : " << min_highs << std::endl;
+                      min_highs = this_highs;
+                      has_trans = this_has_trans;
+                      ocond = jj_ocond;
+                      j = jj;
+                    }
+                }
+            }
+#endif
           // There should be no successor if j == -1u
           if (j == -1u)
             {
@@ -2547,6 +2671,63 @@ namespace
     // Debug
     trace << "final env count " << n_classes << std::endl;
 //    minmach->merge_edges();
+
+    if (init_class_v.size() == 1)
+      minmach->set_init_state(init_class_v[0]);
+    else
+      {
+        auto count_reachable_env_ = [&](unsigned si)
+          {
+            // Only keep track of env states
+            static std::vector<bool> seen_(n_classes);
+            std::fill(seen_.begin(), seen_.end(), false);
+            seen_[si] = true;
+
+            static std::stack<unsigned> todo_;
+
+            assert(todo_.empty());
+            todo_.push(si);
+
+            while (!todo_.empty())
+              {
+                unsigned s = todo_.top();
+                todo_.pop();
+                for (const auto& e1 : minmach->out(s))
+                  {
+                    auto e2it = minmach->out(e1.dst);
+                    assert((++e2it.begin()) == e2it.end());
+                    unsigned dst2 = e2it.begin()->dst;
+                    if (!seen_[dst2])
+                      {
+                        seen_[dst2] = true;
+                        todo_.push(dst2);
+                      }
+                  }
+              }
+            return std::count(seen_.begin(), seen_.end(), true);
+          };
+        unsigned min_n_states = -1u;
+        unsigned best_i_state = -1u;
+        for (unsigned is : init_class_v)
+          {
+            unsigned this_reach = count_reachable_env_(is);
+            if (count_reachable_env_(is) < min_n_states)
+              {
+                best_i_state = is;
+                min_n_states = this_reach;
+              }
+          }
+
+        minmach->set_init_state(best_i_state);
+        if (min_n_states < n_classes)
+          {
+            std::cerr<<"### reach went from "<<n_classes<<" to "<<min_n_states
+                     <<"\n";
+            minmach->purge_dead_states();
+            alternate_players(minmach, false, false);
+          }
+      };
+
     return minmach;
   }
 
@@ -2649,6 +2830,7 @@ namespace spot
       // Also the machine is such that
       // [0, n_env[ -> env states
       // [n_env, mmw->num_states()[ -> player states
+#ifdef REDUCEFIRST
       sw.start();
       auto [splitmm, used_bdds, reduction_map, n_env, n_sigma_red]
           = reduce_and_split(mmw, spref);
@@ -2661,6 +2843,11 @@ namespace spot
       sw.start();
       auto incompmat = incomp_mat(splitmm, n_env);
       info_struct.incomp = sw.stop();
+#else
+      auto [incompmat, splitmm, used_bdds, reduction_map, n_env, n_sigma_red]
+        = incomp_n_reduce(mmw, spref);
+
+#endif
 #ifdef TRACE
       incompmat.print();
 #endif
