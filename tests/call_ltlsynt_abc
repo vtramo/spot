@@ -1,0 +1,60 @@
+#!/bin/bash
+
+TSTART=$(date +%s)
+TTOT=$STAREXEC_WALLCLOCK_LIMIT
+
+if [ -z "$TTOT" ]
+then
+      TTOT=999999
+fi
+
+TLSFFILE=$1
+SVFOLDER=$2
+ALLOPTS=$3
+
+SYFCO=./syfco
+LTLSYNT=../source/spot/bin/ltlsynt
+
+OUTS=$($SYFCO -outs $TLSFFILE)
+FORMULA=$($SYFCO -m fully -f ltlxba $TLSFFILE)
+
+BASE=$(basename $TLSFFILE | cut -d "." -f1)
+AAG="${SVFOLDER}/${BASE}.aag"
+AIG="${SVFOLDER}/${BASE}.aig"
+
+$LTLSYNT --formula="$FORMULA" --outs="$OUTS" --aiger=best -x"specification-decomposition=1,minimization-level=2" $ALLOPTS > "$AAG.tmp"
+#$LTLSYNT --formula="$FORMULA" --outs="$OUTS" --aiger=best -x"specification-decomposition=1,minimization-level=2" $ALLOPTS 
+
+status=$?
+
+REA=`head -n 1 "$AAG.tmp"`
+echo $REA
+
+ABCRED=0
+case $REA in
+REALIZABLE)
+        sed 1d "$AAG.tmp" > "$AAG"
+	let "REM=$TTOT - $(date +%s) + $TSTART - 3"
+	if [[ $REM -ge 10 ]]
+	then
+		timeout $REM ./abc_reduction.sh $AAG $AIG
+		if [[ $? -eq 0 ]]
+		then
+			ABCRED=1
+		fi
+	fi
+	if [[ $ABCRED -eq 1 ]]
+	then
+		NINS=$( head -n 1 $AAG | cut -d " " -f3 )
+		NOUTS=$( head -n 1 $AAG | cut -d " " -f5 )
+		NTOT=$(( $NINS + $NOUTS ))
+		tail -n $NTOT "${AAG}.tmp" >> "$AAG"
+	        cat "$AAG"
+	else
+		sed 1d "$AAG.tmp"
+	fi
+        rm -f "$AAG" "$AIG"
+        ;;
+esac
+rm -f "$AAG.tmp"
+exit $status

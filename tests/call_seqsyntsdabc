@@ -1,0 +1,3 @@
+#!/bin/bash
+
+./call_ltlsynt_abc $1 $2 "--algo=sd -x det-simul=1"
