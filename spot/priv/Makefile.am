@@ -32,6 +32,8 @@ libpriv_la_SOURCES = \
   robin_hood.hh \
   satcommon.hh\
   satcommon.cc\
+  synt_utils.hh\
+  synt_utils_struct.hh\
   trim.cc \
   trim.hh \
   weight.cc \

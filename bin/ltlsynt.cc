@@ -397,8 +397,6 @@ namespace
       if (!want_game)
       {
         // FIXME: N'utilise pas encore la minimisation car n'est pas splitté.
-        std::cout << *sub_f << std::endl;
-        std::for_each(sub_o->begin(), sub_o->end(), [&](auto& s){std::cout << s << std::endl;});
         auto [simp_aut, code] = try_create_strategy_from_simple(*sub_f, *sub_o, extra_options, gi);
         if (code == -1)
         {
@@ -541,8 +539,6 @@ namespace
         spot::aig_ptr saig;
         if (opt_print_aiger)
         {
-          if (strategies.size() != 1)
-            std::cerr << "#### nstrats " << strategies.size() << "\n";
           spot::stopwatch sw2;
           if (gi.bv)
             sw2.start();
