@@ -307,10 +307,12 @@ namespace spot
         // get different intermediate states
         std::sort(e_cache.begin(), e_cache.end(), less_info);
 
-        while (all_letters != bddfalse)
+//        while (all_letters != bddfalse)
+//          {
+//            bdd one_letter = bdd_satoneset(all_letters, support, bddtrue);
+//            all_letters -= one_letter;
+        for (auto one_letter : minterms_of(all_letters, input_bdd))
           {
-            bdd one_letter = bdd_satoneset(all_letters, support, bddtrue);
-            all_letters -= one_letter;
 
             dests.clear();
             for (const auto& e_info : e_cache)

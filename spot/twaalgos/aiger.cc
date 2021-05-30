@@ -2266,15 +2266,6 @@ namespace spot
       std::vector<unsigned> out_vec;
       out_vec.reserve(output_names.size());
       std::map<unsigned, bool> out_dc_vec; //Bdd where out can be high
-      {
-        bdd r_outs = all_outputs;
-        while (r_outs != bddtrue)
-          {
-            out_dc_vec[bddvar_to_num.at(bdd_var(r_outs))] = false;
-            r_outs = bdd_high(r_outs);
-          }
-        assert(out_dc_vec.size() == output_names.size());
-      }
 
       std::vector<unsigned> next_state_vec;
       next_state_vec.reserve(n_latches);
@@ -2307,6 +2298,17 @@ namespace spot
           assert(s2 <= 1);
           return b;
         };
+
+        //set the possible co not cares for this strat
+        {
+          out_dc_vec.clear();
+          bdd r_outs = aouts;
+          while (r_outs != bddtrue)
+          {
+            out_dc_vec[bddvar_to_num.at(bdd_var(r_outs))] = false;
+            r_outs = bdd_high(r_outs);
+          }
+        }
 
         for (unsigned s = 0; s < astrat->num_states(); ++s)
         {
