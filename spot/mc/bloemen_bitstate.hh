@@ -32,6 +32,7 @@
 #include <spot/twacube/twacube.hh>
 #include <spot/twacube/fwd.hh>
 #include <spot/mc/mc.hh>
+#include <spot/mc/bloom_filter.hh>
 
 namespace spot
 {
@@ -80,28 +81,24 @@ namespace spot
       }
     };
 
-    struct hs_mtx_wrapper
-    {
-      std::mutex *mtx;
-      concurrent_hash_set_uf<State, StateHash, StateEqual> *hs;
-      //concurrent_bloom_filter *bf;
-    };
-
     ///< \brief Shortcut to ease shared map manipulation
     using shared_map = concurrent_hash_set_uf<State, StateHash, StateEqual>*;
-    using shared_struct = hs_mtx_wrapper;
 
     iterable_uf_bitstate(const iterable_uf_bitstate<State, StateHash, StateEqual>& uf):
       map_(uf.map_), tid_(uf.tid_), size_(std::thread::hardware_concurrency()),
       nb_th_(std::thread::hardware_concurrency()), inserted_(0),
-      p_(sizeof(uf_element))
+      p_(sizeof(uf_element)),
+      filter_size_(uf.filter_size_),
+      bloom_filter_(uf.bloom_filter_)
     {  }
 
 
-    iterable_uf_bitstate(shared_map& map, unsigned tid):
+    iterable_uf_bitstate(shared_map& map, unsigned tid, size_t filter_size):
       map_(map), tid_(tid), size_(std::thread::hardware_concurrency()),
       nb_th_(std::thread::hardware_concurrency()), inserted_(0),
-      p_(sizeof(uf_element))
+      p_(sizeof(uf_element)),
+      filter_size_(filter_size),
+      bloom_filter_(new concurrent_bloom_filter(filter_size))
     {
     }
 
@@ -383,6 +380,8 @@ namespace spot
 
     void remove_from_list(uf_element* a)
     {
+      bloom_filter_->insert(state_hash_(a->st_));
+
       while (true)
         {
           list_status a_status = a->list_status_.load();
@@ -410,6 +409,9 @@ namespace spot
     unsigned nb_th_;      ///< \brief Current number of threads
     unsigned inserted_;   ///< \brief The number of insert succes
     fixed_size_pool<pool_type::Unsafe> p_; ///< \brief The allocator
+    size_t filter_size_;  ///< \brief Bloom filter size
+    concurrent_bloom_filter* bloom_filter_; ///< \brief BF shared by threads
+    StateHash state_hash_;
   };
 
   /// \brief This class implements the SCC decomposition algorithm of bloemen
@@ -430,11 +432,11 @@ namespace spot
     using shared_struct = uf;
     using shared_map = typename uf::shared_map;
 
-    static shared_struct* make_shared_structure(shared_map, unsigned i)
+    static shared_struct* make_shared_structure(shared_map, unsigned i, size_t filter_size)
     {
       auto mtx_ptr = new std::mutex();
       auto hs_ptr = new concurrent_hash_set_uf<State, StateHash, StateEqual>(mtx_ptr);
-      return new uf(hs_ptr, i);
+      return new uf(hs_ptr, i, filter_size);
     }
 
    swarmed_bloemen_bitstate(kripkecube<State, SuccIterator>& sys,
@@ -442,7 +444,8 @@ namespace spot
                             shared_map& map, /* useless here */
                             iterable_uf_bitstate<State, StateHash, StateEqual>* uf,
                             unsigned tid,
-                            std::atomic<bool>& stop):
+                            std::atomic<bool>& stop,
+                            size_t filter_size /* useless here */):
       sys_(sys),  uf_(*uf), tid_(tid),
       nb_th_(std::thread::hardware_concurrency()),
       stop_(stop)
