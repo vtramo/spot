@@ -1248,8 +1248,13 @@ namespace spot
       f_g = f[0];
     }
     else
+    {
       f_equiv = f;
-    if (!f_equiv.is(op::Equiv))
+      f_g = spot::formula::tt();
+    }
+
+    if (!f_equiv.is(op::Equiv) || (!f_g.is_tt() && (!f_g.is(op::G)
+                                                  || !f_g[0].is_boolean())))
       return {nullptr, 0};
     stopwatch sw;
     twa_graph_ptr res;
@@ -1280,11 +1285,13 @@ namespace spot
       return {nullptr, 0};
 
     bool right_bool = right[0][0].is_boolean();
-    bool is_gf_bool_right = right.is({op::G, op::F}) && right_bool;
-    bool is_fg_bool_right = right.is({op::F, op::G}) && right_bool;
+    if (!right_bool)
+      return {nullptr, 0};
+    bool is_gf_bool_right = right.is({op::G, op::F});
+    bool is_fg_bool_right = right.is({op::F, op::G});
 
-    // Now we have to detect if we have persistence(ins/outs) <-> FG(outs)
-    // or Büchi(ins/outs) <-> GF(outs).
+    // Now we have to detect if we have persistence(ins) <-> FG(outs)
+    // or Büchi(ins) <-> GF(outs).
 
     bool is_ok = ((is_gf_bool_right && left.is_syntactic_recurrence())
                 || (is_fg_bool_right && left.is_syntactic_guarantee()));
@@ -1309,7 +1316,8 @@ namespace spot
         bdd output_bdd = bddtrue;
         for (auto &out : output_aps)
           output_bdd &= bdd_ithvar(res->register_ap(out));
-        form_bdd = formula_to_bdd(f_g[0], res->get_dict(), res);
+        form_bdd = f_g.is_tt() ? (bdd) bddtrue :
+                                  formula_to_bdd(f_g[0], res->get_dict(), res);
         if (bdd_exist(form_bdd, output_bdd) != bddtrue)
           return {nullptr, 0};
       }
