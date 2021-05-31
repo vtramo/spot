@@ -331,7 +331,35 @@ namespace spot
                                       || (a.dst == a.src && b.dst == b.src))
                                      && a.data() == b.data()); }))
             {
-              remap[i] = j;
+              remap[i] = (remap[j] != -1U) ? remap[j] : j;
+
+              // Because of the special self-loop tests we use above,
+              // it's possible that i can be mapped to remap[j] even
+              // if j was last compatible states found.  Consider the
+              // following cases, taken from an actual test case:
+              // 18 is equal to 5, 35 is equal to 18, but 35 is not
+              // equal to 5.
+              //
+              // State: 5
+              // [0&1&2] 8 {3}
+              // [!0&1&2] 10 {1}
+              // [!0&!1&!2] 18 {1}
+              // [!0&!1&2] 19 {1}
+              // [!0&1&!2] 20 {1}
+              //
+              // State: 18
+              // [0&1&2] 8 {3}
+              // [!0&1&2] 10 {1}
+              // [!0&!1&!2] 18 {1} // self-loop
+              // [!0&!1&2] 19 {1}
+              // [!0&1&!2] 20 {1}
+              //
+              // State: 35
+              // [0&1&2] 8 {3}
+              // [!0&1&2] 10 {1}
+              // [!0&!1&!2] 35 {1} // self-loop
+              // [!0&!1&2] 19 {1}
+              // [!0&1&!2] 20 {1}
               break;
             }
           }
