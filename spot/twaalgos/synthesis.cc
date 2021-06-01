@@ -140,7 +140,8 @@ namespace{
   }less_info_ptr;
 
   static twa_graph_ptr
-  ntgba2dpa(const twa_graph_ptr &split, bool force_sbacc)
+  ntgba2dpa(const twa_graph_ptr &split, bool force_sbacc,
+            const bdd& outs)
   {
     // if the input automaton is deterministic, degeneralize it to be sure to
     // end up with a parity automaton
@@ -152,6 +153,7 @@ namespace{
     reduce_parity_here(dpa, true);
     change_parity_here(dpa, parity_kind_max,
                              parity_style_odd);
+    dpa->set_named_prop<bdd>("synthesis-outputs", new bdd(outs));
     assert((
                [&dpa]() -> bool {
                  bool max, odd;
@@ -1087,7 +1089,7 @@ namespace spot
       {
         if (bv)
           sw.start();
-        auto tmp = ntgba2dpa(aut, gi.force_sbacc);
+        auto tmp = ntgba2dpa(aut, gi.force_sbacc, outs);
         if (vs)
           *vs << "determinization done\nDPA has "
               << tmp->num_states() << " states, "
@@ -1148,7 +1150,7 @@ namespace spot
               << split->num_states() << " states\n";
         if (bv)
           sw.start();
-        dpa = ntgba2dpa(split, gi.force_sbacc);
+        dpa = ntgba2dpa(split, gi.force_sbacc, outs);
         if (vs)
           *vs << "determinization done\nDPA has "
               << dpa->num_states() << " states, "

@@ -38,9 +38,7 @@ namespace spot
   /// This propagate state players, assuming the initial state belong
   /// to \a first_player, and alternating players on each transitions.
   /// If an odd cycle is detected, a runtime_exception is raised.
-  /// \param clean_up : If true, the function will try to fix self-loops
-  ///                   (split them) and redirect edges to the other
-  ///                   state of a sink to prevent odd-cycles
+  /// \param ignore_odd : ignore uncorrectly splitted edge error
   ///
   ///
   /// If \a complete0 is set, ensure that states of player 0 are
@@ -49,7 +47,7 @@ namespace spot
   void alternate_players(spot::twa_graph_ptr& arena,
                          bool first_player = false,
                          bool complete0 = true,
-                         bool clean_up = false);
+                         bool ignore_odd = false);
 
 
   // false -> env, true -> player

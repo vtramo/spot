@@ -331,7 +331,7 @@ namespace spot
                                       || (a.dst == a.src && b.dst == b.src))
                                      && a.data() == b.data()); }))
             {
-              remap[i] = j;
+              remap[i] = (remap[j] != -1U) ? remap[j] : j; //Apply fdd3a19d
               break;
             }
           }

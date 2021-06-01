@@ -33,6 +33,7 @@
 #include <spot/twa/twagraph.hh>
 #include <spot/misc/minato.hh>
 #include <spot/priv/synt_utils.hh>
+#include <bddx.h>
 
 namespace
 {
@@ -1753,6 +1754,8 @@ namespace spot
     // reasonable time have proven to be not as good
     // Stores the outcondition to use in the used_outc vector
     // for each transition in aut
+#define NEWHEU
+#ifndef NEWHEU
     std::vector<std::vector<bdd>>
     maxlow_outc(const std::vector<std::pair<const_twa_graph_ptr, bdd>>&
                     strat_vec,
@@ -1779,7 +1782,100 @@ namespace spot
       //Done
       return used_outc;
     }
+#else
+    static std::vector<int> this_var;
+    static std::vector<bdd> this_bdd;
+    static std::vector<int8_t> best_ass;
+    static unsigned min_highs;
+    static unsigned min_dcs;
 
+    static void get_variables_(bdd ocond)
+    {
+      this_var.clear();
+      this_bdd.clear();
+      while(ocond != bddtrue)
+        {
+          this_var.push_back(bdd_var(ocond));
+          this_bdd.push_back(bdd_ithvar(this_var.back()));
+          ocond = bdd_high(ocond);
+        }
+      best_ass.resize(this_var.size());
+      min_highs = -1u;
+      min_dcs = -1u;
+    }
+
+    static void handler_(char* varset, int size)
+    {
+      // Count
+      unsigned this_highs = 0;
+      unsigned this_dcs = 0;
+      for (auto id : this_var)
+      {
+        assert(id < size);
+        this_highs += (varset[id] == 1);
+        this_dcs += (varset[id] == -1);
+      }
+      if ((this_highs < min_highs)
+          || (this_highs == min_highs && this_dcs < min_dcs))
+      {
+        min_highs = this_highs;
+        min_dcs = this_dcs;
+        unsigned sv = this_var.size();
+        for (unsigned i = 0; i < sv; ++i)
+          best_ass[i] = varset[this_var[i]];
+      }
+    }
+
+
+
+    static std::vector<std::vector<bdd>>
+    maxlow_outc(const std::vector<std::pair<const_twa_graph_ptr, bdd>>&
+                    strat_vec,
+                const bdd& all_inputs)
+    {
+      std::vector<std::vector<bdd>> used_outc;
+
+      auto get_bdd = [&]()->bdd
+      {
+        bdd ret = bddtrue;
+        unsigned sv = this_var.size();
+        for (unsigned i = 0; i < sv; ++i)
+        {
+          if (best_ass[i] == 1)
+            ret &= this_bdd[i];
+          else if (best_ass[i] == 0)
+            ret &= bdd_not(this_bdd[i]);
+        }
+        return ret;
+      };
+
+      for (auto&& astrat : strat_vec)
+        {
+          used_outc.emplace_back(astrat.first->num_edges()+1);
+          auto& this_outc = used_outc.back();
+
+          get_variables_(astrat.second);
+
+          for (auto&& e: astrat.first->edges())
+            {
+              assert(e.cond != bddfalse);
+              bdd bout = bdd_exist(e.cond, all_inputs);
+              assert(((bout & bdd_existcomp(e.cond, all_inputs)) == e.cond) &&
+                     "Precondition (in) & (out) == cond violated");
+              // Get the minterm with least highs
+              //Those that are undefined we be set to low
+//              this_outc[astrat.first->edge_number(e)] = bdd_satone(bout);
+              min_highs = -1u;
+              min_dcs = -1u;
+              bdd_allsat(bout, handler_);
+              this_outc[astrat.first->edge_number(e)] = get_bdd();
+              assert(this_outc[astrat.first->edge_number(e)] != bddfalse);
+            }
+        }
+      //Done
+      return used_outc;
+    }
+#endif
 
     // Heuristic
 //    std::vector<std::vector<bdd>>
