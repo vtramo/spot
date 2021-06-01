@@ -403,7 +403,11 @@ namespace
           std::cout << "UNREALIZABLE" << std::endl;
           // FIXME: C'est quoi la valeur de retour ?
           if (opt_real)
-            return 1;
+            {
+              safe_tot_time();
+              return 1;
+            }
+
         }
         else if (simp_aut != nullptr)
         {
