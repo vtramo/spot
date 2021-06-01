@@ -1,0 +1,3 @@
+#!/bin/bash
+
+./call_ltlsynt_real $1 $2 " --algo=lar " "specification-decomposition=1,simul=0,dpa-simul=1"

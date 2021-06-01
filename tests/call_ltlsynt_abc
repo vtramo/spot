@@ -11,9 +11,10 @@ fi
 TLSFFILE=$1
 SVFOLDER=$2
 ALLOPTS=$3
+ALLXOPTS=$4
 
 SYFCO=./syfco
-LTLSYNT=../source/spot/bin/ltlsynt
+LTLSYNT=../source/spot-2.9.7.dev/bin/ltlsynt
 
 OUTS=$($SYFCO -outs $TLSFFILE)
 FORMULA=$($SYFCO -m fully -f ltlxba $TLSFFILE)
@@ -22,8 +23,7 @@ BASE=$(basename $TLSFFILE | cut -d "." -f1)
 AAG="${SVFOLDER}/${BASE}.aag"
 AIG="${SVFOLDER}/${BASE}.aig"
 
-$LTLSYNT --formula="$FORMULA" --outs="$OUTS" --aiger=best -x"specification-decomposition=1,minimization-level=2" $ALLOPTS > "$AAG.tmp"
-#$LTLSYNT --formula="$FORMULA" --outs="$OUTS" --aiger=best -x"specification-decomposition=1,minimization-level=2" $ALLOPTS 
+$LTLSYNT --formula="$FORMULA" --outs="$OUTS" $ALLOPTS -x"$ALLXOPTS" > "$AAG.tmp"
 
 status=$?
 

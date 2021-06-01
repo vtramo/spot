@@ -1,0 +1,3 @@
+#!/bin/bash
+
+./call_ltlsynt_abc $1 $2 " --algo=ds --aiger=best " "specification-decomposition=1,minimization-level=2,simul=0,dpa-simul=1"
