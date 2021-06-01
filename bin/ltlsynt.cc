@@ -694,8 +694,8 @@ int
 main(int argc, char **argv)
 {
   return protected_main(argv, [&] {
-      extra_options.set("simul", 0);     // no simulation, except...
-      extra_options.set("dpa-simul", 1); // ... after determinization
+      //extra_options.set("simul", 0);     // no simulation, except...
+      //extra_options.set("dpa-simul", 1); // ... after determinization
       extra_options.set("tls-impl", 1);  // no automata-based implication check
       extra_options.set("wdba-minimize", 2); // minimize only syntactic oblig
       const argp ap = { options, parse_opt, nullptr,

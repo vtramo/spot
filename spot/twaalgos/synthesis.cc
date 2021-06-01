@@ -233,7 +233,7 @@ namespace spot
 
     // a sort of hash-map for all new intermediate states
     std::unordered_multimap<size_t, unsigned> env_hash;
-    env_hash.reserve((int) 1.5 * aut->num_states());
+    env_hash.reserve((int) (1.5 * aut->num_states()));
     // a local map for edges leaving the current src
     // this avoids creating and then combining edges for each minterm
     // Note there are usually "few" edges leaving a state
@@ -481,7 +481,7 @@ namespace spot
     bdd *obddptr = strat->get_named_prop<bdd>("synthesis-outputs");
     assert(obddptr);
     bdd obdd = *obddptr;
-    if (simplification_level < 3)
+    if (0 < simplification_level && simplification_level < 3)
       strat->set_named_prop("synthesis-outputs", nullptr);
     switch (simplification_level)
     {
