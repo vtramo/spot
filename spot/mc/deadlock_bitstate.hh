@@ -104,10 +104,10 @@ namespace spot
     using shared_struct = hs_mtx_wrapper;
 
     static shared_struct* make_shared_structure(shared_map, unsigned,
-                      size_t filter_size)
+                      size_t hs_size, size_t filter_size)
     {
       auto mtx_ptr = new std::mutex();
-      auto hs_ptr = new concurrent_hash_set<State, StateHash, StateEqual>(mtx_ptr);
+      auto hs_ptr = new concurrent_hash_set<State, StateHash, StateEqual>(mtx_ptr, hs_size);
       auto bf_ptr = new concurrent_bloom_filter(filter_size);
       return new hs_mtx_wrapper{ mtx_ptr, hs_ptr, bf_ptr };
     }
@@ -117,6 +117,7 @@ namespace spot
                       shared_map& map, shared_struct* ss,
                       unsigned tid,
                       std::atomic<bool>& stop,
+                      size_t hs_size, /* useless here */
                       size_t filter_size):
       sys_(sys), tid_(tid), map_(ss->hs),
       bloom_filter_(ss->bf), mtx_(ss->mtx),
@@ -327,8 +328,8 @@ namespace spot
     std::string name()
     {
       if (compute_deadlock)
-        return "deadlock";
-      return "reachability";
+        return "deadlock_bitstate";
+      return "reachability_bitstate";
     }
 
     int sccs()
@@ -394,9 +395,6 @@ namespace spot
     {
       hs_ = new std::atomic<T*>[hs_size]{nullptr};
     }
-
-    concurrent_hash_set(std::mutex *mtx)
-      : concurrent_hash_set(mtx, 5000000) {}
 
     ~concurrent_hash_set()
     {

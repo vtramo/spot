@@ -44,7 +44,7 @@ template<typename kripke_ptr, typename State,
 ec_stats run_deadlock_bitstate(kripke_ptr sys, size_t size)
 {
   return instanciate<swarmed_deadlock_bitstate<State, Iterator, Hash, Equal, std::true_type>,
-        kripke_ptr, State, Iterator, Hash, Equal> (sys, nullptr, false, size);
+        kripke_ptr, State, Iterator, Hash, Equal> (sys, nullptr, false, 1'000'000, size);
 }
 
 template<typename kripke_ptr, typename State,
