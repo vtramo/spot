@@ -405,14 +405,16 @@ namespace spot
 
     std::optional<std::size_t> search(T element) const
     {
-      if (SPOT_UNLIKELY(nb_elements_ == hs_size_))
-        return std::nullopt;
-
       // Linear probing
       std::size_t idx = element.hash() % hs_size_;
-      // TODO: check number of loop iterations
+      std::size_t nb_loop = 0;
       while (hs_[idx] != nullptr && !(element.equal(*hs_[idx])))
+      {
+        if (nb_loop == hs_size_)
+          return std::nullopt;
         idx = (idx + 1) % hs_size_;
+        nb_loop++;
+      }
       return std::optional<std::size_t>(idx);
     }
 
