@@ -29,6 +29,8 @@
 #include <map>
 #include <iostream>
 
+#include <spot/misc/timer.hh>
+
 namespace spot
 {
   template <typename State_Data, typename Edge_Data>
@@ -1212,6 +1214,87 @@ namespace spot
       edges_.erase(i, edges_.end());
       killed_edge_ = 0;
     }
+
+    /// \brief Sort edges of the given states
+    ///
+    /// \tparam Predicate : Comparison type
+    /// \param p : Comparison callable
+    /// \param to_sort_ptr : which states to sort. If null, all will be sorted
+    /// todo: If pred does not involve bdd action other than id -> parallelize
+    template<bool Stable = false, class Predicate = std::less<edge_storage_t>>
+    void sort_edges_of_(Predicate p = Predicate(),
+                        const std::vector<bool>* to_sort_ptr = nullptr)
+    {
+      assert((to_sort_ptr == nullptr) || (to_sort_ptr->size() == num_states()));
+      //std::cerr << "\nbefore\n";
+      //dump_storage(std::cerr);
+      auto pi = [&](unsigned t1, unsigned t2)
+          {return p(edges_[t1], edges_[t2]);};
+      std::vector<unsigned> sort_idx_;
+      for (unsigned i = 0; i < num_states(); ++i)
+        {
+          if (to_sort_ptr && !(*to_sort_ptr)[i])
+            continue;
+
+          sort_idx_.clear();
+          unsigned t = states_[i].succ;
+          do
+            {
+               sort_idx_.push_back(t);
+               t = edges_[t].next_succ;
+            } while(t != 0);
+          if constexpr (Stable)
+            std::stable_sort(sort_idx_.begin(), sort_idx_.end(), pi);
+          else
+            std::sort(sort_idx_.begin(), sort_idx_.end(), pi);
+          // Update the graph
+          states_[i].succ = sort_idx_.front();
+          states_[i].succ_tail = sort_idx_.back();
+          const unsigned n_outs_n1 = sort_idx_.size() - 1;
+          for (unsigned k = 0; k < n_outs_n1; ++k)
+            edges_[sort_idx_[k]].next_succ = sort_idx_[k+1];
+          edges_[sort_idx_.back()].next_succ = 0; // terminal
+        }
+      // Done
+    }
+
+//    template<class Predicate = std::less<edge_storage_t>>
+//    void sort_edges_of_(Predicate p = Predicate(),
+//                        const std::vector<bool>* to_sort_ptr = nullptr)
+//    {
+//      assert((to_sort_ptr == nullptr) || (to_sort_ptr->size() == num_states()));
+//      //std::cerr << "\nbefore\n";
+//      //dump_storage(std::cerr);
+////      auto pi = [&](unsigned t1, unsigned t2)
+////      {return p(edges_[t1], edges_[t2]);};
+//      edge_vector_t sort_e_;
+//      for (unsigned i = 0; i < num_states(); ++i)
+//      {
+//        if (to_sort_ptr && !(*to_sort_ptr)[i])
+//          continue;
+//
+//        sort_e_.clear();
+//        unsigned t = states_[i].succ;
+//        do
+//        {
+//          sort_e_.emplace_back(edges_[t]);
+//          t = edges_[t].next_succ;
+//        } while(t != 0);
+//        std::sort(sort_e_.begin(), sort_e_.end(), p);
+//        // Update the graph
+//        unsigned next = states_[i].succ;
+//        auto eit = sort_e_.begin();
+//        do
+//        {
+//          unsigned next_after = edges_[next].next_succ;
+//          edges_[next] = *eit++;
+//          edges_[next].next_succ = next_after;
+//          next = next_after;
+//        }while(next != 0);
+//      }
+//      // Done
+//    }
+
 
     /// \brief Sort all edges according to a predicate
     ///

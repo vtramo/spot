@@ -25,6 +25,7 @@
 #include <spot/twa/bdddict.hh>
 #include <spot/twa/twa.hh>
 #include <spot/tl/formula.hh>
+#include <spot/misc/bddlt.hh>
 #include <sstream>
 
 namespace spot
@@ -122,6 +123,11 @@ namespace spot
     {
       return cond.id() == other.cond.id() &&
         acc == other.acc;
+    }
+
+    size_t hash() const noexcept
+    {
+        return bdd_hash()(cond) ^ acc.hash();
     }
   };
 
@@ -580,7 +586,7 @@ namespace spot
     /// The implementation will sort the edges of the automaton to
     /// ease the comparison between two states.  This may miss some
     /// self-loop based in non-deterministic automata.
-    void merge_states();
+    void merge_states(bool stable = false);
 
     /// \brief Remove all dead states
     ///
