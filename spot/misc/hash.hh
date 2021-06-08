@@ -74,11 +74,10 @@ namespace spot
     }
   };
 
-
   struct pair_hash
   {
     template<typename T, typename U>
-    std::size_t operator()(const std::pair<T, U> &p) const noexcept
+    inline std::size_t operator()(const std::pair<T, U> &p) const noexcept
     {
       std::hash<T> th;
       std::hash<U> uh;
@@ -87,6 +86,18 @@ namespace spot
                          static_cast<size_t>(uh(p.second)));
     }
   };
+
+  template<>
+  std::size_t
+  inline pair_hash::operator()(const std::pair<unsigned, unsigned> &p) const
+                                                                       noexcept
+  {
+    constexpr unsigned shift = (sizeof(std::size_t) / 2) * 8;
+    std::size_t h = (size_t) p.first;
+    h <<= shift;
+    h += p.second;
+    return h;
+  }
 
   // From primes.utm.edu shuffled. This primes are used when we simulate
   // transition shuffling using "primitive root modulo n" technique.

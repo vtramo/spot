@@ -35,6 +35,7 @@
 
  // git grep 'typedef.*std::shared_ptr' | grep -v const |
  //   sed 's/.*<\(.*\)>.*/%shared_ptr(spot::\1)/g'
+%shared_ptr(spot::aig)
 %shared_ptr(spot::dstar_aut)
 %shared_ptr(spot::parsed_aut)
 %shared_ptr(spot::fair_kripke)
@@ -109,6 +110,7 @@
 #include <spot/twa/taatgba.hh>
 #include <spot/twa/twaproduct.hh>
 
+#include <spot/twaalgos/aiger.hh>
 #include <spot/twaalgos/alternation.hh>
 #include <spot/twaalgos/cleanacc.hh>
 #include <spot/twaalgos/degen.hh>
@@ -615,6 +617,7 @@ def state_is_accepting(self, src) -> "bool":
 
 // Should come after the definition of twa_graph
 
+%include <spot/twaalgos/aiger.hh>
 %include <spot/twaalgos/alternation.hh>
 %include <spot/twaalgos/cleanacc.hh>
 %include <spot/twaalgos/degen.hh>
