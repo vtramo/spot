@@ -454,7 +454,7 @@ namespace spot
 
     std::vector<unsigned> sccof_;
     std::vector<scc_node> node_;
-    const_twa_graph_ptr aut_;
+    const const_twa_graph_ptr aut_;
     unsigned initial_state_;
     edge_filter filter_;
     void* filter_data_;
@@ -782,7 +782,7 @@ namespace spot
     const scc_info* lower_si_;
     unsigned lower_scc_;
     acc_cond::mark_t cut_sets_;
-    const_twa_graph_ptr aut_;
+    const const_twa_graph_ptr aut_;
     acc_cond old_acc_;
     bool restore_old_acc_ = false;
 

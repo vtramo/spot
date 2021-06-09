@@ -80,6 +80,8 @@ namespace spot
                filt.get_filter(),
                const_cast<scc_and_mark_filter*>(&filt), options)
   {
+    if (!aut_)
+      throw std::runtime_error("Recieved empty twa_graph_ptr");
   }
 
   scc_info::scc_info(const_twa_graph_ptr aut,
@@ -91,6 +93,9 @@ namespace spot
       filter_(filter), filter_data_(filter_data),
       options_(options)
   {
+    if (!aut_)
+      throw std::runtime_error("Recieved empty twa_graph_ptr");
+
     unsigned n = aut->num_states();
 
     if (initial_state != -1U && n <= initial_state)
