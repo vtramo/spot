@@ -158,7 +158,7 @@ namespace spot
               if (SPOT_LIKELY(pop()))
                 {
                   deadlock_ = todo_.back().current_tr == transitions_;
-                  if (deadlock_)
+                  if (compute_deadlock && deadlock_)
                     break;
                   sys_.recycle_iterator(todo_.back().it, tid_);
                   todo_.pop_back();
