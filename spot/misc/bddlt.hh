@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2011, 2014, 2017 Laboratoire de Recherche et
+// Copyright (C) 2011, 2014, 2017, 2021 Laboratoire de Recherche et
 // Developpement de l'Epita (LRDE).
 // Copyright (C) 2003, 2004  Laboratoire d'Informatique de Paris 6 (LIP6),
 // département Systèmes Répartis Coopératifs (SRC), Université Pierre
@@ -56,27 +56,7 @@ namespace spot
     bool
     operator()(const bdd& left, const bdd& right) const
     {
-      int li = left.id();
-      int ri = right.id();
-      if (li == ri)
-        return false;
-      if (li <= 1 || ri <= 1)
-        return li < ri;
-      {
-        int vl = bdd_var(left);
-        int vr = bdd_var(right);
-        if (vl != vr)
-          return vl < vr;
-      }
-      // We check the high side before low, this way
-      //  !a&b comes before a&!b and a&b
-      {
-        bdd hl = bdd_high(left);
-        bdd hr = bdd_high(right);
-        if (hl != hr)
-          return operator()(hl, hr);
-        return operator()(bdd_low(left), bdd_low(right));
-      }
+      return bdd_stable_cmp(left, right) < 0;
     }
   };
 
