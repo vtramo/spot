@@ -1,5 +1,5 @@
 /*========================================================================
-	       Copyright (C) 1996-2002 by Jorn Lind-Nielsen
+	       Copyright (C) 1996-2002, 2021 by Jorn Lind-Nielsen
 			    All rights reserved
 
     Permission is hereby granted, without written agreement and without
@@ -1018,6 +1018,32 @@ BDD bdd_high(BDD root)
 }
 
 
+int bdd_stable_cmp(BDD left, BDD right)
+{
+  for (;;)
+    {
+      if (left == right || ISCONST(left) || ISCONST(right))
+        return left - right;
+      int vl = bddlevel2var[LEVEL(left)];
+      int vr = bddlevel2var[LEVEL(right)];
+      if (vl != vr)
+        return vr - vl;
+      // We check the high side before low, this way
+      //  !a&b comes before a&!b and a&b
+      BDD dl = HIGH(left);
+      BDD dr = HIGH(right);
+      if (dl != dr)
+        {
+          left = dl;
+          right = dr;
+        }
+      else
+        {
+          left = LOW(left);
+          right = LOW(right);
+        }
+    }
+}
 
 /*************************************************************************
   Garbage collection and node referencing

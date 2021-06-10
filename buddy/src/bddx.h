@@ -1,5 +1,5 @@
 /*========================================================================
-	       Copyright (C) 1996-2003 by Jorn Lind-Nielsen
+	       Copyright (C) 1996-2003, 2021 by Jorn Lind-Nielsen
 			    All rights reserved
 
     Permission is hereby granted, without written agreement and without
@@ -335,6 +335,7 @@ BUDDY_API int      bdd_setbddpair(bddPair*, int, BDD);
 BUDDY_API int      bdd_setbddpairs(bddPair*, int*, BDD*, int);
 BUDDY_API void     bdd_resetpair(bddPair *);
 BUDDY_API void     bdd_freepair(bddPair*);
+BUDDY_API int      bdd_stable_cmp(BDD, BDD);
 
   /* In bddop.c */
 
@@ -593,6 +594,7 @@ protected:
    friend bdd      bdd_makesetpp(int *, int);
    friend int      bdd_setbddpair(bddPair*, int, const bdd &);
    friend int      bdd_setbddpairs(bddPair*, int*, const bdd *, int);
+   friend int      bdd_stable_cmp(const bdd&, const bdd&);
    friend bdd      bdd_from_int(int i);
    friend bdd      bdd_buildcube(int, int, const bdd *);
    friend bdd      bdd_ibuildcubepp(int, int, int *);
@@ -741,6 +743,9 @@ inline bdd bdd_makesetpp(int *v, int n)
 
 inline int bdd_setbddpair(bddPair *p, int ov, const bdd &nv)
 { return bdd_setbddpair(p,ov,nv.root); }
+
+inline int bdd_stable_cmp(const bdd&l, const bdd& r)
+{ return bdd_stable_cmp(l.root, r.root); }
 
 inline bdd bdd_from_int(int i)
 { return i; }
