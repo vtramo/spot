@@ -1,6 +1,6 @@
 #! /bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2009-2020 Laboratoire de Recherche et Développement de
+# Copyright (C) 2009-2021 Laboratoire de Recherche et Développement de
 # l'Epita (LRDE).
 # Copyright (C) 2004, 2005 Laboratoire d'Informatique de Paris 6
 # (LIP6), département Systèmes Répartis Coopératifs (SRC), Université
@@ -207,7 +207,7 @@ for dir in "$TOP/spot" "$TOP/bin" "$TOP/tests"; do
 	diag 'No space after unary operators (!).'
 
       $GREP ",[^ \"	%'\\\\]" $tmp &&
-	diag 'Space after coma.'
+	diag 'Space after comma.'
 
       # The 'r' allows operator&&
       # The '.' allows &&...

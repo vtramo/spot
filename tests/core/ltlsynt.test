@@ -219,7 +219,7 @@ for r in '' '--real'; do
     ltlsynt --algo=lar $opts 'FGc <-> GF(!b&XXb)' --csv='>>FILE' || :
     ltlsynt --algo=lar.old $opts 'FGa <-> GF(c&a)' --csv='>>FILE' || :
     test 6 = `wc -l < FILE`
-    # Make sure all lines in FILE have the same number of comas
+    # Make sure all lines in FILE have the same number of commas
     sed 's/[^,]//g' < FILE |
         ( read first
           while read l; do
