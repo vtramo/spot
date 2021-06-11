@@ -1,6 +1,6 @@
 #!/bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2015, 2016 Laboratoire de Recherche et
+# Copyright (C) 2015, 2016, 2021 Laboratoire de Recherche et
 # Développement de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -53,7 +53,7 @@ ltldo ltl3dra -f '"a=0" & p0' | grep 'AP: 2.*p0'
 #          --ignore-execution-failures --ambiguous \
 #          --strength --csv=output.csv
 #
-# # Make sure all lines in output.csv have the same number of comas
+# # Make sure all lines in output.csv have the same number of commas
 # sed 's/[^,]//g' <output.csv |
 # ( read first
 # while read l; do

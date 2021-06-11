@@ -1,6 +1,6 @@
 #!/bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2017 Laboratoire de Recherche et Développement de
+# Copyright (C) 2017, 2021 Laboratoire de Recherche et Développement de
 # l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -24,7 +24,7 @@ set -e
 
 check_csv()
 {
-  # Make sure all lines in $1 have the same number of comas
+  # Make sure all lines in $1 have the same number of commas
   sed 's/[^,]//g' < "$1" |
   ( read first
   while read l; do
