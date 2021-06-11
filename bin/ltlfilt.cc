@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2012-2020 Laboratoire de Recherche et Développement
+// Copyright (C) 2012-2021 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -252,7 +252,7 @@ static const argp_option options[] =
       "wall-clock time elapsed in seconds (excluding parsing)", 0 },
     { "%R, %[LETTERS]R", 0, nullptr,
       OPTION_DOC | OPTION_NO_USAGE,
-      "CPU time (excluding parsing), in seconds; Add LETTERS to restrict to"
+      "CPU time (excluding parsing), in seconds; Add LETTERS to restrict to "
       "(u) user time, (s) system time, (p) parent process, "
       "or (c) children processes.", 0 },
     { "%<", 0, nullptr, OPTION_DOC | OPTION_NO_USAGE,
