@@ -80,32 +80,29 @@ static void run_one_deadlock_bench(deadlock_model model, deadlock_type type)
   if (type == deadlock_type::REF)
   {
     stats = instanciate<
-      spot::swarmed_deadlock<State, Iterator, Hash, Equal, std::true_type>,
+      spot::swarmed_deadlock<State, Iterator, Hash, Equal, std::false_type>,
       Kripke_ptr, State, Iterator, Hash, Equal> (sys);
   }
   else if (type == deadlock_type::CUSTOM_BF_DISABLE)
   {
     stats = instanciate<spot::swarmed_deadlock_bitstate<State, Iterator, Hash,
-                                                        Equal, std::true_type>,
+                                                        Equal, std::false_type>,
                         Kripke_ptr, State, Iterator, Hash, Equal>(
       sys, nullptr, false, model.hm_size + (model.filter_size / 32), 0);
   }
   else if (type == deadlock_type::CUSTOM_BF_ENABLE)
   {
     stats = instanciate<spot::swarmed_deadlock_bitstate<State, Iterator, Hash,
-                                                        Equal, std::true_type>,
+                                                        Equal, std::false_type>,
                         Kripke_ptr, State, Iterator, Hash, Equal>(
       sys, nullptr, false, model.hm_size, model.filter_size);
   }
 
   // Print stats
-  bool has_deadlock = std::find(stats.value.begin(), stats.value.end(),
-                                spot::mc_rvalue::DEADLOCK) != stats.value.end();
   std::cout << model.path.substr(model.path.rfind("/") + 1, model.path.size())
   // XXX: for deadlock use map_.stats().used
   // XXX: for deadlock_bitstate use an atomic integer to count map insert
             << "," << stats.states[0]
-            << "," << (has_deadlock ? "deadlock" : "no deadlock")
             << "\n";
 }
 
