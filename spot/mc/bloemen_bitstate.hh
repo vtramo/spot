@@ -121,6 +121,9 @@ namespace spot
       auto r = map_->find(v);
       if (!r.first && r.second)
       {
+        // XXX(thibault): casse le compteur de SCC
+        if (filter_size_ != 0 && bloom_filter_->contains(state_hash_(v->st_)))
+          return {claim_status::CLAIM_FOUND, nullptr};
         r = map_->insert(v);
       }
       auto it = r.first;
@@ -136,7 +139,7 @@ namespace spot
       uf_element* a_root = find(it);
       if (a_root->uf_status_.load() == uf_status::DEAD)
         return {claim_status::CLAIM_DEAD, it};
-      // TODO: est-ce qu'on peut faire ce même test pour le cas de DONE ?
+      // XXX(thibault): est-ce qu'en parallèle on doit faire ce même test pour le cas de DONE ?
 
       if ((a_root->worker_.load() & w_id) != 0)
         return {claim_status::CLAIM_FOUND, it};
@@ -393,6 +396,9 @@ namespace spot
               std::atomic_compare_exchange_strong
                 (&(a->list_status_), &a_status, list_status::DONE);
         }
+
+      // XXX(thibault): casse le compteur de SCC
+      map_->erase(a);
     }
 
     unsigned inserted()
@@ -494,14 +500,16 @@ namespace spot
                     }
                   else if (w.first == uf::claim_status::CLAIM_FOUND)
                     {
-                      // XXX: élément DONE rentre dans ce else
-                      // 2 cas : marquer w comme DONE ou non ? (appel à remove_from_list)
-                      while (!uf_.sameset(todo_.back(), w.second))
-                        {
-                          uf_element* r = Rp_.back();
-                          Rp_.pop_back();
-                          uf_.unite(r, Rp_.back());
-                        }
+                      // XXX(thibault): test/fix using multiple threads
+                      if (w.second)
+                      {
+                        while (!uf_.sameset(todo_.back(), w.second))
+                          {
+                            uf_element* r = Rp_.back();
+                            Rp_.pop_back();
+                            uf_.unite(r, Rp_.back());
+                          }
+                      }
                     }
                 }
               uf_.remove_from_list(v_prime);
