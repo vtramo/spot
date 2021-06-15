@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2015, 2016, 2018, 2020 Laboratoire de Recherche et
-// Developpement de l'Epita (LRDE).
+// Copyright (C) 2015-2016, 2018, 2020-2021 Laboratoire de Recherche
+// et Developpement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
 //
@@ -193,10 +193,9 @@ namespace spot
     std::vector<std::string> aps_twacube = twacube->ap();
 
     // Comparator to compare two strings in case insensitive manner
-    std::function< bool (const std::string&, const std::string&) >
-      comparator = [](const std::string& lhs, const std::string& rhs){
-                     return lhs.compare(rhs) == 0;
-                   };
+    auto comparator = [](const std::string& lhs, const std::string& rhs) {
+      return lhs.compare(rhs) == 0;
+    };
 
     // Error. Not working on the same set of aps.
     if (aps_twa->size() != aps_twacube.size() ||
