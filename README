@@ -173,9 +173,9 @@ flags specific to Spot:
      client code should be compiled with -D_GLIBCXX_DEBUG as well.  This
      options should normally only be useful to run Spot's test-suite.
 
-   --enable-c++17
-     Build everything in C++17 mode.  We use that in our build farm to
-     ensure that Spot can be used in C++17 projects as well.
+   --enable-c++20
+     Build everything in C++20 mode.  We use that in our build farm to
+     ensure that Spot can be used in C++20 projects as well.
 
 Here are the meaning of the fine-tuning options, in case
 --enable/disable-devel is not enough.
