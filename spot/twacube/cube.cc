@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2015, 2016, 2018, 2020 Laboratoire de Recherche et
+// Copyright (C) 2015, 2016, 2018, 2020, 2021 Laboratoire de Recherche et
 // Developpement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -21,7 +21,7 @@
 #include <sstream>
 #include <iostream>
 #include <spot/twacube/cube.hh>
-#include <assert.h>
+#include <cassert>
 
 namespace spot
 {

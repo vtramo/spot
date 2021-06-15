@@ -327,6 +327,8 @@ for dir in "$TOP/spot" "$TOP/bin" "$TOP/tests"; do
                   $GREP '#.*include.*[<"]config.h[">]' $tmp &&
                       diag 'Do not include config.h in header files.'
           esac
+	  $GREP '[<"]assert.h[">]' $tmp &&
+              diag 'include <cassert> in C++ files'
 	  ;;
 	*.cc)
 	  if $GREP 'namespace$' $tmp >/dev/null; then
@@ -346,7 +348,10 @@ for dir in "$TOP/spot" "$TOP/bin" "$TOP/tests"; do
                   else
                       diag "*.cc files should include "'"config.h"'
                   fi;;
-          esac;;
+          esac
+          $GREP '[<"]assert.h[">]' $tmp &&
+              diag 'include <cassert> in C++ files'
+          ;;
       esac
       case $file in
 	*/bin/*|*.cc);;

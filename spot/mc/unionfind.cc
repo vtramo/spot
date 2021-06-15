@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2015, 2016, 2018 Laboratoire de Recherche et
+// Copyright (C) 2015, 2016, 2018, 2021 Laboratoire de Recherche et
 // Developpement de l'Epita
 //
 // This file is part of Spot, a model checking library.
@@ -20,7 +20,7 @@
 
 #include "config.h"
 #include <spot/mc/unionfind.hh>
-#include <assert.h>
+#include <cassert>
 
 namespace spot
 {

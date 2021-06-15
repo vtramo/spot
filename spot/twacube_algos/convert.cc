@@ -20,7 +20,7 @@
 #include "config.h"
 #include <spot/twacube_algos/convert.hh>
 #include <spot/twaalgos/contains.hh>
-#include <assert.h>
+#include <cassert>
 
 namespace spot
 {
