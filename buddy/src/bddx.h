@@ -379,6 +379,7 @@ BUDDY_API BDD      bdd_support(BDD);
 BUDDY_API BDD      bdd_satone(BDD);
 BUDDY_API BDD      bdd_satoneset(BDD, BDD, BDD);
 BUDDY_API BDD      bdd_fullsatone(BDD);
+BUDDY_API BDD      bdd_satoneshortest(BDD, unsigned, unsigned, unsigned);
 BUDDY_API BDD	bdd_satprefix(BDD *);
 BUDDY_API void     bdd_allsat(BDD r, bddallsathandler handler);
 BUDDY_API double   bdd_satcount(BDD);
@@ -635,6 +636,8 @@ protected:
    friend bdd      bdd_satone(const bdd &);
    friend bdd      bdd_satoneset(const bdd &, const bdd &, const bdd &);
    friend bdd      bdd_fullsatone(const bdd &);
+   friend bdd      bdd_satoneshortest(const bdd &,
+                                      unsigned, unsigned, unsigned);
    friend bdd      bdd_satprefix(bdd &);
    friend void     bdd_allsat(const bdd &r, bddallsathandler handler);
    friend void     bdd_allsat(const bdd &r, bddallsathandler_old handler);
@@ -866,6 +869,12 @@ inline bdd bdd_satoneset(const bdd &r, const bdd &var, const bdd &pol)
 
 inline bdd bdd_fullsatone(const bdd &r)
 { return bdd_fullsatone(r.root); }
+
+inline bdd bdd_satoneshortest(const bdd &r, unsigned wlow,
+                              unsigned whigh, unsigned wdc)
+{
+  return bdd_satoneshortest(r.root, wlow, whigh, wdc);
+}
 
 inline bdd bdd_satprefix(bdd &r)
 { int ro = r.root; bdd res = bdd_satprefix(&ro); r = bdd(ro); return res; }
