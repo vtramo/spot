@@ -61,6 +61,8 @@
 #define CACHEID_SUPPORT     0x6
 #define CACHEID_IMPLIES     0x7
 #define CACHEID_COMMON      0x8
+#define CACHEID_SHORTDIST   0x9
+#define CACHEID_SHORTBDD    0xA
 
    /* Hash value modifiers for replace/compose */
 #define CACHEID_REPLACE      0x0
@@ -182,6 +184,8 @@ static int    varset2svartable(BDD);
 #define PATHCOUHASH(r)       (r)
 #define SUPPORTHASH(r)       (PAIR(r,CACHEID_SUPPORT))
 #define APPEXHASH(l,r,op)    (PAIR(l,r))
+#define SHORTDISTHASH(l,rev) (TRIPLE(l,rev,CACHEID_SHORTDIST))
+#define SHORTBDDHASH(l,rev) (TRIPLE(l,rev,CACHEID_SHORTBDD))
 
 #ifndef M_LN2
 #define M_LN2 0.69314718055994530942
@@ -3076,6 +3080,153 @@ static BDD satoneset_rec(BDD r, BDD var)
    SYNC_REC_STACKS;
    return res;
 }
+
+
+/* Compute the smallest distance associated to a satisfying path of f,
+   but without actually building the corresponding cube.  This is done
+   by computing the distance recursively for all sub BDDs, and storing
+   those in a hashtable, with the intention of sharing that across
+   all calls of bdd_satoneshortest with the same weights.
+
+   The hash table used for cache stores triples of the form (bdd, rev,
+   dist) where dist is the distance for bdd, and rev is incremented
+   everytime bdd_satoneshortest is called with a different set of
+   weights.  One should therefore check that rev from the cache lookup
+   matches the current rev stored in shortest_rev.  bdd_satoneshortest
+   is in charge of incrementing shortest_rev.
+ */
+static unsigned wlow_ref = 0;
+static unsigned whigh_ref = 0;
+static unsigned wdc_ref = 0;
+static int shortest_rev = 0;
+
+/* This computes the shortest distance, recursively.
+   Populating the cache. */
+static unsigned satoneshortest_rec(BDD f)
+{
+  if (ISONE(f))
+    return 0;
+  if (ISZERO(f))
+    return -1U;
+  int rev = shortest_rev;
+  BddCacheData *entry = BddCache_lookup(&misccache, SHORTDISTHASH(f,rev));
+  if (entry->i.a == f
+      && entry->i.b == rev
+      && entry->i.c == CACHEID_SHORTDIST)
+  {
+#ifdef CACHESTATS
+      bddcachestats.opHit++;
+#endif
+      return (unsigned) entry->i.res;
+   }
+#ifdef CACHESTATS
+   bddcachestats.opMiss++;
+#endif
+
+   int lv_next = LEVEL(f) + 1;
+   int low = LOW(f);
+   int lv_low = LEVEL(low);
+   unsigned dist_low = satoneshortest_rec(low);
+   if (dist_low != -1U)
+     dist_low += wlow_ref + wdc_ref * (lv_low - lv_next);
+   int high = HIGH(f);
+   int lv_high = LEVEL(high);
+   unsigned dist_high = satoneshortest_rec(high);
+   if (dist_high != -1U)
+     dist_high += whigh_ref + wdc_ref * (lv_high - lv_next);
+
+   if (dist_high < dist_low)
+     dist_low = dist_high;
+
+   entry->i.a = f;
+   entry->i.b = rev;
+   entry->i.c = CACHEID_SHORTDIST;
+   entry->i.res = (int) dist_low;
+   return dist_low;
+}
+
+/* This computes the BDD for the shortest distance, recursively.
+   It calls satoneshortest_rec again, but this should be fast thanks to
+   the cache.
+*/
+static bdd bdd_satoneshortest_rec(BDD f)
+{
+  if (ISONE(f))
+    return bddtrue;
+  if (ISZERO(f))
+    return bddfalse;
+
+  int rev = shortest_rev;
+  BddCacheData *entry = BddCache_lookup(&misccache, SHORTBDDHASH(f,rev));
+  if (entry->i.a == f
+      && entry->i.b == rev
+      && entry->i.c == CACHEID_SHORTDIST)
+  {
+#ifdef CACHESTATS
+      bddcachestats.opHit++;
+#endif
+      return entry->i.res;
+   }
+#ifdef CACHESTATS
+   bddcachestats.opMiss++;
+#endif
+
+   int lv = LEVEL(f);
+   int lv_next = lv + 1;
+   int low = LOW(f);
+   int lv_low = LEVEL(low);
+   unsigned dist_low = satoneshortest_rec(low);
+   if (dist_low != -1U)
+     dist_low += wlow_ref + wdc_ref * (lv_low - lv_next);
+
+   int high = HIGH(f);
+   int lv_high = LEVEL(high);
+   unsigned dist_high = satoneshortest_rec(high);
+   if (dist_high != -1U)
+     dist_high += whigh_ref + wdc_ref * (lv_high - lv_next);
+
+   bdd res;
+   if (dist_high < dist_low)
+     {
+       res = bdd_satoneshortest_rec(high);
+       res = PUSHREF(bdd_makenode(lv, 0, res));
+     }
+   else
+     {
+       res = bdd_satoneshortest_rec(low);
+       res = PUSHREF(bdd_makenode(lv, res, 0));
+     }
+
+   entry->i.a = f;
+   entry->i.b = rev;
+   entry->i.c = CACHEID_SHORTBDD;
+   entry->i.res = res;
+   return res;
+}
+
+/*
+ return a conjunction representing a satisfying path of f, chosen
+ among all satisfying paths to minimize the sum of weights given for
+ positive variables (whigh), negative variables (wlow), and don't care
+ variables (wdc = Weight of Don't Care).
+*/
+BDD bdd_satoneshortest(BDD f, unsigned wlow, unsigned whigh, unsigned wdc)
+{
+  if (wlow != wlow_ref || whigh != whigh_ref || wdc != wdc_ref)
+    {
+      wlow_ref = wlow;
+      whigh_ref = whigh;
+      wdc_ref = wdc;
+      ++shortest_rev;
+    }
+  bdd_disable_reorder();
+  INITREF;
+  bdd res = bdd_satoneshortest_rec(f);
+  bdd_enable_reorder();
+  checkresize();
+  return res;
+}
+
 
 
 /*=== EXACTLY ONE SATISFYING VARIABLE ASSIGNMENT =======================*/

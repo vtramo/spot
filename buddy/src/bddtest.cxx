@@ -96,6 +96,60 @@ void testBvecIte()
     ERROR("Bit 2 failed.");
 }
 
+void testShortest()
+{
+  cout << "Testing bdd_satoneshortest()\n";
+
+  bdd a = bdd_ithvar(0);
+  bdd b = bdd_ithvar(1);
+  bdd c = bdd_ithvar(2);
+  bdd d = bdd_ithvar(3);
+
+  bdd cube1 = a&c&!d;
+  bdd cube2 = a&!c&d;
+  bdd cube3 = !a&b&c&!d;
+  bdd cube4 = !a&!b&d;
+
+  bdd f =  cube1 | cube2 | cube3 | cube4 ;
+
+  // avoid don't care at all cost, prefer negative
+  bdd res = bdd_satoneshortest(f, 0, 1, 4);
+  if (res != cube3)
+    ERROR("shortest 0 1 4 failed");
+
+  // avoid don't care at all cost, prefer positive
+  res = bdd_satoneshortest(f, 1, 0, 4);
+  if (res != cube3)
+    ERROR("shortest 1 0 4 failed");
+
+  // avoid negative at all cost, prefer positive
+  res = bdd_satoneshortest(f, 4, 0, 1);
+  if (res != cube2)
+    ERROR("shortest 4 0 1 failed");
+
+  // avoid negative at all cost, prefer don't care
+  res = bdd_satoneshortest(f, 4, 1, 0);
+  if (res != cube2)
+    ERROR("shortest 4 1 0 failed");
+
+  // avoid positive at all cost, prefer don't care
+  res = bdd_satoneshortest(f, 1, 4, 0);
+  if (res != cube4)
+    ERROR("shortest 1 4 0 failed");
+
+  // avoid positive at all cost, prefer negative
+  res = bdd_satoneshortest(f, 0, 4, 1);
+  if (res != cube4)
+    ERROR("shortest 0 4 1 failed");
+
+  res = bdd_satoneshortest(bddfalse, 1, 2, 3);
+  if (res != bddfalse)
+    ERROR("shortest bddfalse failed");
+
+  res = bdd_satoneshortest(bddtrue, 1, 2, 3);
+  if (res != bddtrue)
+    ERROR("shortest bddtrue failed");
+}
 
 int main(int ac, char** av)
 {
@@ -105,6 +159,7 @@ int main(int ac, char** av)
 
   testSupport();
   testBvecIte();
+  testShortest();
 
   bdd_done();
   return 0;
