@@ -3586,6 +3586,44 @@ static double bdd_pathcount_rec(BDD r)
    return size;
 }
 
+/*=== DECIDE IF TWO BDDS SHARE AT LEAST ONE ASSIGNEMENT ================*/
+
+/*
+NAME    {* bdd\_has\_common\_assignement *}
+SECTION {* info *}
+SHORT   {* Decide if two bdds share an accepted assignement *}
+PROTO   {* int bdd_has_common_assignement(BDD l, BDD r) *}
+DESCR   {* Returns 1 iff l&r != bddfalse *}
+RETURN  {* 0 or 1 *}
+*/
+int bdd_has_common_assignement(BDD left, BDD right)
+{
+  // If one of them is false -> false
+  if (left == 0 || right == 0)
+    return 0;
+  // If one of them is true and the other is not false
+  // or if they are identical -> true
+  if (left == 1 || right == 1 || left == right)
+    return 1;
+  // Now both of them are not constant
+
+  // Do they share the top variable?
+  int vl = bddlevel2var[LEVEL(left)];
+  int vr = bddlevel2var[LEVEL(right)];
+
+  if (vl < vr)
+    // left has to "catch up"
+    return bdd_has_common_assignement(LOW(left), right)
+           || bdd_has_common_assignement(HIGH(left), right);
+  else if (vr < vl)
+    // right has to "catch up"
+    return bdd_has_common_assignement(left, LOW(right))
+           || bdd_has_common_assignement(left, HIGH(right));
+  else
+    // They evolve jointly
+    return bdd_has_common_assignement(LOW(left), LOW(right))
+           || bdd_has_common_assignement(HIGH(left), HIGH(right));
+}
 
 /*************************************************************************
   Other internal functions
