@@ -188,13 +188,18 @@ namespace spot
           unsigned new_init = -1U;
           // We do two the rewrite in two passes.  The first one
           // replays histories to detect the new source the edges
-          // should synchronize with. We used to have single
-          // loop, but replaying history on edges that have been modified
-          // result in different automaton depending on the edge order.
-          std::vector<unsigned> redirect_src;
+          // should synchronize with.  The second pass do the actual
+          // rewrite.  We used to have single loop, but replaying
+          // history on edges that have been modified results in
+          // different automata depending on the edge order.
+          std::unique_ptr<unsigned[]> redirect_src;
           if (is_det)
             {
-              redirect_src.resize(aut->edge_vector().size());
+              // We use a unique_ptr instead of a resized vector to
+              // avoid default initializing all values.  Doing so
+              // also removes an incorrect "null pointer dereference"
+              // diagnostic from g++ 11.0 (see issue #462).
+              redirect_src.reset(new unsigned[aut->edge_vector().size()]);
               for (auto& e: aut->edges())
                 {
                   unsigned edge = aut->edge_number(e);
@@ -268,7 +273,7 @@ namespace spot
                 }
             }
 
-          // No we do the redirections.
+          // Now we do the redirections.
 
           // We will modify most of the edges in place, but some cases
           // require the addition of new edges.  However we cannot add
@@ -311,10 +316,10 @@ namespace spot
                       new_init = init;
                       continue;
                     }
-                  // If initial state cannot be reached from another
-                  // state of the automaton, we can get rid of it by
-                  // combining the edge reaching the terminal state
-                  // with the edges leaving the initial state.
+                  // If the initial state cannot be reached from
+                  // another state of the automaton, we can get rid of
+                  // it by combining the edge reaching the terminal
+                  // state with the edges leaving the initial state.
                   //
                   // However if we have some histories for e.src
                   // (which implies that the automaton is
@@ -323,11 +328,12 @@ namespace spot
                   //
                   // One problem with those histories, is that we do
                   // not know how much of it to replay.  It's possible
-                  // that we cannot find a matching transition (e.g. if
-                  // the history if "b" but the choices are "!a" or "a"),
-                  // and its also possible to that playing too much of
-                  // history will get us back the terminal state.  In both
-                  // cases, we should try again with a smaller history.
+                  // that we cannot find a matching transition
+                  // (e.g. if the history if "b" but the choices are
+                  // "!a" or "a"), and it's also possible that playing
+                  // too much of history will get us back the terminal
+                  // state.  In both cases, we should try again with a
+                  // smaller history.
                   unsigned moved_init = init;
                   bdd econd = e.cond;
                   bool first;
