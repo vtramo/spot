@@ -226,7 +226,7 @@ namespace
     std::vector<unsigned> to_treat(strat->num_edges());
     std::transform(strat->edges().begin(), strat->edges().end(),
                    to_treat.begin(), [&](const auto& e)
-                   {return strat->edge_number(e);});
+                   { return strat->edge_number(e); });
 
     std::for_each(to_treat.begin(), to_treat.end(),
                   [&](unsigned eidx)
@@ -235,7 +235,8 @@ namespace
                     assert(!e.acc.count() && "Uncolored only!");
                     bdd incond = bdd_exist(e.cond, all_outs);
                     bdd outcond = bdd_existcomp(e.cond, all_outs);
-                    assert(((incond&outcond) == e.cond) && "Precondition violated");
+                    assert(((incond&outcond) == e.cond)
+                          && "Precondition violated");
                     // Modify
                     unsigned new_dst = get_ps(e.dst, outcond);
                     strat->edge_storage(eidx).dst = new_dst;
@@ -335,7 +336,8 @@ namespace
         gi.bv->total_time = sw.stop();
     };
 
-    bool opt_decompose_ltl = extra_options.get("specification-decomposition", 0);
+    bool opt_decompose_ltl =
+      extra_options.get("specification-decomposition", 0);
     std::vector<spot::formula> sub_form;
     std::vector<std::set<spot::formula>> sub_outs;
     if (opt_decompose_ltl)
@@ -370,13 +372,6 @@ namespace
                         r.insert(f.ap_name());
                       return r;
                     });
-    // We always need an arena, specific needs are passed via gi
-//    auto arena = spot::create_game(f, output_aps, extra_options, gi);
-
-//    // FIXME: Voir tout en bas
-//    // extra_options.report_unused_options();
-//    if (gi.bv)
-//      gi.bv->nb_states_arena = arena->num_states();
 
     assert((sub_form.size() == sub_outs.size())
            && (sub_form.size() == sub_outs_str.size()));
@@ -396,18 +391,16 @@ namespace
       // formula
       if (!want_game)
       {
-        // FIXME: N'utilise pas encore la minimisation car n'est pas splitté.
-        auto [simp_aut, code] = try_create_strategy_from_simple(*sub_f, *sub_o, extra_options, gi);
+        auto [simp_aut, code] =
+          try_create_strategy_from_simple(*sub_f, *sub_o, extra_options, gi);
         if (code == -1)
         {
           std::cout << "UNREALIZABLE" << std::endl;
-          // FIXME: C'est quoi la valeur de retour ?
           if (opt_real)
             {
               safe_tot_time();
               return 1;
             }
-
         }
         else if (simp_aut != nullptr)
         {
@@ -528,10 +521,6 @@ namespace
         spot::twa_graph_ptr neg_spec = nullptr;
         if (opt_do_verify)
         {
-          // TODO: Là on traduit avec les mêmes options que celles qui permettent
-          // de traduire la formule LTL de départ. On considère ça comme un
-          // équilibre entre taille de l'automate et vitesse. Là la taille est
-          // peut être moins importante, on pourrait chercher à traduire plus vite.
           spot::translator trans(gi.dict, &extra_options);
           neg_spec = trans.run(spot::formula::Not(f));
         }
@@ -729,8 +718,7 @@ main(int argc, char **argv)
 
       auto res = processor.run();
       // Diagnose unused -x options
-      // FIXME:
-      // extra_options.report_unused_options();
+      extra_options.report_unused_options();
       return res;
     });
 }

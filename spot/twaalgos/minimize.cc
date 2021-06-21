@@ -20,9 +20,11 @@
 //#define PRINTCSV
 //#define TRACE
 #ifdef TRACE
-#  define trace std::cerr
+#define trace std::cerr
 #else
-#  define trace while (0) std::cerr
+#define trace \
+  while (0)   \
+  std::cerr
 #endif
 
 #include "config.h"
@@ -31,13 +33,12 @@
 #include <set>
 #include <list>
 #include <vector>
-#include <sstream>
-#include <type_traits>
+#include <stack>
+#include <unordered_map>
 #include <spot/twaalgos/minimize.hh>
 #include <spot/misc/hash.hh>
 #include <spot/misc/bddlt.hh>
 #include <spot/twaalgos/product.hh>
-#include <spot/twaalgos/gtec/gtec.hh>
 #include <spot/twaalgos/strength.hh>
 #include <spot/twaalgos/sccfilter.hh>
 #include <spot/twaalgos/sccinfo.hh>
@@ -49,7 +50,6 @@
 #include <spot/twaalgos/game.hh>
 #include <spot/tl/hierarchy.hh>
 #include <spot/misc/satsolver.hh>
-#include <spot/twaalgos/hoa.hh>
 
 #include <spot/priv/synt_utils.hh>
 
@@ -790,7 +790,6 @@ namespace
     acc_cond::mark_t all_inf_;
 
   public:
-
     sig_calculator(twa_graph_ptr aut, bool implications) : a_(aut),
         po_size_(0),
         want_implications_(implications)
@@ -832,7 +831,7 @@ namespace
 
       // We run through the map bdd/list<state>, and we update
       // the previous_class_ with the new data.
-      for (auto &p : sorted_classes_)
+      for (auto& p : sorted_classes_)
       {
         // If the signature of a state is bddfalse (no
         // edges) the class of this state is bddfalse
@@ -873,7 +872,7 @@ namespace
     {
       bdd res = bddfalse;
 
-      for (auto &t : a_->out(src))
+      for (auto& t : a_->out(src))
       {
         // to_add is a conjunction of the acceptance condition,
         // the label of the edge and the class of the
@@ -936,7 +935,7 @@ namespace
 
       std::list<bdd>::iterator it_bdd = used_var_.begin();
 
-      for (auto &p : sorted_classes_)
+      for (auto& p : sorted_classes_)
       {
         // If the signature of a state is bddfalse (no edges) the
         // class of this state is bddfalse instead of an anonymous
@@ -1451,8 +1450,8 @@ namespace
                           // The outgoing edges are also sorted by id
                           dst_cache[a] = e.dst;
                           rcond -= b;
-                          // todo: we could also not construct rcond and test all
-                          // tradeoff construction vs early exit
+                          // todo: we could also not construct rcond and test
+                          // all tradeoff construction vs early exit
                         }
                       if (rcond == bddfalse)
                         break; // Done
@@ -1653,7 +1652,8 @@ namespace
             auto [si, sj] = todo_.back();
             todo_.pop_back();
 
-            // The edges in trans are sorted, so we can iterate over them jointly
+            // The edges in trans are sorted, so we can iterate over them
+            // jointly
             auto itpredi = trans[si].cbegin();
             auto itpredi_e = trans[si].cend();
             auto itpredj = trans[sj].cbegin();
@@ -2586,10 +2586,12 @@ namespace
                                      [&lm, &x_a_ocond, &sol, &used_bdds,
                                       a, jj](unsigned xi)
                                      {
-                                       auto it = x_a_ocond[xi].find(used_bdds[a].id());
+                                       auto it = x_a_ocond[xi].find(
+                                         used_bdds[a].id());
                                        if (it == x_a_ocond[xi].end())
                                          return true;
-                                       auto xpjjlit = lm.get_sxi({it->second.second, jj});
+                                       auto xpjjlit = lm.get_sxi(
+                                         { it->second.second, jj });
                                        assert(xpjjlit > 0);
                                        return sol[xpjjlit];
                                      });
@@ -2610,7 +2612,8 @@ namespace
                           this_has_trans = true;
                           jj_ocond &= it->second.first;
                         }
-                      assert((jj_ocond != bddfalse) && "Incompatible states in class");
+                      assert((jj_ocond != bddfalse)
+                              && "Incompatible states in class");
                     }
                   // todo: we use the minterm with the least highs to determine
                   // which edge to take, but keep the actual condition
@@ -2619,7 +2622,8 @@ namespace
                   if (this_highs < min_highs)
                     {
                       if (min_highs != -1u)
-                        std::cerr << "cc " << this_highs << " : " << min_highs << std::endl;
+                        std::cerr << "cc " << this_highs << " : "
+                                  << min_highs << std::endl;
                       min_highs = this_highs;
                       has_trans = this_has_trans;
                       ocond = jj_ocond;
@@ -2721,8 +2725,8 @@ namespace
         minmach->set_init_state(best_i_state);
         if (min_n_states < n_classes)
           {
-            std::cerr<<"### reach went from "<<n_classes<<" to "<<min_n_states
-                     <<"\n";
+            std::cerr << "### reach went from " << n_classes << " to "
+                      << min_n_states <<'\n';
             minmach->purge_dead_states();
             alternate_players(minmach, false, false);
           }

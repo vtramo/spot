@@ -897,11 +897,14 @@ namespace spot
 //                // Self-loop ?
 //                // We can also find a simple fix if the condition
 //                // only contains input or output propositions
-//                std::cout << arena->acc() << ", " << osrc << ", " << missing << std::endl;
+//                std::cout << arena->acc() << ", " << osrc << ", " << missing
+//                          << std::endl;
 //                for (const auto& ee : arena->out(e.src))
-//                  std::cout << ee.src << ", " << ee.dst << ", " << ee.cond << ", " << ee.acc << std::endl;
+//                  std::cout << ee.src << ", " << ee.dst << ", " << ee.cond <<
+//                   ", " << ee.acc << std::endl;
 //                for (const auto& ee : arena->out(e.dst))
-//                  std::cout << ee.src << ", " << ee.dst << ", " << ee.cond << ", " << ee.acc << std::endl;
+//                  std::cout << ee.src << ", " << ee.dst << ", " << ee.cond <<
+//                    ", " << ee.acc << std::endl;
 //                if (e.dst == e.src)
 ////                     && (e.acc == umt))
 //                  {
@@ -936,8 +939,10 @@ namespace spot
 //                        seen.push_back(true);
 //                        owner->push_back(!osrc);
 //
-//                        arena->edge_storage(arena->edge_number(e)).dst = s_split;
-//                        arena->edge_storage(arena->edge_number(e)).cond = osrc ? condp : conde;
+//                        arena->edge_storage(arena->edge_number(e)).dst =
+//                          s_split;
+//                        arena->edge_storage(arena->edge_number(e)).cond =
+//                          osrc ? condp : conde;
 //                        arena->new_edge(s_split, e.src,
 //                                        osrc ? conde : condp, e.acc);
 //                      }

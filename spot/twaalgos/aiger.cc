@@ -665,7 +665,7 @@ namespace spot
     for (auto b : {b1, b2})
       {
         auto it = bdd2var_.find(b);
-        if ( it != bdd2var_.end())
+        if (it != bdd2var_.end())
           return it->second;
       }
 
@@ -846,7 +846,7 @@ namespace spot
     for (auto b : {b1, b2})
       {
         auto it = bdd2var_.find(b);
-        if ( it != bdd2var_.end())
+        if (it != bdd2var_.end())
           return it->second;
       }
 
@@ -961,7 +961,7 @@ namespace spot
     for (auto b : {b1, b2})
       {
         auto it = bdd2var_.find(b);
-        if ( it != bdd2var_.end())
+        if (it != bdd2var_.end())
           return it->second;
       }
 
@@ -1230,10 +1230,15 @@ namespace spot
     auto get_max = [&occur_map]
     {
       auto itm =
-              std::max_element(occur_map.cbegin(), occur_map.cend(),
-                               [](const auto& it1, const auto& it2)
-                                 { return std::make_tuple(it1.second, it1.first.first.id(), it1.first.second.id())
-                                         < std::make_tuple(it2.second, it2.first.first.id(), it2.first.second.id()); });
+        std::max_element(occur_map.cbegin(), occur_map.cend(),
+                          [](const auto& it1, const auto& it2)
+                            { return std::make_tuple(it1.second,
+                                                     it1.first.first.id(),
+                                                     it1.first.second.id())
+                                    < std::make_tuple(it2.second,
+                                                      it2.first.first.id(),
+                                                      it2.first.second.id());
+                            });
       assert(itm != occur_map.cend());
       return *itm;
     };
@@ -1242,10 +1247,13 @@ namespace spot
     while (!occur_map.empty())
     {
 //          auto max_elem = pop_heap();
-//          std::cout << "mod " << max_elem.left << ' ' << max_elem.right << ' ' << max_elem.occ << std::endl;
+//          std::cout << "mod " << max_elem.left << ' ' << max_elem.right
+//                    << ' ' << max_elem.occ << std::endl;
       auto max_elem = get_max();
           unsigned n_occur_old = max_elem.second;
-//      std::cout << "mod " << max_elem.first.first << ' ' << max_elem.first.second << ' ' << max_elem.second << std::endl;
+//      std::cout << "mod " << max_elem.first.first << ' '
+//                << max_elem.first.second << ' '
+//                << max_elem.second << std::endl;
       if (max_elem.second == 0)
         break;
 
@@ -1264,12 +1272,14 @@ namespace spot
           // todo, too costly right now
           // Find left and right
           // Note, left is always to the left of right
-//          auto itl = std::find(pterm.begin(), pterm.end(), max_elem.first.first);
-//          auto itr = std::find(itl+1, pterm.end(), max_elem.first.second);
-          auto itl = std::find(pterm.begin(), pterm.end(), max_elem.first.first);
+//        auto itl = std::find(pterm.begin(), pterm.end(),
+//                              max_elem.first.first);
+//        auto itr = std::find(itl+1, pterm.end(), max_elem.first.second);
+          auto itl = std::find(pterm.begin(), pterm.end(),
+                                max_elem.first.first);
           auto itr =
               itl == pterm.end() ? pterm.end()
-                                 : std::find(itl+1, pterm.end(), max_elem.first.second);
+                        : std::find(itl+1, pterm.end(), max_elem.first.second);
 
           if ((itl != pterm.end()) && (itr != pterm.end()))
             {
@@ -1313,7 +1323,8 @@ namespace spot
 //    }
 //    std::cout << "Safed bdds\n";
 //    for (const auto& it : bdd2var_)
-//      std::cout << it.first << " - " << it.first.id() << " : " << it.second << '\n';
+//      std::cout << it.first << " - " << it.first.id() << " : "
+//                << it.second << '\n';
 //    std::cout << std::endl;
     assert(std::all_of(needed_prods.cbegin(), needed_prods.cend(),
                        [this](const bdd& aprod)
@@ -1367,7 +1378,8 @@ namespace spot
     {
 //      auto max_elem = pop_heap();
       auto max_elem = get_max();
-//      std::cout << "mod " << max_elem.first.first << ' ' << max_elem.first.second << ' ' << max_elem.second << std::endl;
+//    std::cout << "mod " << max_elem.first.first << ' '
+//              << max_elem.first.second << ' ' << max_elem.second << std::endl;
       unsigned n_occur_old = max_elem.second;
       if (max_elem.second == 0)
         break;
@@ -1448,8 +1460,8 @@ namespace spot
         std::ifstream aigfile(aig_txt, std::ios::in);
         if (aigfile)
           {
-            std::tie(in_names__, out_names__, next_latches__, outputs__, gates__) =
-               parse_aag_impl_(aigfile);
+            std::tie(in_names__, out_names__, next_latches__,
+                      outputs__, gates__) = parse_aag_impl_(aigfile);
             aigfile.close();
           }
         else
@@ -1793,7 +1805,7 @@ namespace spot
     {
       this_var.clear();
       this_bdd.clear();
-      while(ocond != bddtrue)
+      while (ocond != bddtrue)
         {
           this_var.push_back(bdd_var(ocond));
           this_bdd.push_back(bdd_ithvar(this_var.back()));
@@ -1914,7 +1926,7 @@ namespace spot
 //
 ////      std::cout << "Conditions:\n";
 ////      for (size_t i = 0; i < bddvec.size(); ++i)
-////        std::cout << i << " : " << bddvec[i] << "\n";
+////        std::cout << i << " : " << bddvec[i] << '\n';
 //
 //      // todo symmetric specialisation?
 //      // todo vectorized functions?
@@ -1949,16 +1961,17 @@ namespace spot
 //      const unsigned n_free = free_v.size();
 ////      std::cout << "p sol\n";
 ////      for (auto v : psol_v)
-////        std::cout << v << " ";
-////      std::cout << "\n";
+////        std::cout << v << ' ';
+////      std::cout << '\n';
 ////      std::cout << "free\n";
 ////      for (auto v : free_v)
-////        std::cout << v << " ";
-////      std::cout << "\n";
+////        std::cout << v << ' ';
+////      std::cout << '\n';
 //
 //      // Covering condition -> each condition needs to be
 //      // update when a new class is added
-//      std::deque<std::deque<int>> cover_cond(n_cond); // Those for psol are emtpy
+//      Those for psol are emtpy
+//      std::deque<std::deque<int>> cover_cond(n_cond);
 //      std::deque<int> incomp_cond;
 //
 //      // The lit mapper
@@ -2033,7 +2046,8 @@ namespace spot
 //        for (unsigned x = 0; x < n_cond; ++x)
 //          if (incomp_mat(psol_v[i], x))
 //          {
-//            incomp_cond.push_back(-lm.sxi2lit({x, i})); // x can not be in class i
+//            x can not be in class i
+//            incomp_cond.push_back(-lm.sxi2lit({x, i}));
 //            incomp_cond.push_back(0);
 //          }
 //      lm.freeze_xi();
@@ -2043,7 +2057,7 @@ namespace spot
 //      unsigned n_classes = n_psol;
 //      while (true)
 //        {
-////          std::cout << n_classes << "\n";
+////          std::cout << n_classes << '\n';
 //          lm.print();
 //
 //          // Search a solution for current instance
@@ -2057,7 +2071,7 @@ namespace spot
 ////          std::cout << "inc\n";
 ////          for (auto e : incomp_cond)
 ////            std::cout << e << (e == 0 ? "\n" : " ");
-////          std::cout << "\n";
+////          std::cout << '\n';
 //          // The others need to be zero terminated
 //          for (auto& dq : cover_cond)
 //            {
@@ -2068,12 +2082,14 @@ namespace spot
 //              }
 //              dq.push_back(0);
 ////              for (auto e : dq)
-////                std::cout << e << " ";
-////              std::cout << "\n";
+////                std::cout << e << ' ';
+////              std::cout << '\n';
 //              Sptr->add(dq);
 //              dq.pop_back();
 //            }
-//          std::cerr << "### " << n_cond << " " << n_classes << " " << Sptr->get_nb_vars() << " " << Sptr->get_nb_clauses() << "\n";
+//          std::cerr << "### " << n_cond << ' ' << n_classes << ' '
+//                    << Sptr->get_nb_vars() << ' '
+//                    << Sptr->get_nb_clauses() << '\';
 //          auto solpair = Sptr->get_solution();
 //          if (!solpair.second.empty())
 //            {
@@ -2155,7 +2171,8 @@ namespace spot
 //            if (assigned[x])
 //              continue;
 //            int lxi = lm.get_sxi({x, i});
-//            //std::cout << cond_class << " " << x << " " << i << " " << lxi << " " << std::endl;
+//            //std::cout << cond_class << ' ' << x << ' ' << i << ' ' << lxi
+//                        << ' ' << std::endl;
 //            assert( (i>=n_psol) || ((psol_s.count(x) == 1) && lxi == 0)
 //                    || (psol_s.count(x) == 0) );//psol has no lit
 //            if ((lxi != 0) && satsol.at(lxi))
@@ -2181,7 +2198,7 @@ namespace spot
 //
 ////      std::cout << "Res\n";
 ////      for (auto& it : cond_map)
-////        std::cout << it.first << " -> " << it.second << "\n";
+////        std::cout << it.first << " -> " << it.second << '\n';
 ////      std::cout << std::endl;
 //
 //      // Assign the results
@@ -2318,7 +2335,8 @@ namespace spot
           unsigned max_index = 0;
           // Check if named
           if (const auto* s_names =
-                  astrat.first->get_named_prop<std::vector<std::string>>("state-names"))
+                astrat.first
+                  ->get_named_prop<std::vector<std::string>>("state-names"))
             {
               std::transform(s_names->cbegin(), s_names->cend(),
                              std::back_inserter(state_numbers.back()),
@@ -2337,7 +2355,9 @@ namespace spot
               std::iota(state_numbers.back().begin(),
                         state_numbers.back().end(), 0);
               std::swap(state_numbers.back()[0],
-                        state_numbers.back()[astrat.first->get_init_state_number()]);
+                        state_numbers.back()[
+                            astrat.first->get_init_state_number()
+                          ]);
             }
           // Largest index to encode -> num_states()-1
           log2n.push_back(std::ceil(std::log2(max_index)));
@@ -2454,7 +2474,8 @@ namespace spot
 
       auto to_treat
           = (strcasecmp(mode, "BEST") == 0)
-              ? (isupper(mode[1]) ? std::vector<std::string>{"iTe", "iSopmin"} : std::vector<std::string>{"ite", "isopmin"})
+              ? (isupper(mode[1]) ? std::vector<std::string>{"iTe", "iSopmin"}
+                                  : std::vector<std::string>{"ite", "isopmin"})
               : std::vector<std::string>{mode};
       for (const auto& amodestr : to_treat)
         {
@@ -2465,29 +2486,37 @@ namespace spot
           if (strcasecmp(amodearr, "ITE") == 0)
           {
             if (use_dc)
-              bdd2var = [&circuit](auto b, auto dc)->unsigned{return circuit.bdd2INFvar(b, b|dc, false); };
+              bdd2var = [&circuit](auto b, auto dc)->unsigned
+                { return circuit.bdd2INFvar(b, b|dc, false); };
             else
-              bdd2var = [&circuit](auto b, auto)->unsigned{return circuit.bdd2INFvar(b, false); };
+              bdd2var = [&circuit](auto b, auto)->unsigned
+              { return circuit.bdd2INFvar(b, false); };
           }
           else if (strcasecmp(amodearr, "ITEMIN") == 0)
           {
             if (use_dc)
-              bdd2var = [&circuit](auto b, auto dc)->unsigned{return circuit.bdd2INFvar(b, b|dc, true); };
+              bdd2var = [&circuit](auto b, auto dc)->unsigned
+              { return circuit.bdd2INFvar(b, b|dc, true); };
             else
-              bdd2var = [&circuit](auto b, auto)->unsigned{return circuit.bdd2INFvar(b, true); };
+              bdd2var = [&circuit](auto b, auto)->unsigned
+              { return circuit.bdd2INFvar(b, true); };
           }
-          else if(strcasecmp(amodearr, "ISOP") == 0)
+          else if (strcasecmp(amodearr, "ISOP") == 0)
           {
             if (use_dc)
-              bdd2var = [&circuit](auto b, auto dc)->unsigned{return circuit.bdd2DNFvar(b, b|dc); };
+              bdd2var = [&circuit](auto b, auto dc)->unsigned
+              { return circuit.bdd2DNFvar(b, b|dc); };
             else
-              bdd2var = [&circuit](auto b, auto)->unsigned{return circuit.bdd2DNFvar(b); };
+              bdd2var = [&circuit](auto b, auto)->unsigned
+              { return circuit.bdd2DNFvar(b); };
           }
-          else if(strcasecmp(amodearr, "ISOPMIN") == 0)
+          else if (strcasecmp(amodearr, "ISOPMIN") == 0)
             if (use_dc)
-              bdd2var = [&circuit](auto b, auto dc)->unsigned{return circuit.bdd2partitionedDNFvar(b, b|dc); };
+              bdd2var = [&circuit](auto b, auto dc)->unsigned
+                { return circuit.bdd2partitionedDNFvar(b, b|dc); };
             else
-              bdd2var = [&circuit](auto b, auto)->unsigned{return circuit.bdd2partitionedDNFvar(b); };
+              bdd2var = [&circuit](auto b, auto)->unsigned
+              { return circuit.bdd2partitionedDNFvar(b); };
           else
             {
               // Here it is more tricky
@@ -2499,7 +2528,8 @@ namespace spot
               all_cond.insert(all_cond.end(), latch.cbegin(), latch.cend());
               // Then construct it
               circuit.build_all_bdds(all_cond);
-              bdd2var = [&circuit](auto b, auto)->unsigned{return circuit.bdd2aigvar(b);};
+              bdd2var = [&circuit](auto b, auto)->unsigned
+                { return circuit.bdd2aigvar(b); };
             }
 
           // Create the vars
@@ -2526,7 +2556,7 @@ namespace spot
           else
             circuit.roll_back_(sf, false);
         }
-      circuit.reapply_(sf, ss);//Use the best sol
+      circuit.reapply_(sf, ss); //Use the best sol
       // Reset them
       for (unsigned i = 0; i < output_names.size(); ++i)
         circuit.set_output(i, bdd2var_min(out[i], out_dc[i]));
@@ -2552,7 +2582,7 @@ namespace spot
 
   aig_ptr
   strategies_to_aig(const std::vector<const_twa_graph_ptr>& strat_vec,
-                  const char *mode)
+                  const char* mode)
   {
     std::for_each(strat_vec.begin()+1, strat_vec.end(),
                   [usedbdd = strat_vec.at(0)->get_dict()](auto&& it)
@@ -2621,8 +2651,8 @@ namespace spot
 
   // Note: This ignores the named property
   aig_ptr
-  strategies_to_aig(const std::vector<twa_graph_ptr>& strat_vec, const char *mode,
-                    const std::set<std::string>& ins,
+  strategies_to_aig(const std::vector<twa_graph_ptr>& strat_vec,
+                    const char* mode, const std::set<std::string>& ins,
                     const std::vector<std::set<std::string>>& outs)
   {
     if (strat_vec.size() != outs.size())

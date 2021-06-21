@@ -19,9 +19,14 @@
 
 #pragma once
 
-#include <spot/priv/synt_utils_struct.hh>
-#include <spot/misc/satsolver.hh>
+#include "spot/priv/synt_utils_struct.hh"
 
+#include <cassert>
+#include <set>
+#include <algorithm>
+#include <unordered_map>
+#include <spot/misc/satsolver.hh>
+#include <unordered_map>
 
 namespace spot
 {
@@ -36,9 +41,9 @@ namespace minutils
     std::shared_ptr<satsolver> S_;
     int next_var_;
     bool frozen_xi_, frozen_iaj_, frozen_si_;
-    std::unordered_map<xi_t, int, hash_xi, equal_to_xi> sxi_map_;//xi -> lit
-    std::unordered_map<iaj_t, int, hash_iaj, equal_to_iaj> ziaj_map_;//iaj -> lit
-    std::vector<int> si_map_;//class -> lit, only for multi version
+    std::unordered_map<xi_t, int, hash_xi, equal_to_xi> sxi_map_; //xi -> lit
+    std::unordered_map<iaj_t, int, hash_iaj, equal_to_iaj> ziaj_map_; //iaj -> lit
+    std::vector<int> si_map_; //class -> lit, only for multi version
 
     std::deque<int> all_clauses_;
 
@@ -134,7 +139,8 @@ namespace minutils
       assert(!frozen_iaj_ || !inserted);
       if (inserted)
         {
-//          S_->adjust_nvars(next_var_); // Does this have to be consistent or set once?
+          // Does this have to be consistent or set once?
+          // S_->adjust_nvars(next_var_);
           ++next_var_;
         }
       return it->second;
@@ -174,7 +180,7 @@ namespace minutils
 
     void add(std::initializer_list<int> l)
     {
-      for(auto&& v : l)
+      for (auto&& v : l)
         add(v);
     }
 
@@ -201,14 +207,15 @@ namespace minutils
         os << "x - i -> lit\n";
         for (auto &it : xi_tmp)
           os << it.first.x << " - " << it.first.i << " -> " << it.second
-             << "\n";
+             << '\n';
       }
       {
-        std::map<iaj_t, int, less_iaj> iaj_tmp(ziaj_map_.begin(), ziaj_map_.end());
+        std::map<iaj_t, int, less_iaj> iaj_tmp(ziaj_map_.begin(),
+                                               ziaj_map_.end());
         os << "i - a - j -> lit\n";
         for (auto &it : iaj_tmp)
             os << it.first.i << " - " << it.first.a << " - " << it.first.j
-             << " -> " << it.second << "\n";
+             << " -> " << it.second << '\n';
       }
       return os;
     }

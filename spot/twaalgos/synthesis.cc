@@ -477,7 +477,8 @@ namespace spot
     // 2 -> Mealy minimization based on language inclusion
     // 3 -> Exact mealy minimization
     // 4 -> Monitor min then exact minimization
-    // 5 -> Mealy minimization based on language inclusion then exact minimization
+    // 5 -> Mealy minimization based on language inclusion then exact
+    // minimization
     bdd *obddptr = strat->get_named_prop<bdd>("synthesis-outputs");
     assert(obddptr);
     bdd obdd = *obddptr;
@@ -692,7 +693,8 @@ namespace spot
            && "Env needs to have first turn!");
 
     assert(std::all_of(arena->edges().begin(), arena->edges().end(),
-           [&sp_ptr](const auto& e){ return sp_ptr->at(e.src) != sp_ptr->at(e.dst); }));
+           [&sp_ptr](const auto& e)
+             { return sp_ptr->at(e.src) != sp_ptr->at(e.dst); }));
 
     auto strat_split = spot::make_twa_graph(arena->get_dict());
     strat_split->copy_ap_of(arena);
@@ -728,7 +730,8 @@ namespace spot
     std::unordered_map<dca,
                        unsigned,
                        dca_hash,
-                       dca_equal> p_map; //env dst + player cond + acc -> p state
+                       //env dst + player cond + acc -> p state
+                       dca_equal> p_map;
 
     constexpr unsigned unseen_mark = std::numeric_limits<unsigned>::max();
     std::vector<unsigned> env_map(arena->num_states(), unseen_mark);
@@ -804,11 +807,12 @@ namespace spot
           return false; // No change
         // 1 Get all edges numbers and sort them
         std::transform(eit.begin(), eit_e, std::back_inserter(edge_nums),
-                       [&](const auto& e){return strat_split->edge_number(e);});
+                       [&](const auto& e)
+                         { return strat_split->edge_number(e); });
         std::sort(edge_nums.begin(), edge_nums.end(),
                   [&](unsigned ne1, unsigned ne2)
-                  {return comp_edge(strat_split->edge_storage(ne1),
-                                    strat_split->edge_storage(ne2));});
+                  { return comp_edge(strat_split->edge_storage(ne1),
+                                    strat_split->edge_storage(ne2)); });
         // 2 Correct the order
         auto& sd = split_graph.state_storage(s);
         sd.succ = edge_nums.front();
@@ -861,7 +865,7 @@ namespace spot
                           });
       };
 
-//    print_hoa(std::cout, strat_split) << "\n";
+//    print_hoa(std::cout, strat_split) << '\n';
 
     const unsigned n_sstrat = strat_split->num_states();
     std::vector<unsigned> remap(n_sstrat, -1u);
@@ -877,7 +881,7 @@ namespace spot
     {
       changed_any = false;
       std::for_each(to_check.begin(), to_check.end(),
-                    [&](unsigned s){sort_edges_of(s); merge_edges_of(s);});
+                    [&](unsigned s){ sort_edges_of(s); merge_edges_of(s); });
       // Check if we can merge env states
       for (unsigned s1 : to_check)
         for (unsigned s2 = 0; s2 < n_sstrat; ++s2)
@@ -897,7 +901,8 @@ namespace spot
               }
           }
 
-//      std::for_each(remap.begin(), remap.end(), [](auto e){std::cout << e << " ";});
+//      std::for_each(remap.begin(), remap.end(),
+//                     [](auto e){std::cout << e << ' ';});
 //      std::cout << std::endl;
 
       if (!changed_any)
@@ -934,7 +939,8 @@ namespace spot
               }
           }
 
-//      std::for_each(remap.begin(), remap.end(), [](auto e){std::cout << e << " ";});
+//      std::for_each(remap.begin(), remap.end(), [](auto e)
+//        {std::cout << e << ' '; });
 //      std::cout << std::endl;
 
       if (!changed_any)

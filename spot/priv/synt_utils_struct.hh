@@ -24,6 +24,10 @@
 #include <tuple>
 #include <memory>
 #include <iostream>
+#include <cassert>
+#include <set>
+#include <algorithm>
+
 
 namespace spot
 {
@@ -157,7 +161,7 @@ namespace minutils
     inline size_t idx(size_t i, size_t j) const
     {
       assert(i<dim_ && j<dim_);
-      return idx_(i,j);
+      return idx_(i, j);
     }
     inline T operator()(size_t i, size_t j) const
     {
@@ -187,7 +191,7 @@ namespace minutils
       for (size_t i = 0; i < dim_; ++i)
       {
         for (size_t j = 0; j < dim_; ++j)
-          std::cout << (int)(*this)(i, j) << " ";
+          std::cout << (int)(*this)(i, j) << ' ';
         std::cout << std::endl;
       }
     }
@@ -220,7 +224,7 @@ namespace minutils
     // Sort in reverse order
     std::sort(incompvec.begin(), incompvec.end(),
               [](const auto& p1, const auto& p2)
-                {return p1.second > p2.second;});
+                { return p1.second > p2.second; });
 
     part_sol_t part_sol_p;
     auto& part_sol = part_sol_p.psol_v;
@@ -248,7 +252,7 @@ namespace minutils
     auto& part_sol_i = part_sol_p.incompvec;
     part_sol_i.reserve(n_states);
     std::for_each(incompvec.begin(), incompvec.end(),
-                  [&part_sol_i](auto&p ){part_sol_i.push_back(p.first);});
+                  [&part_sol_i](auto& p){ part_sol_i.push_back(p.first); });
     return part_sol_p;
   }
 }
