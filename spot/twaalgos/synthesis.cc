@@ -1484,15 +1484,24 @@ namespace spot
                 || (is_fg_bool_right && left.is_syntactic_guarantee()));
 
     // TODO: game_info not updated
+    // TODO: Verbose
+    auto& bv = gi.bv;
+    stopwatch sw;
     if (is_ok)
     {
       auto trans = create_translator(extra_opt, gi.s, gi.dict);
       trans.set_type(postprocessor::Buchi);
       trans.set_pref(postprocessor::Deterministic | postprocessor::Complete);
-      // TODO: Update gi.bv
-      // auto &bv = gi.bv;
+
+
       auto right_sub = right[0][0];
+
+      if (bv)
+        sw.start();
       res = trans.run(left);
+      if (bv)
+        bv->trans_time = sw.stop();
+
       for (auto& out : right_outs)
         res->register_ap(out.ap_name());
       if (!is_deterministic(res))
@@ -1532,6 +1541,20 @@ namespace spot
           return {nullptr, -1};
         e.acc = {};
       }
+
+      if (bv)
+      {
+        auto& vs = gi.verbose_stream;
+        if (vs)
+        {
+          assert(bv);
+          *vs << "translating formula into strategy done in "
+              << bv->trans_time << " seconds\n";
+          *vs << "automaton has " << res->num_states()
+              << " states and " << res->num_sets() << " colors\n";
+        }
+      }
+
 
       bdd output_bdd = bddtrue;
       for (auto &out : output_aps)

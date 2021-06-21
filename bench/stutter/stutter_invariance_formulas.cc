@@ -80,18 +80,18 @@ namespace
           spot::stopwatch sw;
           sw.start();
           bool res = spot::is_stutter_invariant(std::move(dup_a),
-						std::move(dup_na),
-						algo);
+                                               std::move(dup_na),
+                                               algo);
           auto time = sw.stop();
-	  std::cout << time << ',';
+          std::cout << time << ',';
 
           if (algo > 1 && prev != res)
-	    {
-	      std::cerr << "\nerror: algorithms " << algo - 1
-			<< " and " << algo << " disagree on formula "
-			<< formula << "\n";
-	      exit(2);
-	    }
+            {
+              std::cerr << "\nerror: algorithms " << algo - 1
+                        << " and " << algo << " disagree on formula "
+                        << formula << '\n';
+              exit(2);
+            }
           prev = res;
         }
       std::cout << prev << '\n';
