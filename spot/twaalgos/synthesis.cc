@@ -1021,7 +1021,6 @@ namespace spot
       extra_options.set(p.first, extra_options.get(p.first, p.second));
 
     translator trans(dict, &extra_options);
-    // extra_options.report_unused_options();
     switch (sol)
     {
     case solver::LAR:
