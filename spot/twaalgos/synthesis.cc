@@ -1552,7 +1552,6 @@ namespace spot
         auto& vs = gi.verbose_stream;
         if (vs)
         {
-          assert(bv);
           *vs << "translating formula into strategy done in "
               << bv->trans_time << " seconds\n";
           *vs << "automaton has " << res->num_states()
