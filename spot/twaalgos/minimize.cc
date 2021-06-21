@@ -719,67 +719,6 @@ namespace
                    bdd_less_than>
       map_bdd_lstate;
 
-  // This class helps to compare two automata in term of
-  // size.
-  struct automaton_size final
-  {
-    automaton_size()
-        : edges(0),
-          states(0)
-    {
-    }
-
-    automaton_size(const const_twa_graph_ptr &a)
-        : edges(a->num_edges()),
-          states(a->num_states())
-    {
-    }
-
-    void set_size(const const_twa_graph_ptr &a)
-    {
-      states = a->num_states();
-      edges = a->num_edges();
-    }
-
-    inline bool operator!=(const automaton_size &r)
-    {
-      return edges != r.edges || states != r.states;
-    }
-
-    inline bool operator<(const automaton_size &r)
-    {
-      if (states < r.states)
-        return true;
-      if (states > r.states)
-        return false;
-
-      if (edges < r.edges)
-        return true;
-      if (edges > r.edges)
-        return false;
-
-      return false;
-    }
-
-    inline bool operator>(const automaton_size &r)
-    {
-      if (states < r.states)
-        return false;
-      if (states > r.states)
-        return true;
-
-      if (edges < r.edges)
-        return false;
-      if (edges > r.edges)
-        return true;
-
-      return false;
-    }
-
-    int edges;
-    int states;
-  };
-
   // This part is just a copy of a part of simulation.cc only suitable for
   // deterministic monitors.
   class sig_calculator final
@@ -977,6 +916,10 @@ namespace
       }
     }
 
+    // The list of states for each class at the current_iteration.
+    // Computed in `update_sig'.
+    map_bdd_lstate bdd_lstate_;
+
   protected:
     // The automaton which is reduced.
     twa_graph_ptr a_;
@@ -987,9 +930,6 @@ namespace
     // Represent the class of each state at the previous iteration.
     vector_state_bdd previous_class_;
 
-    // The list of states for each class at the current_iteration.
-    // Computed in `update_sig'.
-    map_bdd_lstate bdd_lstate_;
     // The above map, sorted by states number instead of BDD
     // identifier to avoid non-determinism while iterating over all
     // states.
@@ -1009,104 +949,107 @@ namespace
     unsigned int po_size_;
 
     // Whether to compute implications between classes.  This is costly
-    // and useless for deterministic automata.
+    // and useless when we want to recognize the same language.
     bool want_implications_;
   };
 
-  // This class is a tree where the root is ⊤ and a node implies its parent
-  class bdd_tree
+  // An acyclic digraph such that there is an edge q1 -> q2 if
+  // q1.label_ ⇒ q2.label_
+  class bdd_digraph
   {
-    bdd label;
+  private:
+    bdd label_;
     unsigned state_;
-    std::vector<bdd_tree> children;
+    std::vector<std::shared_ptr<bdd_digraph>> children_;
 
   public:
+    bdd_digraph() : label_(bddtrue), state_(-1U) {}
 
-    bdd_tree() : label(bddtrue), state_(-1U) {}
+    bdd_digraph(bdd label, unsigned state) : label_(label), state_(state) {}
 
-    bdd_tree(bdd value, unsigned state) : label(value), state_(state) {}
-
-    void add_child(bdd value, unsigned state, bool rec)
+    void
+    add_aux_(std::shared_ptr<bdd_digraph>& new_node, std::vector<bool>& done)
     {
-      if (value == bddtrue)
+      // Avoid doing twice the same state
+      if (state_ != -1U)
+        done[state_] = true;
+      for (auto& ch : children_)
+      {
+        if (done[ch->state_])
+          continue;
+        if (bdd_implies(ch->label_, new_node->label_))
         {
-          assert(label == bddtrue);
-          state_ = state;
+          ch->add_aux_(new_node, done);
+          new_node->children_.push_back(ch);
         }
-      if (rec)
-        {
-          const unsigned nb_children = children.size();
-          for (unsigned i = 0; i < nb_children; ++i)
-            {
-              // If a child contains a BDD that implies the value, we need a
-              // recursive call
-              if (bdd_implies(value, children[i].label))
-                {
-                  children[i].add_child(value, state, rec);
-                  return;
-                }
-              else if (bdd_implies(children[i].label, value))
-                {
-                  bdd_tree new_node(value, state);
-                  // If a child contains a BDD that implies the value, we
-                  // create a new bdd_tree. It must contains all the children
-                  // that imply value
-                  std::vector<bdd_tree> removed;
-                  auto impl_filter = [value, &new_node](bdd_tree tree)
-                    {
-                      if (bdd_implies(tree.label, value) == 1)
-                        {
-                          new_node.children.push_back(tree);
-                          return true;
-                        }
-                      return false;
-                    };
-                  auto new_end = std::remove_if(children.begin() + i,
-                                                children.end(),
-                                                impl_filter);
-                  children.erase(new_end, children.end());
-                  children.push_back(new_node);
-                  return;
-                }
-            }
-        }
-      children.push_back(bdd_tree(value, state));
+      }
+      if (bdd_implies(new_node->label_, label_))
+        children_.push_back(new_node);
     }
 
-    bdd
-    get_lowest_bdd()
+    void add(std::shared_ptr<bdd_digraph>& new_node, bool rec,
+              unsigned max_state)
     {
-      if (children.empty())
-        return label;
-      return children[0].get_lowest_bdd();
+      if (new_node->label_ == bddtrue)
+      {
+        assert(label_ == bddtrue);
+        state_ = new_node->state_;
+        return;
+      }
+      if (rec)
+      {
+        std::vector<bool> done(max_state, false);
+        add_aux_(new_node, done);
+      }
+      else
+      {
+        children_.push_back(new_node);
+      }
     }
 
     unsigned
-    flatten_aux(std::map<bdd, unsigned, bdd_less_than> &res)
+    flatten_aux(std::unordered_map<bdd, unsigned, spot::bdd_hash>& res)
     {
-      if (children.empty())
+      if (children_.empty())
+      {
+        res.insert({label_, state_});
+        return state_;
+      }
+      unsigned nb_p = children_[0].use_count();
+      unsigned pos = 0;
+
+      for (unsigned i = 1; i < children_.size(); ++i)
+      {
+        unsigned nb_p_ch = children_[1].use_count();
+        if (nb_p_ch > nb_p)
         {
-          res.insert({label, state_});
-          return state_;
+          nb_p = nb_p_ch;
+          pos = i;
         }
-      unsigned rep = children[0].flatten_aux(res);
-      res.insert({label, rep});
-      for (unsigned i = 1; i < children.size(); ++i)
-        children[i].flatten_aux(res);
-      return rep;
+      }
+      auto my_repr = children_[pos]->flatten_aux(res);
+      res.insert({label_, my_repr});
+      for (unsigned i = 0; i < children_.size(); ++i)
+      {
+        if (i == pos)
+          continue;
+        children_[i]->flatten_aux(res);
+      }
+      return my_repr;
     }
 
-    // Every node is associated to the state of a leaf
-    std::map<bdd, unsigned, bdd_less_than>
+    std::unordered_map<bdd, unsigned, spot::bdd_hash>
     flatten()
     {
-      std::map<bdd, unsigned, bdd_less_than> res;
+      std::unordered_map<bdd, unsigned, spot::bdd_hash> res;
       flatten_aux(res);
       return res;
     }
   };
 
-  // Associate to a state a representative
+
+  // Associate to a state a representative. The first value of the result
+  // is -1U if ∀i repr[i] = i
   std::vector<unsigned>
   get_repres(twa_graph_ptr& a, bool rec)
   {
@@ -1116,25 +1059,36 @@ namespace
     auto owner_ptr = a->get_named_prop<std::vector<bool>>("state-player");
 
     std::vector<unsigned> repr(a_num_states);
-    bdd_tree tree;
-    std::unordered_set<bdd, spot::bdd_hash> bdd_done;
-    bdd_done.insert(bddtrue);
+    bdd_digraph graph;
     std::vector<bdd> signatures(a_num_states);
     sig_calculator red(a, rec);
     red.main_loop();
-    for (unsigned i = 0; i < a_num_states; ++i)
+    if (red.bdd_lstate_.size() == a_num_states)
+    {
+      repr[0] = -1U;
+      return repr;
+    }
+    for (auto& [sig, states] : red.bdd_lstate_)
+    {
+      assert(!states.empty());
+      bool in_tree = false;
+      for (auto state : states)
       {
-        if (owner_ptr && (*owner_ptr)[i] == 0)
+        // We only change the destination of an edge controlled by env.
+        if (owner_ptr && ((*owner_ptr)[state] == 0))
           continue;
-        bdd sig = red.compute_sig(i);
-        signatures.insert(signatures.begin() + i, sig);
-        if (bdd_done.find(sig) == bdd_done.end())
-          {
-            tree.add_child(sig, i, rec);
-            bdd_done.insert(sig);
-          }
+        signatures[state] = sig;
+        // If it is not the first iteration, le BDD is already in the graph.
+        if (!in_tree)
+        {
+          in_tree = true;
+          auto new_node =
+            std::make_shared<bdd_digraph>(bdd_digraph(sig, state));
+          graph.add(new_node, rec, a_num_states);
+        }
       }
-    auto repr_map = tree.flatten();
+    }
+    auto repr_map = graph.flatten();
     for (unsigned i = 0; i < a_num_states; ++i)
     {
       if (owner_ptr && (*owner_ptr)[i] == 0)
@@ -1142,41 +1096,58 @@ namespace
       else
         repr[i] = repr_map[signatures[i]];
     }
-    // With rec we are able to change the initial state if the automaton is
-    // splitted.
-    if (rec && owner_ptr)
+    // We have a new destination for the edges that leave the states controlled
+    // by the environment but we have to change the initial state.
+    if (owner_ptr)
     {
-      unsigned orig_init = a->get_init_state_number();
-      unsigned new_init = orig_init;
-      bdd init_bdd = red.compute_sig(new_init);
-      for (unsigned i = 0; i < a_num_states; ++i)
-      {
-        if ((*owner_ptr)[i] == 0)
-        {
-          bdd other_bdd = red.compute_sig(i);
-          if (bdd_implies(other_bdd, init_bdd))
-          {
-            new_init = i;
-            init_bdd = other_bdd;
-          }
-        }
-      }
-      repr[orig_init] = new_init;
-    }
-    else if (!rec && owner_ptr)
-    {
+      // If we use signature inclusion, we do the same as with trees, we try
+      // to find a state such that there is no other state whose signature
+      // is included in the signature of this state.
       unsigned orig_init = a->get_init_state_number();
       bdd init_bdd = red.compute_sig(orig_init);
-      for (auto& e : a->edges())
-        if ((*owner_ptr)[e.dst] == 0)
+      if (rec)
+      {
+        unsigned new_init = orig_init;
+        for (auto& [sig, states] : red.bdd_lstate_)
         {
-          auto other_bdd = red.compute_sig(e.dst);
-          if (other_bdd == init_bdd)
+          assert(!states.empty());
+          // If it is a state controlled by the environment, we try to replace
+          // the initial state by this state
+          auto state = states.front();
+          if ((*owner_ptr)[state] == 0)
           {
-            repr[orig_init] = e.dst;
-            break;
+            if (bdd_implies(sig, init_bdd))
+            {
+              // During the construction of the tree, the state that represents
+              // a class is the first of the list states. We check that
+              // the same state is used.
+              assert(repr[state] == state);
+              new_init = state;
+              init_bdd = sig;
+            }
           }
         }
+        repr[orig_init] = new_init;
+      }
+      else
+      {
+        // Set of states which have the same signature as that of the
+        // initial state.
+        std::list<unsigned> comp_states = red.bdd_lstate_[init_bdd];
+        std::set<unsigned> comp_states_set(comp_states.begin(),
+                                           comp_states.end());
+
+        for (auto& e : a->edges())
+          if ((*owner_ptr)[e.dst] == 0)
+            // We try to have a new initial state reachable from a state
+            // that will be in the result in order to avoid useless SCCs.
+            if (repr[e.src] == e.src
+                && comp_states_set.find(e.dst) != comp_states_set.end())
+            {
+              repr[orig_init] = e.dst;
+              break;
+            }
+      }
     }
     return repr;
   }
@@ -1191,9 +1162,11 @@ namespace spot
     mmc->copy_ap_of(mm);
     mmc->copy_acceptance_of(mm);
     auto sp = mm->get_named_prop<std::vector<bool>>("state-player");
-    assert(sp);
-    auto nsp = new std::vector<bool>(*sp);
-    mmc->set_named_prop("state-player", nsp);
+    if (sp)
+    {
+      auto nsp = new std::vector<bool>(*sp);
+      mmc->set_named_prop("state-player", nsp);
+    }
     minimize_mealy_fast_here(mmc, use_inclusion);
     // Try to set outputs
     if (bdd* outptr = mm->get_named_prop<bdd>("synthesis-outputs"))
@@ -1210,48 +1183,34 @@ namespace spot
       return;
 
     auto repr = get_repres(mm, use_inclusion);
-    // Check if no reduction is possible
-    // This is the case if there are as many classes and states
-    // and in this case each state simply represents itself
-    {
-      bool has_reduc = false;
-      for (size_t i = 0; i < repr.size(); ++i)
-        if (repr[i] != i)
-          {
-            has_reduc = true;
-            break;
-          }
-      if (!has_reduc)
-        return;
-    }
+    if (repr[0] == -1U)
+      return;
 
+    // Change the destination of transitions using a DFT to avoid useless
+    // modifications.
     auto init = repr[mm->get_init_state_number()];
     mm->set_init_state(init);
     std::stack<unsigned> todo;
     std::vector<bool> done(mm->num_states(), false);
     todo.emplace(init);
     while (!todo.empty())
+    {
+      auto current = todo.top();
+      todo.pop();
+      done[current] = true;
+      for (auto& e : mm->out(current))
       {
-        auto current = todo.top();
-        todo.pop();
-        done[current] = true;
-        for (auto& e : mm->out(current))
-          {
-            if (e.dst == current)
-              continue;
-            auto repr_dst = repr[e.dst];
-            e.dst = repr_dst;
-            if (!done[repr_dst])
-              todo.emplace(repr_dst);
-          }
+        auto repr_dst = repr[e.dst];
+        e.dst = repr_dst;
+        if (!done[repr_dst])
+          todo.emplace(repr_dst);
       }
+    }
     mm->purge_unreachable_states();
     if (mm->get_named_prop<std::vector<bool>>("state-player"))
       alternate_players(mm, false, false);
   }
 }
-
-
 
 // Anonymous for mealy minimization
 namespace

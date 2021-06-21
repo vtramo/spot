@@ -490,12 +490,12 @@ namespace spot
         return;
       case 1:
         {
-          minimize_mealy_fast_here(strat, true);
+          minimize_mealy_fast_here(strat, false);
           break;
         }
       case 2:
         {
-          minimize_mealy_fast_here(strat, false);
+          minimize_mealy_fast_here(strat, true);
           break;
         }
       case 3:
