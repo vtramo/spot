@@ -968,6 +968,22 @@ namespace
     bdd_digraph(bdd label, unsigned state) : label_(label), state_(state) {}
 
     void
+    all_children_aux_(std::set<std::shared_ptr<bdd_digraph>>& res)
+    {
+      for (auto c : children_)
+        if (res.insert(c).second)
+          c->all_children_aux_(res);
+    }
+
+    std::set<std::shared_ptr<bdd_digraph>>
+    all_children()
+    {
+      std::set<std::shared_ptr<bdd_digraph>> res;
+      all_children_aux_(res);
+      return res;
+    }
+
+    void
     add_aux_(std::shared_ptr<bdd_digraph>& new_node, std::vector<bool>& done)
     {
       // Avoid doing twice the same state
@@ -977,17 +993,22 @@ namespace
       {
         if (done[ch->state_])
           continue;
-        if (bdd_implies(ch->label_, new_node->label_))
-        {
+        if (bdd_implies(new_node->label_, ch->label_))
           ch->add_aux_(new_node, done);
+        else if (bdd_implies(ch->label_, new_node->label_))
+        {
+          auto ch_nodes = ch->all_children();
           new_node->children_.push_back(ch);
+          for (auto& x : ch_nodes)
+            new_node->children_.push_back(x);
         }
       }
-      if (bdd_implies(new_node->label_, label_))
-        children_.push_back(new_node);
+      assert(bdd_implies(new_node->label_, label_));
+      children_.push_back(new_node);
     }
 
-    void add(std::shared_ptr<bdd_digraph>& new_node, bool rec,
+    void
+    add(std::shared_ptr<bdd_digraph>& new_node, bool rec,
               unsigned max_state)
     {
       if (new_node->label_ == bddtrue)
@@ -1002,9 +1023,7 @@ namespace
         add_aux_(new_node, done);
       }
       else
-      {
         children_.push_back(new_node);
-      }
     }
 
     unsigned
@@ -1015,21 +1034,11 @@ namespace
         res.insert({label_, state_});
         return state_;
       }
-      unsigned nb_p = children_[0].use_count();
-      unsigned pos = 0;
-
-      for (unsigned i = 1; i < children_.size(); ++i)
-      {
-        unsigned nb_p_ch = children_[1].use_count();
-        if (nb_p_ch > nb_p)
-        {
-          nb_p = nb_p_ch;
-          pos = i;
-        }
-      }
+      auto ch_size = children_.size();
+      unsigned pos = ch_size - 1;
       auto my_repr = children_[pos]->flatten_aux(res);
       res.insert({label_, my_repr});
-      for (unsigned i = 0; i < children_.size(); ++i)
+      for (unsigned i = 0; i < ch_size; ++i)
       {
         if (i == pos)
           continue;
@@ -1044,6 +1053,23 @@ namespace
       std::unordered_map<bdd, unsigned, spot::bdd_hash> res;
       flatten_aux(res);
       return res;
+    }
+
+    // Transforms children_ such that the child with the higher use_count() is
+    // at the end.
+    void
+    sort_nodes()
+    {
+      if (!children_.empty())
+      {
+        auto max_pos = std::max_element(children_.begin(), children_.end(),
+                  [](const std::shared_ptr<bdd_digraph>& n1,
+                     const std::shared_ptr<bdd_digraph>& n2)
+                  {
+                    return n1.use_count() < n2.use_count();
+                  });
+        std::iter_swap(max_pos, children_.end() - 1);
+      }
     }
   };
 
@@ -1063,7 +1089,7 @@ namespace
     std::vector<bdd> signatures(a_num_states);
     sig_calculator red(a, rec);
     red.main_loop();
-    if (red.bdd_lstate_.size() == a_num_states)
+    if (!rec && red.bdd_lstate_.size() == a_num_states)
     {
       repr[0] = -1U;
       return repr;
@@ -1088,13 +1114,25 @@ namespace
         }
       }
     }
+    graph.sort_nodes();
     auto repr_map = graph.flatten();
+
+    bool is_useless_map = true;
     for (unsigned i = 0; i < a_num_states; ++i)
     {
       if (owner_ptr && (*owner_ptr)[i] == 0)
         repr[i] = i;
       else
+      {
         repr[i] = repr_map[signatures[i]];
+        is_useless_map &= (repr[i] == i);
+      }
+    }
+
+    if (is_useless_map)
+    {
+      repr[0] = -1U;
+      return repr;
     }
     // We have a new destination for the edges that leave the states controlled
     // by the environment but we have to change the initial state.
