@@ -409,6 +409,7 @@ TESTS_python = \
   python/ltlf.py \
   python/ltlparse.py \
   python/ltlsimple.py \
+  python/mealy.py \
   python/merge.py \
   python/mergedge.py \
   python/minato.py \

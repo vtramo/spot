@@ -1,5 +1,5 @@
 ## -*- coding: utf-8 -*-
-## Copyright (C) 2008-2018, 2020 Laboratoire de Recherche et
+## Copyright (C) 2008-2018, 2020-2021 Laboratoire de Recherche et
 ## Développement de l'Epita (LRDE).
 ## Copyright (C) 2003-2005 Laboratoire d'Informatique de Paris 6
 ## (LIP6), département Systèmes Répartis Coopératifs (SRC), Université
@@ -66,6 +66,7 @@ twaalgos_HEADERS = \
   magic.hh \
   mask.hh \
   minimize.hh \
+  mealy_machine.hh \
   couvreurnew.hh \
   neverclaim.hh \
   parity.hh \
@@ -136,6 +137,7 @@ libtwaalgos_la_SOURCES = \
   magic.cc \
   mask.cc \
   minimize.cc \
+  mealy_machine.cc \
   couvreurnew.cc \
   ndfs_result.hxx \
   neverclaim.cc \
