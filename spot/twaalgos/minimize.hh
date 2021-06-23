@@ -134,5 +134,41 @@ namespace spot
   bool minimize_obligation_garanteed_to_work(const const_twa_graph_ptr& aut_f,
                                              formula f = nullptr);
 
+  /// \brief Like minimize_mealy_fast_here
+  SPOT_API
+  twa_graph_ptr minimize_mealy_fast(const const_twa_graph_ptr& mm,
+                                    bool extra_fast = false);
+
+  /// \brief Minimizes an (in)completely specified mealy machine
+  ///        Based on signature inclusion or equality. This is not guaranteed
+  ///        to find the minimal number of states but is usually faster.
+  ///        This also comes at another drawback:
+  ///        All applicable sequences have to be infinite. Finite
+  ///        traces are disregarded
+  /// \Note The graph does not have to be split into env and player
+  ///        states as for minimize_mealy
+  SPOT_API
+  void minimize_mealy_fast_here(twa_graph_ptr& mm,
+                              bool use_inclusion = false);
+
+    /// \brief Minimizes an (in)completely specified mealy machine
+    ///        The approach is basically described in \cite abel2015memin
+    /// \param premin Use minimize_mealy_fast before applying the
+    ///               main algorithm if demanded AND
+    ///               the original machine has no finite trace
+    ///               -1 : Do not use
+    ///                0 : Use with use_inclusion == false
+    ///                1 : Use with use_inclusion
+    /// \param keep_split Whether or not to keep the automaton states
+    ///                   partitioned into player and env states
+    /// \pre Graph must be split into env states and player states,
+    ///      such that they alternate. Edges leaving env states must be labeled
+    ///      with input proposition and edges leaving player states must be
+    ///      labeled with output propositions.
+    SPOT_API
+    twa_graph_ptr minimize_mealy(const const_twa_graph_ptr& mm,
+                                 int premin = -1,
+                                 bool keep_split = true);
+
   /// @}
 }

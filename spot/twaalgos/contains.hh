@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2018 Laboratoire de Recherche et Développement de
+// Copyright (C) 2018, 2021 Laboratoire de Recherche et Développement de
 // l'Epita.
 //
 // This file is part of Spot, a model checking library.
@@ -44,6 +44,15 @@ namespace spot
   SPOT_API bool contains(formula left, const_twa_graph_ptr right);
   SPOT_API bool contains(formula left, formula right);
   /// @}
+
+  /// \ingroup containment
+  /// \brief Test if the mealy machine \a right is a specialization of
+  /// the mealy machine \a left. That is all input sequences valid for left
+  /// must be applicable for right and the induced sequence of output signals
+  /// of right must imply the ones of left
+  SPOT_API bool is_mealy_specialization(const_twa_graph_ptr left,
+                                        const_twa_graph_ptr right,
+                                        bool verbose = false);
 
   /// \ingroup containment
   /// \brief Test if the language of \a left is equivalent to that of \a right.
