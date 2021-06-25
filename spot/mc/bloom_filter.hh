@@ -64,9 +64,10 @@ namespace spot
     using hash_functions_t = std::vector<hash_function_t>;
 
     concurrent_bloom_filter(size_t mem_size, hash_functions_t hash_functions)
-      : mem_size_(mem_size), hash_functions_(hash_functions)
+      : mem_size_(mem_size), mem_size_bits_(mem_size * BITS_PER_ELEMENT),
+      hash_functions_(hash_functions)
     {
-      bits_ = new std::atomic<uint32_t>[mem_size / BITS_PER_ELEMENT]();
+      bits_ = new std::atomic<uint32_t>[mem_size_]();
       if (hash_functions.empty())
         throw std::invalid_argument("Bloom filter has no hash functions");
     }
@@ -84,7 +85,7 @@ namespace spot
     {
       for (const auto& f : hash_functions_)
       {
-        hash_t hash = f(elem) % mem_size_;
+        hash_t hash = f(elem) % mem_size_bits_;
         set(hash);
       }
     }
@@ -93,7 +94,7 @@ namespace spot
     {
       for (const auto& f : hash_functions_)
       {
-        hash_t hash = f(elem) % mem_size_;
+        hash_t hash = f(elem) % mem_size_bits_;
         if (test(hash) == false)
           return false;
       }
@@ -103,6 +104,7 @@ namespace spot
 
   private:
     size_t mem_size_;
+    size_t mem_size_bits_;
     hash_functions_t hash_functions_;
   };
 }
