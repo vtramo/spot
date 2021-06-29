@@ -20,6 +20,18 @@
 import spot
 from sys import exit
 
+# CPython use reference counting, so that automata are destructed
+# when we expect them to be.   However other implementations like
+# PyPy may call destructors latter, causing different output.
+from platform import python_implementation
+if python_implementation() == 'CPython':
+    def gcollect():
+        pass
+else:
+    import gc
+    def gcollect():
+        gc.collect()
+
 aut = spot.automaton("""
 HOA: v1
 States: 2
@@ -63,6 +75,10 @@ State: 0 "[0,1]" {0}
 [t] 0
 --END--"""
 
+del aut
+del aut2
+gcollect()
+
 aut = spot.translate('GF((p0 -> Gp0) R p1)')
 
 daut = spot.tgba_determinize(aut, True)
@@ -91,6 +107,10 @@ State: 2 "{₀[0]₀}{₁[1]₁}"
 [0&!1] 0 {0}
 [0&1] 1 {2}
 --END--"""
+
+del aut
+del daut
+gcollect()
 
 aut = spot.automaton("""
 HOA: v1
@@ -175,6 +195,7 @@ assert b.num_states() == 3
 b.set_init_state(1)
 b.purge_unreachable_states()
 b.copy_state_names_from(a)
+
 assert b.to_str() == """HOA: v1
 States: 1
 Start: 0

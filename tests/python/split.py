@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2018-2020 Laboratoire de Recherche et
+# Copyright (C) 2018-2021 Laboratoire de Recherche et
 # Développement de l'Epita
 #
 # This file is part of Spot, a model checking library.
@@ -18,6 +18,19 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import spot
+
+# CPython use reference counting, so that automata are destructed
+# when we expect them to be.   However other implementations like
+# PyPy may call destructors latter, causing different output.
+from platform import python_implementation
+if python_implementation() == 'CPython':
+    def gcollect():
+        pass
+else:
+    import gc
+    def gcollect():
+        gc.collect()
+
 
 
 def incl(a, b):
@@ -50,6 +63,10 @@ def str_diff(expect, obtained):
 aut, s = do_split('(FG !a) <-> (GF b)', ['a'], ['b'])
 assert equiv(aut, spot.unsplit_2step(s))
 
+del aut
+del s
+gcollect()
+
 aut, s = do_split('GFa && GFb', ['a'], ['b'])
 assert equiv(aut, spot.unsplit_2step(s))
 assert str_diff("""HOA: v1
@@ -72,6 +89,10 @@ State: 2
 [!1] 0
 [1] 0 {1}
 --END--""", s.to_str() )
+
+del aut
+del s
+gcollect()
 
 aut, s = do_split('! ((G (req -> (F ack))) && (G (go -> (F grant))))',
                   ['go', 'req'], ['ack'])
@@ -112,6 +133,10 @@ assert equiv(aut, spot.unsplit_2step(s))
 # State: 8 {0}
 # [!3] 2
 # --END--"""
+
+del aut
+del s
+gcollect()
 
 aut, s = do_split('((G (((! g_0) || (! g_1)) && ((r_0 && (X r_1)) -> (F (g_0 \
     && g_1))))) && (G (r_0 -> F g_0))) && (G (r_1 -> F g_1))',

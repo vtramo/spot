@@ -1,6 +1,6 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2009, 2010, 2012, 2014, 2015, 2016 Laboratoire de Recherche et
-# Développement de l'Epita (LRDE).
+# Copyright (C) 2009, 2010, 2012, 2014-2016, 2021 Laboratoire de Recherche
+# et Développement de l'Epita (LRDE).
 # Copyright (C) 2003, 2004 Laboratoire d'Informatique de Paris 6 (LIP6),
 # département Systèmes Répartis Coopératifs (SRC), Université Pierre
 # et Marie Curie.
@@ -27,7 +27,6 @@
 import sys
 import getopt
 import spot
-
 
 def usage(prog):
     sys.stderr.write("""Usage: %s [OPTIONS...] formula
@@ -131,4 +130,11 @@ else:
 
 del pf
 del dict
-assert spot.fnode_instances_check()
+
+
+# In CPython, reference counting will cause the above del()
+# to actually destruct the above formulas.  However that is
+# not necessary in other implementations.
+from platform import python_implementation
+if python_implementation() == 'CPython':
+    assert spot.fnode_instances_check()

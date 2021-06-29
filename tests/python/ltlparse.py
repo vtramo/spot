@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2009-2012, 2014-2017, 2019 Laboratoire de Recherche et
+# Copyright (C) 2009-2012, 2014-2017, 2019, 2021 Laboratoire de Recherche et
 # Développement de l'Epita (LRDE).
 # Copyright (C) 2003, 2004 Laboratoire d'Informatique de Paris 6 (LIP6),
 # département Systèmes Répartis Coopératifs (SRC), Université Pierre
@@ -198,6 +198,12 @@ for (x, msg) in [('a->', "missing right operand for \"implication operator\""),
     print(err)
     assert msg in err
     del f9
+
+# force GC before fnode_instances_check(), unless it's CPython
+from platform import python_implementation
+if python_implementation() != 'CPython':
+    import gc
+    gc.collect()
 
 assert spot.fnode_instances_check()
 

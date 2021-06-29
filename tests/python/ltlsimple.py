@@ -1,6 +1,6 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2009, 2010, 2012, 2015, 2018 Laboratoire de Recherche et
-# Développement de l'Epita (LRDE).
+# Copyright (C) 2009, 2010, 2012, 2015, 2018, 2021 Laboratoire de
+# Recherche et Développement de l'Epita (LRDE).
 # Copyright (C) 2003, 2004 Laboratoire d'Informatique de Paris 6 (LIP6),
 # département Systemes Répartis Coopératifs (SRC), Université Pierre
 # et Marie Curie.
@@ -22,6 +22,12 @@
 
 import spot
 import sys
+
+# Some of the tests here assume timely destructor calls, as they occur
+# in the the reference-counted CPython implementation.  Other
+# implementation such as PyPy, should skip those tests.
+from platform import python_implementation
+is_cpython = python_implementation() == 'CPython'
 
 # ----------------------------------------------------------------------
 a = spot.formula.ap('a')
@@ -71,7 +77,8 @@ f5 = spot.formula.Xor(F, c)
 
 del a, b, c, T, F, f1, f2, f4, f5
 
-assert spot.fnode_instances_check()
+if is_cpython:
+    assert spot.fnode_instances_check()
 
 # ----------------------------------------------------------------------
 assert str([str(x) for x in spot.formula('a &b & c')]) == "['a', 'b', 'c']"

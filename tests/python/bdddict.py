@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2019 Laboratoire de Recherche et Développement de l'Epita
+# Copyright (C) 2019, 2021 Laboratoire de Recherche et Développement de l'Epita
 # (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -20,6 +20,17 @@
 # Make sure we can leep track of BDD association in Python using bdd_dict, as
 # discussed in issue #372.
 
+# CPython use reference counting, so that automata are destructed
+# when we expect them to be.   However other implementations like
+# PyPy may call destructors latter, causing different output.
+from platform import python_implementation
+if python_implementation() == 'CPython':
+    def gcollect():
+        pass
+else:
+    import gc
+    def gcollect():
+        gc.collect()
 
 import spot
 
@@ -88,18 +99,22 @@ debug("h2")
 check_ok()
 
 del aut
+gcollect()
 debug("-aut")
 check_ok()
 
 del word
+gcollect()
 debug("-word")
 check_ok()
 
 del h
+gcollect()
 debug("-h")
 check_ok()
 
 del h2
+gcollect()
 debug("-h2")
 check_nok()
 
@@ -110,9 +125,11 @@ var = bdict.register_anonymous_variables(1, h3)
 debug("h3")
 assert var == 2
 del h2
+gcollect()
 debug("-h2")
 check_ok()
 del h3
+gcollect()
 debug("-h3")
 check_nok()
 
@@ -121,4 +138,5 @@ debug("h2")
 bdict.unregister_variable(bdict.varnum("b"), h2)
 bdict.unregister_variable(bdict.varnum("a"), h2)
 debug("-b,-a")
+gcollect()
 check_nok()

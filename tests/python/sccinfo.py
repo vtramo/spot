@@ -59,7 +59,7 @@ l = sorted(list(l0) + list(l1) + list(l2) + list(l3))
 assert l == [0, 1, 2, 3, 4]
 
 i = si.initial()
-todo = {i}
+todo = [i]
 seen = {i}
 trans = []
 transi = []
@@ -72,13 +72,13 @@ while todo:
     for s in si.succ(e):
         if s not in seen:
             seen.add(s)
-            todo.add(s)
+            todo.append(s)
 assert seen == {0, 1, 2, 3}
 assert trans == [(0, 0), (0, 1), (0, 2), (0, 3),
                  (2, 0), (2, 1), (2, 2), (2, 4),
-                 (1, 1), (4, 1), (4, 4), (3, 3)]
+                 (3, 3), (4, 1), (4, 4), (1, 1)]
 assert transi == [(0, 0, 1), (0, 2, 3), (2, 0, 6),
-                  (2, 2, 8), (1, 1, 5), (4, 4, 12), (3, 3, 10)]
+                  (2, 2, 8), (3, 3, 10), (4, 4, 12), (1, 1, 5)]
 
 assert not spot.is_weak_automaton(a, si)
 
