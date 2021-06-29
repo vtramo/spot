@@ -4,7 +4,7 @@
 #+INCLUDE: setup.org
 #+HTML_LINK_UP: index.html
 
-* Installing from a tarball
+* Installing and compiling from a tarball
    :PROPERTIES:
    :CUSTOM_ID: tar
    :END:
@@ -131,7 +131,25 @@ command-line tools, =python3-spot= contains the Python bindings,
 documentation that you can also find online.  Those packages depends
 on =libspot= that contains the shared libraries.
 
-* Installing from git
+* Installing as a Conda package
+
+  Spot is available as a [[https://anaconda.org/conda-forge/spot][Conda-forge package]] for Linux and OS X.
+
+  A typical installation would go as follow:
+
+#+BEGIN_SRC sh
+  conda create --name myenv python=3.8 # adjust as desired
+  conda activate myenv
+  conda install -c conda-forge spot
+#+END_SRC
+
+  Note that this package is built automatically by the conda-forge
+  infrastructure, but this requires some manual trigger after each
+  release.  Therefore there might be a delay between the moment a
+  release of Spot is announced, and the availability of the Conda
+  package.
+
+* Installing and compiling from git
    :PROPERTIES:
    :CUSTOM_ID: git
    :END:
