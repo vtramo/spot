@@ -1,6 +1,6 @@
 #!/bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2010-2011, 2014-2016, 2018-2020 Laboratoire de Recherche
+# Copyright (C) 2010-2011, 2014-2016, 2018-2021 Laboratoire de Recherche
 # et Developpement de l'EPITA (LRDE).
 # Copyright (C) 2003, 2004 Laboratoire d'Informatique de Paris 6
 # (LIP6), département Systèmes Répartis Coopératifs (SRC), Université
@@ -114,7 +114,7 @@ case $1 in
     exec sh -x "$@";;
   *.pl)
     exec $PERL "$@";;
-  *python*|*jupyter*)
+  *python*|*jupyter*|*pypy*)
     PYTHONPATH=$pypath DYLD_LIBRARY_PATH=$modpath:$DYLD_LIBRARY_PATH \
     exec $PREFIXCMD "$@";;
   *)

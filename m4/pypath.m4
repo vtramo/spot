@@ -8,6 +8,10 @@ AC_DEFUN([adl_CHECK_PYTHON],
     [adl_cv_python_inc],
     [adl_cv_python_inc=`$PYTHON -c "import sys; from distutils import sysconfig;]
 [sys.stdout.write(sysconfig.get_python_inc())" 2>/dev/null`])
+  AC_CACHE_CHECK([for $am_display_PYTHON extension suffix],
+    [adl_cv_python_ext],
+    [adl_cv_python_ext=`$PYTHON -c "import importlib.machinery as i; print(i.EXTENSION_SUFFIXES[[0]])"`])
+  AC_SUBST([PYEXT], [${adl_cv_python_ext%.*}])
   AC_SUBST([PYTHONINC], [$adl_cv_python_inc])
   adl_save_CPPFLAGS="$CPPFLAGS"
   CPPFLAGS="$adl_save_CPPFLAGS -I$PYTHONINC"
