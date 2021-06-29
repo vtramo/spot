@@ -38,8 +38,8 @@
 #include <thread>
 #include <mutex>
 #include <random>
-#include <spot/concurrentqueue.h>
 #include <spot/misc/timer.hh>
+#include "spot/twaalgos/concurrentqueue.h"
 
 //  Simulation-based reduction, implemented using bdd-based signatures.
 //
@@ -1039,11 +1039,11 @@ namespace spot
   private:
     // If aut_ is deterministic, only the lower left triangle is set.
     std::vector<char> compute_simulation();
-    //std::vector<char> compute_simulation_scc();
-    //std::vector<char> compute_simulation_par1();
-    //std::vector<char> compute_simulation_par2();
-    //std::vector<char> compute_simulation_par2_1();
-    //std::vector<char> compute_simulation_par3();
+    std::vector<char> compute_simulation_scc();
+    std::vector<char> compute_simulation_par1();
+    std::vector<char> compute_simulation_par2();
+    std::vector<char> compute_simulation_par2_1();
+    std::vector<char> compute_simulation_par3();
     std::vector<char> compute_simulation_par4();
 
     static constexpr bool is_twa_graph =
@@ -1127,6 +1127,7 @@ namespace spot
     aut_ = std::move(a);
   }
 
+  /*
   template <typename ConstAutPtr, bool Cosimulation, bool Sba>
   std::vector<char>
   reduce_sim<ConstAutPtr, Cosimulation, Sba>::compute_simulation()
@@ -1200,7 +1201,8 @@ namespace spot
     }
 
     std::vector<char> can_sim(n * n, true);
-
+*/
+    /*
     const auto test_sim = [&](size_t s1, size_t s2, const auto& test_sim_ref, unsigned lookhead=1) -> bool
       {
         auto s_edges = ga.out(s1);
@@ -1245,11 +1247,10 @@ namespace spot
                   });
             });
       };
-
-    /*
-
+*/
+/*
     // Test if s1 simulates s2.
-    const auto test_sim = [&](size_t s1, size_t s2) -> bool
+    const auto test_sim = [&](size_t s1, size_t s2, size_t target) -> bool
       {
         auto s_edges = ga.out(s1);
         auto d_edges = ga.out(s2);
@@ -1261,6 +1262,9 @@ namespace spot
           [&](const auto& s_edge) -> bool
             {
               size_t i = static_cast<size_t>(s_edge.dst) * n;
+
+//              if (target != std::numeric_limits<unsigned>::max() && target != s_edge.dst)
+//                return true;
 
               return std::find_if(d_edges.begin(), d_edges.end(),
                 [&](const auto& d_edge) -> bool
@@ -1295,11 +1299,40 @@ namespace spot
                   });
             });
       };
+*/
+    /*
+    std::vector<acc_cond::mark_t> acc_sig(n);
 
-      */
+    if (aut_->prop_state_acc())
+    {
+      for (size_t s = 0; s < n; ++s)
+        acc_sig[s] = ait->state_acc_sets(s);
+    }
+    else
+    {
+      for (const auto& e : ga.edges())
+        acc_sig[e.src] |= e.acc;
+    }
+
+    todo.clear();
+    for (size_t i = 0; i < n; ++i)
+    {
+      bool need_to_update_pred = false;
+
+      for (size_t j = 0; j < n; ++j)
+      {
+      can_sim[i * n + j] = (acc_sig[j].subset(acc_sig[i]));
+      need_to_update_pred |= can_sim[i * n + j];
+      }
+
+      todo.push_back(need_to_update_pred);
+    }
+    */
+/*
     todo.resize(n, true);
 
     bool has_changed;
+    bool is_first_iter = true;
     do
       {
         has_changed = false;
@@ -1309,6 +1342,7 @@ namespace spot
               continue;
 
             todo[i] = false;
+            unsigned target = i;// (is_first_iter) ? std::numeric_limits<unsigned>::max() : i;
 
             // Update all the predecessors that changed on last turn.
             for (const auto& re : reverse.out(i))
@@ -1326,7 +1360,7 @@ namespace spot
                         if (!can_sim[idx + v])
                           continue;
 
-                        if (!test_sim(u, v, test_sim) || !test_sim(v, u, test_sim))
+                        if (!test_sim(u, v, target) || !test_sim(v, u, target))
                           {
                             can_sim[u * n + v] = false;
                             has_changed = true;
@@ -1343,7 +1377,7 @@ namespace spot
                         if (!can_sim[idx + v])
                           continue;
 
-                        if (!test_sim(u, v, test_sim))
+                        if (!test_sim(u, v, target))
                           {
                             can_sim[idx + v] = false;
                             has_changed = true;
@@ -1353,6 +1387,8 @@ namespace spot
                   }
               }
           }
+
+        is_first_iter = false;
       }
     while (has_changed);
 
@@ -1376,7 +1412,7 @@ namespace spot
 
     return can_sim;
   }
-
+*/
   template <typename ConstAutPtr, bool Cosimulation, bool Sba>
   std::vector<char>
   reduce_sim<ConstAutPtr, Cosimulation, Sba>::compute_simulation_par4()
@@ -1422,6 +1458,269 @@ namespace spot
     unsigned init = aut_->get_init_state_number();
 
     std::vector<char> can_sim(n * n, true);
+    /*
+    std::vector<acc_cond::mark_t> acc_sig(n);
+    for (const auto& e : ga.edges())
+      acc_sig[e.src] |= e.acc;
+
+    for (size_t i = 0; i < n; ++i)
+      for (size_t j = 0; j < n; ++j)
+        can_sim[i * n + j] = (acc_sig[j].subset(acc_sig[i]));
+    */
+
+
+    // Test if s1 simulates s2.
+    const auto test_sim = [&](size_t s1, size_t s2, size_t target, const auto& test_sim_ref, unsigned lookhead=1) -> bool
+      {
+        auto s_edges = ga.out(s1);
+        auto d_edges = ga.out(s2);
+
+        // s1 simulates s2 only if for all the edges of s2 there is an edges s1
+        // with compatible condition, acceptance and the destinations simulate
+
+        return std::all_of(s_edges.begin(), s_edges.end(),
+          [&](const auto& s_edge) -> bool
+            {
+              size_t i = static_cast<size_t>(s_edge.dst) * n;
+
+              //if (target != std::numeric_limits<unsigned>::max() && target != s_edge.dst)
+              //  return true;
+
+              return std::find_if(d_edges.begin(), d_edges.end(),
+                [&](const auto& d_edge) -> bool
+                  {
+                    // Checks if the destinations of the spoiler simulates
+                    // the  duplicator. If not and there is still some lookhead
+                    // available, it checks the current state with one less
+                    // lookhead.
+                    if (!can_sim[i + static_cast<size_t>(d_edge.dst)])
+                      if (lookhead - 1 == 0 || !test_sim_ref(s_edge.dst, d_edge.dst, target, test_sim_ref, lookhead-1))
+                          return false;
+
+                    if constexpr(Sba && Cosimulation)
+                      {
+                        if (!(this->acc_[d_edge.src])
+                            .subset(this->acc_[s_edge.src]))
+                          return false;
+                      }
+                    else
+                      {
+                        if (!d_edge.acc.subset(s_edge.acc))
+                          return false;
+                      }
+
+                    if constexpr(Cosimulation)
+                      {
+                        if (s_edge.dst == init && d_edge.dst != init)
+                          return false;
+                      }
+
+                    return this->cond_implies(s_edge, d_edge);
+                  });
+            });
+      };
+
+    std::vector<std::atomic<char>> todo(n);
+    for (unsigned i = 0; i < n; ++i)
+      todo[i] = true;
+
+    std::atomic<unsigned> ready(0);
+    std::atomic<bool> barrier(true);
+
+    for (unsigned i = 0; i < nb_thread_ - 1; ++i)
+      ready |= 1U << i;
+
+    auto loop = [&](unsigned id)
+    {
+      unsigned mask = 1U << id;
+
+      std::vector<unsigned> order;
+
+      {
+        order.reserve(n);
+        unsigned i = 0;
+
+        std::vector<bool> seen(n, false);
+        order.push_back(init);
+        seen[init] = true;
+
+        while (i < order.size())
+        {
+          unsigned cur = order[i];
+          ++i;
+
+          for (auto trans = original_->succ(cur);
+              !trans->done();
+              trans->next())
+          {
+            unsigned dst = aut_->trans_storage(trans, id).dst;
+
+            if (!seen[dst])
+            {
+              seen[dst] = true;
+              order.push_back(dst);
+            }
+          }
+        }
+      }
+
+      ready &= ~mask;
+      while (barrier)
+        continue;
+
+      bool has_changed;
+      bool is_first_iter = true;
+
+      do
+      {
+        has_changed = false;
+
+        for (unsigned k = n - 1; k < n; --k)
+        {
+          unsigned i = order[k];
+          if (!todo[i])
+            continue;
+
+          todo[i] = false;
+          unsigned target = i;//(is_first_iter) ? std::numeric_limits<unsigned>::max() : i;
+
+          // Update all the predecessors that changed on last turn.
+          for (const auto& re : reverse.out(i))
+          {
+            size_t u = re.dst;
+            size_t idx = u * n;
+
+            for (unsigned v = 0; v < n; ++v)
+            {
+              // u doesn't simulate v
+              if (!can_sim[idx + v])
+                continue;
+
+              if (!test_sim(u, v, target, test_sim))
+              {
+                can_sim[idx + v] = false;
+                todo[u] = true;
+                has_changed = true;
+              }
+            }
+
+          }
+        }
+        is_first_iter = false;
+
+      } while (has_changed);
+    };
+
+
+    std::vector<std::thread> ts;
+    ts.reserve(nb_thread_ - 1);
+
+    for (unsigned i = 0; i < nb_thread_ - 1; ++i)
+    {
+      ts.emplace_back(std::thread(loop, i));
+
+#if defined(unix) || defined(__unix__) || defined(__unix)
+        //  Pins threads to a dedicated core.
+        cpu_set_t cpuset;
+        CPU_ZERO(&cpuset);
+        CPU_SET(i, &cpuset);
+        int rc = pthread_setaffinity_np(ts[i].native_handle(),
+                                        sizeof(cpu_set_t), &cpuset);
+        if (rc != 0)
+          std::cerr << "Error calling pthread_setaffinity_np\n";
+#endif
+    }
+
+    while (ready)
+      continue;
+    tm.stop("Initialisation");
+    tm.start("Run");
+    barrier = false;
+
+    loop(nb_thread_ - 1);
+
+    for (unsigned i = 0; i < nb_thread_ - 1; ++i)
+      ts[i].join();
+    tm.stop("Run");
+
+    if constexpr(Cosimulation)
+      {
+        if (!ga.out(init).begin())
+          {
+            for (unsigned i = 0; i < n; ++i)
+              {
+                can_sim[i * n + init] = i == init;
+                can_sim[init * n + i] = false;
+              }
+          }
+        else
+          for (unsigned i = 0; i < n; ++i)
+            {
+              // i doesn't simulate init
+              can_sim[i * n + init] = i == init;
+            }
+      }
+
+    return can_sim;
+  }
+
+  template<typename ConstAutPtr, typename AutPtr>
+  std::vector<AutPtr> decompose_aut_by_symbol(const ConstAutPtr& aut);
+
+  /*
+  template <typename ConstAutPtr, bool Cosimulation, bool Sba>
+  std::vector<char>
+  reduce_sim<ConstAutPtr, Cosimulation, Sba>::compute_simulation_par5()
+  {
+    tm.start("Initialisation");
+    if (SPOT_UNLIKELY(is_twa_graph))
+      throw std::runtime_error("compute_simulation_par(): does not support twa_graph");
+
+    // At the start, we consider that all the pairs of vertices are simulating
+    // each other. At each iteration we detect which ones are not simulating
+    // and we remove them from the set. This information propagate backwards,
+    // so we only need to check the peers whose successors were updated in the
+    // previous iteration. To limit the number of iterations, we update them in
+    // reverse topological order.
+
+    const size_t n = aut_->num_states();
+    const auto& ga = aut_->get_graph();
+
+    // We need to have the predecessors of a state for the backward propagation.
+    digraph<void, void> reverse(n, aut_->num_edges());
+    reverse.new_states(n);
+
+    for (unsigned s = 0; s < n; ++s)
+      for (const auto& e : ga.out(s))
+        reverse.new_edge(e.dst, e.src);
+
+    reverse.sort_edges_([](const auto& e1, const auto& e2)
+        {
+          if (e1.src != e2.src)
+            return e1.src < e2.src;
+          return e1.dst < e2.dst;
+        });
+
+    // Remove all duplicates.
+    auto& edges = reverse.edge_vector();
+    edges.erase(std::unique(edges.begin() + 1, edges.end()), edges.end());
+    reverse.chain_edges_();
+
+    // Compute a reverse topological order for all the states. So that the
+    // algorithm iterates as few times as possible, we must update all the
+    // successors of a state before updating it.
+
+    unsigned init = aut_->get_init_state_number();
+
+    std::vector<char> can_sim(n * n, true);
+//    std::vector<acc_cond::mark_t> acc_sig(n);
+//    for (const auto& e : ga.edges())
+//      acc_sig[e.src] |= e.acc;
+//
+//    for (size_t i = 0; i < n; ++i)
+//      for (size_t j = 0; j < n; ++j)
+//        can_sim[i * n + j] = (acc_sig[j].subset(acc_sig[i]));
+
 
     // Test if s1 simulates s2.
     const auto test_sim = [&](size_t s1, size_t s2, const auto& test_sim_ref, unsigned lookhead=1) -> bool
@@ -1477,14 +1776,15 @@ namespace spot
 
     std::atomic<unsigned> ready(0);
     std::atomic<bool> barrier(true);
-    std::atomic<unsigned> has_changed(0);
-    for (unsigned i = 0; i < nb_thread_; ++i)
-      has_changed |= 1U << i;
+
     for (unsigned i = 0; i < nb_thread_ - 1; ++i)
       ready |= 1U << i;
 
     auto loop = [&](unsigned id)
     {
+      const auto& aut = sub_aut[id];
+      const aut& g_sub = aut->get_graph();
+
       unsigned mask = 1U << id;
 
       std::vector<unsigned> order;
@@ -1506,7 +1806,7 @@ namespace spot
               !trans->done();
               trans->next())
           {
-            unsigned dst = aut_->trans_storage(trans, id).dst;
+            unsigned dst = aut->trans_storage(trans, id).dst;
 
             if (!seen[dst])
             {
@@ -1521,11 +1821,11 @@ namespace spot
       while (barrier)
         continue;
 
-      //std::vector<size_t> commits;
-      //commits.reserve(n);
+      bool has_changed;
+
       do
       {
-        has_changed &= ~mask;
+        has_changed = false;
 
         for (unsigned k = n - 1; k < n; --k)
         {
@@ -1547,20 +1847,14 @@ namespace spot
               if (!can_sim[idx + v])
                 continue;
 
-              if (!test_sim(u, v, test_sim))
+              if (!test_sim(u, v, test_sim, g_sub))
               {
-                //commits.push_back(idx+v);
                 can_sim[idx + v] = false;
                 todo[u] = true;
-                has_changed |= mask;
+                has_changed = true;
               }
             }
 
-            /*
-            for (unsigned idx : commits)
-              can_sim[idx] = false;
-            commits.clear();
-            */
           }
         }
 
@@ -1574,7 +1868,7 @@ namespace spot
     for (unsigned i = 0; i < nb_thread_ - 1; ++i)
     {
       ts.emplace_back(std::thread(loop, i));
-/*
+
 #if defined(unix) || defined(__unix__) || defined(__unix)
         //  Pins threads to a dedicated core.
         cpu_set_t cpuset;
@@ -1585,7 +1879,7 @@ namespace spot
         if (rc != 0)
           std::cerr << "Error calling pthread_setaffinity_np\n";
 #endif
-     */ }
+    }
 
     while (ready)
       continue;
@@ -1619,6 +1913,7 @@ namespace spot
 
     return can_sim;
   }
+  */
 
   template <typename ConstAutPtr, bool Cosimulation, bool Sba>
   auto reduce_sim<ConstAutPtr, Cosimulation, Sba>::run()
@@ -1626,12 +1921,38 @@ namespace spot
     aut_ptr_t res = create_twa_from(original_);
     aut_ptr_t no_mark = create_twa_from(original_);
     unsigned init = original_->get_init_state_number();
+/*
+    auto subaut = decompose_aut_by_symbol<ConstAutPtr, aut_ptr_t>(aut_);
 
+    timer_map tm2;
+    for (unsigned i = 0; i < aut_->num_states(); ++i)
+    {
+      std::swap(subaut[i], aut_);
+      tm2.start(std::to_string(i));
+      compute_simulation();
+      tm2.stop(std::to_string(i));
+      std::swap(subaut[i], aut_);
+    }
+    return res;
+*/
     std::vector<char> can_sim;
     if constexpr(is_twa_graph)
       can_sim = compute_simulation();
-    else //FIXME if nb_thread == 0, use compute_simulation.
-      can_sim = compute_simulation_par4();
+    else
+      can_sim = (nb_thread_) ? compute_simulation_par4() : compute_simulation();
+
+    /*
+    unsigned nnnn=aut_->num_states();
+    for (unsigned i = 0; i < aut_->num_states(); ++i)
+    {
+      for (unsigned j = 0; j < aut_->num_states(); ++j)
+        if (can_sim[i * nnnn + j])
+          std::cerr << "x ";
+        else
+          std::cerr << ". ";
+      std::cerr << '\n';
+    }
+    */
 
     tm.start("reduce");
     size_t n = original_->num_states();
@@ -1989,4 +2310,239 @@ namespace spot
   {
     return reduce_iterated_<const_twa_graph_ptr, true>(aut);
   }
+
+  std::vector<unsigned> count_ap(const const_twacube_ptr& aut, std::map<int, unsigned>& var_to_idx);
+  std::vector<unsigned> count_ap(const const_twacube_ptr& aut, std::map<int, unsigned>& var_to_idx)
+  {
+    (void)var_to_idx;
+
+    std::vector<unsigned> count(aut->ap().size() * 2, 0);
+    const auto& cs = aut->get_cubeset();
+    const auto& g = aut->get_graph();
+
+    for (const auto& e : g.edges())
+    {
+      for (unsigned ap = 0; ap < cs.size(); ++ap)
+      {
+        if (cs.is_true_var(e.cube_, ap))
+          ++count[ap * 2];
+        else if  (cs.is_false_var(e.cube_, ap))
+          ++count[ap * 2 + 1];
+      }
+    }
+    return count;
+  }
+
+
+  std::vector<unsigned> count_ap(const const_twa_graph_ptr& aut, std::map<int, unsigned>& var_to_idx);
+  std::vector<unsigned> count_ap(const const_twa_graph_ptr& aut, std::map<int, unsigned>& var_to_idx)
+  {
+    std::vector<unsigned> count(aut->ap().size() * 2, 0);
+
+    const auto& bdict = aut->get_dict();
+
+    unsigned idx = 0;
+    for (const auto& ap : aut->ap())
+    {
+      var_to_idx.insert(std::make_pair(bdict->varnum(ap), idx));
+      ++idx;
+    }
+
+    for (const auto& e : aut->edges())
+    {
+      minato_isop isop(e.cond);
+
+      for (bdd s = isop.next(); s != bddfalse; s = isop.next())
+      {
+        bdd ss = s;
+
+        while (ss != bddtrue)
+        {
+          unsigned idx = var_to_idx.at(bdd_var(ss));
+          //std::cerr << idx << '\n';
+
+          if (bdd_low(ss) != bddfalse)
+          {
+            ++count[idx * 2];
+            ss = bdd_low(ss);
+          }
+          else
+          {
+            ++count[idx * 2 + 1];
+            ss = bdd_high(ss);
+          }
+        }
+      }
+    }
+
+    return count;
+  }
+
+  template<typename ConstAutPtr, typename AutPtr>
+  std::vector<AutPtr> decompose_aut_by_symbol(const ConstAutPtr& aut)
+  {
+    if (aut->ap().size() < 3)
+      throw std::invalid_argument("ap size < 3");
+
+    std::vector<AutPtr> res;
+    std::vector<AutPtr> tmp;
+
+    std::map<int, unsigned> var_to_idx;
+    std::vector<unsigned> stat = count_ap(aut, var_to_idx);
+
+    unsigned max = stat[0];
+    for (unsigned i = 1; i < stat.size(); i++)
+      if (max < stat[i])
+        max = stat[i];
+
+    //TODO faire en py afficher les % d'utilisation d'une ap + et - sur
+    //l'ensemeble des edges. Est ce que cette methode permet de suffisament
+    //decomposer l'automate ? (en tout cas mieux que pour ccj_alpha reduire le
+    //deg de 10 ou 20)
+
+    unsigned expected = aut->num_edges() / 2;
+    const auto score = [&stat,expected](unsigned i)
+    {
+      // TODO remplacer par une mean square sqrt(a*a + b*b)
+      unsigned s = 0;
+
+      //return std::sqrt(std::pow(stat[i*2] - expected, 2)
+      //    + std::pow(stat[i*2+1] - expected, 2))
+
+      if (stat[i*2] > expected)
+        s = stat[i*2] - expected;
+      else
+        s = expected - stat[i*2];
+
+      if (stat[i*2+1] > expected)
+        s += stat[i*2+1] - expected;
+      else
+        s += expected - stat[i*2+1];
+
+      return s;
+    };
+
+    // Find best ap
+    std::vector<unsigned> bests(stat.size() / 2);
+    iota(bests.begin(), bests.end(), 0);
+
+    std::sort(bests.begin(), bests.end(), [&](unsigned i, unsigned j)
+        {
+          return score(i) > score(j);
+        });
+
+    /*
+    for (unsigned i = 0; i < stat.size(); ++i)
+      std::cerr << stat[i*2] << ' ';
+    std::cerr << '\n';
+    for (unsigned i = 0; i < stat.size(); ++i)
+      std::cerr << stat[i*2+1] << ' ';
+    std::cerr << '\n';
+    for (unsigned i = 0; i < stat.size(); ++i)
+      std::cerr << score(i) << ' ';
+    std::cerr << '\n';
+
+    for (unsigned i = 0; i < 3; ++i)
+    {
+      unsigned b = bests[i];
+      std::cerr << b << ' ' << stat[b*2] << ' ' << stat[b*2+1] << ' ' << score(b) << '\n';
+    }
+    */
+
+    //FIXME
+    if constexpr(std::is_same<ConstAutPtr, const_twa_graph_ptr>::value)
+    {
+      const auto& bdict = aut->get_dict();
+      twa_graph_ptr aa = create_twa_from(aut);
+      aa->new_states(aut->num_states());
+      for (const auto& e : aut->edges())
+        aa->new_edge(e.src, e.dst, e.cond, e.acc);
+      res.push_back(aa);
+
+      //const auto& bdict = aut->get_dict();
+
+      for (unsigned ap_num : bests)
+        {
+          unsigned ap_id = 0;
+          for (auto [bdd_id, idx] : var_to_idx)
+            if (idx == ap_num)
+            {
+              ap_id = bdd_id;
+              break;
+            }
+
+          //std::cerr << "decompose by " << ap_num << '\n';
+
+          for (const auto& a : res)
+            {
+              twa_graph_ptr r_true = create_twa_from(aut);
+              r_true->new_states(aut->num_states());
+              twa_graph_ptr r_false = create_twa_from(aut);
+              r_false->new_states(aut->num_states());
+
+              for (const auto& e : a->edges())
+                {
+                  r_true->new_edge(e.src, e.dst, bdd_compose(e.cond, bddtrue, ap_id), e.acc);
+                  r_false->new_edge(e.src, e.dst, bdd_compose(e.cond, bddfalse, ap_id), e.acc);
+                }
+
+              r_true->merge_edges();
+              r_false->merge_edges();
+
+              tmp.push_back(r_true);
+              tmp.push_back(r_false);
+            }
+
+          std::swap(res, tmp);
+          tmp.clear();
+
+          if (res.size() >= 8)
+            break;
+        }
+      }
+    else
+      {
+        const auto& cs = aut->get_cubeset();
+        const auto& ga = aut->get_graph();
+
+        for (unsigned i = 0; i < 8; ++i)
+        {
+          twacube_ptr aaa = create_twa_from(aut);
+          auto& gr = aaa->get_graph();
+          gr.new_states(aut->num_states());
+
+          cube mask = cs.zeros(); 
+
+          if (i & 1)
+            cs.set_true_var(mask, bests[1]);
+          else
+            cs.set_false_var(mask, bests[1]);
+
+          if (i & 2)
+            cs.set_true_var(mask, bests[2]);
+          else
+            cs.set_false_var(mask, bests[2]);
+
+          if (i & 4)
+            cs.set_true_var(mask, bests[3]);
+          else
+            cs.set_false_var(mask, bests[3]);
+
+          for (const auto& e : ga.edges())
+          {
+            if (cs.intersect(mask, e.cube_))
+              continue;
+            else
+              gr.new_edge(e.src, e.dst, cs.copy(e.cube_), e.acc);
+          }
+
+          cs.release(mask);
+          res.push_back(aaa);
+        }
+      }
+
+    return res;
+  }
+
+#include "spot/twaalgos/shit_simulation.cc"
 } // End namespace spot.
