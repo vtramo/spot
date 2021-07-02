@@ -1,6 +1,7 @@
 # Benchmark binary
 bench
 deadlock-2021
+reachability-2021
 # Input/output generated files
 data/
 log/

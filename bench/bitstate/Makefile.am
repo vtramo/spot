@@ -28,9 +28,10 @@ LDADD =						\
   $(top_builddir)/buddy/src/libbddx.la		\
   $(top_builddir)/spot/ltsmin/libspotltsmin.la
 
-bin_PROGRAMS = bench deadlock-2021
+bin_PROGRAMS = bench deadlock-2021 reachability-2021
 
 bench_SOURCES = main.cc
 deadlock_2021_SOURCES = deadlock-2021.cc
+reachability_2021_SOURCES = reachability-2021.cc
 
 CLEANFILES = *.dve *.dve2C *.dve.cpp
