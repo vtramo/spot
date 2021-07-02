@@ -406,7 +406,7 @@ namespace spot
     std::optional<std::size_t> search(T element) const
     {
       // Capacity threshold
-      if (SPOT_UNLIKELY((100. * (double) nb_elements_ / hs_size_) >= 95. ))
+      if (SPOT_UNLIKELY((100. * (double) nb_elements_ / hs_size_) >= 90. ))
         return std::nullopt;
 
       // Linear probing
