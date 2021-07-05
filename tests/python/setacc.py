@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2016, 2018 Laboratoire de Recherche et Développement de
+# Copyright (C) 2016, 2018, 2021 Laboratoire de Recherche et Développement de
 # l'EPITA.
 #
 # This file is part of Spot, a model checking library.
@@ -82,3 +82,17 @@ assert v == ()
 # FIXME: We should have a way to disable the following output, as it is not
 # part of HOA v1.
 assert acc.name() == "generalized-Streett 1 2"
+
+
+# issue #469.  This test is meaningful only if Spot is compiled with
+# --enable-max-accsets=64 or more.
+try:
+    m = spot.mark_t([33])
+    assert m.lowest() == m
+    n = spot.mark_t([33,34])
+    assert n.lowest() == m
+except RuntimeError as e:
+    if "Too many acceptance sets used." in str(e):
+        pass
+    else:
+        raise e
