@@ -34,9 +34,9 @@ namespace spot
   {
   private:
     /* Internal concurrent bitset */
-    static const size_t BITS_PER_ELEMENT = sizeof(uint32_t) * CHAR_BIT;
+    static const size_t BITS_PER_ELEMENT = sizeof(uint64_t) * CHAR_BIT;
 
-    std::atomic<uint32_t> *bits_;
+    std::atomic<uint64_t> *bits_;
 
     size_t get_index(size_t bit) const
     {
@@ -67,7 +67,7 @@ namespace spot
       : mem_size_(mem_size), mem_size_bits_(mem_size * BITS_PER_ELEMENT),
       hash_functions_(hash_functions)
     {
-      bits_ = new std::atomic<uint32_t>[mem_size_]();
+      bits_ = new std::atomic<uint64_t>[mem_size_]();
       if (hash_functions.empty())
         throw std::invalid_argument("Bloom filter has no hash functions");
     }
