@@ -59,6 +59,24 @@ debian-unstable-gcc-coverage:
       - ./*.tar.gz
       - spot2.info
 
+debian-unstable-gcc-pypy:
+  stage: build
+  only:
+    - branches
+  except:
+    - /wip/
+  image: gitlab-registry.lrde.epita.fr/spot/buildenv/debian
+  script:
+    - autoreconf -vfi
+    - ./configure PYTHON=/usr/bin/pypy3 --disable-static
+    - make
+    - make check TESTS='$(TESTS_python) $(TESTS_ipython)'
+  artifacts:
+    when: always
+    paths:
+      - tests/*/*.log
+      - ./*.log
+
 debian-gcc-snapshot:
   stage: build
   only:
