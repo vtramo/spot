@@ -298,21 +298,17 @@ namespace spot
     bitset& operator-=(word_t s)
     {
       for (auto& v : data)
-        {
-          if (s == 0)
+        if (v >= s)
+          {
+            v -= s;
+            s = 0;
             break;
-
-          if (v >= s)
-            {
-              v -= s;
-              s = 0;
-            }
-          else
-            {
-              v -= s;
-              s = 1;
-            }
-        }
+          }
+        else
+          {
+            v -= s;
+            s = 1;
+          }
       return *this;
     }
 
