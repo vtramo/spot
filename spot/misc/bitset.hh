@@ -318,15 +318,12 @@ namespace spot
     bitset operator-() const
     {
       bitset res = *this;
-      unsigned carry = 0;
+      unsigned carry = 1;
       for (auto& v : res.data)
         {
-          v += carry;
-          if (v < carry)
-            carry = 2;
-          else
-            carry = 1;
-          v = -v;
+          word_t old = v;
+          v = ~v + carry;
+          carry = old == 0;
         }
       return res;
     }
