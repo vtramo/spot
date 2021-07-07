@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2011, 2014-2019 Laboratoire de Recherche et Developpement de
-// l'EPITA (LRDE).
+// Copyright (C) 2011, 2014-2019, 2021 Laboratoire de Recherche et
+// Developpement de l'EPITA (LRDE).
 // Copyright (C) 2003, 2004, 2005 Laboratoire d'Informatique de Paris 6 (LIP6),
 // département Systèmes Répartis Coopératifs (SRC), Université Pierre
 // et Marie Curie.
@@ -165,7 +165,14 @@ namespace spot
       {
         const_twa_graph_ptr g1 = ensure_existential_twa_graph(self);
         const_twa_graph_ptr g2 = ensure_existential_twa_graph(other);
+        // Reset g1.prop_weak() to disable the product optimization
+        // for weak automata, otherwise project(g1) would be unable to
+        // compute the correct marks.  See issue #471.  It's OK to
+        // optimize the right part if g2 is weak.
+        spot::trival g1weak = g1->prop_weak();
+        std::const_pointer_cast<twa_graph>(g1)->prop_weak(false);
         auto run = generic_accepting_run(product(g1, g2));
+        std::const_pointer_cast<twa_graph>(g1)->prop_weak(g1weak);
         if (!run)
           return nullptr;
         return run->reduce()->project(g1);

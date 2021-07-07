@@ -242,6 +242,10 @@ New in spot 2.9.7.dev (not yet released)
   - tgba_determinize() could create parity automata using more colors
     than necessary.  (Related to issue #298)
 
+  - left->intersacting_run(right) could return a run with incorrect
+    colors (likely not corresponding to any existing transition of
+    left) if left was a weak automaton.
+
   Deprecation notices:
 
   - twa_graph::defrag_states() and digraph::defrag_states() now take
