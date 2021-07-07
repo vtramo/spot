@@ -116,13 +116,13 @@ Spot allows manipulation of omega-automata as well as linear-time
 temporal logic (LTL & PSL).
 
 %files -n python3-spot
-%{python3_sitearch}/__pycache__/buddy.cpython-*.pyc
+%{python3_sitearch}/__pycache__/buddy.*.pyc
 %{python3_sitearch}/buddy.py
 %dir %{python3_sitearch}/spot
 %{python3_sitearch}/spot/*
-%{python3_sitearch}/_buddy.a
-%{python3_sitearch}/_buddy.la
-%{python3_sitearch}/_buddy.so
+%{python3_sitearch}/_buddy.*.a
+%{python3_sitearch}/_buddy.*.la
+%{python3_sitearch}/_buddy.*.so
 %license COPYING
 %doc AUTHORS COPYING NEWS README THANKS
 
@@ -154,10 +154,10 @@ HTML and PDF documentation for Spot.
 %make_install
 
 # remove rpaths
-chrpath --delete $RPM_BUILD_ROOT%{python3_sitearch}/spot/_ltsmin.so
-chrpath --delete $RPM_BUILD_ROOT%{python3_sitearch}/spot/_gen.so
-chrpath --delete $RPM_BUILD_ROOT%{python3_sitearch}/spot/_impl.so
-chrpath --delete $RPM_BUILD_ROOT%{python3_sitearch}/_buddy.so
+chrpath --delete $RPM_BUILD_ROOT%{python3_sitearch}/spot/_ltsmin.*.so
+chrpath --delete $RPM_BUILD_ROOT%{python3_sitearch}/spot/_gen.*.so
+chrpath --delete $RPM_BUILD_ROOT%{python3_sitearch}/spot/_impl.*.so
+chrpath --delete $RPM_BUILD_ROOT%{python3_sitearch}/_buddy.*.so
 chrpath --delete $RPM_BUILD_ROOT%{_libdir}/libspotgen.so.0.0.0
 chrpath --delete $RPM_BUILD_ROOT%{_libdir}/libspotltsmin.so.0.0.0
 chrpath --delete $RPM_BUILD_ROOT%{_libdir}/libspot.so.0.0.0
