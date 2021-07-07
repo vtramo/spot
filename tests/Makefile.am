@@ -364,6 +364,7 @@ TESTS_ipython = \
 # with a _.
 TESTS_python = \
   python/341.py \
+  python/471.py \
   python/_altscc.ipynb \
   python/_autparserr.ipynb \
   python/_aux.ipynb \

@@ -1,6 +1,10 @@
 New in spot 2.9.7.dev (not yet released)
 
-  Nothing yet.
+  Bugs fixed:
+
+  - left->intersacting_run(right) could return a run with incorrect
+    colors (likely not corresponding to any existing transition of
+    left) if left was a weak automaton.
 
 New in spot 2.9.7 (2021-05-12)
 
