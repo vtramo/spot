@@ -134,6 +134,19 @@ except RuntimeError as e:
 else:
     report_missing_exception()
 
+a = spot.translate('Fa')
+a = spot.to_generalized_rabin(a, False)
+r = a.accepting_run()
+r = r.reduce()
+assert r.cycle[0].acc == spot.mark_t([1])
+r.cycle[0].acc = spot.mark_t([0])
+try:
+    r.reduce();
+except RuntimeError as e:
+    assert "expects an accepting cycle" in str(e)
+else:
+    report_missing_exception()
+
 f = spot.formula('GF(a | Gb)')
 try:
     spot.gf_guarantee_to_ba(f, spot._bdd_dict)

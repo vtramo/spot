@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2009, 2011-2019 Laboratoire de Recherche et
+// Copyright (C) 2009, 2011-2019, 2021 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 // Copyright (C) 2004, 2005 Laboratoire d'Informatique de Paris 6 (LIP6),
 // département Systèmes Répartis Coopératifs (SRC), Université Pierre
@@ -343,7 +343,13 @@ namespace spot
       state_set seen;
       const state_set* target;
     };
+
+    [[noreturn]] static void report_rejecting_cycle()
+    {
+      throw std::runtime_error("twa_run::reduce() expects an accepting cycle");
+    }
   }
+
 
   twa_run_ptr twa_run::reduce() const
   {
@@ -368,7 +374,8 @@ namespace spot
     twa_run::steps::const_iterator seg = cycle.end();
     do
       {
-        assert(seg != cycle.begin());
+        if (SPOT_UNLIKELY(seg == cycle.begin()))
+          report_rejecting_cycle();
         --seg;
         seen_acc |= seg->acc;
       }

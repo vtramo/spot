@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2011, 2013-2018, 2020 Laboratoire de
+// Copyright (C) 2011, 2013-2018, 2020-2021 Laboratoire de
 // Recherche et Developpement de l'Epita (LRDE).
 // Copyright (C) 2004, 2005 Laboratoire d'Informatique de Paris 6 (LIP6),
 // département Systèmes Répartis Coopératifs (SRC), Université Pierre
@@ -419,6 +419,9 @@ namespace spot
     /// this fragment with fewer edges than in the original cycle.
     /// (This step works best in Fin-less automata.)  And then trying
     /// to find a shorter prefix leading to any state of the cycle.
+    ///
+    /// An <code>std::runtime_error</code> is thrown if the run
+    /// to reduce is not accepting.
     twa_run_ptr reduce() const;
 
     /// \brief Project an accepting run
