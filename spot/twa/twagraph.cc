@@ -1046,6 +1046,17 @@ namespace spot
     copy(const const_twa_ptr& aut, twa::prop_set p,
          bool preserve_names, unsigned max_states)
     {
+      // If the input is a twa_graph and the number of states is not
+      // restricted, simply use the make_twa_graph variant for
+      // twa_graph.  Not only is this faster, but this is also
+      // necessary as a workaround for Swig-3 calling the wrong copy
+      // of make_twa_graph because it tests if twa match before
+      // testing twa_graph (swig-4 seems fixed).
+      const_twa_graph_ptr aut_g =
+        std::dynamic_pointer_cast<const twa_graph>(aut);
+      if (max_states == -1U && aut_g)
+        return make_twa_graph(aut_g, p, preserve_names);
+
       twa_graph_ptr out = make_twa_graph(aut->get_dict());
       out->copy_acceptance_of(aut);
       out->copy_ap_of(aut);
@@ -1058,7 +1069,6 @@ namespace spot
       typedef std::map<unsigned, unsigned> hmap;
       hmap* ohstates = nullptr;
       hmap* ohedges = nullptr;
-      const_twa_graph_ptr aut_g = nullptr;
       // New highlighting maps
       hmap* nhstates = nullptr;
       hmap* nhedges = nullptr;
@@ -1070,7 +1080,6 @@ namespace spot
 
           // If the input is a twa_graph and we were asked to preserve
           // names, also preserve highlights.
-          aut_g = std::dynamic_pointer_cast<const twa_graph>(aut);
           if (aut_g)
             {
               ohstates = aut->get_named_prop<hmap>("highlight-states");
