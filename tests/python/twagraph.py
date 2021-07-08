@@ -44,7 +44,7 @@ except ValueError as e:
 aut.new_states(3)
 aut.set_init_state(2)
 assert aut.get_init_state_number() == 2
-e = aut.set_univ_init_state([2, 1])
+aut.set_univ_init_state([2, 1])
 assert [2, 1] == list(aut.univ_dests(aut.get_init_state_number()))
 
 try:
@@ -66,6 +66,13 @@ cpy = spot.make_twa_graph(aut, spot.twa_prop_set(False, False, False,
                                                  False, False, False))
 assert cpy.prop_universal() != aut.prop_universal()
 assert cpy.prop_universal() == spot.trival.maybe()
+
+from copy import copy
+cpy = copy(aut)
+assert aut.to_str() == cpy.to_str()
+cpy.set_init_state(1)
+assert [2, 1] == list(aut.univ_dests(aut.get_init_state_number()))
+assert cpy.get_init_state_number() == 1
 
 try:
     s = aut.state_acc_sets(0)

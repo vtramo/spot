@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2014-2020  Laboratoire de
+# Copyright (C) 2014-2021  Laboratoire de
 # Recherche et Développement de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -220,6 +220,9 @@ class twa_graph:
         self.dump_storage_as_dot(ostr, opt)
         from spot.jupyter import SVG
         return SVG(_ostream_to_svg(ostr))
+
+    def __copy__(self):
+        return make_twa_graph(self, twa_prop_set.all())
 
 
 def make_twa_graph(*args):

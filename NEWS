@@ -235,7 +235,10 @@ New in spot 2.9.7.dev (not yet released)
     See https://spot.lrde.epita.fr/ipynb/games.html for examples.
 
   - spot::twa::prop_set was previously abstent from the Python
-    binding.  It is now available as spot.twa_prop_set (issue #453).
+    bindings, making it impossible to call make_twa_graph() for copying
+    a twa.  It is now available as spot.twa_prop_set (issue #453).
+    Also for convenience, the twa_graph.__copy__() method, called by
+    copy.copy(), will duplicate a twa_graph (issue #470).
 
   Bugs fixed:
 
