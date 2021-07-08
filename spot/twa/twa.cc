@@ -290,6 +290,29 @@ namespace spot
     bddaps_ = bdd_exist(bddaps_, bdd_ithvar(b));
   }
 
-
+  void
+  twa::copy_named_properties_of(const const_twa_ptr& a)
+  {
+#define COPY_PROP(type, name) \
+    if (auto* prop = a->get_named_prop<type>(name)) \
+      set_named_prop(name, new type(*prop));
+    COPY_PROP(std::string, "accepted-word");
+    COPY_PROP(std::string, "automaton-name");
+    COPY_PROP(std::vector<unsigned>, "degen-levels");
+    typedef std::map<unsigned, unsigned> hlmap;
+    COPY_PROP(hlmap, "highlight-edges");
+    COPY_PROP(hlmap, "highlight-states");
+    COPY_PROP(std::set<unsigned>, "incomplete-states");
+    COPY_PROP(std::vector<unsigned>, "original-clauses");
+    COPY_PROP(std::vector<unsigned>, "original-states");
+    COPY_PROP(spot::product_states, "product-states");
+    COPY_PROP(std::string, "rejected-word");
+    COPY_PROP(std::vector<unsigned>, "simulated-states");
+    COPY_PROP(std::vector<std::string>, "state-names");
+    COPY_PROP(std::vector<bool>, "state-player");
+    COPY_PROP(std::vector<bool>, "state-winner");
+    COPY_PROP(std::vector<unsigned>, "strategy");
+    COPY_PROP(bdd, "synthesis-outputs");
+  }
 
 }

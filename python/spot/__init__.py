@@ -222,7 +222,7 @@ class twa_graph:
         return SVG(_ostream_to_svg(ostr))
 
     def __copy__(self):
-        return make_twa_graph(self, twa_prop_set.all())
+        return make_twa_graph(self, twa_prop_set.all(), True)
 
 
 def make_twa_graph(*args):

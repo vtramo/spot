@@ -773,11 +773,19 @@ namespace spot
   }
 
   /// \ingroup twa_representation
-  /// \brief Build an explicit automaton from all states of \a aut,
+  /// \brief Clone a twa_graph
+  ///
+  /// The \a p and \a preserve_name_properties argument are used to
+  /// select what automata properties should be preserved by the copy.
+  ///
   inline twa_graph_ptr make_twa_graph(const const_twa_graph_ptr& aut,
-                                      twa::prop_set p)
+                                      twa::prop_set p,
+                                      bool preserve_name_properties = false)
   {
-    return SPOT_make_shared_enabled__(twa_graph, aut, p);
+    twa_graph_ptr res = SPOT_make_shared_enabled__(twa_graph, aut, p);
+    if (preserve_name_properties)
+      res->copy_named_properties_of(aut);
+    return res;
   }
 
   /// \ingroup twa_representation

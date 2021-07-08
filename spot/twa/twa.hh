@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2009, 2011, 2013-2020 Laboratoire de Recherche et
+// Copyright (C) 2009, 2011, 2013-2021 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 // Copyright (C) 2003-2005 Laboratoire d'Informatique de Paris 6
 // (LIP6), département Systèmes Répartis Coopératifs (SRC), Université
@@ -971,6 +971,9 @@ namespace spot
       for (auto f: a->ap())
         this->register_ap(f);
     }
+
+    /// Copy all the named properties of \a a into this automaton.
+    void copy_named_properties_of(const const_twa_ptr& a);
 
     /// \brief Set generalized Büchi acceptance
     ///

@@ -62,10 +62,15 @@ aut.new_acc_edge(0, 1, bddtrue, True)
 assert aut.num_edges() == 1 + cpy.num_edges()
 
 aut.prop_universal(True)
+aut.set_name("some name")
 cpy = spot.make_twa_graph(aut, spot.twa_prop_set(False, False, False,
                                                  False, False, False))
 assert cpy.prop_universal() != aut.prop_universal()
 assert cpy.prop_universal() == spot.trival.maybe()
+assert cpy.get_name() == None
+cpy = spot.make_twa_graph(aut, spot.twa_prop_set(False, False, False,
+                                                 False, False, False), True)
+assert cpy.get_name() == "some name"
 
 from copy import copy
 cpy = copy(aut)
@@ -73,6 +78,7 @@ assert aut.to_str() == cpy.to_str()
 cpy.set_init_state(1)
 assert [2, 1] == list(aut.univ_dests(aut.get_init_state_number()))
 assert cpy.get_init_state_number() == 1
+assert cpy.get_name() == "some name"
 
 try:
     s = aut.state_acc_sets(0)

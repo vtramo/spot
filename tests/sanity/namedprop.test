@@ -1,6 +1,6 @@
 #! /bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2017 Laboratoire de Recherche et Développement de
+# Copyright (C) 2017, 2021 Laboratoire de Recherche et Développement de
 # l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -26,6 +26,8 @@
 set +x
 
 DOC=doc/org/concepts.org
+CPY=spot/twa/twa.cc
+err=0
 
 rm -f namedprop.log
 
@@ -40,14 +42,32 @@ for dir in "$TOP/spot" "$TOP/bin" "$TOP/tests"; do
 done |
 xargs sed -n 's/.*get_named_prop<.*>("\([^"]*\)").*/\1/p
 s/.*set_named_prop("\([^"]*\)",.*/\1/p' |
-sort | uniq |
+sort | uniq > proplist.lst
+
 while read prop; do
    if ! grep -q "$prop" "$TOP/$DOC"; then
      echo "* $prop" >>namedprop.log
    fi
-done
+done < proplist.lst
 if test -f namedprop.log; then
   echo "The following named properties are not documented in $DOC:"
   cat namedprop.log
-  exit 1
+  err=1
 fi
+
+rm -f namedprop.log
+
+while read prop; do
+   if ! grep -q "COPY_PROP.*$prop" "$TOP/$CPY"; then
+     echo "* $prop" >>namedprop.log
+   fi
+done < proplist.lst
+if test -f namedprop.log; then
+  echo "These properties are not copied by copy_named_properties_of() ($CPY):"
+  cat namedprop.log
+  err=1
+fi
+
+rm -f namedprop.log proplist.lst
+
+exit $err
