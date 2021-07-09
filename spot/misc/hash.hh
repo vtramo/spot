@@ -22,6 +22,7 @@
 
 #pragma once
 
+#include <climits>
 #include <string>
 #include <functional>
 #include <spot/misc/hashfunc.hh>
@@ -80,11 +81,26 @@ namespace spot
     template<typename T, typename U>
     std::size_t operator()(const std::pair<T, U> &p) const noexcept
     {
-      std::hash<T> th;
-      std::hash<U> uh;
 
-      return wang32_hash(static_cast<size_t>(th(p.first)) ^
-                         static_cast<size_t>(uh(p.second)));
+      if constexpr (std::is_integral<T>::value
+                    && sizeof(T) <= sizeof(std::size_t)/2
+                    && std::is_integral<U>::value
+                    && sizeof(U) <= sizeof(std::size_t)/2)
+        {
+          constexpr unsigned shift = (sizeof(std::size_t)/2)*CHAR_BIT;
+          std::size_t h = p.first;
+          h <<= shift;
+          h += p.second;
+          return h;
+        }
+      else
+        {
+          std::hash<T> th;
+          std::hash<U> uh;
+
+          return wang32_hash(static_cast<size_t>(th(p.first)) ^
+                             static_cast<size_t>(uh(p.second)));
+        }
     }
   };
 
