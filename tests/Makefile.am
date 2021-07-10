@@ -412,6 +412,7 @@ TESTS_python = \
   python/merge.py \
   python/mergedge.py \
   python/minato.py \
+  python/minimize.py \
   python/misc-ec.py \
   python/optionmap.py \
   python/origstate.py \

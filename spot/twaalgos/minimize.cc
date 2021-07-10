@@ -713,30 +713,552 @@ namespace spot
         return std::const_pointer_cast<twa_graph>(aut_f);
       }
   }
+}
 
-  twa_graph_ptr minimize_mealy_fast(const const_twa_graph_ptr& mm,
-                                    bool use_inclusion)
+namespace
+{
+  // Anonymous for minimize_mealy_fast
+  using namespace spot;
+
+  // Used to get the signature of the state.
+  typedef std::vector<bdd> vector_state_bdd;
+
+  // Get the list of state for each class.
+  // Note: Use map as iter. are not invalidated by inserting new elements
+  typedef std::map<bdd, std::vector<unsigned>,
+                   bdd_less_than> map_bdd_lstate;
+
+  // This part is just a copy of a part of simulation.cc only suitable for
+  // deterministic monitors.
+  class sig_calculator final
   {
-    auto mmc = make_twa_graph(mm, twa::prop_set::all());
-    mmc->copy_ap_of(mm);
-    mmc->copy_acceptance_of(mm);
-    auto sp = mm->get_named_prop<std::vector<bool>>("state-player");
-    assert(sp);
-    auto nsp = new std::vector<bool>(*sp);
-    mmc->set_named_prop("state-player", nsp);
-    minimize_mealy_fast_here(mmc, use_inclusion);
-    // Try to set outputs
-    if (bdd* outptr = mm->get_named_prop<bdd>("synthesis-outputs"))
-      mmc->set_named_prop("synthesis-outputs", new bdd(*outptr));
-    return mmc;
-  }
-  // Dummy for the moment
-  void minimize_mealy_fast_here(twa_graph_ptr&, bool)
+  protected:
+    typedef std::unordered_map<bdd, bdd, bdd_hash> map_bdd_bdd;
+    int acc_vars;
+    acc_cond::mark_t all_inf_;
+
+  public:
+    sig_calculator(twa_graph_ptr aut, bool implications) : a_(aut),
+        po_size_(0),
+        want_implications_(implications)
+    {
+      size_a_ = a_->num_states();
+      // Now, we have to get the bdd which will represent the
+      // class. We register one bdd by state, because in the worst
+      // case, |Class| == |State|.
+      unsigned set_num = a_->get_dict()
+                           ->register_anonymous_variables(size_a_, this);
+
+      bdd init = bdd_ithvar(set_num++);
+
+      used_var_.emplace_back(init);
+
+      // Initialize all classes to init.
+      previous_class_.resize(size_a_);
+      for (unsigned s = 0; s < size_a_; ++s)
+        previous_class_[s] = init;
+      for (unsigned i = set_num; i < set_num + size_a_ - 1; ++i)
+        free_var_.push(i);
+
+      relation_.reserve(size_a_);
+      relation_[init] = init;
+    }
+
+    // Reverse all the acceptance condition at the destruction of
+    // this object, because it occurs after the return of the
+    // function simulation.
+    virtual ~sig_calculator()
+    {
+      a_->get_dict()->unregister_all_my_variables(this);
+    }
+
+    // Update the name of the classes.
+    void update_previous_class()
+    {
+      auto it_bdd = used_var_.begin();
+
+      // We run through the map bdd/list<state>, and we update
+      // the previous_class_ with the new data.
+      for (auto& p : sorted_classes_)
+      {
+        // If the signature of a state is bddfalse (no
+        // edges) the class of this state is bddfalse
+        // instead of an anonymous variable. It allows
+        // simplifications in the signature by removing a
+        // edge which has as a destination a state with
+        // no outgoing edge.
+        if (p->first == bddfalse)
+          for (unsigned s : p->second)
+            previous_class_[s] = bddfalse;
+        else
+          for (unsigned s : p->second)
+            previous_class_[s] = *it_bdd;
+        ++it_bdd;
+      }
+    }
+
+    void main_loop()
+    {
+      unsigned int nb_partition_before = 0;
+      unsigned int nb_po_before = po_size_ - 1;
+
+      while (nb_partition_before != bdd_lstate_.size()
+             || nb_po_before != po_size_)
+      {
+        update_previous_class();
+        nb_partition_before = bdd_lstate_.size();
+        nb_po_before = po_size_;
+        po_size_ = 0;
+        update_sig();
+        go_to_next_it();
+      }
+      update_previous_class();
+    }
+
+    // Take a state and compute its signature.
+    bdd compute_sig(unsigned src)
+    {
+      bdd res = bddfalse;
+
+      for (auto& t : a_->out(src))
+      {
+        // to_add is a conjunction of the acceptance condition,
+        // the label of the edge and the class of the
+        // destination and all the class it implies.
+        bdd to_add = t.cond & relation_[previous_class_[t.dst]];
+
+        res |= to_add;
+      }
+      return res;
+    }
+
+    void update_sig()
+    {
+      bdd_lstate_.clear();
+      sorted_classes_.clear();
+      for (unsigned s = 0; s < size_a_; ++s)
+      {
+        bdd sig = compute_sig(s);
+        auto p = bdd_lstate_.emplace(std::piecewise_construct,
+                                     std::forward_as_tuple(sig),
+                                     std::forward_as_tuple(1, s));
+        if (p.second)
+          sorted_classes_.emplace_back(p.first);
+        else
+          p.first->second.emplace_back(s);
+      }
+    }
+
+    // This method renames the color set, updates the partial order.
+    void go_to_next_it()
+    {
+      int nb_new_color = bdd_lstate_.size() - used_var_.size();
+
+      // If we have created more partitions, we need to use more
+      // variables.
+      for (int i = 0; i < nb_new_color; ++i)
+      {
+        assert(!free_var_.empty());
+        used_var_.emplace_back(bdd_ithvar(free_var_.front()));
+        free_var_.pop();
+      }
+
+      // If we have reduced the number of partition, we 'free' them
+      // in the free_var_ list.
+      for (int i = 0; i > nb_new_color; --i)
+      {
+        assert(!used_var_.empty());
+        free_var_.push(bdd_var(used_var_.front()));
+        used_var_.pop_front();
+      }
+
+      assert((bdd_lstate_.size() == used_var_.size())
+          || (bdd_lstate_.find(bddfalse) != bdd_lstate_.end()
+            && bdd_lstate_.size() == used_var_.size() + 1));
+
+      // This vector links the tuple "C^(i-1), N^(i-1)" to the
+      // new class coloring for the next iteration.
+      std::vector<std::pair<bdd, bdd>> now_to_next;
+      unsigned sz = bdd_lstate_.size();
+      now_to_next.reserve(sz);
+
+      auto it_bdd = used_var_.begin();
+
+      for (auto& p : sorted_classes_)
+      {
+        // If the signature of a state is bddfalse (no edges) the
+        // class of this state is bddfalse instead of an anonymous
+        // variable. It allows simplifications in the signature by
+        // removing an edge which has as a destination a state
+        // with no outgoing edge.
+        bdd acc = bddfalse;
+        if (p->first != bddfalse)
+          acc = *it_bdd;
+        now_to_next.emplace_back(p->first, acc);
+        ++it_bdd;
+      }
+
+      // Update the partial order.
+
+      // This loop follows the pattern given by the paper.
+      // foreach class do
+      // |  foreach class do
+      // |  | update po if needed
+      // |  od
+      // od
+
+      for (unsigned n = 0; n < sz; ++n)
+      {
+        bdd n_sig = now_to_next[n].first;
+        bdd n_class = now_to_next[n].second;
+        if (want_implications_)
+          for (unsigned m = 0; m < sz; ++m)
+          {
+            if (n == m)
+              continue;
+            if (bdd_implies(n_sig, now_to_next[m].first))
+            {
+              n_class &= now_to_next[m].second;
+              ++po_size_;
+            }
+          }
+        relation_[now_to_next[n].second] = n_class;
+      }
+    }
+
+    // The list of states for each class at the current_iteration.
+    // Computed in `update_sig'.
+    map_bdd_lstate bdd_lstate_;
+
+  protected:
+    // The automaton which is reduced.
+    twa_graph_ptr a_;
+
+    // Implications between classes.
+    map_bdd_bdd relation_;
+
+    // Represent the class of each state at the previous iteration.
+    vector_state_bdd previous_class_;
+
+    // The above map, sorted by states number instead of BDD
+    // identifier to avoid non-determinism while iterating over all
+    // states.
+    std::vector<map_bdd_lstate::const_iterator> sorted_classes_;
+
+    // The queue of free bdd. They will be used as the identifier
+    // for the class.
+    std::queue<int> free_var_;
+
+    // The list of used bdd. They are in used as identifier for class.
+    std::deque<bdd> used_var_;
+
+    // Size of the automaton.
+    unsigned int size_a_;
+
+    // Used to know when there is no evolution in the partial order.
+    unsigned int po_size_;
+
+    // Whether to compute implications between classes.  This is costly
+    // and useless when we want to recognize the same language.
+    bool want_implications_;
+  };
+
+  // An acyclic digraph such that there is an edge q1 -> q2 if
+  // q1.label_ ⇒ q2.label_
+  class bdd_digraph
   {
-    return;
+  private:
+    bdd label_;
+    unsigned state_;
+    std::vector<std::shared_ptr<bdd_digraph>> children_;
+
+  public:
+    bdd_digraph() : label_(bddtrue), state_(-1U) {}
+
+    bdd_digraph(bdd label, unsigned state) : label_(label), state_(state) {}
+
+    void
+    all_children_aux_(std::set<std::shared_ptr<bdd_digraph>>& res)
+    {
+      for (auto c : children_)
+        if (res.insert(c).second)
+          c->all_children_aux_(res);
+    }
+
+    std::set<std::shared_ptr<bdd_digraph>>
+    all_children()
+    {
+      std::set<std::shared_ptr<bdd_digraph>> res;
+      all_children_aux_(res);
+      return res;
+    }
+
+    void
+    add_aux_(std::shared_ptr<bdd_digraph>& new_node, std::vector<bool>& done)
+    {
+      // Avoid doing twice the same state
+      if (state_ != -1U)
+        done[state_] = true;
+      for (auto& ch : children_)
+      {
+        if (done[ch->state_])
+          continue;
+        if (bdd_implies(new_node->label_, ch->label_))
+          ch->add_aux_(new_node, done);
+        else if (bdd_implies(ch->label_, new_node->label_))
+        {
+          auto ch_nodes = ch->all_children();
+          new_node->children_.push_back(ch);
+          for (auto& x : ch_nodes)
+            new_node->children_.push_back(x);
+        }
+      }
+      assert(bdd_implies(new_node->label_, label_));
+      children_.push_back(new_node);
+    }
+
+    void
+    add(std::shared_ptr<bdd_digraph>& new_node, bool rec,
+              unsigned max_state)
+    {
+      if (new_node->label_ == bddtrue)
+      {
+        assert(label_ == bddtrue);
+        state_ = new_node->state_;
+        return;
+      }
+      if (rec)
+      {
+        std::vector<bool> done(max_state, false);
+        add_aux_(new_node, done);
+      }
+      else
+        children_.push_back(new_node);
+    }
+
+    unsigned
+    flatten_aux(std::unordered_map<bdd, unsigned, spot::bdd_hash>& res)
+    {
+      if (children_.empty())
+      {
+        res.insert({label_, state_});
+        return state_;
+      }
+      auto ch_size = children_.size();
+      unsigned pos = ch_size - 1;
+      auto my_repr = children_[pos]->flatten_aux(res);
+      res.insert({label_, my_repr});
+      for (unsigned i = 0; i < ch_size; ++i)
+      {
+        if (i == pos)
+          continue;
+        children_[i]->flatten_aux(res);
+      }
+      return my_repr;
+    }
+
+    std::unordered_map<bdd, unsigned, spot::bdd_hash>
+    flatten()
+    {
+      std::unordered_map<bdd, unsigned, spot::bdd_hash> res;
+      flatten_aux(res);
+      return res;
+    }
+
+    // Transforms children_ such that the child with the higher use_count() is
+    // at the end.
+    void
+    sort_nodes()
+    {
+      if (!children_.empty())
+      {
+        auto max_pos = std::max_element(children_.begin(), children_.end(),
+                  [](const std::shared_ptr<bdd_digraph>& n1,
+                     const std::shared_ptr<bdd_digraph>& n2)
+                  {
+                    return n1.use_count() < n2.use_count();
+                  });
+        std::iter_swap(max_pos, children_.end() - 1);
+      }
+    }
+  };
+
+
+  // Associate to a state a representative. The first value of the result
+  // is -1U if ∀i repr[i] = i
+  std::vector<unsigned>
+  get_repres(twa_graph_ptr& a, bool rec)
+  {
+    const auto a_num_states = a->num_states();
+
+    std::vector<unsigned> repr(a_num_states);
+    bdd_digraph graph;
+    std::vector<bdd> signatures(a_num_states);
+    sig_calculator red(a, rec);
+    red.main_loop();
+    if (!rec && red.bdd_lstate_.size() == a_num_states)
+    {
+      repr[0] = -1U;
+      return repr;
+    }
+    for (auto& [sig, states] : red.bdd_lstate_)
+    {
+      assert(!states.empty());
+      bool in_tree = false;
+      for (auto state : states)
+      {
+        signatures[state] = sig;
+        // If it is not the first iteration, le BDD is already in the graph.
+        if (!in_tree)
+        {
+          in_tree = true;
+          auto new_node =
+            std::make_shared<bdd_digraph>(bdd_digraph(sig, state));
+          graph.add(new_node, rec, a_num_states);
+        }
+      }
+    }
+    graph.sort_nodes();
+    auto repr_map = graph.flatten();
+
+    bool is_useless_map = true;
+    for (unsigned i = 0; i < a_num_states; ++i)
+    {
+      repr[i] = repr_map[signatures[i]];
+      is_useless_map &= (repr[i] == i);
+    }
+
+    if (is_useless_map)
+    {
+      repr[0] = -1U;
+      return repr;
+    }
+    return repr;
   }
 }
 
+namespace spot
+{
+  twa_graph_ptr minimize_mealy_fast(const const_twa_graph_ptr& mm,
+                                    bool use_inclusion)
+  {
+    bool orig_is_split = true;
+    bdd* outsptr = nullptr;
+    bdd outs = bddfalse;
+
+    twa_graph_ptr mmc;
+    if (mm->get_named_prop<std::vector<bool>>("state-player") != nullptr)
+      {
+        outsptr = mm->get_named_prop<bdd>("synthesis-outputs");
+        assert(outsptr && "If the original strat is split, "
+                          "we need \"synthesis-outputs\".");
+        outs = *outsptr;
+        mmc = unsplit_2step(mm);
+      }
+    else
+      {
+        mmc = make_twa_graph(mm, twa::prop_set::all());
+        mmc->copy_ap_of(mm);
+        mmc->copy_acceptance_of(mm);
+        orig_is_split = false;
+      }
+
+    minimize_mealy_fast_here(mmc, use_inclusion);
+
+    // Split if the initial aut was split
+    if (orig_is_split)
+      {
+        bdd ins = bddtrue;
+        for (const auto& ap : mmc->ap())
+          if (!bdd_implies(outs,
+                           bdd_ithvar(mmc->register_ap(ap))))
+            ins &= bdd_ithvar(mmc->register_ap(ap));
+        mmc = split_2step(mmc, ins, outs, false, false);
+        bool orig_init_player =
+            mm->get_named_prop<std::vector<bool>>("state-player")
+                ->at(mm->get_init_state_number());
+        alternate_players(mmc, orig_init_player, false);
+      }
+    // Try to set outputs
+    if (outsptr)
+      mmc->set_named_prop("synthesis-outputs", new bdd(outs));
+
+    return mmc;
+  }
+
+  void minimize_mealy_fast_here(twa_graph_ptr& mm, bool use_inclusion)
+  {
+
+    bool orig_is_split = false;
+    bdd* outsptr = nullptr;
+    bdd outs = bddfalse;
+
+    auto sp_ptr = mm->get_named_prop<std::vector<bool>>("state-player");
+
+    bool init_player = sp_ptr ? sp_ptr->at(mm->get_init_state_number())
+                              : false;
+
+    // Only consider infinite runs
+    mm->purge_dead_states();
+
+    if (mm->get_named_prop<std::vector<bool>>("state-player") != nullptr)
+      {
+        // Check if done
+        if (std::count(sp_ptr->begin(), sp_ptr->end(), false) == 1)
+          return;
+        outsptr = mm->get_named_prop<bdd>("synthesis-outputs");
+        assert(outsptr && "If the original strat is split, "
+                          "we need \"synthesis-outputs\".");
+        outs = *outsptr;
+        init_player =
+            mm->get_named_prop<std::vector<bool>>("state-player")->at(
+                mm->get_init_state_number());
+        mm = unsplit_2step(mm);
+        orig_is_split = true;
+      }
+    else
+      // Check if done
+      if (mm->num_states() == 1)
+        return;
+
+    auto repr = get_repres(mm, use_inclusion);
+    if (repr[0] == -1U)
+      return;
+
+    // Change the destination of transitions using a DFT to avoid useless
+    // modifications.
+    auto init = repr[mm->get_init_state_number()];
+    mm->set_init_state(init);
+    std::stack<unsigned> todo;
+    std::vector<bool> done(mm->num_states(), false);
+    todo.emplace(init);
+    while (!todo.empty())
+    {
+      auto current = todo.top();
+      todo.pop();
+      done[current] = true;
+      for (auto& e : mm->out(current))
+      {
+        auto repr_dst = repr[e.dst];
+        e.dst = repr_dst;
+        if (!done[repr_dst])
+          todo.emplace(repr_dst);
+      }
+    }
+    mm->purge_unreachable_states();
+    if (orig_is_split)
+      {
+        bdd ins = bddtrue;
+        for (const auto& ap : mm->ap())
+            if (!bdd_implies(outs,
+                             bdd_ithvar(mm->register_ap(ap))))
+              ins &= bdd_ithvar(mm->register_ap(ap));
+        mm = split_2step(mm, ins, outs, false, false);
+        alternate_players(mm, init_player, false);
+        mm->set_named_prop("synthesis-outputs", new bdd(outs));
+      }
+  }
+}
 
 namespace // Anonymous for mealy_min
 {
