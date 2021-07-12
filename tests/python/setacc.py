@@ -96,3 +96,13 @@ except RuntimeError as e:
         pass
     else:
         raise e
+
+
+# issue #468
+from gc import collect
+acc = spot.translate('a').acc()
+collect()
+assert acc == spot.acc_cond('Inf(0)')
+acc = spot.translate('b').get_acceptance()
+collect()
+assert acc == spot.acc_code('Inf(0)')

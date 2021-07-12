@@ -137,6 +137,31 @@ def __om_init_new(self, str=None):
 option_map.__init__ = __om_init_new
 
 
+__twa__acc1 = twa.acc
+__twa__acc2 = twa.get_acceptance
+
+
+# We store the automaton into the acceptance condition
+# returned by acc so that it does not crash when
+# taking the reference to a temporary, as in
+#    spot.translate('Foo').acc()
+# Issue #468.
+def __twa_acc1_tmp(self):
+    a = __twa__acc1(self)
+    a._aut = self
+    return a
+
+
+def __twa_acc2_tmp(self):
+    a = __twa__acc2(self)
+    a._aut = self
+    return a
+
+
+twa.acc = __twa_acc1_tmp
+twa.get_acceptance = __twa_acc2_tmp
+
+
 @_extend(twa, ta)
 class twa:
     def _repr_svg_(self, opt=None):
@@ -180,7 +205,6 @@ class twa:
             else:
                 self.highlight_edge(val, color)
         return self
-
 
 @_extend(twa)
 class twa:
