@@ -809,9 +809,9 @@ namespace spot
                          bool first_player, bool complete0)
   {
     auto um = arena->acc().unsat_mark();
-    if (!um.first)
+    if (!um.first && complete0)
       throw std::runtime_error
-        ("alternate_players(): game winning condition is a tautology");
+        ("alternate_players(): Can not complete monitor!");
 
     unsigned sink_env = 0;
     unsigned sink_con = 0;
@@ -956,6 +956,21 @@ namespace spot
 
     return (*owners)[state] ? 1 : 0;
   }
+
+  void set_synt_outs(const twa_graph_ptr& arena, const bdd& outs)
+  {
+    arena->set_named_prop<bdd>("synthesis-outputs", new bdd(outs));
+  }
+
+  bdd get_synt_outs(const const_twa_graph_ptr& arena)
+  {
+    if (auto outptr = arena->get_named_prop<bdd>("synthesis-outputs"))
+      return *outptr;
+    else
+      throw std::runtime_error
+          ("get_synt_outs(): synthesis-outputs not defined");
+  }
+
 
   bool solve_safety_game(twa_graph_ptr game)
   {
