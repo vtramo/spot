@@ -118,4 +118,11 @@ namespace spot
   /// \brief Get the owner of a state.
   SPOT_API
   unsigned get_state_player(const_twa_graph_ptr arena, unsigned state);
+
+  /// \brief Set all synthesis outputs as a conjunction
+  SPOT_API
+  void set_synthesis_outputs(const twa_graph_ptr& arena, const bdd& outs);
+
+  SPOT_API
+  bdd get_synthesis_outputs(const const_twa_graph_ptr& arena);
 }
