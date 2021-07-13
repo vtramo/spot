@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2015, 2016, 2018, 2019, 2020 Laboratoire de Recherche et
+// Copyright (C) 2015-2016, 2018-2021 Laboratoire de Recherche et
 // Developpement de l'Epita
 //
 // This file is part of Spot, a model checking library.
@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <spot/twa/acc.hh>
 #include <spot/mc/unionfind.hh>
 #include <spot/mc/intersect.hh>

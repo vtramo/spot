@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C)  2019, 2020 Laboratoire de Recherche et
+// Copyright (C)  2019-2021 Laboratoire de Recherche et
 // Developpement de l'Epita
 //
 // This file is part of Spot, a model checking library.
@@ -23,6 +23,7 @@
 #include <thread>
 #include <vector>
 #include <utility>
+#include <atomic>
 #include <spot/kripke/kripke.hh>
 #include <spot/mc/mc.hh>
 #include <spot/mc/lpar13.hh>
