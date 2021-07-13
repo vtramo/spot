@@ -289,7 +289,7 @@ namespace spot
     g_.chain_edges_();
   }
 
-  void twa_graph::merge_states()
+  unsigned twa_graph::merge_states()
   {
     if (!is_existential())
       throw std::runtime_error(
@@ -379,7 +379,10 @@ namespace spot
       else
         s = -1U;
 
-    defrag_states(remap, st);
+    unsigned merged = num_states() - st;
+    if (merged)
+      defrag_states(remap, st);
+    return merged;
   }
 
   void twa_graph::purge_unreachable_states(shift_action* f, void* action_data)

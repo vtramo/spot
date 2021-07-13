@@ -579,8 +579,19 @@ namespace spot
     ///
     /// The implementation will sort the edges of the automaton to
     /// ease the comparison between two states.  This may miss some
-    /// self-loop based in non-deterministic automata.
-    void merge_states();
+    /// self-loop equivalences in non-deterministic automata.
+    ///
+    /// States whose input have been redirected as a consequence of a
+    /// merge are removed from the automaton.  This procedure
+    /// therefore renumber states.
+    ///
+    /// Merging states might create duplicate transitions in the
+    /// automaton.  For instance (1)-a->(2) and (1)-a->(3) will become
+    /// (1)-a->(1) and (1)-a->(1) if (1), (2) and (3) are merged into
+    /// (1).
+    ///
+    /// \return the number of states that have been merged and removed.
+    unsigned merge_states();
 
     /// \brief Remove all dead states
     ///
