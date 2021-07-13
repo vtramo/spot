@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2014-2018 Laboratoire de Recherche et Développement
+// Copyright (C) 2014-2019, 2021 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -167,14 +167,22 @@ static void f5()
   auto s1 = tg->new_state();
   auto s2 = tg->new_state();
   auto s3 = tg->new_state();
+  auto s4 = tg->new_state();
+  auto s5 = tg->new_state();
 
-  tg->set_init_state(s3);
+  tg->set_init_state(s5);
   tg->new_edge(s1, s2, bddtrue);
   tg->new_edge(s2, s2, bddtrue);
   tg->new_edge(s3, s2, bddtrue);
+  tg->new_edge(s4, s4, bddtrue);
+  tg->new_edge(s5, s1, bddtrue);
+  tg->new_edge(s5, s2, bddtrue);
+  tg->new_edge(s5, s3, bddtrue);
+  tg->new_edge(s5, s4, bddtrue);
 
-  tg->merge_states();
-
+  unsigned out = tg->merge_states();
+  std::cerr << out << '\n';
+  assert(out == 3);
   spot::print_hoa(std::cout, tg) << '\n';
 }
 

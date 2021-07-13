@@ -228,6 +228,8 @@ New in spot 2.9.7.dev (not yet released)
     before attempting to detect mergeable states.  When merging states
     with identical outgoing transitions, it will now also consider
     self-looping transitions has having identical destinations.
+    Additionally, this function now returns the number of states that
+    have been merged (and therefore removed from the automaton).
 
   Python:
 

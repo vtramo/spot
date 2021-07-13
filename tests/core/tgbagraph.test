@@ -1,6 +1,6 @@
 #!/bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2014-2018, 2020 Laboratoire de Recherche et
+# Copyright (C) 2014-2018, 2020, 2021 Laboratoire de Recherche et
 # Développement de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -291,15 +291,19 @@ State: 2
 [t] 0&1
 --END--
 HOA: v1
-States: 1
-Start: 0
+States: 2
+Start: 1
 AP: 0
 acc-name: all
 Acceptance: 0 t
 properties: trans-labels explicit-labels state-acc complete
-properties: deterministic
 --BODY--
 State: 0
+[t] 0
+State: 1
+[t] 0
+[t] 0
+[t] 0
 [t] 0
 --END--
 EOF
