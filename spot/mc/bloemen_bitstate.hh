@@ -135,6 +135,8 @@ namespace spot
         p_.deallocate(v);
       else
         ++inserted_;
+      if (!it)
+        return {claim_status::CLAIM_FOUND, nullptr};
 
       uf_element* a_root = find(it);
       if (a_root->uf_status_.load() == uf_status::DEAD)
