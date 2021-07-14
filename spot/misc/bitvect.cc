@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2013, 2014, 2017, 2018 Laboratoire de Recherche et
-// Développement de l'Epita (LRDE).
+// Copyright (C) 2013-2014, 2017-2018, 2021 Laboratoire de Recherche
+// et Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
 //
@@ -77,7 +77,7 @@ namespace spot
   {
     const size_t m = used_blocks();
     if (m == 0)
-      return fnv_hash(storage_, storage_ + m);
+      return fnv<size_t>::init;
 
     size_t res = fnv_hash(storage_, storage_ + m - 1);
     // Deal with the last block, that might not be fully used.
@@ -86,6 +86,7 @@ namespace spot
     size_t n = size() % bpb;
     // Use only the least n bits from storage_[i].
     res ^= storage_[m-1] & ((1UL << n) - 1);
+    res *= fnv<size_t>::prime;
     return res;
   }
 
