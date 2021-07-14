@@ -385,7 +385,8 @@ namespace spot
 
     void remove_from_list(uf_element* a)
     {
-      bloom_filter_->insert(state_hash_(a->st_));
+      if (filter_size_ != 0)
+        bloom_filter_->insert(state_hash_(a->st_));
 
       while (true)
         {
@@ -400,7 +401,8 @@ namespace spot
         }
 
       // XXX(thibault): casse le compteur de SCC
-      map_->erase(a);
+      if (filter_size_ != 0)
+        map_->erase(a);
     }
 
     unsigned inserted()
