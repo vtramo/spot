@@ -440,10 +440,11 @@ namespace spot
     using shared_struct = uf;
     using shared_map = typename uf::shared_map;
 
-    static shared_struct* make_shared_structure(shared_map, unsigned i, size_t filter_size)
+    static shared_struct* make_shared_structure(shared_map, unsigned i,
+        size_t hs_size, size_t filter_size)
     {
       auto mtx_ptr = new std::mutex();
-      auto hs_ptr = new concurrent_hash_set_uf<State, StateHash, StateEqual>(mtx_ptr);
+      auto hs_ptr = new concurrent_hash_set_uf<State, StateHash, StateEqual>(mtx_ptr, hs_size);
       return new uf(hs_ptr, i, filter_size);
     }
 
@@ -453,6 +454,7 @@ namespace spot
                             iterable_uf_bitstate<State, StateHash, StateEqual>* uf,
                             unsigned tid,
                             std::atomic<bool>& stop,
+                            size_t hs_size, /* useless here */
                             size_t filter_size /* useless here */):
       sys_(sys),  uf_(*uf), tid_(tid),
       nb_th_(std::thread::hardware_concurrency()),
@@ -610,9 +612,6 @@ namespace spot
     {
       hs_ = new std::atomic<T>[hs_size]{nullptr};
     }
-
-    concurrent_hash_set_uf(std::mutex *mtx)
-      : concurrent_hash_set_uf(mtx, 5000000) {}
 
     ~concurrent_hash_set_uf()
     {
