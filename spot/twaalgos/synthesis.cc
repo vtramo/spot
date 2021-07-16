@@ -301,13 +301,14 @@ namespace spot
     return split;
   }
 
-  twa_graph_ptr unsplit_2step(const const_twa_graph_ptr& aut)
+  twa_graph_ptr
+  unsplit_2step(const const_twa_graph_ptr& aut)
   {
+    constexpr unsigned unseen_mark = std::numeric_limits<unsigned>::max();
+
     twa_graph_ptr out = make_twa_graph(aut->get_dict());
     out->copy_acceptance_of(aut);
     out->copy_ap_of(aut);
-    out->new_states(aut->num_states());
-    out->set_init_state(aut->get_init_state_number());
 
     // split_2step is not guaranteed to produce
     // states that alternate between env and player do to do_simplify
@@ -316,15 +317,23 @@ namespace spot
       throw std::runtime_error("unsplit requires the named prop "
                                "state-player as set by split_2step");
 
-    std::vector<bool> seen(aut->num_states(), false);
+    std::vector<unsigned> state_map(aut->num_states(), unseen_mark);
+    auto seen = [&](unsigned s){return state_map[s] != unseen_mark; };
+    auto map_s = [&](unsigned s)
+      {
+        if (!seen(s))
+          state_map[s] = out->new_state();
+        return state_map[s];
+      };
+
     std::deque<unsigned> todo;
     todo.push_back(aut->get_init_state_number());
-    seen[aut->get_init_state_number()] = true;
+    map_s(aut->get_init_state_number());
     while (!todo.empty())
       {
         unsigned cur = todo.front();
+        unsigned cur_m = map_s(cur);
         todo.pop_front();
-        seen[cur] = true;
 
         for (const auto& i : aut->out(cur))
           {
@@ -338,21 +347,24 @@ namespace spot
                             auto out_cont = aut->out(cur);
                             return (++(out_cont.begin()) == out_cont.end());
                           })());
-                out->new_edge(cur, i.dst, i.cond, i.acc);
-                if (!seen[i.dst])
+                if (!seen(i.dst))
                   todo.push_back(i.dst);
+                out->new_edge(cur_m, map_s(i.dst), i.cond, i.acc);
                 continue; // Done with cur
               }
             for (const auto& o : aut->out(i.dst))
               {
-                out->new_edge(cur, o.dst, i.cond & o.cond, i.acc | o.acc);
-                if (!seen[o.dst])
+                if (!seen(o.dst))
                   todo.push_back(o.dst);
+                out->new_edge(cur_m, map_s(o.dst),
+                              i.cond & o.cond, i.acc | o.acc);
               }
-            }
+          }
       }
-    out->merge_edges();
-    out->merge_states();
+    out->set_init_state(map_s(aut->get_init_state_number()));
+    // Try to set outputs
+    if (bdd* outptr = aut->get_named_prop<bdd>("synthesis-outputs"))
+      out->set_named_prop("synthesis-outputs", new bdd(*outptr));
     return out;
   }
 
