@@ -23,7 +23,6 @@
 #include <utility>
 #include <cmath>
 #include <limits>
-#include <numeric>
 #include <spot/twaalgos/simulation.hh>
 #include <spot/misc/minato.hh>
 #include <spot/twa/bddprint.hh>
@@ -1039,6 +1038,7 @@ namespace spot
   private:
     // If aut_ is deterministic, only the lower left triangle is set.
     std::vector<char> compute_simulation();
+    std::vector<char> compute_simulation2();
     std::vector<char> compute_simulation_scc();
     std::vector<char> compute_simulation_par1();
     std::vector<char> compute_simulation_par2();
@@ -1127,7 +1127,6 @@ namespace spot
     aut_ = std::move(a);
   }
 
-  /*
   template <typename ConstAutPtr, bool Cosimulation, bool Sba>
   std::vector<char>
   reduce_sim<ConstAutPtr, Cosimulation, Sba>::compute_simulation()
@@ -1153,18 +1152,6 @@ namespace spot
     for (unsigned s = 0; s < n; ++s)
       for (const auto& e : ga.out(s))
         reverse.new_edge(e.dst, e.src);
-
-    reverse.sort_edges_([](const auto& e1, const auto& e2)
-        {
-          if (e1.src != e2.src)
-            return e1.src < e2.src;
-          return e1.dst < e2.dst;
-        });
-
-    // Remove all duplicates.
-    auto& edges = reverse.edge_vector();
-    edges.erase(std::unique(edges.begin() + 1, edges.end()), edges.end());
-    reverse.chain_edges_();
 
     // Compute a reverse topological order for all the states. So that the
     // algorithm iterates as few times as possible, we must update all the
@@ -1201,105 +1188,47 @@ namespace spot
     }
 
     std::vector<char> can_sim(n * n, true);
-*/
-    /*
-    const auto test_sim = [&](size_t s1, size_t s2, const auto& test_sim_ref, unsigned lookhead=1) -> bool
+
+    const auto test_sim = [&](size_t s, size_t modified_edge) -> bool
       {
-        auto s_edges = ga.out(s1);
-        auto d_edges = ga.out(s2);
+        auto d_edges = ga.out(s);
+        auto& s_edge = ga.edge_storage(modified_edge);
 
         // s1 simulates s2 only if for all the edges of s2 there is an edges s1
         // with compatible condition, acceptance and the destinations simulate
 
-       return std::all_of(s_edges.begin(), s_edges.end(),
-          [&](const auto& s_edge) -> bool
+        size_t i = static_cast<size_t>(s_edge.dst) * n;
+
+        return std::find_if(d_edges.begin(), d_edges.end(),
+          [&](const auto& d_edge) -> bool
             {
-              size_t i = static_cast<size_t>(s_edge.dst) * n;
+              // Checks if the destinations of the spoiler simulates
+              // the  duplicator.
+              if (!can_sim[i + static_cast<size_t>(d_edge.dst)])
+                  return false;
 
-              return std::find_if(d_edges.begin(), d_edges.end(),
-                [&](const auto& d_edge) -> bool
-                  {
-                    // Checks if the destinations of the spoiler simulates
-                    // the  duplicator.
-                    if (!can_sim[i + static_cast<size_t>(d_edge.dst)])
-                      if (lookhead - 1 == 0 || !test_sim_ref(s_edge.dst, d_edge.dst, test_sim_ref, lookhead-1))
-                        return false;
-
-                    if constexpr(Sba && Cosimulation)
-                      {
-                        if (!(this->acc_[d_edge.src])
-                            .subset(this->acc_[s_edge.src]))
-                          return false;
-                      }
-                    else
-                      {
-                        if (!d_edge.acc.subset(s_edge.acc))
-                          return false;
-                      }
-
-                    if constexpr(Cosimulation)
-                      {
-                        if (s_edge.dst == init && d_edge.dst != init)
-                          return false;
-                      }
-
-                    return this->cond_implies(s_edge, d_edge);
-                  });
-            });
-      };
-*/
-/*
-    // Test if s1 simulates s2.
-    const auto test_sim = [&](size_t s1, size_t s2, size_t target) -> bool
-      {
-        auto s_edges = ga.out(s1);
-        auto d_edges = ga.out(s2);
-
-        // s1 simulates s2 only if for all the edges of s2 there is an edges s1
-        // with compatible condition, acceptance and the destinations simulate
-
-        return std::all_of(s_edges.begin(), s_edges.end(),
-          [&](const auto& s_edge) -> bool
-            {
-              size_t i = static_cast<size_t>(s_edge.dst) * n;
-
-//              if (target != std::numeric_limits<unsigned>::max() && target != s_edge.dst)
-//                return true;
-
-              return std::find_if(d_edges.begin(), d_edges.end(),
-                [&](const auto& d_edge) -> bool
-                  {
-                    if constexpr(Sba && Cosimulation)
-                      {
-                        if (!(this->acc_[d_edge.src])
-                            .subset(this->acc_[s_edge.src]))
-                          return false;
-                      }
-                    else
-                      {
-                        if (!d_edge.acc.subset(s_edge.acc))
-                          return false;
-                      }
-
-                    if constexpr(Cosimulation)
-                      {
-                        if (s_edge.dst == init && d_edge.dst != init)
-                          return false;
-                      }
-
-                    if (!this->cond_implies(s_edge, d_edge))
-                      return false;
-
-                    // Checks if the destinations of the spoiler simulates
-                    // the  duplicator.
-                    if (can_sim[i + static_cast<size_t>(d_edge.dst)])
-                      return true;
-
+              if constexpr(Sba && Cosimulation)
+                {
+                  if (!(this->acc_[d_edge.src])
+                      .subset(this->acc_[s_edge.src]))
                     return false;
-                  });
+                }
+              else
+                {
+                  if (!d_edge.acc.subset(s_edge.acc))
+                    return false;
+                }
+
+              if constexpr(Cosimulation)
+                {
+                  if (s_edge.dst == init && d_edge.dst != init)
+                    return false;
+                }
+
+              return this->cond_implies(s_edge, d_edge);
             });
       };
-*/
+
     /*
     std::vector<acc_cond::mark_t> acc_sig(n);
 
@@ -1328,7 +1257,7 @@ namespace spot
       todo.push_back(need_to_update_pred);
     }
     */
-/*
+
     todo.resize(n, true);
 
     bool has_changed;
@@ -1342,7 +1271,7 @@ namespace spot
               continue;
 
             todo[i] = false;
-            unsigned target = i;// (is_first_iter) ? std::numeric_limits<unsigned>::max() : i;
+            unsigned target = i;
 
             // Update all the predecessors that changed on last turn.
             for (const auto& re : reverse.out(i))
@@ -1350,41 +1279,25 @@ namespace spot
                 size_t u = re.dst;
                 size_t idx = u * n;
 
-                if (only_bisimu)
-                  {
-                    // If the automaton is deterministic, compute only the
-                    // bisimulation.
-                    for (size_t v = 0; v < u; ++v)
-                      {
-                        // u doesn't simulate v
-                        if (!can_sim[idx + v])
-                          continue;
+                for (unsigned v = 0; v < n; ++v)
+                {
+                  // u doesn't simulate v
+                  if (!can_sim[idx + v])
+                    continue;
 
-                        if (!test_sim(u, v, target) || !test_sim(v, u, target))
-                          {
-                            can_sim[u * n + v] = false;
-                            has_changed = true;
-                            todo[u] = true;
-                            todo[v] = true;
-                          }
-                      }
-                  }
-                else
+                  if (!test_sim(v, reverse.index_of_edge(re))) //v, reverse.index_of_edge(re)))
                   {
-                    for (unsigned v = 0; v < n; ++v)
-                      {
-                        // u doesn't simulate v
-                        if (!can_sim[idx + v])
-                          continue;
+                    has_changed = true;
+                    can_sim[idx + v] = false;
+                    todo[u] = true;
 
-                        if (!test_sim(u, v, target))
-                          {
-                            can_sim[idx + v] = false;
-                            has_changed = true;
-                            todo[u] = true;
-                          }
-                      }
+                    if (only_bisimu)
+                    {
+                      can_sim[v * n + u] = false;
+                      todo[v] = true;
+                    }
                   }
+                }
               }
           }
 
@@ -1412,7 +1325,7 @@ namespace spot
 
     return can_sim;
   }
-*/
+
   template <typename ConstAutPtr, bool Cosimulation, bool Sba>
   std::vector<char>
   reduce_sim<ConstAutPtr, Cosimulation, Sba>::compute_simulation_par4()
@@ -1582,7 +1495,7 @@ namespace spot
             continue;
 
           todo[i] = false;
-          unsigned target = i;//(is_first_iter) ? std::numeric_limits<unsigned>::max() : i;
+          unsigned target = (is_first_iter) ? std::numeric_limits<unsigned>::max() : i;
 
           // Update all the predecessors that changed on last turn.
           for (const auto& re : reverse.out(i))
@@ -1939,7 +1852,7 @@ namespace spot
     if constexpr(is_twa_graph)
       can_sim = compute_simulation();
     else
-      can_sim = (nb_thread_) ? compute_simulation_par4() : compute_simulation();
+      can_sim = /*(nb_thread_) ? compute_simulation_par4() :*/ compute_simulation();
 
     /*
     unsigned nnnn=aut_->num_states();
@@ -2262,9 +2175,9 @@ namespace spot
     bool cosim = true;
     do
       {
-        //if constexpr(std::is_same<ConstAutPtr, const_twa_graph_ptr>::value)
-        //  if (is_deterministic(res))
-        //    break;
+        if constexpr(std::is_same<ConstAutPtr, const_twa_graph_ptr>::value)
+          if (is_deterministic(res))
+            break;
 
         iter_count++;
         last_states = res->num_states();
@@ -2286,10 +2199,12 @@ namespace spot
       }
     while (last_states > res->num_states() || last_edges > res->num_edges());
 
+    /*
     if (iter_count > 2)
     {
       std::cerr << iter_count << " iterations\n";
     }
+    */
 
     return res;
   }
