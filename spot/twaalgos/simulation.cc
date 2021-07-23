@@ -1055,6 +1055,109 @@ namespace spot
     unsigned nb_thread_;
   };
 
+  // A circular todo list. The elements are sorted according *order*.
+  class TodoList
+  {
+    public:
+      TodoList(unsigned capacity,
+          std::vector<unsigned>&& order,
+          std::vector<unsigned>&& rev_order)
+        : v_(capacity + 1)
+          , order_(order)
+          , rev_order_(rev_order)
+    {
+    }
+
+      void push(unsigned elm)
+      {
+        elm = order_[elm] + 1;
+
+        // Already in
+        if (v_[elm].succ)
+          return;
+
+        if (count_)
+        {
+          unsigned pred;
+
+          for (pred = elm - 1; pred != elm; --pred)
+          {
+            if (v_[pred].succ)
+              break;
+
+            if (pred == 0)
+              pred = v_.size();
+          }
+
+          v_[elm].succ = v_[pred].succ;
+          v_[elm].pred = pred;
+
+          v_[v_[pred].succ].pred = elm;
+          v_[pred].succ = elm;
+        }
+        else
+        {
+          v_[elm].succ = elm;
+          v_[elm].pred = elm;
+          cur_ = elm;
+        }
+
+        if (elm > cur_)
+          cur_ = elm;
+
+        ++count_;
+      }
+
+      bool pop(unsigned& elm)
+      {
+        unsigned next = v_[cur_].succ;
+
+        v_[v_[cur_].pred].succ = next;
+        v_[next].pred = v_[cur_].pred;
+
+        v_[cur_].succ = 0;
+        v_[cur_].pred = 0;
+
+        if (cur_ == next)
+          next = 0;
+
+        elm = rev_order_[cur_ - 1];
+        cur_ = next;
+
+        return --count_;
+      }
+
+      void print_link() const
+      {
+        unsigned cur = cur_;
+        for (; v_[cur].succ != cur_; cur = v_[cur].succ)
+          std::cout << cur << ": succ " << v_[cur].succ << " pred " << v_[cur].pred << '\n';
+        std::cout << cur << ": succ " << v_[cur].succ << " pred " << v_[cur].pred << '\n';
+        std::cout << '\n';
+      }
+
+      void dump() const
+      {
+        for (unsigned i = 0; i < v_.size(); ++i)
+          std::cerr << "node: " << i << " succ: " << v_[i].succ << " pred: " << v_[i].pred << '\n';
+
+        std::cerr << "HEAD: " << cur_ << '\n';
+        std::cerr << '\n';
+      }
+
+    private:
+      struct node {
+        unsigned succ = 0;
+        unsigned pred = 0;
+      };
+
+      unsigned count_ = 0;
+      unsigned cur_ = 0;
+      std::vector<node> v_;
+      std::vector<unsigned> order_;
+      std::vector<unsigned> rev_order_;
+  };
+
   template <typename ConstAutPtr, bool Cosimulation, bool Sba>
   reduce_sim<ConstAutPtr, Cosimulation, Sba>
   ::reduce_sim(const ConstAutPtr& aut, unsigned nb_thread)
@@ -1157,12 +1260,14 @@ namespace spot
     // algorithm iterates as few times as possible, we must update all the
     // successors of a state before updating it.
     std::vector<unsigned> order(n, 0);
-    std::vector<unsigned> todo;
-    todo.reserve(n);
+    std::vector<unsigned> rev_order(n, 0);
 
     unsigned init = aut_->get_init_state_number();
 
     {
+      std::vector<unsigned> todo;
+      todo.reserve(n);
+
       const auto& go = original_->get_graph();
 
       unsigned i = Cosimulation ? 0 : n - 1;
@@ -1174,6 +1279,7 @@ namespace spot
           unsigned cur = todo.back();
           todo.pop_back();
           order[i] = cur;
+          rev_order[cur] = i;
           i += Cosimulation ? 1 : -1;
 
           for (const auto& e : go.out(cur))
@@ -1258,52 +1364,44 @@ namespace spot
     }
     */
 
-    todo.resize(n, true);
+    TodoList todo(n, std::move(order), std::move(rev_order));
+    for (unsigned i = 0; i < n; ++i)
+      todo.push(i);
 
-    bool has_changed;
-    bool is_first_iter = true;
+    bool todo_is_not_empty;;
     do
       {
-        has_changed = false;
-        for (unsigned i : order)
+        unsigned i;
+        todo_is_not_empty = todo.pop(i);
+
+        // Update all the predecessors that changed on last turn.
+        for (const auto& re : reverse.out(i))
+        {
+          size_t u = re.dst;
+          size_t idx = u * n;
+
+          for (unsigned v = 0; v < n; ++v)
           {
-            if (!todo[i])
+            // u doesn't simulate v
+            if (!can_sim[idx + v])
               continue;
 
-            todo[i] = false;
-            unsigned target = i;
+            if (!test_sim(v, reverse.index_of_edge(re)))
+            {
+              can_sim[idx + v] = false;
+              todo.push(u);
+              todo_is_not_empty = true;
 
-            // Update all the predecessors that changed on last turn.
-            for (const auto& re : reverse.out(i))
+              if (only_bisimu)
               {
-                size_t u = re.dst;
-                size_t idx = u * n;
-
-                for (unsigned v = 0; v < n; ++v)
-                {
-                  // u doesn't simulate v
-                  if (!can_sim[idx + v])
-                    continue;
-
-                  if (!test_sim(v, reverse.index_of_edge(re))) //v, reverse.index_of_edge(re)))
-                  {
-                    has_changed = true;
-                    can_sim[idx + v] = false;
-                    todo[u] = true;
-
-                    if (only_bisimu)
-                    {
-                      can_sim[v * n + u] = false;
-                      todo[v] = true;
-                    }
-                  }
-                }
+                can_sim[v * n + u] = false;
+                todo.push(v);
               }
+            }
           }
-
-        is_first_iter = false;
+        }
       }
-    while (has_changed);
+    while (todo_is_not_empty);
 
     if constexpr(Cosimulation)
       {
