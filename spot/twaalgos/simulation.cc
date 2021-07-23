@@ -1063,13 +1063,19 @@ namespace spot
           std::vector<unsigned>&& order,
           std::vector<unsigned>&& rev_order)
         : v_(capacity + 1)
-          , order_(order)
-          , rev_order_(rev_order)
+        , order_(order)
+        , rev_order_(rev_order)
     {
     }
 
+      void set_begin(unsigned elm)
+      {
+        cur_ = order_[elm] + 1;
+      }
+
       void push(unsigned elm)
       {
+
         elm = order_[elm] + 1;
 
         // Already in
@@ -1122,6 +1128,7 @@ namespace spot
           next = 0;
 
         elm = rev_order_[cur_ - 1];
+        std::cerr << "pop " << elm << '\n';
         cur_ = next;
 
         return --count_;
@@ -1249,12 +1256,16 @@ namespace spot
     const auto& ga = aut_->get_graph();
 
     // We need to have the predecessors of a state for the backward propagation.
-    digraph<void, void> reverse(n, aut_->num_edges());
+    struct OriginalEdge {
+      unsigned edge_idx;
+    };
+
+    digraph<void, OriginalEdge> reverse(n, aut_->num_edges());
     reverse.new_states(n);
 
     for (unsigned s = 0; s < n; ++s)
       for (const auto& e : ga.out(s))
-        reverse.new_edge(e.dst, e.src);
+        reverse.new_edge(e.dst, e.src, ga.index_of_edge(e));
 
     // Compute a reverse topological order for all the states. So that the
     // algorithm iterates as few times as possible, we must update all the
@@ -1311,7 +1322,7 @@ namespace spot
               // Checks if the destinations of the spoiler simulates
               // the  duplicator.
               if (!can_sim[i + static_cast<size_t>(d_edge.dst)])
-                  return false;
+                return false;
 
               if constexpr(Sba && Cosimulation)
                 {
@@ -1364,11 +1375,13 @@ namespace spot
     }
     */
 
-    TodoList todo(n, std::move(order), std::move(rev_order));
+    TodoList todo(n, std::move(rev_order), std::move(order));
     for (unsigned i = 0; i < n; ++i)
       todo.push(i);
 
-    bool todo_is_not_empty;;
+    todo.set_begin(order[0]);
+
+    bool todo_is_not_empty;
     do
       {
         unsigned i;
@@ -1386,7 +1399,7 @@ namespace spot
             if (!can_sim[idx + v])
               continue;
 
-            if (!test_sim(v, reverse.index_of_edge(re)))
+            if (!test_sim(v, re.edge_idx))
             {
               can_sim[idx + v] = false;
               todo.push(u);
@@ -1402,6 +1415,55 @@ namespace spot
         }
       }
     while (todo_is_not_empty);
+
+
+    /*
+    bool has_changed;
+    std::vector<char> todo(n, true);
+
+    do
+    {
+      has_changed = false;
+      for (unsigned i : order)
+      {
+        if (!todo[i])
+          continue;
+
+        std::cerr << "pop " << i << '\n';
+        todo[i] = false;
+
+        // Update all the predecessors that
+        // changed on last turn.
+        for (const auto& re : reverse.out(i))
+          {
+            size_t u = re.dst;
+            size_t idx = u * n;
+
+            for (unsigned v = 0; v < n; ++v)
+            {
+              if (!can_sim[idx + v])
+                continue;
+
+              if (!test_sim(v, re.edge_idx))
+              {
+                has_changed = true;
+                can_sim[idx + v] = false;
+
+                todo[u] = true;
+
+                if (only_bisimu)
+                {
+                  can_sim[v * n + u] = false;
+
+                  todo[v] = true;
+                }
+              }
+            }
+          }
+      }
+    } while (has_changed);
+  */
+
 
     if constexpr(Cosimulation)
       {
@@ -1420,6 +1482,18 @@ namespace spot
               can_sim[i * n + init] = i == init;
             }
       }
+
+    /*
+    for (unsigned i = 0; i < n; ++i)
+    {
+      for (unsigned j = 0; j < n; ++j)
+        if (can_sim[i * n + j])
+          std::cerr << "x ";
+        else
+          std::cerr << ". ";
+      std::cerr << '\n';
+    }
+    */
 
     return can_sim;
   }
