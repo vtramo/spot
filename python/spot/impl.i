@@ -164,6 +164,7 @@
 #include <spot/twaalgos/word.hh>
 #include <spot/twaalgos/are_isomorphic.hh>
 #include <spot/twaalgos/toparity.hh>
+#include <spot/twaalgos/zlktree.hh>
 
 #include <spot/parseaut/public.hh>
 
@@ -690,6 +691,7 @@ def state_is_accepting(self, src) -> "bool":
 %template(list_bdd) std::list<bdd>;
 %include <spot/twaalgos/are_isomorphic.hh>
 %include <spot/twaalgos/toparity.hh>
+%include <spot/twaalgos/zlktree.hh>
 
 %pythonprepend spot::twa::dtwa_complement %{
   from warnings import warn

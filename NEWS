@@ -231,6 +231,11 @@ New in spot 2.9.7.dev (not yet released)
     Additionally, this function now returns the number of states that
     have been merged (and therefore removed from the automaton).
 
+  - spot::zielonka_tree is a new class that can be constructed from
+    any acceptance condition to help paritizing it.  This is based on
+    a paper by Casares et al. (ICALP'21). Its python binding will
+    display the tree graphically.
+
   Python:
 
   - Bindings for functions related to games.

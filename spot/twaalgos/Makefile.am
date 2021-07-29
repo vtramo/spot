@@ -98,7 +98,8 @@ twaalgos_HEADERS = \
   totgba.hh \
   toweak.hh \
   translate.hh \
-  word.hh
+  word.hh \
+  zlktree.hh
 
 noinst_LTLIBRARIES = libtwaalgos.la
 libtwaalgos_la_SOURCES = \
@@ -170,6 +171,7 @@ libtwaalgos_la_SOURCES = \
   totgba.cc \
   toweak.cc \
   translate.cc \
-  word.cc
+  word.cc \
+  zlktree.cc
 
 libtwaalgos_la_LIBADD = gtec/libgtec.la
