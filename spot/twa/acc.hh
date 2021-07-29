@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2014-2020 Laboratoire de Recherche et Développement
+// Copyright (C) 2014-2021 Laboratoire de Recherche et Développement
 // de l'Epita.
 //
 // This file is part of Spot, a model checking library.
@@ -25,7 +25,7 @@
 #include <iostream>
 #include <algorithm>
 #include <numeric>
-
+#include <bddx.h>
 #include <spot/misc/_config.h>
 #include <spot/misc/bitset.hh>
 #include <spot/misc/trival.hh>
@@ -1200,6 +1200,11 @@ namespace spot
       /// This implementation is the dual of `to_dnf()`.
       acc_code to_cnf() const;
 
+      /// \brief Convert the acceptance formula into a BDD
+      ///
+      /// \a map should be a vector indiced by colors, that
+      /// maps each color to the desired BDD representation.
+      bdd to_bdd(const bdd* map) const;
 
       /// \brief Return the top-level disjuncts.
       ///

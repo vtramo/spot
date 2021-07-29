@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2015-2020 Laboratoire de Recherche et Développement
+// Copyright (C) 2015-2021 Laboratoire de Recherche et Développement
 // de l'Epita.
 //
 // This file is part of Spot, a model checking library.
@@ -1012,6 +1012,13 @@ namespace spot
     }
   }
 
+  bdd acc_cond::acc_code::to_bdd(const bdd* map) const
+  {
+    if (empty())
+      return bddtrue;
+    return to_bdd_rec(&back(), map);
+  }
+
   std::vector<unsigned>
   acc_cond::acc_code::symmetries() const
   {
@@ -1024,7 +1031,7 @@ namespace spot
     std::vector<bdd> r;
     for (unsigned i = 0; r.size() < umax; ++i)
       r.emplace_back(bdd_ithvar(base++));
-    bdd bddcode = to_bdd_rec(&back(), &r[0]);
+    bdd bddcode = to_bdd(&r[0]);
     bdd tmp;
 
     std::vector<unsigned> res(umax);
@@ -1216,7 +1223,7 @@ namespace spot
           }
       }
 
-    bdd res = to_bdd_rec(&back(), &r[0]);
+    bdd res = to_bdd(&r[0]);
 
     if (res == bddtrue)
       return t();
@@ -1285,7 +1292,7 @@ namespace spot
           }
       }
 
-    bdd res = to_bdd_rec(&back(), &r[0]);
+    bdd res = to_bdd(&r[0]);
 
     if (res == bddtrue)
       return t();
@@ -1638,7 +1645,7 @@ namespace spot
           }
       }
 
-    bdd res = to_bdd_rec(&code_.back(), &r[0]);
+    bdd res = code_.to_bdd(&r[0]);
 
     if (res == bddtrue)
       return {sat, mark_t({})};
@@ -1704,7 +1711,7 @@ namespace spot
           }
       }
 
-    bdd res = to_bdd_rec(&back(), &r[0]);
+    bdd res = to_bdd(&r[0]);
 
     res = bdd_restrict(res, known);
 
