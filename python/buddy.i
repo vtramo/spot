@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2010, 2011, 2012, 2014, 2016 Laboratoire de Recherche et
-// Développement de l'EPITA.
+// Copyright (C) 2010, 2011, 2012, 2014, 2016, 2021 Laboratoire de
+// Recherche et Développement de l'EPITA.
 // Copyright (C) 2003, 2004  Laboratoire d'Informatique de Paris 6 (LIP6),
 // département Systèmes Répartis Coopératifs (SRC), Université Pierre
 // et Marie Curie.
@@ -188,7 +188,7 @@ double bdd_satcountlnset(const bdd &r, const bdd &varset);
 int bdd_nodecount(const bdd &r);
 int* bdd_varprofile(const bdd &r);
 double bdd_pathcount(const bdd &r);
-int bdd_has_common_assignement(const bdd &l, const bdd &r);
+int bdd_have_common_assignment(const bdd &l, const bdd &r);
 void bdd_fprinttable(FILE *file, const bdd &r);
 void bdd_printtable(const bdd &r);
 void bdd_fprintset(FILE *file, const bdd &r);

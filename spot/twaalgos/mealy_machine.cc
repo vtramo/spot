@@ -975,7 +975,7 @@ namespace
           if (p1.second > p2.second)
             continue;
           inc_player.set(p1.second, p2.second,
-                         !bdd_has_common_assignement(
+                         !bdd_have_common_assignment(
                              bdd_from_int((int) p1.first),
                              bdd_from_int((int) p2.first)));
           assert(inc_player.get(p1.second, p2.second)
@@ -1005,7 +1005,7 @@ namespace
               if (!is_p_incomp(e1.dst - n_env, e2.dst - n_env))
                 continue; //Compatible -> no prob
               // Reachable under same letter?
-              if (bdd_has_common_assignement(e1.cond, e2.cond))
+              if (bdd_have_common_assignment(e1.cond, e2.cond))
                 {
                   trace << s1 << " and " << s2 << " directly incomp "
                         "due to successors " << e1.dst << " and " << e2.dst
@@ -1039,7 +1039,7 @@ namespace
                     // Have already been treated
                     continue;
                   // Now we need to actually check it
-                  if (bdd_has_common_assignement(ei.cond, ej.cond))
+                  if (bdd_have_common_assignment(ei.cond, ej.cond))
                     {
                       trace << ei.dst << " and " << ej.dst << " tagged incomp"
                             " due to " << i << " and " << j << '\n';
@@ -3088,7 +3088,7 @@ namespace
                                                    false);
               if (inserted)
                 it->second =
-                    bdd_has_common_assignement(c_list1[c1_idx],
+                    bdd_have_common_assignment(c_list1[c1_idx],
                                                c_list2[c2_idx]);
               if (!it->second)
                 incomp_cubes_list.emplace_back((int) c1_idx,
@@ -3673,7 +3673,7 @@ namespace spot
           {
             // check if el_env.cond intersects with the unspecified of
             // sr. If so the sequence is not applicable -> false
-            if (bdd_has_common_assignement(ucr[sr], el_env.cond))
+            if (bdd_have_common_assignment(ucr[sr], el_env.cond))
               {
                 if (verbose)
                   std::cerr << "State " << sl << " of left is not completely"
@@ -3688,7 +3688,7 @@ namespace spot
               {
                 // if they can be taken at the same time, the output
                 // of r must implies the one of left
-                if (bdd_has_common_assignement(el_env.cond, er_env.cond))
+                if (bdd_have_common_assignment(el_env.cond, er_env.cond))
                   {
                     const auto& er_p = get_p_edge_r(er_env);
                     if (!bdd_implies(er_p.cond, el_p.cond))
