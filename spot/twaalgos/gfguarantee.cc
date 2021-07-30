@@ -260,7 +260,7 @@ namespace spot
                       // history further.
                       if (hlen > 0)
                         for (auto& ei: aut->out(moved_init))
-                          if ((ei.cond & econd) != bddfalse
+                          if (bdd_have_common_assignment(ei.cond, econd)
                               && term[si.scc_of(ei.dst)])
                             goto failed;
 

@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2012-2018 Laboratoire de Recherche et Développement
+// Copyright (C) 2012-2018, 2021 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -132,7 +132,7 @@ namespace spot
         // Second pass to gather the relevant edges.
         if (!universal)
           for (auto& t: aut->out(src))
-            if ((t.cond & extra) != bddfalse)
+            if (bdd_have_common_assignment(t.cond, extra))
               (*highlight)[aut->get_graph().index_of_edge(t)] = color;
       }
     aut->prop_universal(universal);
