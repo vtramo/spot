@@ -1,5 +1,5 @@
 /*========================================================================
-	       Copyright (C) 1996-2004 by Jorn Lind-Nielsen
+	       Copyright (C) 1996-2004, 2021 by Jorn Lind-Nielsen
 			    All rights reserved
 
     Permission is hereby granted, without written agreement and without
@@ -60,6 +60,7 @@
 #define CACHEID_SETXOR      0x5
 #define CACHEID_SUPPORT     0x6
 #define CACHEID_IMPLIES     0x7
+#define CACHEID_COMMON      0x8
 
    /* Hash value modifiers for replace/compose */
 #define CACHEID_REPLACE      0x0
@@ -170,6 +171,7 @@ static int    varset2svartable(BDD);
 #define ITEHASH(f,g,h)       (TRIPLE(f,g,h))
 #define SETXORHASH(l,r)      (TRIPLE(l,r,CACHEID_SETXOR))
 #define IMPLIESHASH(l,r)     (TRIPLE(l,r,CACHEID_IMPLIES))
+#define COMMONHASH(l,r)      (TRIPLE(l,r,CACHEID_COMMON))
 #define RESTRHASH(r,var)     (PAIR(r,var))
 #define CONSTRAINHASH(f,c)   (PAIR(f,c))
 #define QUANTHASH(r)         (r)
@@ -3586,43 +3588,63 @@ static double bdd_pathcount_rec(BDD r)
    return size;
 }
 
-/*=== DECIDE IF TWO BDDS SHARE AT LEAST ONE ASSIGNEMENT ================*/
+/*=== DECIDE IF TWO BDDS SHARE AT LEAST ONE ASSIGNMENT ================*/
 
 /*
-NAME    {* bdd\_has\_common\_assignement *}
+NAME    {* bdd\_have\_common\_assignment *}
 SECTION {* info *}
-SHORT   {* Decide if two bdds share an accepted assignement *}
-PROTO   {* int bdd_has_common_assignement(BDD l, BDD r) *}
+SHORT   {* Decide if two bdds share an satisfying assignement *}
+PROTO   {* int bdd_have_common_assignment(BDD l, BDD r) *}
 DESCR   {* Returns 1 iff l&r != bddfalse *}
 RETURN  {* 0 or 1 *}
 */
-int bdd_has_common_assignement(BDD left, BDD right)
+int bdd_have_common_assignment(BDD left, BDD right)
 {
   // If one of them is false -> false
-  if (left == 0 || right == 0)
+  if (ISZERO(left) || ISZERO(right))
     return 0;
   // If one of them is true and the other is not false
   // or if they are identical -> true
-  if (left == 1 || right == 1 || left == right)
+  if (ISONE(left) || ISONE(right) || left == right)
     return 1;
   // Now both of them are not constant
 
-  // Do they share the top variable?
-  int vl = bddlevel2var[LEVEL(left)];
-  int vr = bddlevel2var[LEVEL(right)];
+  BddCacheData *entry = BddCache_lookup(&misccache, COMMONHASH(left,right));
+  /* Check entry->b last, because not_rec() does not initialize it. */
+  if (entry->i.a == left && entry->i.c == CACHEID_COMMON && entry->i.b == right)
+   {
+#ifdef CACHESTATS
+      bddcachestats.opHit++;
+#endif
+      return entry->i.res;
+   }
+#ifdef CACHESTATS
+   bddcachestats.opMiss++;
+#endif
 
+  // Do they share the top variable?
+  int vl = LEVEL(left);
+  int vr = LEVEL(right);
+
+  int res;
   if (vl < vr)
     // left has to "catch up"
-    return bdd_has_common_assignement(LOW(left), right)
-           || bdd_has_common_assignement(HIGH(left), right);
+    res = (bdd_have_common_assignment(LOW(left), right)
+           || bdd_have_common_assignment(HIGH(left), right));
   else if (vr < vl)
     // right has to "catch up"
-    return bdd_has_common_assignement(left, LOW(right))
-           || bdd_has_common_assignement(left, HIGH(right));
+    res = (bdd_have_common_assignment(left, LOW(right))
+           || bdd_have_common_assignment(left, HIGH(right)));
   else
     // They evolve jointly
-    return bdd_has_common_assignement(LOW(left), LOW(right))
-           || bdd_has_common_assignement(HIGH(left), HIGH(right));
+    res = (bdd_have_common_assignment(LOW(left), LOW(right))
+           || bdd_have_common_assignment(HIGH(left), HIGH(right)));
+
+  entry->i.a = left;
+  entry->i.c = CACHEID_COMMON;
+  entry->i.b = right;
+  entry->i.res = res;
+  return res;
 }
 
 /*************************************************************************

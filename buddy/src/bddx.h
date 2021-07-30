@@ -389,7 +389,7 @@ BUDDY_API int      bdd_nodecount(BDD);
 BUDDY_API int      bdd_anodecount(BDD *, int);
 BUDDY_API int*     bdd_varprofile(BDD);
 BUDDY_API double   bdd_pathcount(BDD);
-BUDDY_API int      bdd_has_common_assignement(BDD, BDD);
+BUDDY_API int      bdd_have_common_assignment(BDD, BDD);
 
 /* In file "bddio.c" */
 
@@ -646,7 +646,7 @@ protected:
    friend int      bdd_anodecountpp(const bdd *, int);
    friend int*     bdd_varprofile(const bdd &);
    friend double   bdd_pathcount(const bdd &);
-   friend int      bdd_has_common_assignement(const bdd&, const bdd&);
+   friend int      bdd_have_common_assignment(const bdd&, const bdd&);
 
    friend void   bdd_fprinttable(FILE *, const bdd &);
    friend void   bdd_printtable(const bdd &);
@@ -898,8 +898,8 @@ inline int* bdd_varprofile(const bdd &r)
 inline double bdd_pathcount(const bdd &r)
 { return bdd_pathcount(r.root); }
 
-inline int bdd_has_common_assignement(const bdd &l, const bdd &r)
-{ return bdd_has_common_assignement(l.root, r.root); }
+inline int bdd_have_common_assignment(const bdd &l, const bdd &r)
+{ return bdd_have_common_assignment(l.root, r.root); }
 
 
    /* I/O extensions */
