@@ -1476,9 +1476,6 @@ namespace spot
     if (has_right_ins || has_left_outs || !has_right_outs)
       return {nullptr, 0};
 
-    bool right_bool = right[0][0].is_boolean();
-    if (!right_bool)
-      return {nullptr, 0};
     bool is_gf_bool_right = right.is({op::G, op::F});
     bool is_fg_bool_right = right.is({op::F, op::G});
 
@@ -1494,6 +1491,9 @@ namespace spot
     stopwatch sw;
     if (is_ok)
     {
+      bool right_bool = right[0][0].is_boolean();
+      if (!right_bool)
+        return {nullptr, 0};
       auto trans = create_translator(extra_opt, gi.s, gi.dict);
       trans.set_type(postprocessor::Buchi);
       trans.set_pref(postprocessor::Deterministic | postprocessor::Complete);
