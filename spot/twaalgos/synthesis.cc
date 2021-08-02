@@ -255,11 +255,15 @@ namespace spot
 
     // If a completion is demanded we might have to create sinks
     // Sink controlled by player
-    auto get_sink_con_state = [&split]()
+    auto get_sink_con_state = [&split](bool create = true)
       {
-        static unsigned sink_con=0;
-        if (SPOT_UNLIKELY(sink_con == 0))
-          sink_con = split->new_state();
+        static unsigned sink_con=-1u;
+        if (SPOT_UNLIKELY((sink_con == -1u) && create))
+          {
+            sink_con = split->new_states(2);
+            split->new_edge(sink_con, sink_con+1, bddtrue);
+            split->new_edge(sink_con+1, sink_con, bddtrue);
+          }
         return sink_con;
       };
 
@@ -392,7 +396,11 @@ namespace spot
         new std::vector<bool>(split->num_states(), false);
     // All "new" states belong to the player
     std::fill(owner->begin()+aut->num_states(), owner->end(), true);
+    // Check if sinks have been created
+    if (get_sink_con_state(false) != -1u)
+      owner->at(get_sink_con_state(false)) = false;
     split->set_named_prop("state-player", owner);
+
     // Done
     return split;
   }
