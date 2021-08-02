@@ -2071,25 +2071,26 @@ namespace
     get_sol()
     {
       // Returns a vector of assignments
-      // The vector is empty iff the the prob is unsat
+      // The vector is empty iff the prob is unsat
       // res[i] == -1 : i not used in lit mapper
       // res[i] == 0 : i is assigned false
       // res[i] == 1 : i is assigned true
       switch (picosat_sat(lm.psat_, -1))
       {
-        case(PICOSAT_UNSATISFIABLE):
+        case PICOSAT_UNSATISFIABLE:
           return {};
-        case(PICOSAT_SATISFIABLE):
+        case PICOSAT_SATISFIABLE:
           {
             std::vector<int>
                 res(1 + (unsigned) picosat_variables(lm.psat_), -1);
+            SPOT_ASSUME(res.data()); // g++ 11 believes data might be nullptr
             res[0] = 0; // Convention
             for (int lit : lm.all_lits)
-              res.at(lit) = picosat_deref(lm.psat_, lit);
+              res[lit] = picosat_deref(lm.psat_, lit);
 #ifdef TRACE
-            trace << "Sol is \n";
+            trace << "Sol is\n";
             for (unsigned i = 0; i < res.size(); ++i)
-              std::cerr << i << " : " << res.at(i) << '\n';
+              trace << i << ": " << res[i] << '\n';
 #endif
             return res;
           }
