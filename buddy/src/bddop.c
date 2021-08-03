@@ -3798,6 +3798,43 @@ int bdd_have_common_assignment(BDD left, BDD right)
   return res;
 }
 
+/*=== DECIDE IF A BDD is a cube ================*/
+
+/*
+NAME    {* bdd\_is\_cube *}
+SECTION {* info *}
+SHORT   {* Decide if a bdd represents a cube *}
+PROTO   {* int bdd_is_cube(BDD b) *}
+DESCR   {* Returns 1 iff the given bdd is a conjunction of atomics and
+           negations of atomics. Returns 0 if input is false, 1
+           if input is true*}
+RETURN  {* 0 or 1 *}
+*/
+int bdd_is_cube(BDD b)
+{
+  if (ISZERO(b))
+    return 0;
+  if (ISONE(b))
+    return 0;
+
+  while (!ISONE(b))
+    {
+      BDD l = LOW(b);
+      BDD h = HIGH(b);
+
+      // Cube : high / low / do not care
+      if (!ISZERO(l) && !ISZERO(h))
+        return 0;
+
+      if (!ISZERO(l))
+        b = l;
+      else
+        b = h;
+    }
+
+  return 1;
+}
+
 /*************************************************************************
   Other internal functions
 *************************************************************************/
