@@ -1055,7 +1055,8 @@ namespace spot
     unsigned nb_thread_;
   };
 
-  // A circular todo list. The elements are sorted according *order*.
+  // A circular todo list with a fixed size. The elements are sorted according
+  // *order* and there is no duplicate.
   class TodoList
   {
     public:
@@ -1065,17 +1066,21 @@ namespace spot
         : v_(capacity + 1)
         , order_(order)
         , rev_order_(rev_order)
-    {
-    }
+      {
+      }
 
+      // Set the first element to pop. The element must be in the list.
       void set_begin(unsigned elm)
       {
+
         cur_ = order_[elm] + 1;
+
+        // Check if the elment is in.
+        SPOT_ASSERT(v_[cur_].succ);
       }
 
       void push(unsigned elm)
       {
-
         elm = order_[elm] + 1;
 
         // Already in
@@ -1083,30 +1088,30 @@ namespace spot
           return;
 
         if (count_)
-        {
-          unsigned pred;
-
-          for (pred = elm - 1; pred != elm; --pred)
           {
-            if (v_[pred].succ)
-              break;
+            unsigned pred;
 
-            if (pred == 0)
-              pred = v_.size();
+            for (pred = elm - 1; pred != elm; --pred)
+              {
+                if (v_[pred].succ)
+                  break;
+
+                if (pred == 0)
+                  pred = v_.size();
+              }
+
+            v_[elm].succ = v_[pred].succ;
+            v_[elm].pred = pred;
+
+            v_[v_[pred].succ].pred = elm;
+            v_[pred].succ = elm;
           }
-
-          v_[elm].succ = v_[pred].succ;
-          v_[elm].pred = pred;
-
-          v_[v_[pred].succ].pred = elm;
-          v_[pred].succ = elm;
-        }
         else
-        {
-          v_[elm].succ = elm;
-          v_[elm].pred = elm;
-          cur_ = elm;
-        }
+          {
+            v_[elm].succ = elm;
+            v_[elm].pred = elm;
+            cur_ = elm;
+          }
 
         if (elm > cur_)
           cur_ = elm;
@@ -1124,32 +1129,10 @@ namespace spot
         v_[cur_].succ = 0;
         v_[cur_].pred = 0;
 
-        if (cur_ == next)
-          next = 0;
-
         elm = rev_order_[cur_ - 1];
-        std::cerr << "pop " << elm << '\n';
         cur_ = next;
 
         return --count_;
-      }
-
-      void print_link() const
-      {
-        unsigned cur = cur_;
-        for (; v_[cur].succ != cur_; cur = v_[cur].succ)
-          std::cout << cur << ": succ " << v_[cur].succ << " pred " << v_[cur].pred << '\n';
-        std::cout << cur << ": succ " << v_[cur].succ << " pred " << v_[cur].pred << '\n';
-        std::cout << '\n';
-      }
-
-      void dump() const
-      {
-        for (unsigned i = 0; i < v_.size(); ++i)
-          std::cerr << "node: " << i << " succ: " << v_[i].succ << " pred: " << v_[i].pred << '\n';
-
-        std::cerr << "HEAD: " << cur_ << '\n';
-        std::cerr << '\n';
       }
 
     private:
@@ -1219,12 +1202,24 @@ namespace spot
               break;
           }
 
-      // Pull the common outgoing sets to the incoming
-      // edges.  Doing so seems to favor cases where states
-      // can be merged.
-      if (state_acc)
-        for (auto& e : gr.edges())
-          e.acc = (e.acc - common_out[e.src]) | common_out[e.dst];
+        // Pull the common outgoing sets to the incoming
+        // edges.  Doing so seems to favor cases where states
+        // can be merged.
+        if (state_acc)
+          {
+            if constexpr(is_twa_graph)
+            std::const_pointer_cast<twa_graph>(original_)
+              ->prop_state_acc(true);
+
+            for (auto& e : gr.edges())
+              e.acc = (e.acc - common_out[e.src]) | common_out[e.dst];
+          }
+        else
+          {
+            if constexpr(is_twa_graph)
+            std::const_pointer_cast<twa_graph>(original_)
+              ->prop_state_acc(false);
+          }
       }
 
     if constexpr(Sba && Cosimulation)
@@ -1266,6 +1261,16 @@ namespace spot
     for (unsigned s = 0; s < n; ++s)
       for (const auto& e : ga.out(s))
         reverse.new_edge(e.dst, e.src, ga.index_of_edge(e));
+
+    reverse.sort_edges_([](const auto& e1, const auto& e2)                                              
+        {                                                                                               
+          if (e1.src != e2.src)                                                                         
+            return e1.src < e2.src;                                                                     
+          if (e1.dst != e2.dst)
+            return e1.dst < e2.dst;                                                                       
+          return e1.edge_idx < e2.edge_idx;
+        });
+    reverse.chain_edges_();
 
     // Compute a reverse topological order for all the states. So that the
     // algorithm iterates as few times as possible, we must update all the
@@ -1416,7 +1421,6 @@ namespace spot
       }
     while (todo_is_not_empty);
 
-
     /*
     bool has_changed;
     std::vector<char> todo(n, true);
@@ -1429,7 +1433,6 @@ namespace spot
         if (!todo[i])
           continue;
 
-        std::cerr << "pop " << i << '\n';
         todo[i] = false;
 
         // Update all the predecessors that
@@ -1462,9 +1465,10 @@ namespace spot
           }
       }
     } while (has_changed);
-  */
+    */
 
-
+    // ??? TODO needed ???
+    /*
     if constexpr(Cosimulation)
       {
         if (!ga.out(init).begin())
@@ -1482,6 +1486,7 @@ namespace spot
               can_sim[i * n + init] = i == init;
             }
       }
+      */
 
     /*
     for (unsigned i = 0; i < n; ++i)
@@ -2631,5 +2636,5 @@ namespace spot
     return res;
   }
 
-#include "spot/twaalgos/shit_simulation.cc"
+//#include "spot/twaalgos/shit_simulation.cc"
 } // End namespace spot.
