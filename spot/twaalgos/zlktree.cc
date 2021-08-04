@@ -20,13 +20,15 @@
 #include "config.h"
 #include <iostream>
 #include <spot/twaalgos/zlktree.hh>
+#include <spot/twaalgos/sccinfo.hh>
+#include <deque>
 #include "spot/priv/bddalloc.hh"
 
 namespace spot
 {
-  zielonka_tree::zielonka_tree(acc_cond& cond)
+  zielonka_tree::zielonka_tree(const acc_cond& cond)
   {
-    acc_cond::acc_code& code = cond.get_acceptance();
+    const acc_cond::acc_code& code = cond.get_acceptance();
     auto used = code.used_sets();
     unsigned c = used.count();
     unsigned max = used.max_set();
@@ -224,5 +226,125 @@ namespace spot
           branch = nodes_[branch].first_child;
       }
     return {branch, lvl};
+  }
+
+  namespace
+  {
+    // A state in the zielonka_tree_transform output corresponds to a
+    // state in the input associated to a branch of the tree.
+    typedef std::pair<unsigned, unsigned> zlk_state;
+
+    struct zlk_state_hash
+    {
+      size_t
+      operator()(const zlk_state& s) const noexcept
+      {
+        return wang32_hash(s.first ^ wang32_hash(s.second));
+      }
+    };
+  }
+
+  twa_graph_ptr
+  zielonka_tree_transform(const const_twa_graph_ptr& a)
+  {
+    auto res = make_twa_graph(a->get_dict());
+    res->copy_ap_of(a);
+    zielonka_tree zlk(a->get_acceptance());
+
+    // Preserve determinism, weakness, and stutter-invariance
+    res->prop_copy(a, { false, true, true, true, true, true });
+
+    auto orig_states = new std::vector<unsigned>();
+    auto branches = new std::vector<unsigned>();
+    unsigned ns = a->num_states();
+    orig_states->reserve(ns); // likely more are needed.
+    res->set_named_prop("original-states", orig_states);
+    res->set_named_prop("degen-levels", branches);
+
+    // Associate each zlk_state to its number.
+    typedef std::unordered_map<zlk_state, unsigned, zlk_state_hash> zs2num_map;
+    zs2num_map zs2num;
+
+    // Queue of states to be processed.
+    std::deque<zlk_state> todo;
+
+    auto new_state = [&](zlk_state zs)
+    {
+      if (auto i = zs2num.find(zs); i != zs2num.end())
+        return i->second;
+
+      unsigned ns = res->new_state();
+      zs2num[zs] = ns;
+      todo.emplace_back(zs);
+
+      unsigned orig = zs.first;
+      assert(ns == orig_states->size());
+      orig_states->emplace_back(orig);
+      branches->emplace_back(zs.second);
+      return ns;
+    };
+
+    zlk_state s(a->get_init_state_number(), zlk.first_branch());
+    new_state(s);
+    unsigned max_color = 0;
+    while (!todo.empty())
+      {
+        s = todo.front();
+        todo.pop_front();
+        int src = zs2num[s];
+        unsigned branch = s.second;
+
+        for (auto& i: a->out(s.first))
+          {
+            auto [newbranch, prio] = zlk.step(branch, i.acc);
+            zlk_state d(i.dst, newbranch);
+            unsigned dst = new_state(d);
+            max_color = std::max(max_color, prio);
+            res->new_edge(src, dst, i.cond, {prio});
+          }
+      }
+
+    res->set_acceptance(max_color + 1,
+                        acc_cond::acc_code::parity_min(!zlk.is_even(),
+                                                       max_color + 1));
+
+    // compose original-states with the any previously existing one.
+    // We do that now, because for the bottommost copy below, it's better
+    // if we compose everything.
+    if (auto old_orig_states =
+        a->get_named_prop<std::vector<unsigned>>("original-states"))
+      for (auto& s: *orig_states)
+        s = (*old_orig_states)[s];
+
+    // Now we will iterate over the SCCs in topological order to
+    // remember the "bottommost" SCCs that contain each original
+    // state.  If an original state is duplicated in a higher SCC,
+    // it can be shunted away.  Amen.
+    scc_info si_res(res, scc_info_options::TRACK_STATES);
+    unsigned res_scc_count = si_res.scc_count();
+    unsigned maxorig = *std::max_element(orig_states->begin(),
+                                         orig_states->end());
+    std::vector<unsigned> bottommost_occurence(maxorig + 1);
+    {
+      unsigned n = res_scc_count;
+      do
+        for (unsigned s: si_res.states_of(--n))
+          bottommost_occurence[(*orig_states)[s]] = s;
+      while (n);
+    }
+    unsigned res_ns = res->num_states();
+    std::vector<unsigned> retarget(res_ns);
+    for (unsigned n = 0; n < res_ns; ++n)
+      {
+        unsigned other = bottommost_occurence[(*orig_states)[n]];
+        retarget[n] =
+          (si_res.scc_of(n) != si_res.scc_of(other)) ? other : n;
+      }
+    for (auto& e: res->edges())
+      e.dst = retarget[e.dst];
+    res->set_init_state(retarget[res->get_init_state_number()]);
+    res->purge_unreachable_states();
+
+    return res;
   }
 }

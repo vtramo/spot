@@ -37,7 +37,7 @@ namespace spot
   {
   public:
     /// \brief Build a Zielonka tree from the acceptance condition.
-    zielonka_tree(acc_cond& cond);
+    zielonka_tree(const acc_cond& cond);
 
     /// \brief The number of branches in the Zielonka tree.
     ///
@@ -129,4 +129,17 @@ namespace spot
     bool has_streett_shape_ = true;
   };
 
+  /// \ingroup twa_acc_transform
+  /// \brief Paritize an automaton using Zielonka tree.
+  ///
+  /// This corresponds to the application of Section 3 of
+  /// \cite casares.21.icalp
+  ///
+  /// The resulting automaton has a parity acceptance that is either
+  /// "min odd" or "min even", depending on the original acceptance.
+  /// It may uses up to n+1 colors if the input automaton has n
+  /// colors.  Finally, it is colored, i.e., each output transition
+  /// has exactly one color.
+  SPOT_API
+  twa_graph_ptr zielonka_tree_transform(const const_twa_graph_ptr& aut);
 }
