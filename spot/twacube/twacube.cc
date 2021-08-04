@@ -38,7 +38,7 @@ namespace spot
   { }
 
   twacube::twacube(const std::vector<std::string> aps):
-    init_(0U), aps_(aps), cubeset_(aps.size())
+    automaton_properties(acc()), init_(0U), aps_(aps), cubeset_(aps.size())
   { }
 
   twacube::~twacube()

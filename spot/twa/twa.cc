@@ -37,10 +37,10 @@
 namespace spot
 {
   twa::twa(const bdd_dict_ptr& d)
-    : iter_cache_(nullptr),
+    : automaton_properties(acc()),
+      iter_cache_(nullptr),
       dict_(d)
   {
-    props = 0U;
     bddaps_ = bddtrue;
   }
 
@@ -50,7 +50,6 @@ namespace spot
     release_named_properties();
     get_dict()->unregister_all_my_variables(this);
   }
-
 
   namespace
   {
@@ -282,7 +281,4 @@ namespace spot
     d->unregister_variable(b, this);
     bddaps_ = bdd_exist(bddaps_, bdd_ithvar(b));
   }
-
-
-
 }

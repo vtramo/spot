@@ -27,6 +27,8 @@
 #include <spot/twacube/cube.hh>
 #include <spot/twacube/fwd.hh>
 
+#include <spot/priv/properties.hh>
+
 namespace spot
 {
   /// \brief Class for thread-safe states.
@@ -122,6 +124,7 @@ namespace spot
 
   /// \brief Class for representing a thread-safe twa.
   class SPOT_API twacube final: public std::enable_shared_from_this<twacube>
+                              , public automaton_properties
   {
   public:
     twacube() = delete;

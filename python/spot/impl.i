@@ -180,6 +180,7 @@
 #include <spot/taalgos/minimize.hh>
 
 using namespace spot;
+using prop_set = spot::twa::prop_set;
 %}
 
 

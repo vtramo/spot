@@ -113,6 +113,9 @@ namespace spot
     // Must be contiguous to support swarming.
     assert(tg->succ_contiguous());
     delete aps;
+
+    tg->prop_copy(aut, twacube::prop_set::all());
+
     return tg;
   }
 
@@ -180,6 +183,8 @@ namespace spot
 
     // Fix the initial state
     res->set_init_state(twacube->get_init_state_number());
+
+    res->prop_copy(twacube, twa_graph::prop_set::all());
 
     return res;
   }
