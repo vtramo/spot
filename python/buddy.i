@@ -189,6 +189,7 @@ int bdd_nodecount(const bdd &r);
 int* bdd_varprofile(const bdd &r);
 double bdd_pathcount(const bdd &r);
 int bdd_have_common_assignment(const bdd &l, const bdd &r);
+int bdd_is_cube(const bdd &b);
 void bdd_fprinttable(FILE *file, const bdd &r);
 void bdd_printtable(const bdd &r);
 void bdd_fprintset(FILE *file, const bdd &r);
