@@ -387,6 +387,7 @@ TESTS_python = \
   python/_aux.ipynb \
   python/accparse2.py \
   python/alarm.py \
+  python/aiger.py \
   python/alternating.py \
   python/bdddict.py \
   python/bdditer.py \

@@ -92,10 +92,13 @@ static const argp_option options[] =
       "print the parity game in the HOA format, do not solve it", 0},
     { "realizability", OPT_REAL, nullptr, 0,
       "realizability only, do not compute a winning strategy", 0},
-    { "aiger", OPT_PRINT_AIGER, "ITE|ISOP", OPTION_ARG_OPTIONAL,
-      "prints a winning strategy as an AIGER circuit.  With argument \"ISOP\""
-      " conditions are converted to DNF, while the default \"ITE\" uses the "
-      "if-the-else normal form.", 0},
+    { "aiger", OPT_PRINT_AIGER, "ite|isop|both[+ud][+dc]"
+                                 "[+sub0|sub1|sub2]", OPTION_ARG_OPTIONAL,
+      "prints a winning strategy as an AIGER circuit. The first, and only "
+      "mandatory options defines the method to be used. ite for If-then-else "
+      "normal form, isop for irreducible sum of producs. Both tries both"
+       "encodings and keeps the smaller one. The other options further "
+       "refine the encoding, see aiger:::encode_bdd.", 0},
     { "verbose", OPT_VERBOSE, nullptr, 0,
       "verbose mode", -1 },
     { "csv", OPT_CSV, "[>>]FILENAME", OPTION_ARG_OPTIONAL,
@@ -563,7 +566,7 @@ parse_opt(int key, char* arg, struct argp_state*)
       opt_print_hoa_args = arg;
       break;
     case OPT_PRINT_AIGER:
-      opt_print_aiger = arg ? arg : "INF";
+      opt_print_aiger = arg ? arg : "isop";
       break;
     case OPT_REAL:
       opt_real = true;

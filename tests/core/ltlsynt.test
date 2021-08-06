@@ -74,28 +74,115 @@ diff out exp
 
 cat >exp <<EOF
 REALIZABLE
-aag 16 1 2 1 13
+aag 9 1 2 1 6
 2
-4 29
-6 33
-31
+4 16
+6 18
+14
 8 5 7
-10 8 3
-12 8 2
-14 4 7
-16 14 3
-18 14 2
-20 5 6
-22 20 3
-24 20 2
-26 17 23
-28 11 26
-30 19 25
-32 13 30
+10 4 6
+12 2 9
+14 11 12
+16 3 11
+18 2 11
 i0 a
 o0 b
 EOF
-ltlsynt --ins=a --outs=b -f 'GFa <-> GFb' --aiger=ISOP >out
+ltlsynt --ins=a --outs=b -f 'GFa <-> GFb' --aiger=isop >out
+diff out exp
+
+cat >exp <<EOF
+REALIZABLE
+aag 6 1 2 1 3
+2
+4 12
+6 10
+10
+8 4 6
+10 2 9
+12 3 9
+i0 a
+o0 b
+EOF
+ltlsynt --ins=a --outs=b -f 'GFa <-> GFb' --aiger=isop+dc >out
+diff out exp
+
+cat >exp <<EOF
+REALIZABLE
+aag 13 1 2 1 10
+2
+4 23
+6 27
+17
+8 2 5
+10 6 8
+12 2 4
+14 7 12
+16 11 15
+18 3 5
+20 3 7
+22 19 21
+24 2 7
+26 9 25
+i0 a
+o0 b
+EOF
+ltlsynt --ins=a --outs=b -f 'GFa <-> GFb' --aiger=isop+ud >out
+diff out exp
+
+cat >exp <<EOF
+REALIZABLE
+aag 9 1 2 1 6
+2
+4 16
+6 18
+14
+8 5 7
+10 4 6
+12 2 9
+14 11 12
+16 3 11
+18 2 11
+i0 a
+o0 b
+EOF
+ltlsynt --ins=a --outs=b -f 'GFa <-> GFb' --aiger=isop+sub1 >out
+diff out exp
+
+cat >exp <<EOF
+REALIZABLE
+aag 10 1 2 1 7
+2
+4 18
+6 20
+14
+8 5 6
+10 4 7
+12 9 11
+14 2 13
+16 4 6
+18 3 17
+20 2 17
+i0 a
+o0 b
+EOF
+ltlsynt --ins=a --outs=b -f 'GFa <-> GFb' --aiger=isop+sub2 >out
+diff out exp
+
+cat >exp <<EOF
+REALIZABLE
+aag 6 1 2 1 3
+2
+4 12
+6 10
+10
+8 4 6
+10 2 9
+12 3 9
+i0 a
+o0 b
+EOF
+ltlsynt --ins=a --outs=b -f 'GFa <-> GFb' --aiger=isop,isop+dc,isop+ud >out
 diff out exp
 
 cat >exp <<EOF
@@ -115,35 +202,63 @@ aag 10 1 2 1 7
 i0 a
 o0 b
 EOF
-ltlsynt --ins=a --outs=b -f 'GFa <-> GFb' --aiger=ITE >out
+ltlsynt --ins=a --outs=b -f 'GFa <-> GFb' --aiger=ite >out
 diff out exp
 
 cat >exp <<EOF
 REALIZABLE
-aag 16 1 2 2 13
+aag 7 1 2 1 4
 2
-4 29
-6 33
-31
-31
+4 14
+6 12
+12
+8 4 7
+10 4 9
+12 2 11
+14 3 11
+i0 a
+o0 b
+EOF
+ltlsynt --ins=a --outs=b -f 'GFa <-> GFb' --aiger=ite+ud+dc >out
+diff out exp
+
+cat >exp <<EOF
+REALIZABLE
+aag 9 1 2 2 6
+2
+4 16
+6 18
+14
+14
 8 5 7
-10 8 3
-12 8 2
-14 4 7
-16 14 3
-18 14 2
-20 5 6
-22 20 3
-24 20 2
-26 17 23
-28 11 26
-30 19 25
-32 13 30
+10 4 6
+12 2 9
+14 11 12
+16 3 11
+18 2 11
 i0 a
 o0 b
 o1 c
 EOF
-ltlsynt --ins=a --outs=b,c -f 'GFa <-> (GFb & GFc)' --aiger=Isop >out
+ltlsynt --ins=a --outs=b,c -f 'GFa <-> (GFb & GFc)' --aiger=isop >out
+diff out exp
+
+cat >exp <<EOF
+REALIZABLE
+aag 6 1 2 2 3
+2
+4 12
+6 10
+10
+10
+8 4 6
+10 2 9
+12 3 9
+i0 a
+o0 b
+o1 c
+EOF
+ltlsynt --ins=a --outs=b,c -f 'GFa <-> (GFb & GFc)' --aiger=isop+dc >out
 diff out exp
 
 cat >exp <<EOF
