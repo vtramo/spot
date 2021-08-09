@@ -436,6 +436,14 @@ class zielonka_tree:
         self.dot(ostr)
         return _ostream_to_svg(ostr)
 
+@_extend(acd)
+class acd:
+    def _repr_svg_(self):
+        """Output the ACD as SVG"""
+        ostr = ostringstream()
+        self.dot(ostr)
+        return _ostream_to_svg(ostr)
+
 
 def automata(*sources, timeout=None, ignore_abort=True,
              trust_hoa=True, no_sid=False, debug=False,

@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2014-2020 Laboratoire de Recherche et Développement
+// Copyright (C) 2014-2021 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -525,7 +525,7 @@ namespace spot
       return filter_;
     }
 
-    const void* get_filter_data() const
+    void* get_filter_data() const
     {
       return filter_data_;
     }
@@ -668,6 +668,13 @@ namespace spot
       return node(scc).is_rejecting();
     }
 
+    /// \brief Whether a cycle going through all edges of the SCC is
+    /// accepting.
+    bool is_maximally_accepting_scc(unsigned scc) const
+    {
+      return aut_->acc().accepting(acc_sets_of(scc));
+    }
+
     /// \brief Study the SCCs that are currently reported neither as
     /// accepting nor as rejecting because of the presence of Fin sets
     ///
@@ -785,12 +792,18 @@ namespace spot
     const_twa_graph_ptr aut_;
     acc_cond old_acc_;
     bool restore_old_acc_ = false;
+    const std::vector<bool>* keep_ = nullptr;
 
     static scc_info::edge_filter_choice
     filter_scc_and_mark_(const twa_graph::edge_storage_t& e,
                          unsigned dst, void* data);
+
     static scc_info::edge_filter_choice
     filter_mark_(const twa_graph::edge_storage_t& e, unsigned, void* data);
+
+    static scc_info::edge_filter_choice
+    filter_scc_and_mark_and_edges_(const twa_graph::edge_storage_t& e,
+                                   unsigned dst, void* data);
 
   public:
     /// \brief Specify how to restrict scc_info to some SCC and acceptance sets
@@ -805,12 +818,25 @@ namespace spot
         aut_(lower_si_->get_aut()), old_acc_(aut_->get_acceptance())
     {
       auto f = lower_si.get_filter();
-      if (f == &filter_mark_ || f == &filter_scc_and_mark_)
+      if (f == &filter_mark_
+          || f == &filter_scc_and_mark_
+          || f == &filter_scc_and_mark_and_edges_)
         {
           const void* data = lower_si.get_filter_data();
           auto& d = *reinterpret_cast<const scc_and_mark_filter*>(data);
           cut_sets_ |= d.cut_sets_;
+          if (f == &filter_scc_and_mark_and_edges_)
+            keep_ = d.keep_;
         }
+    }
+
+    scc_and_mark_filter(const scc_info& lower_si,
+                        unsigned lower_scc,
+                        acc_cond::mark_t cut_sets,
+                        const std::vector<bool>& keep)
+    : scc_and_mark_filter(lower_si, lower_scc, cut_sets)
+    {
+      keep_ = &keep;
     }
 
     /// \brief Specify how to restrict scc_info to some acceptance sets
@@ -857,6 +883,8 @@ namespace spot
 
     scc_info::edge_filter get_filter() const
     {
+      if (keep_)
+        return filter_scc_and_mark_and_edges_;
       if (lower_si_)
         return filter_scc_and_mark_;
       if (cut_sets_)
@@ -864,7 +892,6 @@ namespace spot
       return nullptr;
     }
   };
-
 
   /// \brief Dump the SCC graph of \a aut on \a out.
   ///

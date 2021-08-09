@@ -20,7 +20,9 @@
 #pragma once
 
 #include <iosfwd>
+#include <deque>
 #include <spot/twa/twagraph.hh>
+#include <spot/twaalgos/sccinfo.hh>
 
 namespace spot
 {
@@ -59,8 +61,8 @@ namespace spot
     /// \brief Walk through the Zielonka tree.
     ///
     /// Given a \a branch number, and a set of \a colors, this returns
-    /// a pair (new branch, level), as needed in definition 3.7 of
-    /// \cite casares.21.icalp
+    /// a pair (new branch, level), as needed in definition 3.3 of
+    /// \cite casares.21.icalp (or definition 3.7 in the full version).
     ///
     /// The level correspond to the priority of a minimum parity acceptance
     /// condition, with the parity odd/even as specified by is_even().
@@ -142,4 +144,157 @@ namespace spot
   /// has exactly one color.
   SPOT_API
   twa_graph_ptr zielonka_tree_transform(const const_twa_graph_ptr& aut);
+
+
+  /// \ingroup twa_acc_transform
+  /// \brief Alternating Cycle Decomposition implementation
+  ///
+  /// This class implements an Alternating Cycle Decomposition
+  /// similar to what is described in \cite casares.21.icalp
+  ///
+  /// The differences is that this ACD is built from Emerson-Lei
+  /// acceptance conditions, and can be "walked through" with multiple
+  /// colors at once.
+  class SPOT_API acd
+  {
+  public:
+    /// \brief Build a Alternating Cycle Decomposition an SCC decomposition
+    acd(const scc_info& si);
+    acd(const const_twa_graph_ptr& aut);
+
+    /// \brief Walk through the ACD.
+    ///
+    /// Given a \a branch number, and an edge, this returns
+    /// a pair (new branch, level), as needed in definition 4.6 of
+    /// \cite casares.21.icalp (or definition 4.20 in the full version).
+    /// We do not have to specify any SCC, because the branch number are
+    /// different in each SCC.
+    ///
+    /// The level correspond to the priority of a minimum parity acceptance
+    /// condition, with the parity odd/even as specified by is_even().
+    std::pair<unsigned, unsigned>
+    step(unsigned branch, unsigned edge) const;
+
+    /// \brief Whether the ACD corresponds to a min even or min odd
+    /// parity acceptance in SCC \a scc.
+    bool is_even(unsigned scc) const
+    {
+      if (scc >= scc_count_)
+        report_invalid_scc_number(scc, "is_even");
+      return trees_[scc].is_even;
+    }
+
+    /// \brief Whether the ACD globally corresponds to a min even or
+    /// min odd parity acceptance.
+    ///
+    /// The choice between even or odd is determined by the parity
+    /// of the tallest tree of the ACD.  In case two tree of opposite
+    /// parity share the tallest height, then even parity is favored.
+    bool is_even() const
+    {
+      return is_even_;
+    }
+
+    /// \brief Return the first branch for \a state
+    ///
+    /// \a scc should correspond to the SCC containing \a state.
+    /// (this class does not store the scc_info passed at construction)
+    unsigned first_branch(unsigned state, unsigned scc);
+
+    /// \brief Step into the ACD
+    ///
+    /// Given an edge \a edge on branch \a branch,
+    /// return a pair (new branch, level) giving the proirity (\a level) to
+    /// emit, and the branch of the destination state.
+    std::pair<unsigned, unsigned>
+    step(unsigned branch, unsigned edge);
+
+    unsigned scc_max_level(unsigned scc)
+    {
+      if (scc >= scc_count_)
+        report_invalid_scc_number(scc, "scc_max_level");
+      return trees_[scc].max_level;
+    }
+
+    /// \brief Whether the ACD has Rabin shape.
+    ///
+    /// The ACD has Rabin shape of all accepting (round) nodes have
+    /// at most one child.
+    bool has_rabin_shape() const
+    {
+      return has_rabin_shape_;
+    }
+
+    /// \brief Whether the ACD has Streett shape.
+    ///
+    /// The ACD has Streett shape of all rejecting (square) nodes have
+    /// at most one child.
+    bool has_streett_shape() const
+    {
+      return has_streett_shape_;
+    }
+
+    /// \brief Whether the ACD has parity shape.
+    ///
+    /// The ACD has parity shape of all nodes have at most one child.
+    bool has_parity_shape() const
+    {
+      return has_streett_shape() && has_rabin_shape();
+    }
+
+    /// \brief Render the ACD as in GraphViz format.
+    void dot(std::ostream&) const;
+
+  private:
+    struct acd_node
+    {
+      unsigned parent;
+      unsigned next_sibling = 0;
+      unsigned first_child = 0;
+      unsigned level;
+      unsigned scc;
+      std::vector<bool> edges;
+      std::vector<bool> states;
+    };
+    std::deque<acd_node> nodes_;
+    struct scc_data
+    {
+      bool trivial;
+      unsigned root = 0;
+      bool is_even;
+      unsigned max_level = 0;
+    };
+    std::vector<scc_data> trees_;
+    unsigned scc_count_;
+    const_twa_graph_ptr aut_;
+    bool is_even_;
+    bool has_rabin_shape_ = true;
+    bool has_streett_shape_ = true;
+
+    // leftmost branch of \a node that contains \a state
+    unsigned leftmost_branch_(unsigned node, unsigned state);
+
+#ifndef SWIG
+    [[noreturn]] static
+    void report_invalid_scc_number(unsigned num, const char* fn);
+#endif
+  };
+
+  /// \ingroup twa_acc_transform
+  /// \brief Paritize an automaton using ACD.
+  ///
+  /// This corresponds to the application of Section 4 of
+  /// \cite casares.21.icalp
+  ///
+  /// The resulting automaton has a parity acceptance that is either
+  /// "min odd" or "min even", depending on the original acceptance.
+  ///
+  /// If \a colored is set, each output transition will have exactly
+  /// one color, and the output automaton will use at most n+1 colors
+  /// if the input has n colors. If \colored is unsed (the default),
+  /// output transitions will use at most one color, and output
+  /// automaton will use at most n colors.
+  SPOT_API
+  twa_graph_ptr acd_transform(const const_twa_graph_ptr& aut,
+                              bool colored = false);
 }

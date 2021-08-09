@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2014-2020 Laboratoire de Recherche et Développement
+// Copyright (C) 2014-2021 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -854,26 +854,42 @@ namespace spot
     return res;
   }
 
-    scc_info::edge_filter_choice
-    scc_and_mark_filter::filter_scc_and_mark_
-    (const twa_graph::edge_storage_t& e, unsigned dst, void* data)
-    {
-      auto& d = *reinterpret_cast<scc_and_mark_filter*>(data);
-      if (d.lower_si_->scc_of(dst) != d.lower_scc_)
-        return scc_info::edge_filter_choice::ignore;
-      if (d.cut_sets_ & e.acc)
-        return scc_info::edge_filter_choice::cut;
-      return scc_info::edge_filter_choice::keep;
-    }
+  scc_info::edge_filter_choice
+  scc_and_mark_filter::filter_mark_
+  (const twa_graph::edge_storage_t& e, unsigned, void* data)
+  {
+    auto& d = *reinterpret_cast<scc_and_mark_filter*>(data);
+    if (d.cut_sets_ & e.acc)
+      return scc_info::edge_filter_choice::cut;
+    return scc_info::edge_filter_choice::keep;
+  }
 
-    scc_info::edge_filter_choice
-    scc_and_mark_filter::filter_mark_
-    (const twa_graph::edge_storage_t& e, unsigned, void* data)
-    {
-      auto& d = *reinterpret_cast<scc_and_mark_filter*>(data);
-      if (d.cut_sets_ & e.acc)
-        return scc_info::edge_filter_choice::cut;
-      return scc_info::edge_filter_choice::keep;
-    }
+  scc_info::edge_filter_choice
+  scc_and_mark_filter::filter_scc_and_mark_
+  (const twa_graph::edge_storage_t& e, unsigned dst, void* data)
+  {
+    auto& d = *reinterpret_cast<scc_and_mark_filter*>(data);
+    if (d.lower_si_->scc_of(dst) != d.lower_scc_)
+      return scc_info::edge_filter_choice::ignore;
+    if (d.cut_sets_ & e.acc)
+      return scc_info::edge_filter_choice::cut;
+    return scc_info::edge_filter_choice::keep;
+  }
 
+  scc_info::edge_filter_choice
+  scc_and_mark_filter::filter_scc_and_mark_and_edges_
+  (const twa_graph::edge_storage_t& e, unsigned, void* data)
+  {
+    auto& d = *reinterpret_cast<scc_and_mark_filter*>(data);
+    auto* si = d.lower_si_;
+    if (si->scc_of(e.dst) != si->scc_of(e.src))
+      return edge_filter_choice::ignore;
+    if (auto f = si->get_filter())
+      if (auto choice = f(e, e.dst, si->get_filter_data());
+          choice != edge_filter_choice::keep)
+        return choice;
+    if (!(*d.keep_)[d.aut_->edge_number(e)] || (d.cut_sets_ & e.acc))
+      return edge_filter_choice::cut;
+    return edge_filter_choice::keep;
+  }
 }

@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2017-2020 Laboratoire de Recherche et Developpement
+// Copyright (C) 2017-2021 Laboratoire de Recherche et Developpement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -44,71 +44,107 @@ namespace spot
 
   namespace
   {
+    template <bool EarlyStop, typename Extra>
     static bool
     is_scc_empty(const scc_info& si, unsigned scc,
-                 const acc_cond& autacc, twa_run_ptr run,
+                 const acc_cond& autacc, Extra extra,
                  acc_cond::mark_t tocut = {});
 
-    static bool
-    scc_split_check(const scc_info& si, unsigned scc, const acc_cond& acc,
-                    twa_run_ptr run, acc_cond::mark_t tocut)
-    {
-      scc_and_mark_filter filt(si, scc, tocut);
-      filt.override_acceptance(acc);
-      scc_info upper_si(filt, scc_info_options::STOP_ON_ACC);
 
-      const int accepting_scc = upper_si.one_accepting_scc();
-      if (accepting_scc >= 0)
+
+    template <bool EarlyStop, typename Extra>
+    static bool
+    scc_split_check_filtered(const scc_info& upper_si, const acc_cond& acc,
+                             Extra extra, acc_cond::mark_t tocut)
+    {
+      if constexpr (EarlyStop)
         {
-          if (run)
-            upper_si.get_accepting_run(accepting_scc, run);
-          return false;
+          const int accepting_scc = upper_si.one_accepting_scc();
+          if (accepting_scc >= 0)
+            {
+              if (extra)
+                upper_si.get_accepting_run(accepting_scc, extra);
+              return false;
+            }
+          if (!acc.uses_fin_acceptance())
+            return true;
         }
-      if (!acc.uses_fin_acceptance())
-        return true;
       unsigned nscc = upper_si.scc_count();
       for (unsigned scc = 0; scc < nscc; ++scc)
-        if (!is_scc_empty(upper_si, scc, acc, run, tocut))
-          return false;
+        if (!is_scc_empty<EarlyStop, Extra>(upper_si, scc, acc, extra, tocut))
+          if constexpr (EarlyStop)
+            return false;
       return true;
     }
 
+    template <bool EarlyStop, typename Extra>
+    static bool
+    scc_split_check(const scc_info& si, unsigned scc, const acc_cond& acc,
+                    Extra extra, acc_cond::mark_t tocut)
+    {
+      scc_and_mark_filter filt(si, scc, tocut);
+      filt.override_acceptance(acc);
+      scc_info upper_si(filt, EarlyStop
+                        ? scc_info_options::STOP_ON_ACC
+                        : scc_info_options::TRACK_STATES);
+      return scc_split_check_filtered<EarlyStop>(upper_si, acc, extra, tocut);
+    }
+
+    template <bool EarlyStop, typename Extra>
     static bool
     is_scc_empty(const scc_info& si, unsigned scc,
-                 const acc_cond& autacc, twa_run_ptr run,
+                 const acc_cond& autacc, Extra extra,
                  acc_cond::mark_t tocut)
     {
       if (si.is_rejecting_scc(scc))
         return true;
+      if constexpr (!EarlyStop)
+        if (si.is_maximally_accepting_scc(scc))
+          {
+            extra(si, scc);
+            return false;
+          }
       acc_cond::mark_t sets = si.acc_sets_of(scc);
       acc_cond acc = autacc.restrict_to(sets);
       acc = acc.remove(si.common_sets_of(scc), false);
 
-      if (SPOT_LIKELY(genem_version == spot29))
+      if (SPOT_LIKELY(genem_version == spot29 || !EarlyStop))
         do
           {
             acc_cond::acc_code rest = acc_cond::acc_code::f();
-            for (const acc_cond& disjunct: acc.top_disjuncts())
-              if (acc_cond::mark_t fu = disjunct.fin_unit())
-                {
-                  if (!scc_split_check
-                      (si, scc, disjunct.remove(fu, true), run, fu))
-                    return false;
-                }
-              else
-                {
-                  rest |= disjunct.get_acceptance();
-                }
-            if (rest.is_f())
-              break;
+            if (EarlyStop)
+              {
+                for (const acc_cond& disjunct: acc.top_disjuncts())
+                  if (acc_cond::mark_t fu = disjunct.fin_unit())
+                    {
+                      if (!scc_split_check<EarlyStop, Extra>
+                          (si, scc, disjunct.remove(fu, true), extra, fu))
+                        if constexpr (EarlyStop)
+                          return false;
+                    }
+                  else
+                    {
+                      rest |= disjunct.get_acceptance();
+                    }
+                if (rest.is_f())
+                  break;
+              }
+            else
+              {
+                rest = acc.get_acceptance();
+                if (acc_cond::mark_t fu = rest.fin_unit())
+                  return scc_split_check<EarlyStop, Extra>
+                    (si, scc, rest.remove(fu, true), extra, fu);
+              }
             acc_cond subacc(acc.num_sets(), std::move(rest));
             int fo = subacc.fin_one();
             assert(fo >= 0);
             // Try to accept when Fin(fo) == true
             acc_cond::mark_t fo_m = {(unsigned) fo};
-            if (!scc_split_check
-                (si, scc, subacc.remove(fo_m, true), run, fo_m))
-              return false;
+            if (!scc_split_check<EarlyStop, Extra>
+                (si, scc, subacc.remove(fo_m, true), extra, fo_m))
+              if constexpr (EarlyStop)
+                return false;
             // Try to accept when Fin(fo) == false
             acc = subacc.force_inf(fo_m);
           }
@@ -118,9 +154,10 @@ namespace spot
           for (const acc_cond& disjunct: acc.top_disjuncts())
             if (acc_cond::mark_t fu = disjunct.fin_unit())
               {
-                if (!scc_split_check
-                    (si, scc, disjunct.remove(fu, true), run, fu))
-                  return false;
+                if (!scc_split_check<EarlyStop, Extra>
+                    (si, scc, disjunct.remove(fu, true), extra, fu))
+                  if constexpr (EarlyStop)
+                    return false;
               }
             else
               {
@@ -129,13 +166,15 @@ namespace spot
                 assert(fo >= 0);
                 // Try to accept when Fin(fo) == true
                 acc_cond::mark_t fo_m = {(unsigned) fo};
-                if (!scc_split_check
-                    (si, scc, disjunct.remove(fo_m, true), run, fo_m))
-                  return false;
+                if (!scc_split_check<EarlyStop, Extra>
+                    (si, scc, disjunct.remove(fo_m, true), extra, fo_m))
+                  if constexpr (EarlyStop)
+                    return false;
                 // Try to accept when Fin(fo) == false
-                if (!is_scc_empty(si, scc, disjunct.force_inf(fo_m),
-                                  run, tocut))
-                  return false;
+                if (!is_scc_empty<EarlyStop, Extra>
+                    (si, scc, disjunct.force_inf(fo_m), extra, tocut))
+                  if constexpr (EarlyStop)
+                    return false;
               }
         }
       return true;
@@ -177,7 +216,7 @@ namespace spot
 
       unsigned nscc = si.scc_count();
       for (unsigned scc = 0; scc < nscc; ++scc)
-        if (!is_scc_empty(si, scc, aut_acc, run))
+        if (!is_scc_empty<true, twa_run_ptr>(si, scc, aut_acc, run))
           return false;
       return true;
     }
@@ -215,7 +254,8 @@ namespace spot
   {
     if (si.is_accepting_scc(scc))
       return false;
-    return is_scc_empty(si, scc, si.get_aut()->acc(), nullptr);
+    return is_scc_empty<true, twa_run_ptr>
+      (si, scc, si.get_aut()->acc(), nullptr);
   }
 
   bool
@@ -224,7 +264,24 @@ namespace spot
   {
     if (si.is_trivial(scc))
       return true;
-    return scc_split_check(si, scc, forced_acc, nullptr, {});
+    return scc_split_check<true, twa_run_ptr>
+      (si, scc, forced_acc, nullptr, {});
   }
+
+  bool
+  maximal_accepting_loops_for_scc(const scc_info& si, unsigned scc,
+                                  const acc_cond& forced_acc,
+                                  const std::vector<bool>& keep,
+                                  std::function<void(const scc_info&,
+                                                     unsigned)> callback)
+  {
+    if (si.is_trivial(scc))
+      return false;
+    scc_and_mark_filter filt(si, scc, {}, keep);
+    filt.override_acceptance(forced_acc);
+    scc_info upper_si(filt, scc_info_options::TRACK_STATES);
+    return !scc_split_check_filtered<false>(upper_si, forced_acc, callback, {});
+  }
+
 
 }

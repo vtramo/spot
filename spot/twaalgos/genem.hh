@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2017-2020 Laboratoire de Recherche et Developpement
+// Copyright (C) 2017-2021 Laboratoire de Recherche et Developpement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -62,6 +62,27 @@ namespace spot
   generic_emptiness_check_for_scc(const scc_info& si, unsigned scc,
                                   const acc_cond& forced_acc);
 
+#ifndef SWIG
+  /// \ingroup emptiness_check_algorithms
+  /// \brief Compute set of maximal accepting loops in one SCC,
+  /// for any acceptance condition.
+  ///
+  /// This computes all maximal subsets of the edges of an SCC
+  /// that form accepting (sub) SCCs.  For each such subset, the
+  /// \a callback function is called with `(si, num)`, such that
+  /// `si->inner_edges_of(num)` lists the relevant edges.
+  ///
+  /// The search is restricted to a set of edges of the given SCC
+  /// for which \a keep (an array indexed by edge numbers) is true.
+  ///
+  /// Returns false iff no accepting loop where found.
+  SPOT_API bool
+  maximal_accepting_loops_for_scc(const scc_info& si, unsigned scc,
+                                  const acc_cond& forced_acc,
+                                  const std::vector<bool>& keep,
+                                  std::function<void(const scc_info&,
+                                                     unsigned)> callback);
+#endif
 
   /// \ingroup emptiness_check_algorithms
   ///
