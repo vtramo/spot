@@ -1084,8 +1084,6 @@ namespace spot
     std::function<bdd(unsigned)> get_gate_bdd;
     get_gate_bdd = [&](unsigned g)->bdd
       {
-        assert(v2g(circ.gate_var(g) == g));
-
         unsigned v = circ.gate_var(g);
         auto it = var2bdd.find(v);
         if (it != var2bdd.end())

@@ -136,6 +136,28 @@ def __om_init_new(self, str=None):
 
 option_map.__init__ = __om_init_new
 
+@_extend(aig)
+class aig:
+    def _repr_svg_(self, opt=None):
+        ostr = ostringstream()
+        print_dot(ostr, self, opt)
+        return _ostream_to_svg(ostr)
+
+    def show(self, opt=None):
+        from spot.jupyter import SVG
+        return SVG(self._repr_svg_(opt))
+
+    def to_str(self, format='circuit', opt=None):
+        format = format.lower()
+        if format == 'circuit':
+            ostr = ostringstream()
+            print_aiger(ostr, self)
+            return ostr.str()
+        if format == 'dot':
+            ostr = ostringstream()
+            print_dot(ostr, self, opt)
+            return ostr.str()
+        raise ValueError("unknown string format: " + format)
 
 __twa__acc1 = twa.acc
 __twa__acc2 = twa.get_acceptance
@@ -607,6 +629,37 @@ def automaton(filename, **kwargs):
         return next(automata(filename, **kwargs))
     except StopIteration:
         raise RuntimeError("Failed to read automaton from {}".format(filename))
+
+def aiger_circuits(*sources, bdd_dict = None):
+    """Read aiger circuits from a list of sources.
+
+    Parameters
+    ----------
+    *sources : list of str
+        These sources can be either commands (end with `|`),
+        textual representations of the circuit in restricted aag format
+        (start with aag and contain '\n'), or filenames (else).
+    bdd_dict : If not supplied, a fresh bdd_dict will be created, common for
+        all of the circuits.
+    """
+
+    bdd_dict = bdd_dict if bdd_dict is not None else make_bdd_dict()
+
+    for source in sources:
+        if (source.startswith("aag") and '\n' in source):
+            yield aig.parse_aag(source, "<string>", bdd_dict)
+        else:
+            yield aig.parse_aag(source, bdd_dict)
+
+def aiger_circuit(source, bdd_dict = None):
+    """Read a single aiger circuit from file or textual representation.
+
+    See `spot.aiger_circuits` for a list of supported formats."""
+    try:
+        return next(aiger_circuits(source, bdd_dict = bdd_dict))
+    except StopIteration:
+        raise RuntimeError("Failed to read an aiger circuit "
+                           "from {}".format(source))
 
 
 def _postproc_translate_options(obj, default_type, *args):
