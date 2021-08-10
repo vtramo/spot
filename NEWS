@@ -1,4 +1,4 @@
-New in spot 2.9.7.dev (not yet released)
+New in spot 2.9.8.dev (not yet released)
 
   Build:
 
@@ -252,16 +252,31 @@ New in spot 2.9.7.dev (not yet released)
   - tgba_determinize() could create parity automata using more colors
     than necessary.  (Related to issue #298)
 
-  - left->intersacting_run(right) could return a run with incorrect
-    colors (likely not corresponding to any existing transition of
-    left) if left was a weak automaton.
-
   Deprecation notices:
 
   - twa_graph::defrag_states() and digraph::defrag_states() now take
     the renaming vector by reference instead of rvalue reference.  The
     old prototype is still supported but will emit a deprecation
     warning.
+
+New in spot 2.9.8 (2021-08-10)
+
+  Documentation:
+
+  - Mention the conda-forge package.
+
+  Bugs fixed:
+
+  - left->intersacting_run(right) could return a run with incorrect
+    colors (likely not corresponding to any existing transition of
+    left) if left was a weak automaton.  (Issue #471)
+
+  - Fix bitset::operator-() causing issues when Spot was configured
+    with more than 32 colors for instance with --enable-max-sets=64.
+    (Issue #469)
+
+  - Work around some warnings from newer compilers.
+
 
 New in spot 2.9.7 (2021-05-12)
 
