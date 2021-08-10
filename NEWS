@@ -1,10 +1,21 @@
 New in spot 2.9.7.dev (not yet released)
 
+  Documentation:
+
+  - Mention the conda-forge package.
+
   Bugs fixed:
 
   - left->intersacting_run(right) could return a run with incorrect
     colors (likely not corresponding to any existing transition of
-    left) if left was a weak automaton.
+    left) if left was a weak automaton.  (Issue #471)
+
+  - Fix bitset::operator-() causing issues when Spot was configured
+    with more than 32 colors for instance with --enable-max-sets=64.
+    (Issue #469)
+
+  - Work around some warnings from newer compilers.
+
 
 New in spot 2.9.7 (2021-05-12)
 
