@@ -1065,5 +1065,202 @@ namespace spot
     return os;
   }
 
+  namespace
+  {
+    class dotty_aig final
+    {
+      public:
+      bool vertical = true;
+      bool latex = false;
+      std::ostream& os_;
+
+      void
+      parse_opts(const char *options)
+      {
+        while (char c = *options++)
+          switch (c)
+          {
+          case 'h':
+          {
+            vertical = false;
+            break;
+          }
+          case 'v':
+          {
+            vertical = true;
+            break;
+          }
+          default:
+            throw std::runtime_error("unknown option for print_dot(): "s + c);
+          }
+      }
+
+      dotty_aig(std::ostream &os, const char *options)
+          : os_(os)
+      {
+        parse_opts(options ? options : "");
+      }
+
+      void print(const aig_ptr &circuit)
+      {
+        if (!circuit)
+          return;
+        auto is_input = [nb_in = circuit->num_inputs()](unsigned val)
+        {
+          return (val & ~1) <= (2 * nb_in);
+        };
+
+        const auto& in_names = circuit->input_names();
+        const auto& out_names = circuit->output_names();
+
+        auto num_latches = circuit->num_latches();
+        auto latches = circuit->next_latches();
+        auto num_inputs = circuit->num_inputs();
+        auto num_outputs = circuit->num_outputs();
+        auto outputs = circuit->outputs();
+        auto num_gates = circuit->num_gates();
+        auto gates = circuit->gates();
+
+        // If a circuit doesn't use an input, we need a special placement
+        bool uses_in = false;
+
+        auto add_edge = [](std::ostream &stream, const unsigned src,
+                           const unsigned dst) {
+          auto src_gate = src & ~1;
+          stream << src_gate;
+          stream << " -> " << dst;
+          if (src & 1)
+            stream << " [arrowhead=dot]";
+          stream << '\n';
+        };
+
+        if (vertical)
+          os_ << "digraph \"\" {\nrankdir = BT;\n";
+        else
+          os_ << "digraph \"\" {\nrankdir = LR;\n";
+
+        os_ << "# latches left\n";
+        for (unsigned i = 0; i < num_latches; ++i)
+        {
+          auto first = circuit->latch_var(i);
+          auto first_m_mod = first & ~1;
+          os_ << "node[shape=box, label=\"L" << i << "_out\"] "
+              << first_m_mod << ";\n";
+        }
+
+        //Predefine all nodes
+
+        os_ << "# input nodes\n";
+        for (unsigned i = 0; i < num_inputs; ++i)
+          os_ << "node [shape=triangle, label=\""
+              << in_names[i] << "\"] "
+              << circuit->input_var(i) << ";\n";
+
+        os_ << "# latch nodes\n";
+        for (unsigned i = 0; i < num_latches; ++i)
+          os_ << "node[shape=box, label=\"L" << i << "\"] L" << i << ";\n";
+
+        os_ << "# gate nodes\n";
+        for (unsigned i = 0; i < num_gates; ++i)
+          if ((gates[i].first != 0) && (gates[i].second != 0))
+          {
+            uses_in |= is_input(gates[i].first) | is_input(gates[i].second);
+            auto gate_var = circuit->gate_var(i);
+            os_ << "node [shape=circle, label=\"" << gate_var
+                << "\"] " << gate_var << ";\n";
+          }
+
+        os_ << "# and ins\n";
+        for (unsigned i = 0; i < num_gates; ++i)
+          if ((gates[i].first != 0) && (gates[i].second != 0))
+          {
+            auto gate_var = circuit->gate_var(i);
+            add_edge(os_, gates[i].first, gate_var);
+            add_edge(os_, gates[i].second, gate_var);
+          }
+
+        bool has_alone_gate = false;
+
+        os_ << "# Latches\n";
+        for (unsigned i = 0; i < num_latches; ++i)
+        {
+          auto second = latches[i];
+          os_ << "node[shape=box, label=\"L" << i << "_in\"] L" << i << ";\n";
+          if (second <= 1 && !has_alone_gate)
+          {
+            os_ << "node[shape=box, label=\"Const\"] 0" << std::endl;
+            has_alone_gate = true;
+          }
+          os_ << (second & ~1) << " -> L" << i;
+          if (i & 1)
+            os_ << "[arrowhead=dot]";
+          os_ << '\n';
+        }
+
+        // Outs can be defined after everything else
+        os_ << "# Outs\n";
+        const char* out_pos = vertical ? ":s" : ":w";
+        for (unsigned i = 0; i < num_outputs; ++i)
+        {
+          os_ << "node [shape=triangle, orientation=180, label=\""
+             << out_names[i] << "\"] o" << i
+             << out_names[i] << ";\n";
+          auto z = outputs[i];
+          uses_in |= is_input(z);
+          if (z <= 1 && !has_alone_gate)
+          {
+            os_ << "node[shape=box, label=\"Const\"] 0" << std::endl;
+            has_alone_gate = true;
+          }
+          os_ << (z & ~1) << "->" << 'o' << i << out_names[i] << out_pos;
+          if (outputs[i] & 1)
+            os_ << " [arrowhead=dot]";
+          os_ << '\n';
+        }
+
+        if (has_alone_gate || num_inputs > 0)
+        {
+          os_ << (uses_in ? "{rank = source; " : "{rank = same; ");
+          for (unsigned i = 0; i < num_inputs; ++i)
+            os_ << circuit->input_var(i) << "; ";
+          if (has_alone_gate)
+            os_ << "0; ";
+          os_ << "}\n";
+        }
+        if (num_outputs > 0)
+        {
+          os_ << "{rank = sink; ";
+          for (unsigned i = 0; i < num_outputs; ++i)
+            os_ << 'o' << i << out_names[i] << "; ";
+          os_ << "}\n";
+        }
+        if (num_latches > 0)
+        {
+          os_ << "{rank = same; ";
+          for (unsigned i = 0; i < num_latches; ++i)
+            os_ << 'L' << i << "; ";
+          os_ << "}\n{rank = same; ";
+          for (unsigned i = 0; i < num_latches; ++i)
+          {
+            auto first = circuit->latch_var(i);
+            auto first_m_mod = first & ~1;
+            os_ << first_m_mod << "; ";
+          }
+          os_ << "}\n";
+        }
+        os_ << "}\n";
+      }
+    };
+  }
+
+  std::ostream &
+  print_dot(std::ostream &os, aig_ptr circuit, const char* options)
+  {
+    dotty_aig d(os, options);
+    if (!circuit)
+      return os;
+    d.print(circuit);
+    return os;
+  }
 
 }
