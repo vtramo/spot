@@ -593,6 +593,19 @@ namespace spot
     /// \return the number of states that have been merged and removed.
     unsigned merge_states();
 
+    /// \brief Like merge states, but one can chose which states are
+    /// candidates for merging.
+    ///
+    /// \param stable Determines whether or not a stable sorting is used for
+    /// the edges
+    /// \param to_merge_ptr Determines which states are candidates.
+    /// If null, all states are considered
+    /// The actual implementation differd from merge_states().
+    /// It is more costly, but is more precise, in the sense that
+    /// more states are merged.
+    unsigned merge_states_of(bool stable = true,
+                             const std::vector<bool>* to_merge_ptr = nullptr);
+
     /// \brief Remove all dead states
     ///
     /// Dead states are all the states that cannot be part of

@@ -385,6 +385,151 @@ namespace spot
     return merged;
   }
 
+  unsigned twa_graph::merge_states_of(bool stable, const std::vector<bool>* to_merge_ptr)
+  {
+    if (!is_existential())
+      throw std::runtime_error(
+          "twa_graph::merge_states() does not work on alternating automata");
+
+    typedef graph_t::edge_storage_t tr_t;
+    if (stable)
+      g_.sort_edges_of_<true>([](const tr_t& lhs, const tr_t& rhs)
+      {
+        if (lhs.acc < rhs.acc)
+          return true;
+        if (lhs.acc > rhs.acc)
+          return false;
+        if (bdd_less_than_stable lt; lt(lhs.cond, rhs.cond))
+          return true;
+        if (rhs.cond != lhs.cond)
+          return false;
+        // The destination must be sorted last
+        // for our self-loop optimization to work.
+        return lhs.dst < rhs.dst;
+      });
+    else
+      g_.sort_edges_of_<false>([](const tr_t& lhs, const tr_t& rhs)
+      {
+        if (lhs.acc < rhs.acc)
+          return true;
+        if (lhs.acc > rhs.acc)
+          return false;
+        if (bdd_less_than lt; lt(lhs.cond, rhs.cond))
+          return true;
+        if (rhs.cond != lhs.cond)
+          return false;
+        // The destination must be sorted last
+        // for our self-loop optimization to work.
+        return lhs.dst < rhs.dst;
+      });
+
+    // Associates a hash value to a vector of classes
+    std::unordered_map<size_t, std::vector<std::set<unsigned>>> equiv_class_;
+
+    auto hash_state_ = [&](unsigned s)->size_t
+      {
+        // Hash the edges
+        // bottle_neck?
+        size_t h = fnv<size_t>::init;
+        for (const edge_storage_t& e : out(s))
+          {
+            h ^= knuth32_hash(e.dst);
+            h ^= knuth32_hash(e.cond.id());
+            h ^= e.acc.hash();
+            h = wang32_hash(h);
+          }
+        return h;
+      };
+
+    const unsigned nb_states = num_states();
+
+    std::vector<unsigned> comp_classes_; // Classes to be merged
+    for (unsigned i = 0; i != nb_states; ++i)
+      {
+        if (to_merge_ptr && !(*to_merge_ptr)[nb_states])
+          continue;
+
+        size_t hi = hash_state_(i);
+        auto equal_to_i_ = [&, outi = out(i)](unsigned j)
+          {
+            auto outj = out(j);
+            return std::equal(outi.begin(), outi.end(),
+                              outj.begin(), outj.end(),
+                              [](const edge_storage_t& a,
+                                 const edge_storage_t& b)
+                              { return ((a.dst == b.dst
+                                         || (a.dst == a.src && b.dst == b.src))
+                                         && a.data() == b.data()); });
+          };
+        comp_classes_.clear();
+        // get all compatible classes
+        // Candidate classes share a hash
+        // A state is compatible to a class if it is compatble
+        // to any of its states
+        auto& cand_classes = equiv_class_[hi];
+        unsigned n_c_classes = cand_classes.size();
+        // Built it in "reverse order" the idx of
+        // classes to be merged
+        for (unsigned nc = n_c_classes - 1; nc < n_c_classes; --nc)
+          if (std::any_of(cand_classes[nc].begin(),
+                          cand_classes[nc].end(),
+                          [&](unsigned j)
+                          {return equal_to_i_(j); }))
+            comp_classes_.push_back(nc);
+        // Possible results:
+        // 1) comp_classes_ is empty -> i gets its own class
+        // 2) fuse together all comp_classes and add i
+        if (comp_classes_.empty())
+          cand_classes.emplace_back(std::set<unsigned>({i}));
+        else
+          {
+            auto& base_class = cand_classes[comp_classes_.back()]; // Lowest idx
+            comp_classes_.pop_back(); // Keep this one
+            for (unsigned compi : comp_classes_)
+              {
+                // fuse with base and delete
+                base_class.insert(cand_classes[compi].begin(),
+                                  cand_classes[compi].end());
+                std::swap(cand_classes[compi], cand_classes.back());
+                cand_classes.pop_back();
+              }
+            // finally add the current state that caused all the merging
+            base_class.emplace_hint(base_class.end(), i);
+          }
+      };
+
+    // Now we have equivalence classes
+    // and a state can only be in exactly
+    // (Otherwise the classes would have fused)
+    // For each equiv class we take the first state as representative
+    // and redirect all incoming edges to this one
+    std::vector<unsigned> remap(nb_states, -1U);
+    for (const auto& [_, class_v] : equiv_class_)
+      for (const auto& aclass : class_v)
+        {
+          unsigned rep = *aclass.begin();
+          for (auto it = ++aclass.begin(); it != aclass.end(); ++it)
+            remap[*it] = rep;
+        }
+
+    for (auto& e: edges())
+      if (remap[e.dst] != -1U)
+        e.dst = remap[e.dst];
+
+    if (remap[get_init_state_number()] != -1U)
+      set_init_state(remap[get_init_state_number()]);
+
+    unsigned st = 0;
+    for (auto& s: remap)
+      if (s == -1U)
+        s = st++;
+      else
+        s = -1U;
+
+    defrag_states(remap, st);
+    return remap.size() - st;
+  }
+
   void twa_graph::purge_unreachable_states(shift_action* f, void* action_data)
   {
     unsigned num_states = g_.num_states();
