@@ -1113,4 +1113,624 @@ namespace spot
     return create_strategy(arena, dummy);
   }
 
+}
+
+namespace //Anonymous for try_create_strat
+{
+  using namespace spot;
+  std::map<formula, std::pair<std::set<formula>, std::set<formula>>> ap_cache;
+
+  static std::pair<std::set<formula>, std::set<formula>>
+  aps_of(formula f, const std::set<std::string> &outs)
+  {
+    auto cache_value = ap_cache.find(f);
+    if (cache_value != ap_cache.end())
+      return cache_value->second;
+
+    std::set<formula> ins_f, outs_f;
+    f.traverse([&](const formula& f)
+               {
+                 if (f.is(op::ap))
+                 {
+                   if (outs.count(f.ap_name()))
+                     outs_f.insert(f);
+                   else
+                     ins_f.insert(f);
+                 }
+                 return false;
+               });
+    std::pair<std::set<formula>, std::set<formula>> res({ins_f, outs_f});
+    ap_cache.insert({f, res});
+    return res;
+  }
+}
+
+namespace spot
+{
+  strategy_like_t
+  try_create_direct_strategy(formula f,
+                             const std::vector<std::string>& output_aps,
+                             game_info &gi)
+  {
+    // We need a lot of look-ups
+    auto output_aps_set = std::set<std::string>(output_aps.begin(),
+                                                output_aps.end());
+
+    bool is_and = f.is(op::And);
+    formula f_g, f_equiv;
+    // Rewrite a conjunction as G(…) ∧ …
+    if (is_and)
+      {
+        if (f.size() != 2)
+          return {0, nullptr, bddfalse};
+        if (f[1].is(op::G))
+          f = formula::And({f[1], f[0]});
+        f_equiv = f[1];
+        f_g = f[0];
+      }
+    else
+      {
+        f_equiv = f;
+        f_g = spot::formula::tt();
+      }
+
+    if (!f_equiv.is(op::Equiv) || (!f_g.is_tt() && (!f_g.is(op::G)
+                                                  || !f_g[0].is_boolean())))
+      return {0, nullptr, bddfalse};
+//    stopwatch sw;
+    twa_graph_ptr res;
+
+    formula left = f_equiv[0],
+            right = f_equiv[1];
+
+    auto [left_ins, left_outs] = aps_of(left, output_aps_set);
+    auto [right_ins, right_outs] = aps_of(right, output_aps_set);
+
+    bool has_left_outs = !left_outs.empty();
+    bool has_left_ins = !left_ins.empty();
+    bool has_right_outs = !right_outs.empty();
+    bool has_right_ins = !right_ins.empty();
+
+    // Try to rewrite the equivalence as f(b1) <-> f(b2) where b2 has not any
+    // input
+    if (has_right_ins)
+      {
+        std::swap(left, right);
+        std::swap(has_left_ins, has_right_ins);
+        std::swap(has_left_outs, has_right_outs);
+        std::swap(left_ins, right_ins);
+        std::swap(left_outs, right_outs);
+      }
+    // We need to have f(inputs) <-> f(outputs)
+    if (has_right_ins || has_left_outs || !has_right_outs)
+      return {0, nullptr, bddfalse};
+
+    bool is_gf_bool_right = right.is({op::G, op::F});
+    bool is_fg_bool_right = right.is({op::F, op::G});
+
+    // Now we have to detect if we have persistence(ins) <-> FG(outs)
+    // or Büchi(ins) <-> GF(outs).
+
+    bool is_ok = ((is_gf_bool_right && left.is_syntactic_recurrence())
+                || (is_fg_bool_right && left.is_syntactic_guarantee()));
+
+    // TODO: game_info not updated
+    // TODO: Verbose
+    auto& bv = gi.bv;
+    stopwatch sw;
+    if (is_ok)
+      {
+        bool right_bool = right[0][0].is_boolean();
+        if (!right_bool)
+          return {0, nullptr, bddfalse};
+        auto trans = create_translator(gi);
+        trans.set_type(postprocessor::Buchi);
+        trans.set_pref(postprocessor::Deterministic | postprocessor::Complete);
+
+
+        auto right_sub = right[0][0];
+
+        if (bv)
+          sw.start();
+        res = trans.run(left);
+        if (bv)
+          bv->trans_time = sw.stop();
+
+        for (auto& out : right_outs)
+          res->register_ap(out.ap_name());
+        if (!is_deterministic(res))
+          return {0, nullptr, bddfalse};
+        bdd form_bdd = bddtrue;
+        if (is_and)
+          {
+            bdd output_bdd = bddtrue;
+            for (auto &out : output_aps_set)
+              output_bdd &= bdd_ithvar(res->register_ap(out));
+            form_bdd = f_g.is_tt() ? (bdd) bddtrue :
+                                      formula_to_bdd(f_g[0],
+                                                     res->get_dict(), res);
+            if (bdd_exist(form_bdd, output_bdd) != bddtrue)
+              return {0, nullptr, bddfalse};
+          }
+        bdd right_bdd = formula_to_bdd(right_sub, res->get_dict(), res);
+        bdd neg_right_bdd = bdd_not(right_bdd);
+        assert(right_ins.empty());
+        const bool is_true = res->acc().is_t();
+        scc_info si(res, scc_info_options::NONE);
+        for (auto& e : res->edges())
+          {
+            // Here the part describing the outputs is based on the fact that
+            // they must be seen infinitely often. As these edges are seen
+            // finitely often, we can let the minimization choose the value.
+            if (si.scc_of(e.src) == si.scc_of(e.dst))
+              {
+                if (e.acc || is_true)
+                  e.cond &= (right_bdd);
+                else
+                  e.cond &= (neg_right_bdd);
+              }
+            // form_bdd has to be true all the time. So we cannot only do it
+            // between SCCs.
+            e.cond &= form_bdd;
+            if (e.cond == bddfalse)
+              return {-1, nullptr, bddfalse};
+            e.acc = {};
+          }
+
+        if (bv)
+          {
+            auto& vs = gi.verbose_stream;
+            if (vs)
+              {
+                *vs << "translating formula into strategy done in "
+                    << bv->trans_time << " seconds\n";
+                *vs << "automaton has " << res->num_states()
+                    << " states and " << res->num_sets() << " colors\n";
+              }
+          }
+
+
+        bdd output_bdd = bddtrue;
+        for (auto &out : output_aps_set)
+          output_bdd &= bdd_ithvar(res->register_ap(out));
+
+        set_synthesis_outputs(res, output_bdd);
+        res->set_acceptance(acc_cond::acc_code::t());
+
+        res->prop_complete(trival::maybe());
+        return {1, res, bddfalse};
+      }
+    return {0, nullptr, bddfalse};
+  }
+
+} // spot
+
+namespace // anonymous for subsformula
+{
+  using namespace spot;
+  // Checks that 2 sets have a common element. Use it instead
+  // of set_intersection when we just want to check if they have a common
+  // element because it avoids going through the rest of the sets after an
+  // element is found.
+  static bool
+  are_intersecting(const std::set<formula> &v1,
+                   const std::set<formula> &v2)
+  {
+    auto v1_pos = v1.begin(), v2_pos = v2.begin(), v1_end = v1.end(),
+         v2_end = v2.end();
+    while (v1_pos != v1_end && v2_pos != v2_end)
+      {
+        if (*v1_pos < *v2_pos)
+          ++v1_pos;
+        else if (*v2_pos < *v1_pos)
+          ++v2_pos;
+        else
+          return true;
+      }
+    return false;
+  }
+
+  static std::pair<std::set<formula>, std::set<formula>>
+  algo4(const std::vector<formula> &assumptions,
+        const std::set<std::string> &outs)
+  {
+    // Two variables are "connected" if they share an assumption.
+    // It creates a dependency graph and our goal is to find the propositions
+    // that are in the same connected components as outputs.
+    const auto ass_size = assumptions.size();
+    std::vector<bool> done(ass_size, false);
+    std::pair<std::set<formula>, std::set<formula>> result;
+    // // An output is in the result.
+    for (auto &o : outs)
+      result.second.insert(formula::ap(o));
+    std::stack<unsigned> todo;
+    unsigned first_free = 0;
+
+    auto next_free = [&first_free, &assumptions, &outs, &ass_size, &done]()
+      {
+        while (first_free < ass_size)
+          {
+            if (done[first_free])
+              {
+                ++first_free;
+                continue;
+              }
+            auto f = assumptions[first_free];
+            auto [_, o] = aps_of(f, outs);
+            if (!o.empty())
+              return true;
+            ++first_free;
+          }
+        return false;
+      };
+    while (next_free())
+      {
+        todo.push(first_free);
+        while (!todo.empty())
+          {
+            unsigned current_index = todo.top();
+            todo.pop();
+            formula current_form = assumptions[current_index];
+            done[current_index] = true;
+            auto [ins_current, outs_current] = aps_of(current_form, outs);
+            result.first.insert(ins_current.begin(), ins_current.end());
+            result.second.insert(outs_current.begin(), outs_current.end());
+            for (unsigned i = 0; i < ass_size; ++i)
+              {
+                if (done[i])
+                  continue;
+                auto other_form = assumptions[i];
+                auto [ins_other, outs_other] = aps_of(other_form, outs);
+                if (are_intersecting(ins_current, ins_other) ||
+                    are_intersecting(outs_other, outs_other))
+                  todo.push(i);
+              }
+          }
+      }
+    return result;
+  }
+
+  static formula
+  split_implication(const formula &f, const std::set<std::string> &outs)
+  {
+    assert(f.is(op::Implies));
+    assert(f[0].is(op::And));
+    if (!(f[1].is(op::And)))
+      return f;
+    std::vector<formula> assumptions, guarantees;
+    for (auto a : f[0])
+      assumptions.push_back(a);
+    for (auto g : f[1])
+      guarantees.push_back(g);
+    // Set of input/output props that cannot be shared between
+    // subspectifications
+    auto decRelProps = algo4(assumptions, outs);
+    auto &decRelProps_ins = decRelProps.first;
+    auto &decRelProps_outs = decRelProps.second;
+    // Assumptions that don't contain an atomic proposition in decRelProps
+    auto free_assumptions = formula::tt();
+    // The set of subspecifications described as [(assum, guar), (assum, guar)]
+    std::vector<std::pair<formula, formula>> specs;
+    // We merge two assumpt or guar. that share a proposition from decRelProps
+    std::vector<formula> assumptions_split, guarantees_split;
+
+    auto fus = [&](std::vector<formula> &forms, std::vector<formula> &res)
+    {
+      std::stack<unsigned> todo;
+      todo.emplace(0);
+      unsigned first_free = 1;
+      const unsigned forms_size = forms.size();
+      std::vector<bool> done(forms_size, false);
+      while (!todo.empty())
+        {
+          auto current_res = formula::tt();
+          while (!todo.empty())
+            {
+              auto current_index = todo.top();
+              todo.pop();
+              done[current_index] = true;
+              auto current_form = forms[current_index];
+              current_res = formula::And({current_res, current_form});
+              auto [ins_f, outs_f] = aps_of(current_form, outs);
+              std::set<formula> ins_f_dec, outs_f_dec;
+              std::set_intersection(ins_f.begin(), ins_f.end(),
+                                    decRelProps_ins.begin(),
+                                    decRelProps_ins.end(),
+                                    std::inserter(ins_f_dec,
+                                                  ins_f_dec.begin()));
+              std::set_intersection(outs_f.begin(), outs_f.end(),
+                                    decRelProps_outs.begin(),
+                                    decRelProps_outs.end(),
+                                    std::inserter(ins_f_dec,
+                                                  ins_f_dec.begin()));
+              for (unsigned i = 0; i < forms_size; ++i)
+                {
+                  if (done[i])
+                    continue;
+                  auto [ins_i, outs_i] = aps_of(forms[i], outs);
+                  if (are_intersecting(ins_i, ins_f_dec)
+                   || are_intersecting(outs_i, outs_f_dec))
+                    todo.emplace(i);
+                }
+            }
+          res.push_back(current_res);
+          while (first_free < forms_size && done[first_free])
+            ++first_free;
+          if (first_free < forms_size)
+            {
+              todo.emplace(first_free);
+              ++first_free;
+            }
+        }
+    };
+
+    fus(assumptions, assumptions_split);
+    fus(guarantees, guarantees_split);
+
+    // Now we just have to find connected components in a bipartite graph
+    std::function<void(formula f, std::vector<formula> &,
+                       std::vector<formula> &,
+                       std::set<formula> &,
+                       std::set<formula> &,
+                       formula &, formula &,
+                       std::vector<bool> &,
+                       std::vector<bool> &)> bip;
+    bip = [&outs, &bip](formula f, std::vector<formula> &src_vect,
+                        std::vector<formula> &dst_vect,
+                        std::set<formula> &ins_dec,
+                        std::set<formula> &outs_dec,
+                        formula &left_res, formula &right_res,
+                        std::vector<bool> &done_left,
+                        std::vector<bool> &done_right)
+    {
+      left_res = formula::And({left_res, f});
+      auto [ins_f, outs_f] = aps_of(f, outs);
+      std::set<formula> f_ins_dec, f_outs_dec;
+      std::set_intersection(ins_f.begin(), ins_f.end(), ins_dec.begin(),
+                            ins_dec.end(), std::inserter(f_ins_dec,
+                            f_ins_dec.begin()));
+      std::set_intersection(outs_f.begin(), outs_f.end(), outs_dec.begin(),
+                            outs_dec.end(),
+                            std::inserter(f_outs_dec, f_outs_dec.begin()));
+      std::stack<unsigned> todo;
+      for (unsigned i = 0; i < dst_vect.size(); ++i)
+      {
+        if (done_right[i])
+          continue;
+        auto f2 = dst_vect[i];
+        auto [f2_ins, f2_outs] = aps_of(f2, outs);
+        if (are_intersecting(f2_ins, f_ins_dec)
+          || are_intersecting(f2_outs, f_outs_dec))
+        {
+          todo.push(i);
+          right_res = formula::And({right_res, f2});
+          done_right[i] = true;
+        }
+      }
+      while (!todo.empty())
+      {
+        auto right_index = todo.top();
+        todo.pop();
+        bip(dst_vect[right_index], dst_vect, src_vect, ins_dec, outs_dec,
+            right_res, left_res, done_right, done_left);
+      }
+    };
+
+    std::vector<bool> done_ass(assumptions_split.size(), false),
+        done_gua(guarantees_split.size(), false);
+    for (unsigned i = 0; i < assumptions_split.size(); ++i)
+      {
+        if (done_ass[i])
+          continue;
+        done_ass[i] = true;
+        auto &ass = assumptions_split[i];
+        auto [left_aps, right_aps] = aps_of(ass, outs);
+        // If an assumption hasn't any decRelProp, it is considered as
+        // a free assumption.
+        if (!are_intersecting(left_aps, decRelProps_ins))
+          free_assumptions = formula::And({free_assumptions, ass});
+        else
+          {
+            auto left = formula::tt(), right = formula::tt();
+            bip(ass, assumptions_split, guarantees_split, decRelProps_ins,
+                decRelProps_outs, left, right, done_ass, done_gua);
+            specs.push_back({left, right});
+          }
+      }
+
+    for (unsigned i = 0; i < guarantees_split.size(); ++i)
+      if (!done_gua[i])
+        specs.push_back({formula::tt(), guarantees_split[i]});
+
+    if (!free_assumptions.is_tt())
+      for (auto &sp : specs)
+        sp.first = formula::And({sp.first, free_assumptions});
+    std::vector<formula> elems;
+    for (auto &[ass, gua] : specs)
+      {
+        auto new_impl = formula::Implies(ass, gua);
+        elems.push_back(new_impl);
+      }
+    return formula::And(elems);
+  }
+
+  static formula
+  extract_and(const formula& f, const std::set<std::string>& outs)
+  {
+    if (f.is(op::And))
+      {
+        std::vector<formula> children;
+        for (auto fi : f)
+          children.push_back(extract_and(fi, outs));
+        return formula::And(children);
+      }
+    if (f.is(op::Not))
+    {
+      auto child = extract_and(f[0], outs);
+      // ¬(⋀¬xᵢ) ≡ ⋁xᵢ
+      if (child.is(op::And))
+        {
+          bool ok = true;
+          for (auto sub : child)
+            if (!(sub.is(op::Not)))
+              {
+                ok = false;
+                break;
+              }
+          if (ok)
+            {
+              std::vector<formula> children;
+              for (auto fi : child)
+                children.push_back(extract_and(formula::Not(fi), outs));
+              return formula::Or(children);
+            }
+        }
+      // ¬Fφ ≡ G¬φ
+      if (child.is(op::F))
+        {
+          // The result can be G(And).
+          auto f2 = formula::G(extract_and(formula::Not(child[0]), outs));
+          // What ?
+          return f2;
+        }
+      // ¬(φ→ψ) ≡ φ ∧ ¬ψ
+      else if (child.is(op::Implies))
+        {
+          return formula::And({extract_and(child[0], outs),
+                               extract_and(formula::Not(child[1]), outs)});
+        }
+      // ¬(φ ∨ ψ) ≡ ¬φ ∧ ¬ψ
+      else if (child.is(op::Or))
+        {
+          std::vector<formula> children;
+          for (auto fi : child)
+            children.push_back(extract_and(formula::Not(fi), outs));
+          return formula::And(children);
+        }
+    }
+    // G(⋀φᵢ) = ⋀(G(φᵢ))
+    // X(⋀φᵢ) = ⋀(X(φᵢ))
+    if (f.is(op::G, op::X))
+      {
+        auto child_ex = extract_and(f[0], outs);
+        if (child_ex.is(op::And))
+          {
+            std::vector<formula> children;
+            const auto f_kind = f.kind();
+            for (auto fi : child_ex)
+              children.push_back(extract_and(formula::unop(f_kind, fi), outs));
+            return formula::And(children);
+          }
+      }
+    // ⋀φᵢ U ψ ≡ ⋀(φᵢ U ψ)
+    if (f.is(op::U))
+      {
+        auto left_child_ex = extract_and(f[0], outs);
+        if (left_child_ex.is(op::And))
+          {
+            std::vector<formula> children;
+            for (auto fi : left_child_ex)
+              children.push_back(formula::U(fi, f[1]));
+            return formula::And(children);
+          }
+      }
+    if (f.is(op::Implies))
+      {
+        auto right_extr = extract_and(f[1], outs);
+        auto left_extr = extract_and(f[0], outs);
+        // φ → (⋀ψᵢ) ≡ ⋀(φ → ψᵢ)
+        if (!(left_extr.is(op::And)))
+          {
+            if (right_extr.is(op::And))
+              {
+                std::vector<formula> children;
+                for (auto fi : right_extr)
+                  children.push_back(formula::Implies(left_extr, fi));
+                return formula::And(children);
+              }
+          }
+        // ⋀φᵢ → ⋀ψᵢ
+        else if (right_extr.is(op::And))
+          {
+            auto extr_f = formula::Implies(left_extr, right_extr);
+            return split_implication(extr_f, outs);
+          }
+      }
+    return f;
+  }
+
+}
+
+namespace spot
+{
+  std::pair<std::vector<formula>, std::vector<std::set<formula>>>
+  split_independant_formulas(formula f, const std::vector<std::string>& outs)
+  {
+    std::set<std::string> outs_set(outs.begin(), outs.end());
+
+    f = extract_and(f, outs_set);
+    if (!(f.is(op::And)))
+      {
+        auto [_, outs_f] = aps_of(f, outs_set);
+        return {
+                {f},
+                {outs_f}
+                }; // todo this is not nice, change style?!
+      }
+    // Atomics prop of children
+    std::vector<std::set<formula>> children_outs;
+    // Independent formulas
+    std::vector<formula> res;
+    // And the appearing propositions
+    std::vector<std::set<formula>> res_outs;
+    // For each conj, we calculate the set of output AP
+    for (auto child : f)
+      children_outs.push_back(aps_of(child, outs_set).second);
+    unsigned nb_children = f.size();
+    // flag to test if a conj is in a "class"
+    std::vector<bool> children_class(nb_children, false);
+    // The first element not in a class
+    unsigned first_free = 0;
+    std::stack<unsigned> todo;
+    while (first_free < nb_children)
+      {
+        todo.emplace(first_free);
+        std::vector<formula> current_and;
+        std::set<formula> current_outs;
+        while (!todo.empty())
+          {
+            auto current = todo.top();
+            todo.pop();
+            children_class[current] = true;
+            current_and.push_back(f[current]);
+            current_outs.insert(children_outs[current].begin(),
+                                children_outs[current].end());
+            for (unsigned i = 0; i < nb_children; ++i)
+              if (!children_class[i]
+                    && are_intersecting(children_outs[current],
+                                      children_outs[i]))
+                {
+                  todo.emplace(i);
+                  children_class[i] = true;
+                }
+          }
+        auto elem = formula::And(current_and);
+        res.push_back(elem);
+        res_outs.push_back(current_outs);
+
+        while (first_free < nb_children && children_class[first_free])
+          ++first_free;
+      }
+    assert(res.size() == res_outs.size());
+
+    return {res, res_outs};
+  }
+
+  std::pair<std::vector<formula>, std::vector<std::set<formula>>>
+  split_independant_formulas(const std::string& f,
+                             const std::vector<std::string>& outs)
+  {
+    return split_independant_formulas(parse_formula(f), outs);
+  }
+
 } // spot

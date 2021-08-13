@@ -130,7 +130,56 @@ namespace spot
   SPOT_API twa_graph_ptr
   create_strategy(twa_graph_ptr arena, game_info& gi);
 
+  /// \brief Like create_strategy but with default options
   SPOT_API twa_graph_ptr
   create_strategy(twa_graph_ptr arena);
+
+
+  /// \brief A struct that represents different types of strategy like
+  ///        objects
+  struct SPOT_API
+  strategy_like_t
+  {
+    //  -1 : Unrealizable
+    //  0 : Unknown
+    //  1 : Realizable -> regular strat
+    //  2 : Realizable -> strat is DTGBA and a glob_cond // todo
+    int success;
+    twa_graph_ptr strat_like;
+    bdd glob_cond;
+  };
+
+
+  /// \brief Seeks to decompose a formula into independently synthesizable
+  /// sub-parts. The conjunction of all sub-parts then
+  /// satisfies the specification
+  ///
+  /// The algorithm is largely based on \cite{finkbeiner2021specification}.
+  /// \param f the formula to split
+  /// \param outs vector with the names of all output propositions
+  /// \return A vector of pairs holding a subformula and the used output
+  ///  propositions each.
+  SPOT_API std::pair<std::vector<formula>, std::vector<std::set<formula>>>
+  split_independant_formulas(formula f, const std::vector<std::string>& outs);
+
+  /// \brief Like split_independant_formulas but the formula given as string
+  SPOT_API std::pair<std::vector<formula>, std::vector<std::set<formula>>>
+  split_independant_formulas(const std::string& f,
+                             const std::vector<std::string>& outs);
+
+  /// \brief Creates a strategy for the formula given by calling all
+  ///        intermediate steps
+  ///
+  /// For certain formulas, we can ''bypass'' the traditional way
+  /// and find directly a strategy or some other representation of a
+  /// winning condition without translating the formula as such.
+  /// If no such simplifications can be made, it executes the usual way.
+  /// \param f The formula to synthesize a strategy for
+  /// \param output_aps A vector with the name of all output properties.
+  ///                   All APs not named in this vector are treated as inputs
+  SPOT_API strategy_like_t
+  try_create_direct_strategy(formula f,
+                             const std::vector<std::string>& output_aps,
+                             game_info& gi);
 
 }
