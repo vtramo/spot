@@ -3333,7 +3333,7 @@ for strat_string, (ins_str, outs_str) in strats:
         outs &= buddy.bdd_ithvar(strat.register_ap(aout))
 
     spot.set_synthesis_outputs(strat, outs)
-    strat_s = spot.split_2step(strat, ins, outs, False, False)
+    strat_s = spot.split_2step(strat, outs, False, False)
 
     for m in ["isop", "ite", "both"]:
         for ss in [""] + [f"+sub{ii}" for ii in range(3)]:

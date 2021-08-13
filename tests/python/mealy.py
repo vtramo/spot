@@ -378,7 +378,7 @@ for (mealy_str, nenv_min) in test_auts:
             ins = ins & buddy.bdd_ithvar(mealy.register_ap(aap.ap_name()))
         else:
             assert("""Aps must start with either "i" or "o".""")
-    mealy_min_us_s = spot.split_2step(mealy_min_us, ins, outs, False, False)
+    mealy_min_us_s = spot.split_2step(mealy_min_us, outs, False, False)
     assert(spot.is_mealy_specialization(mealy, mealy_min_us_s, True))
 
 

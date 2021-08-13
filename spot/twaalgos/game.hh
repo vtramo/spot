@@ -26,6 +26,7 @@
 #include <vector>
 
 #include <bddx.h>
+#include <spot/misc/optionmap.hh>
 #include <spot/twa/twagraph.hh>
 #include <spot/twaalgos/parity.hh>
 
@@ -88,6 +89,90 @@ namespace spot
   SPOT_API
   bool solve_safety_game(twa_graph_ptr game);
 
+  /// \brief Benchmarking and options structure for games and synthesis
+  ///
+  /// \note This structure is designed to interface with the algorithms
+  /// found in spot/twaalgos/synthesis.hh
+  struct SPOT_API game_info
+  {
+
+    enum class solver
+    {
+      DET_SPLIT=0,
+      SPLIT_DET,
+      DPA_SPLIT,
+      LAR,
+      LAR_OLD,
+    };
+
+    struct bench_var
+    {
+      double total_time = 0.0;
+      double trans_time = 0.0;
+      double split_time = 0.0;
+      double paritize_time = 0.0;
+      double solve_time = 0.0;
+      double strat2aut_time = 0.0;
+      double aig_time = 0.0;
+      unsigned nb_states_arena = 0;
+      unsigned nb_states_arena_env = 0;
+      unsigned nb_states_parity_game = 0;
+      unsigned nb_strat_states = 0;
+      unsigned nb_strat_edges = 0;
+      unsigned nb_latches = 0;
+      unsigned nb_gates = 0;
+      bool realizable = false;
+    };
+
+    game_info()
+      : force_sbacc{false},
+        s{solver::LAR},
+        minimize_lvl{0},
+        out_choice{0},
+        bv{},
+        verbose_stream{nullptr},
+        dict(make_bdd_dict())
+    {
+    }
+
+    bool force_sbacc;
+    solver s;
+    int minimize_lvl;
+    int out_choice;
+    std::optional<bench_var> bv;
+    std::ostream* verbose_stream;
+    option_map opt;
+    bdd_dict_ptr dict;
+  };
+
+  /// \brief Stream solvers
+  SPOT_API std::ostream&
+  operator<<(std::ostream& os, game_info::solver s);
+
+  /// \brief Stream benchmarks and options
+  SPOT_API std::ostream &
+  operator<<(std::ostream &os, const game_info &gi);
+
+  /// \brief Generic interface for game solving
+  ///
+  /// Calls the most suitable solver, depending on the type of game/
+  /// acceptance condition
+  ///
+  /// \param arena The game arena
+  /// \param gi struct ofr options and benchmarking
+  /// \return Whether the initial state is won by player or not
+  /// \pre Relies on the named properties "state-player"
+  /// \post The named properties "strategy" and "state-winner" are set
+  SPOT_API bool
+  solve_game(twa_graph_ptr arena, game_info& gi);
+
+  /// \brief Generic interface for game solving
+  ///
+  /// See solve_game(arena, gi)
+  SPOT_API bool
+  solve_game(twa_graph_ptr arena);
+
+
   /// \brief Print a max odd parity game using PG-solver syntax
   SPOT_API
   void pg_print(std::ostream& os, const const_twa_graph_ptr& arena);
@@ -103,26 +188,54 @@ namespace spot
 
   /// \brief Set the owner for all the states.
   SPOT_API
-  void set_state_players(twa_graph_ptr arena, std::vector<bool> owners);
+  void set_state_players(twa_graph_ptr arena, const region_t& owners);
   SPOT_API
-  void set_state_players(twa_graph_ptr arena, std::vector<bool>* owners);
+  void set_state_players(twa_graph_ptr arena, region_t&& owners);
 
   /// \brief Set the owner of a state.
   SPOT_API
-  void set_state_player(twa_graph_ptr arena, unsigned state, unsigned owner);
-
-  /// \brief Get the owner of all the state.
-  SPOT_API
-  const std::vector<bool>& get_state_players(const_twa_graph_ptr arena);
+  void set_state_player(twa_graph_ptr arena, unsigned state, bool owner);
 
   /// \brief Get the owner of a state.
   SPOT_API
-  unsigned get_state_player(const_twa_graph_ptr arena, unsigned state);
+  bool get_state_player(const_twa_graph_ptr arena, unsigned state);
+  /// \brief Get the owner of all states
+  SPOT_API
+  const region_t& get_state_players(const_twa_graph_ptr arena);
+
+  /// \brief Get or set the strategy
+  SPOT_API
+  const strategy_t& get_strategy(const_twa_graph_ptr arena);
+  SPOT_API
+  void set_strategy(twa_graph_ptr arena, const strategy_t& strat);
+  SPOT_API
+  void set_strategy(twa_graph_ptr arena, strategy_t&& strat);
 
   /// \brief Set all synthesis outputs as a conjunction
   SPOT_API
   void set_synthesis_outputs(const twa_graph_ptr& arena, const bdd& outs);
-
   SPOT_API
   bdd get_synthesis_outputs(const const_twa_graph_ptr& arena);
+
+  /// \brief Get the vector with the names of the output propositions
+  SPOT_API
+  std::vector<std::string>
+  get_synthesis_output_aps(const const_twa_graph_ptr& arena);
+
+  /// \brief Set the winner for all the states.
+  SPOT_API
+  void set_state_winners(twa_graph_ptr arena, const region_t& winners);
+  SPOT_API
+  void set_state_winners(twa_graph_ptr arena, region_t&& winners);
+
+  /// \brief Set the winner of a state.
+  SPOT_API
+  void set_state_winner(twa_graph_ptr arena, unsigned state, bool winner);
+
+  /// \brief Get the winner of a state.
+  SPOT_API
+  bool get_state_winner(const_twa_graph_ptr arena, unsigned state);
+  /// \brief Get the winner of all states
+  SPOT_API
+  const region_t& get_state_winners(const_twa_graph_ptr arena);
 }

@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2020 Laboratoire de Recherche et
+// Copyright (C) 2020-2021 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -20,6 +20,7 @@
 #pragma once
 
 #include <spot/twa/twagraph.hh>
+#include <spot/twaalgos/game.hh>
 #include <bddx.h>
 
 namespace spot
@@ -40,8 +41,8 @@ namespace spot
   /// This function is used to transform an automaton into a turn-based game in
   /// the context of LTL reactive synthesis.
   /// \param aut          automaton to be transformed
-  /// \param input_bdd    conjunction of all input AP
-  /// \param output_bdd   conjunction of all output AP
+  /// \param output_bdd   conjunction of all output AP, all APs not present
+  ///                     are treated as inputs
   /// \param complete_env Whether the automaton should be complete for the
   ///                     environment, i.e. the player of I
   /// \param do_simplify  If a state has a single outgoing transition
@@ -52,7 +53,7 @@ namespace spot
   ///        then egdes between the sinks will be added
   /// (assuming that the environnement/player of I) plays first
   SPOT_API twa_graph_ptr
-  split_2step(const const_twa_graph_ptr& aut, const bdd& input_bdd,
+  split_2step(const const_twa_graph_ptr& aut,
               const bdd& output_bdd, bool complete_env, bool do_simplify);
 
   /// \brief the reverse of split_2step
@@ -62,16 +63,74 @@ namespace spot
   unsplit_2step(const const_twa_graph_ptr& aut);
 
 
-  /// \brief Takes a solved game and restricts the automat to the
+  /// \brief Creates a game from a specification and a set of
+  /// output propositions
+  ///
+  /// \param f The specification given as LTL/PSL formula
+  /// \param all_outs The names of all output propositions
+  /// \param gi game_info structure
+  /// \note All propositions in the formula that do not appear in all_outs
+  /// arer treated as input variables.
+  SPOT_API twa_graph_ptr
+  create_game(const formula& f,
+              const std::vector<std::string>& all_outs,
+              game_info& gi);
+
+  /// \brief create_game called with default options
+  SPOT_API twa_graph_ptr
+  create_game(const formula& f,
+              const std::vector<std::string>& all_outs);
+
+  /// \brief Like create_game but formula given as string
+  SPOT_API twa_graph_ptr
+  create_game(const std::string& f,
+              const std::vector<std::string>& all_outs,
+              game_info& gi);
+
+  /// \brief create_game called with default options
+  SPOT_API twa_graph_ptr
+  create_game(const std::string& f,
+              const std::vector<std::string>& all_outs);
+
+  /// \brief Takes a solved game and restricts the automaton to the
   ///        winning strategy of the player
   ///
   /// \param arena        twa_graph with named properties "state-player",
   ///                     "strategy" and "state-winner"
-  /// \param all_outputs  bdd of all output signals
   /// \param unsplit      Whether or not to unsplit the automaton
   /// \param keep_acc     Whether or not keep the acceptance condition
   /// \return             the resulting twa_graph
   SPOT_API spot::twa_graph_ptr
   apply_strategy(const spot::twa_graph_ptr& arena,
-                 bdd all_outputs, bool unsplit, bool keep_acc);
+                 bool unsplit, bool keep_acc);
+
+  /// \brief Minimizes a strategy. Strategies are infact
+  /// Mealy machines. So we can use techniques designed for them
+  ///
+  /// \param strat The machine to minimize
+  /// \param min_lvl How to minimize the machine:
+  ///                0: No minimization, 1: Minimizing it like an DFA,
+  ///                means the language is preserved, 2: Inclusion with
+  ///                output assignement, 3: Exact minimization using
+  ///                SAT solving, 4: SAT solving with DFA minimization as
+  ///                preprocessing, 5: SAT solving using inclusion based
+  ///                 minimization with output assignment as preprocessing
+  /// \note min_lvl 1 and 2 work more efficiently on UNSPLIT strategies,
+  ///       whereas min_lvl 3, 4 and 5 mandate a SPLIT strategy
+  SPOT_API void
+  minimize_strategy_here(twa_graph_ptr& strat, int min_lvl);
+
+  ///\brief Like minimize_strategy_here
+  SPOT_API twa_graph_ptr
+  minimize_strategy(const_twa_graph_ptr& strat, int min_lvl);
+
+
+  /// \brief creates a strategy from a solved game taking into account the
+  ///        options given in gi
+  SPOT_API twa_graph_ptr
+  create_strategy(twa_graph_ptr arena, game_info& gi);
+
+  SPOT_API twa_graph_ptr
+  create_strategy(twa_graph_ptr arena);
+
 }

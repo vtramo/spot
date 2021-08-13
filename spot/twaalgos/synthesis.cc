@@ -18,10 +18,22 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "config.h"
 
+#include <spot/misc/bddlt.hh>
+#include <spot/misc/hash.hh>
+#include <spot/misc/timer.hh>
+#include <spot/twa/formula2bdd.hh>
+#include <spot/twaalgos/degen.hh>
+#include <spot/twaalgos/determinize.hh>
+#include <spot/twaalgos/isdet.hh>
+#include <spot/twaalgos/mealy_machine.hh>
+#include <spot/twaalgos/sbacc.hh>
 #include <spot/twaalgos/synthesis.hh>
+#include <spot/twaalgos/translate.hh>
 #include <spot/misc/minato.hh>
 #include <spot/twaalgos/totgba.hh>
-#include <spot/misc/bddlt.hh>
+#include <spot/twaalgos/toparity.hh>
+#include <spot/tl/parse.hh>
+
 
 #include <algorithm>
 
@@ -122,7 +134,7 @@ namespace{
 namespace spot
 {
   twa_graph_ptr
-  split_2step(const const_twa_graph_ptr& aut, const bdd& input_bdd,
+  split_2step(const const_twa_graph_ptr& aut,
               const bdd& output_bdd, bool complete_env,
               bool do_simplify)
   {
@@ -131,6 +143,21 @@ namespace spot
     split->copy_acceptance_of(aut);
     split->new_states(aut->num_states());
     split->set_init_state(aut->get_init_state_number());
+
+
+    bdd input_bdd = bddtrue;
+    {
+      bdd allbdd = aut->ap_vars();
+      while (allbdd != bddtrue)
+        {
+          bdd l = bdd_ithvar(bdd_var(allbdd));
+          if (not bdd_implies(output_bdd, l))
+            // Input
+            input_bdd &= l;
+          allbdd = bdd_high(allbdd);
+          assert(allbdd != bddfalse);
+        }
+    }
 
     // The environment has all states
     // with num <= aut->num_states();
@@ -292,11 +319,10 @@ namespace spot
     // The named property
     // compute the owners
     // env is equal to false
-    std::vector<bool>* owner =
-        new std::vector<bool>(split->num_states(), false);
+    std::vector<bool> owner(split->num_states(), false);
     // All "new" states belong to the player
-    std::fill(owner->begin()+aut->num_states(), owner->end(), true);
-    split->set_named_prop("state-player", owner);
+    std::fill(owner.begin()+aut->num_states(), owner.end(), true);
+    set_state_players(split, std::move(owner));
     // Done
     return split;
   }
@@ -312,10 +338,7 @@ namespace spot
 
     // split_2step is not guaranteed to produce
     // states that alternate between env and player do to do_simplify
-    auto owner_ptr = aut->get_named_prop<std::vector<bool>>("state-player");
-    if (!owner_ptr)
-      throw std::runtime_error("unsplit requires the named prop "
-                               "state-player as set by split_2step");
+    auto owner = get_state_players(aut);
 
     std::vector<unsigned> state_map(aut->num_states(), unseen_mark);
     auto seen = [&](unsigned s){return state_map[s] != unseen_mark; };
@@ -338,7 +361,7 @@ namespace spot
         for (const auto& i : aut->out(cur))
           {
             // if the dst is also owned env
-            if (!(*owner_ptr)[i.dst])
+            if (!owner[i.dst])
               {
                 // This can only happen if there is only
                 // one outgoing edges for cur
@@ -364,129 +387,730 @@ namespace spot
     out->set_init_state(map_s(aut->get_init_state_number()));
     // Try to set outputs
     if (bdd* outptr = aut->get_named_prop<bdd>("synthesis-outputs"))
-      out->set_named_prop("synthesis-outputs", new bdd(*outptr));
+      set_synthesis_outputs(out, *outptr);
     return out;
   }
 
-
+  // Improved apply strat, that reduces the number of edges/states
+  // while keeping the needed edge-properties
+  // Note, this only deals with deterministic strategies
+  // Note, assumes that env starts playing
   spot::twa_graph_ptr
   apply_strategy(const spot::twa_graph_ptr& arena,
-                 bdd all_outputs,
                  bool unsplit, bool keep_acc)
   {
-    std::vector<bool>* w_ptr =
-      arena->get_named_prop<std::vector<bool>>("state-winner");
-    std::vector<unsigned>* s_ptr =
-      arena->get_named_prop<std::vector<unsigned>>("strategy");
-    std::vector<bool>* sp_ptr =
-      arena->get_named_prop<std::vector<bool>>("state-player");
+    const auto& win = get_state_winners(arena);
+    const auto& strat = get_strategy(arena);
+    const auto& sp = get_state_players(arena);
+    auto outs = get_synthesis_outputs(arena);
 
-    if (!w_ptr || !s_ptr || !sp_ptr)
-      throw std::runtime_error("Arena missing state-winner, strategy "
-                               "or state-player");
-
-    if (!(w_ptr->at(arena->get_init_state_number())))
+    if (!win[arena->get_init_state_number()])
       throw std::runtime_error("Player does not win initial state, strategy "
                                "is not applicable");
 
-    std::vector<bool>& w = *w_ptr;
-    std::vector<unsigned>& s = *s_ptr;
+    assert((sp[arena->get_init_state_number()] == false)
+           && "Env needs to have first turn!");
 
-    auto aut = spot::make_twa_graph(arena->get_dict());
-    aut->copy_ap_of(arena);
+    assert(std::all_of(arena->edges().begin(), arena->edges().end(),
+           [&sp](const auto& e)
+             { return sp.at(e.src) != sp.at(e.dst); }));
+
+    auto strat_split = spot::make_twa_graph(arena->get_dict());
+    strat_split->copy_ap_of(arena);
     if (keep_acc)
-      aut->copy_acceptance_of(arena);
+      strat_split->copy_acceptance_of(arena);
+
+    std::stack<unsigned> todo;
+    todo.push(arena->get_init_state_number());
+
+    struct dca{
+      unsigned dst;
+      unsigned condvar;
+      acc_cond::mark_t acc;
+    };
+    struct dca_hash
+    {
+      size_t operator()(const dca& d) const noexcept
+      {
+        return pair_hash()(std::make_pair(d.dst, d.condvar))
+               ^ d.acc.hash();
+      }
+    };
+    struct dca_equal
+    {
+      bool operator()(const dca& d1, const dca& d2) const noexcept
+      {
+        return std::tie(d1.dst, d1.condvar, d1.acc)
+               == std::tie(d2.dst, d2.condvar, d2.acc);
+      }
+    };
+
+    //env dst + player cond + acc -> p stat
+    std::unordered_map<dca,
+                       unsigned,
+                       dca_hash,
+                       dca_equal> p_map;
 
     constexpr unsigned unseen_mark = std::numeric_limits<unsigned>::max();
-    std::vector<unsigned> todo{arena->get_init_state_number()};
-    std::vector<unsigned> pg2aut(arena->num_states(), unseen_mark);
-    aut->set_init_state(aut->new_state());
-    pg2aut[arena->get_init_state_number()] = aut->get_init_state_number();
+    std::vector<unsigned> env_map(arena->num_states(), unseen_mark);
+    strat_split->set_init_state(strat_split->new_state());
+    env_map[arena->get_init_state_number()] =
+        strat_split->get_init_state_number();
+
+    // The states in the new graph are qualified local
+    // Get a local environment state
+    auto get_sel = [&](unsigned s)
+      {
+        if (SPOT_UNLIKELY(env_map[s] == unseen_mark))
+          env_map[s] = strat_split->new_state();
+        return env_map[s];
+      };
+
+    // local dst
+    // Check if there exists already a local player state
+    // that has the same dst, cond and (if keep_acc is true) acc
+    auto get_spl = [&](unsigned dst, const bdd& cond, acc_cond::mark_t acc)
+    {
+      dca d{dst, (unsigned) cond.id(), acc};
+      auto it = p_map.find(d);
+      if (it != p_map.end())
+        return it->second;
+      unsigned ns = strat_split->new_state();
+      p_map[d] = ns;
+      strat_split->new_edge(ns, dst, cond, acc);
+      return ns;
+    };
 
     while (!todo.empty())
       {
-        unsigned v = todo.back();
-        todo.pop_back();
-
-        // Check if a simplification occurred
-        // in the aut and we have env -> env
-
-        // Env edge -> keep all
-        for (auto &e1: arena->out(v))
+        unsigned src_env = todo.top();
+        unsigned src_envl = get_sel(src_env);
+        todo.pop();
+        // All env edges
+        for (const auto& e_env : arena->out(src_env))
           {
-            assert(w.at(e1.dst));
-            // Check if a simplification occurred
-            // in the aut and we have env -> env
-            if (!(*sp_ptr)[e1.dst])
-              {
-                assert(([&arena, v]()
-                         {
-                           auto out_cont = arena->out(v);
-                           return (++(out_cont.begin()) == out_cont.end());
-                         })());
-                // If so we do not need to unsplit
-                if (pg2aut[e1.dst] == unseen_mark)
-                  {
-                    pg2aut[e1.dst] = aut->new_state();
-                    todo.push_back(e1.dst);
-                  }
-                // Create the edge
-                aut->new_edge(pg2aut[v],
-                              pg2aut[e1.dst],
-                              e1.cond,
-                              keep_acc ? e1.acc : spot::acc_cond::mark_t({}));
-                // Done
-                continue;
-              }
-
-            if (!unsplit)
-              {
-                if (pg2aut[e1.dst] == unseen_mark)
-                  pg2aut[e1.dst] = aut->new_state();
-                aut->new_edge(pg2aut[v], pg2aut[e1.dst], e1.cond,
-                              keep_acc ? e1.acc : spot::acc_cond::mark_t({}));
-              }
-            // Player strat
-            auto &e2 = arena->edge_storage(s[e1.dst]);
-            if (pg2aut[e2.dst] == unseen_mark)
-              {
-                pg2aut[e2.dst] = aut->new_state();
-                todo.push_back(e2.dst);
-              }
-
-            aut->new_edge(unsplit ? pg2aut[v] : pg2aut[e1.dst],
-                          pg2aut[e2.dst],
-                          unsplit ? (e1.cond & e2.cond) : e2.cond,
-                          keep_acc ? e2.acc : spot::acc_cond::mark_t({}));
+            // Get the corresponding strat
+            const auto& e_strat = arena->edge_storage(strat[e_env.dst]);
+            // Check if already explored
+            if (env_map[e_strat.dst] == unseen_mark)
+              todo.push(e_strat.dst);
+            unsigned dst_envl = get_sel(e_strat.dst);
+            // The new env edge, player is constructed automatically
+            auto used_acc = keep_acc ? e_strat.acc : acc_cond::mark_t({});
+            strat_split->new_edge(src_envl,
+                                  get_spl(dst_envl, e_strat.cond, used_acc),
+                                  e_env.cond, used_acc);
           }
       }
+    // All states exists, we can try to further merge them
+    // Specialized merge
+    std::vector<bool> spnew(strat_split->num_states(), false);
+    for (const auto& p : p_map)
+      spnew[p.second] = true;
 
-    aut->set_named_prop("synthesis-outputs", new bdd(all_outputs));
-    // If no unsplitting is demanded, it remains a two-player arena
-    // We do not need to track winner as this is a
-    // strategy automaton
-    if (!unsplit)
+    // Sorting edges in place
+    auto comp_edge = [](const auto& e1, const auto& e2)
+    {
+      return std::tuple(e1.dst, e1.acc, e1.cond.id())
+             < std::tuple(e2.dst, e2.acc, e2.cond.id());
+    };
+    auto sort_edges_of =
+        [&, &split_graph = strat_split->get_graph()](unsigned s)
       {
-        const std::vector<bool>& sp_pg = * sp_ptr;
-        std::vector<bool> sp_aut(aut->num_states());
-        std::vector<unsigned> str_aut(aut->num_states());
-        for (unsigned i = 0; i < arena->num_states(); ++i)
-          {
-            if (pg2aut[i] == unseen_mark)
-              // Does not appear in strategy
-              continue;
-            sp_aut[pg2aut[i]] = sp_pg[i];
-            str_aut[pg2aut[i]] = s[i];
-          }
-        aut->set_named_prop(
-            "state-player", new std::vector<bool>(std::move(sp_aut)));
-        aut->set_named_prop(
-            "state-winner", new std::vector<bool>(aut->num_states(), true));
-        aut->set_named_prop(
-            "strategy", new std::vector<unsigned>(std::move(str_aut)));
-      }
-    return aut;
+        static std::vector<unsigned> edge_nums;
+        edge_nums.clear();
 
+        auto eit = strat_split->out(s);
+        const auto eit_e = eit.end();
+        // 0 Check if it is already sorted
+        if (std::is_sorted(eit.begin(), eit_e, comp_edge))
+          return false; // No change
+        // 1 Get all edges numbers and sort them
+        std::transform(eit.begin(), eit_e, std::back_inserter(edge_nums),
+                       [&](const auto& e)
+                         { return strat_split->edge_number(e); });
+        std::sort(edge_nums.begin(), edge_nums.end(),
+                  [&](unsigned ne1, unsigned ne2)
+                  { return comp_edge(strat_split->edge_storage(ne1),
+                                    strat_split->edge_storage(ne2)); });
+        // 2 Correct the order
+        auto& sd = split_graph.state_storage(s);
+        sd.succ = edge_nums.front();
+        sd.succ_tail = edge_nums.back();
+        const unsigned n_edges_p = edge_nums.size()-1;
+        for (unsigned i = 0; i < n_edges_p; ++i)
+          split_graph.edge_storage(edge_nums[i]).next_succ = edge_nums[i+1];
+        split_graph.edge_storage(edge_nums.back()).next_succ = 0; //terminal
+        // All nicely chained
+        return true;
+      };
+    auto merge_edges_of = [&](unsigned s)
+      {
+        // Call this after sort edges of
+        // Mergeable edges are nicely chained
+        bool changed = false;
+        auto eit = strat_split->out_iteraser(s);
+        unsigned idx_last = strat_split->edge_number(*eit);
+        ++eit;
+        while (eit)
+          {
+            auto& e_last = strat_split->edge_storage(idx_last);
+            if (std::tie(e_last.dst, e_last.acc)
+                == std::tie(eit->dst, eit->acc))
+              {
+                //Same dest and acc -> or condition
+                e_last.cond |= eit->cond;
+                eit.erase();
+                changed = true;
+              }
+            else
+              {
+                idx_last = strat_split->edge_number(*eit);
+                ++eit;
+              }
+          }
+        return changed;
+      };
+    auto merge_able = [&](unsigned s1, unsigned s2)
+      {
+        auto eit1 = strat_split->out(s1);
+        auto eit2 = strat_split->out(s2);
+        // Note: No self-loops here
+        return std::equal(eit1.begin(), eit1.end(),
+                          eit2.begin(), eit2.end(),
+                          [](const auto& e1, const auto& e2)
+                          {
+                            return std::tuple(e1.dst, e1.acc, e1.cond.id())
+                                   == std::tuple(e2.dst, e2.acc, e2.cond.id());
+                          });
+      };
+
+//    print_hoa(std::cout, strat_split) << '\n';
+
+    const unsigned n_sstrat = strat_split->num_states();
+    std::vector<unsigned> remap(n_sstrat, -1u);
+    bool changed_any;
+    std::vector<unsigned> to_check;
+    to_check.reserve(n_sstrat);
+    // First iteration -> all env states are candidates
+    for (unsigned i = 0; i < n_sstrat; ++i)
+      if (!spnew[i])
+        to_check.push_back(i);
+
+    while (true)
+    {
+      changed_any = false;
+      std::for_each(to_check.begin(), to_check.end(),
+                    [&](unsigned s){ sort_edges_of(s); merge_edges_of(s); });
+      // Check if we can merge env states
+      for (unsigned s1 : to_check)
+        for (unsigned s2 = 0; s2 < n_sstrat; ++s2)
+          {
+            if (spnew[s2] || (s1 == s2))
+              continue; // Player state or s1 == s2
+            if ((remap[s2] < s2))
+              continue; //s2 is already remapped
+            if (merge_able(s1, s2))
+              {
+                changed_any = true;
+                if (s1 < s2)
+                  remap[s2] = s1;
+                else
+                  remap[s1] = s2;
+                break;
+              }
+          }
+
+//      std::for_each(remap.begin(), remap.end(),
+//                     [](auto e){std::cout << e << ' ';});
+//      std::cout << std::endl;
+
+      if (!changed_any)
+        break;
+      // Redirect changed targets and set possibly mergeable states
+      to_check.clear();
+      for (auto& e : strat_split->edges())
+        if (remap[e.dst] != -1u)
+          {
+            e.dst = remap[e.dst];
+            to_check.push_back(e.src);
+            assert(spnew[e.src]);
+          }
+
+      // Now check the player states
+      // We can skip sorting -> only one edge
+      // todo change when multistrat
+      changed_any = false;
+      for (unsigned s1 : to_check)
+        for (unsigned s2 = 0; s2 < n_sstrat; ++s2)
+          {
+            if (!spnew[s2] || (s1 == s2))
+              continue; // Env state or s1 == s2
+            if ((remap[s2] < s2))
+              continue; //s2 is already remapped
+            if (merge_able(s1, s2))
+              {
+                changed_any = true;
+                if (s1 < s2)
+                  remap[s2] = s1;
+                else
+                  remap[s1] = s2;
+                break;
+              }
+          }
+
+//      std::for_each(remap.begin(), remap.end(), [](auto e)
+//        {std::cout << e << ' '; });
+//      std::cout << std::endl;
+
+      if (!changed_any)
+        break;
+      // Redirect changed targets and set possibly mergeable states
+      to_check.clear();
+      for (auto& e : strat_split->edges())
+        if (remap[e.dst] != -1u)
+          {
+            e.dst = remap[e.dst];
+            to_check.push_back(e.src);
+            assert(!spnew[e.src]);
+          }
+    }
+
+//    print_hoa(std::cout, strat_split) << std::endl;
+
+    // Defrag and alternate
+    if (remap[strat_split->get_init_state_number()] != -1u)
+      strat_split->set_init_state(remap[strat_split->get_init_state_number()]);
+    unsigned st = 0;
+    for (auto& s: remap)
+      if (s == -1U)
+        s = st++;
+      else
+        s = -1U;
+
+    strat_split->defrag_states(remap, st);
+
+//    unsigned n_old;
+//    do
+//    {
+//      n_old = strat_split->num_edges();
+//      strat_split->merge_edges();
+//      strat_split->merge_states();
+//    } while (n_old != strat_split->num_edges());
+
+    alternate_players(strat_split, false, false);
+//    print_hoa(std::cout, strat_split) << std::endl;
+    // What we do now depends on whether we unsplit or not
+    if (unsplit)
+      {
+        auto final = unsplit_2step(strat_split);
+        set_synthesis_outputs(final, outs);
+        return final;
+      }
+    // Keep the splitted version
+    set_state_winners(strat_split, region_t(strat_split->num_states(), true));
+
+    std::vector<unsigned> new_strat(strat_split->num_states(), -1u);
+
+    for (unsigned i = 0; i < strat_split->num_states(); ++i)
+      {
+        if (!sp[i])
+          continue;
+        new_strat[i] = strat_split->edge_number(*strat_split->out(i).begin());
+      }
+    set_strategy(strat_split, std::move(new_strat));
+    set_synthesis_outputs(strat_split, outs);
+    return strat_split;
+  }
+
+  namespace // Anonymous create_game
+  {
+    static translator
+    create_translator(game_info& gi)
+    {
+      using solver = game_info::solver;
+
+      option_map& extra_options = gi.opt;
+      auto sol = gi.s;
+      const bdd_dict_ptr& dict = gi.dict;
+
+      for (auto&& p : std::vector<std::pair<const char*, int>>
+                        {{"simul", 0},
+                         {"ba-simul", 0},
+                         {"det-simul", 0},
+                         {"tls-impl", 1},
+                         {"wdba-minimize", 2}})
+        extra_options.set(p.first, extra_options.get(p.first, p.second));
+
+      translator trans(dict, &extra_options);
+      switch (sol)
+      {
+      case solver::LAR:
+        SPOT_FALLTHROUGH;
+      case solver::LAR_OLD:
+        trans.set_type(postprocessor::Generic);
+        trans.set_pref(postprocessor::Deterministic);
+        break;
+      case solver::DPA_SPLIT:
+        trans.set_type(postprocessor::ParityMaxOdd);
+        trans.set_pref(postprocessor::Deterministic | postprocessor::Colored);
+        break;
+      case solver::DET_SPLIT:
+        SPOT_FALLTHROUGH;
+      case solver::SPLIT_DET:
+        break;
+      }
+      return trans;
+    }
+
+    twa_graph_ptr
+    ntgba2dpa(const twa_graph_ptr& aut, bool force_sbacc)
+    {
+      // if the input automaton is deterministic, degeneralize it to be sure to
+      // end up with a parity automaton
+      auto dpa = tgba_determinize(degeneralize_tba(aut),
+                                        false, true, true, false);
+      dpa->merge_edges();
+      if (force_sbacc)
+        dpa = sbacc(dpa);
+      reduce_parity_here(dpa, true);
+      change_parity_here(dpa, parity_kind_max,
+                               parity_style_odd);
+      assert((
+                 [&dpa]() -> bool {
+                   bool max, odd;
+                   dpa->acc().is_parity(max, odd);
+                   return max && odd;
+                 }()));
+      assert(is_deterministic(dpa));
+      return dpa;
+    }
+  } // anonymous
+
+  twa_graph_ptr
+  create_game(const formula& f,
+              const std::vector<std::string>& all_outs,
+              game_info& gi)
+  {
+    using solver = game_info::solver;
+
+    [](std::vector<std::string> sv, std::string msg)
+      {
+        std::sort(sv.begin(), sv.end());
+        const unsigned svs = sv.size() - 1;
+        for (unsigned i = 0; i < svs; ++i)
+          if (sv[i] == sv[i+1])
+            throw std::runtime_error(msg + sv[i]);
+      }(all_outs, "Output propositions are expected to appear once "
+                  "in all_outs. Violating: ");
+
+    auto trans = create_translator(gi);
+    // Shortcuts
+    auto& bv = gi.bv;
+    auto& vs = gi.verbose_stream;
+
+    stopwatch sw;
+
+    if (bv)
+      sw.start();
+    auto aut = trans.run(f);
+    if (bv)
+      bv->trans_time += sw.stop();
+
+    if (vs)
+      {
+        assert(bv);
+        *vs << "translating formula done in "
+            << bv->trans_time << " seconds\n";
+        *vs << "automaton has " << aut->num_states()
+            << " states and " << aut->num_sets() << " colors\n";
+      }
+    auto tobdd = [&aut](const std::string& ap_name)
+      {
+        return bdd_ithvar(aut->register_ap(ap_name));
+      };
+    auto is_out = [&all_outs](const std::string& ao)->bool
+      {
+        return std::find(all_outs.begin(), all_outs.end(),
+                         ao) != all_outs.end();
+      };
+
+    // Check for each ap that actually appears in the graph
+    // whether its an in or out
+    bdd ins = bddtrue;
+    bdd outs = bddtrue;
+    for (auto&& aap : aut->ap())
+      {
+        if (is_out(aap.ap_name()))
+          outs &= tobdd(aap.ap_name());
+        else
+          ins &= tobdd(aap.ap_name());
+      }
+
+    twa_graph_ptr dpa = nullptr;
+
+    switch (gi.s)
+    {
+      case solver::DET_SPLIT:
+      {
+        if (bv)
+          sw.start();
+        auto tmp = ntgba2dpa(aut, gi.force_sbacc);
+        if (vs)
+          *vs << "determinization done\nDPA has "
+              << tmp->num_states() << " states, "
+              << tmp->num_sets() << " colors\n";
+        tmp->merge_states();
+        if (bv)
+          bv->paritize_time += sw.stop();
+        if (vs)
+          *vs << "simplification done\nDPA has "
+              << tmp->num_states() << " states\n"
+              << "determinization and simplification took "
+              << bv->paritize_time << " seconds\n";
+        if (bv)
+          sw.start();
+        dpa = split_2step(tmp, outs, true, false);
+        colorize_parity_here(dpa, true);
+        if (bv)
+          bv->split_time += sw.stop();
+        if (vs)
+          *vs << "split inputs and outputs done in " << bv->split_time
+              << " seconds\nautomaton has "
+              << tmp->num_states() << " states\n";
+        break;
+      }
+      case solver::DPA_SPLIT:
+      {
+        if (bv)
+          sw.start();
+        aut->merge_states();
+        if (bv)
+          bv->paritize_time += sw.stop();
+        if (vs)
+          *vs << "simplification done in " << bv->paritize_time
+              << " seconds\nDPA has " << aut->num_states()
+              << " states\n";
+        if (bv)
+          sw.start();
+        dpa = split_2step(aut, outs, true, false);
+        colorize_parity_here(dpa, true);
+        if (bv)
+          bv->split_time += sw.stop();
+        if (vs)
+          *vs << "split inputs and outputs done in " << bv->split_time
+              << " seconds\nautomaton has "
+              << dpa->num_states() << " states\n";
+        break;
+      }
+      case solver::SPLIT_DET:
+      {
+        sw.start();
+        auto split = split_2step(aut, outs,
+                                true, false);
+        if (bv)
+          bv->split_time += sw.stop();
+        if (vs)
+          *vs << "split inputs and outputs done in " << bv->split_time
+              << " seconds\nautomaton has "
+              << split->num_states() << " states\n";
+        if (bv)
+          sw.start();
+        dpa = ntgba2dpa(split, gi.force_sbacc);
+        if (vs)
+          *vs << "determinization done\nDPA has "
+              << dpa->num_states() << " states, "
+              << dpa->num_sets() << " colors\n";
+        dpa->merge_states();
+        if (bv)
+          bv->paritize_time += sw.stop();
+        if (vs)
+          *vs << "simplification done\nDPA has "
+              << dpa->num_states() << " states\n"
+              << "determinization and simplification took "
+              << bv->paritize_time << " seconds\n";
+        // The named property "state-player" is set in split_2step
+        // but not propagated by ntgba2dpa
+        alternate_players(dpa);
+        break;
+      }
+      case solver::LAR:
+        SPOT_FALLTHROUGH;
+      case solver::LAR_OLD:
+      {
+        if (bv)
+          sw.start();
+        if (gi.s == solver::LAR)
+          {
+            dpa = to_parity(aut);
+            // reduce_parity is called by to_parity(),
+            // but with colorization turned off.
+            colorize_parity_here(dpa, true);
+          }
+        else
+          {
+            dpa = to_parity_old(aut);
+            dpa = reduce_parity_here(dpa, true);
+          }
+        change_parity_here(dpa, parity_kind_max, parity_style_odd);
+        if (bv)
+          bv->paritize_time += sw.stop();
+        if (vs)
+          *vs << "LAR construction done in " << bv->paritize_time
+              << " seconds\nDPA has "
+              << dpa->num_states() << " states, "
+              << dpa->num_sets() << " colors\n";
+
+        if (bv)
+          sw.start();
+        dpa = split_2step(dpa, outs, true, false);
+        colorize_parity_here(dpa, true);
+        if (bv)
+          bv->split_time += sw.stop();
+        if (vs)
+          *vs << "split inputs and outputs done in " << bv->split_time
+              << " seconds\nautomaton has "
+              << dpa->num_states() << " states\n";
+        break;
+      }
+    } //end switch solver
+    // Set the named properties
+    assert(dpa->get_named_prop<std::vector<bool>>("state-player")
+           && "DPA has no state-players");
+    set_synthesis_outputs(dpa, outs);
+    return dpa;
+  }
+
+  twa_graph_ptr
+  create_game(const formula& f,
+              const std::vector<std::string>& all_outs)
+  {
+    game_info dummy;
+    return create_game(f, all_outs, dummy);
+  }
+
+  twa_graph_ptr
+  create_game(const std::string& f,
+              const std::vector<std::string>& all_outs)
+  {
+    return create_game(parse_formula(f), all_outs);
+  }
+
+  twa_graph_ptr
+  create_game(const std::string& f,
+              const std::vector<std::string>& all_outs,
+              game_info& gi)
+  {
+    return create_game(parse_formula(f), all_outs, gi);
+  }
+
+  void
+  minimize_strategy_here(twa_graph_ptr& strat, int min_lvl)
+  {
+    if (!strat->acc().is_t())
+      throw std::runtime_error("minimize_strategy_here(): strategy is expected "
+                               "to accept all runs! Otherwise it does not "
+                               "correspond to a mealy machine and can not be "
+                               "optimized this way.");
+    // 0 -> No minimization
+    // 1 -> Regular monitor/DFA minimization
+    // 2 -> Mealy minimization based on language inclusion
+    //      with output assignement
+    // 3 -> Exact Mealy minimization using SAT
+    // 4 -> Monitor min then exact minimization
+    // 5 -> Mealy minimization based on language inclusion then exact
+    // minimization
+    bdd outs = get_synthesis_outputs(strat);
+
+    switch (min_lvl)
+    {
+      case 0:
+        return;
+      case 1:
+        {
+          minimize_mealy_fast_here(strat, false);
+          break;
+        }
+      case 2:
+        {
+          minimize_mealy_fast_here(strat, true);
+          break;
+        }
+      case 3:
+        {
+          strat = minimize_mealy(strat, -1);
+          break;
+        }
+      case 4:
+        {
+          strat = minimize_mealy(strat, 0);
+          break;
+        }
+      case 5:
+        {
+          strat = minimize_mealy(strat, 1);
+          break;
+        }
+      default:
+          throw std::runtime_error("Unknown minimization option");
+    }
+    set_synthesis_outputs(strat, outs);
+  }
+
+  twa_graph_ptr
+  minimize_strategy(const_twa_graph_ptr& strat, int min_lvl)
+  {
+    auto strat_dup = spot::make_twa_graph(strat, spot::twa::prop_set::all());
+    set_synthesis_outputs(strat_dup,
+                          get_synthesis_outputs(strat));
+    if (auto sp_ptr = strat->get_named_prop<region_t>("state-player"))
+      set_state_players(strat_dup, *sp_ptr);
+    minimize_strategy_here(strat_dup, min_lvl);
+    return strat_dup;
+  }
+
+  twa_graph_ptr
+  create_strategy(twa_graph_ptr arena, game_info& gi)
+  {
+    if (!arena)
+      throw std::runtime_error("Arena can not be null");
+
+    spot::stopwatch sw;
+
+    if (gi.bv)
+      sw.start();
+
+    if (!get_state_winner(arena, arena->get_init_state_number()))
+      return nullptr;
+
+    // If we use minimizations 0,1 or 2 -> unsplit
+    const bool do_unsplit = gi.minimize_lvl < 3;
+    twa_graph_ptr strat_aut = apply_strategy(arena, do_unsplit, false);
+
+    strat_aut->prop_universal(true);
+
+    minimize_strategy_here(strat_aut, gi.minimize_lvl);
+
+    assert(do_unsplit
+           || strat_aut->get_named_prop<std::vector<bool>>("state-player"));
+    if (!do_unsplit)
+      strat_aut = unsplit_2step(strat_aut);
+
+    if (gi.bv)
+      {
+        gi.bv->strat2aut_time += sw.stop();
+        gi.bv->nb_strat_states += strat_aut->num_states();
+        gi.bv->nb_strat_edges += strat_aut->num_edges();
+      }
+
+    return strat_aut;
+  }
+
+  twa_graph_ptr
+  create_strategy(twa_graph_ptr arena)
+  {
+    game_info dummy;
+    return create_strategy(arena, dummy);
   }
 
 } // spot

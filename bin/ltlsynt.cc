@@ -353,7 +353,7 @@ namespace
                           << paritize_time << " seconds\n";
               if (want_time)
                 sw.start();
-              dpa = split_2step(tmp, all_inputs, all_outputs, true, true);
+              dpa = split_2step(tmp, all_outputs, true, false);
               spot::colorize_parity_here(dpa, true);
               if (want_time)
                 split_time = sw.stop();
@@ -376,7 +376,7 @@ namespace
                           << " states\n";
               if (want_time)
                 sw.start();
-              dpa = split_2step(aut, all_inputs, all_outputs, true, true);
+              dpa = split_2step(aut, all_outputs, true, false);
               spot::colorize_parity_here(dpa, true);
               if (want_time)
                 split_time = sw.stop();
@@ -390,7 +390,7 @@ namespace
             {
               if (want_time)
                 sw.start();
-              auto split = split_2step(aut, all_inputs, all_outputs,
+              auto split = split_2step(aut, all_outputs,
                                        true, false);
               if (want_time)
                 split_time = sw.stop();
@@ -447,7 +447,7 @@ namespace
 
               if (want_time)
                 sw.start();
-              dpa = split_2step(dpa, all_inputs, all_outputs, true, true);
+              dpa = split_2step(dpa, all_outputs, true, false);
               spot::colorize_parity_here(dpa, true);
               if (want_time)
                 split_time = sw.stop();
@@ -472,7 +472,7 @@ namespace
           spot::print_hoa(std::cout, dpa, opt_print_hoa_args) << '\n';
           return 0;
         }
-
+      set_synthesis_outputs(dpa, all_outputs);
       if (want_time)
         sw.start();
       bool player1winning = solve_parity_game(dpa);
@@ -489,8 +489,7 @@ namespace
             {
               if (want_time)
                 sw.start();
-              auto strat_aut = apply_strategy(dpa, all_outputs,
-                                              true, false);
+              auto strat_aut = apply_strategy(dpa, true, false);
               if (want_time)
                 strat2aut_time = sw.stop();
 

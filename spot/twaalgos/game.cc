@@ -19,6 +19,9 @@
 
 #include "config.h"
 
+#include <utility>
+
+#include <spot/misc/timer.hh>
 #include <spot/twaalgos/game.hh>
 #include <spot/misc/bddlt.hh>
 #include <spot/twaalgos/sccinfo.hh>
@@ -764,11 +767,80 @@ namespace spot
 
   } // anonymous
 
+
+  std::ostream& operator<<(std::ostream& os, game_info::solver s)
+  {
+    using solver = game_info::solver;
+    switch (s)
+    {
+      case (solver::DET_SPLIT):
+        os << "ds";
+        break;
+      case (solver::SPLIT_DET):
+        os << "sd";
+        break;
+      case (solver::DPA_SPLIT):
+        os << "ps";
+        break;
+      case (solver::LAR):
+        os << "lar";
+        break;
+      case (solver::LAR_OLD):
+        os << "lar.old";
+        break;
+    }
+    return os;
+}
+
+  std::ostream&
+  operator<<(std::ostream& os, const game_info& gi)
+  {
+    os << "force sbacc: " << gi.force_sbacc << '\n'
+       << "solver: " << gi.s << '\n'
+       << "minimization-lvl: " << gi.minimize_lvl << '\n'
+       << (gi.verbose_stream ? "Is verbose\n" : "Is not verbose\n")
+       << "the bdd_dict used is " << gi.dict.get();
+    return os;
+  }
+
   bool solve_parity_game(const twa_graph_ptr& arena)
   {
     parity_game pg;
     return pg.solve(arena);
   }
+
+  bool solve_game(twa_graph_ptr arena, game_info& gi)
+  {
+    stopwatch sw;
+    if (gi.bv)
+      sw.start();
+    bool dummy1, dummy2;
+    bool ret;
+
+    if (arena->acc().is_parity(dummy1, dummy2, true))
+      {
+        if (gi.verbose_stream)
+          *(gi.verbose_stream) << "Identified as parity game.\n";
+        ret = solve_parity_game(arena);
+      }
+    else
+      throw std::runtime_error("No solver available for this arena due to its"
+                               "acceptance condition.");
+    if (gi.bv)
+      gi.bv->solve_time += sw.stop();
+    if (gi.verbose_stream)
+      *(gi.verbose_stream) << "game solved in "
+                           << gi.bv->solve_time << " seconds\n";
+    return ret;
+  }
+
+  bool
+  solve_game(twa_graph_ptr arena)
+  {
+    game_info dummy1;
+    return solve_game(arena, dummy1);
+  }
+
 
   void pg_print(std::ostream& os, const const_twa_graph_ptr& arena)
   {
@@ -901,60 +973,86 @@ namespace spot
     return aut;
   }
 
-  void set_state_players(twa_graph_ptr arena, std::vector<bool> owners)
+  void set_state_players(twa_graph_ptr arena, const region_t& owners)
   {
-    std::vector<bool>* owners_ptr = new std::vector<bool>(owners);
-    set_state_players(arena, owners_ptr);
+    set_state_players(arena, region_t(owners));
   }
 
-  void set_state_players(twa_graph_ptr arena, std::vector<bool>* owners)
+  void set_state_players(twa_graph_ptr arena, region_t&& owners)
   {
-    if (owners->size() != arena->num_states())
+    if (owners.size() != arena->num_states())
       throw std::runtime_error
         ("set_state_players(): There must be as many owners as states");
 
-    arena->set_named_prop<std::vector<bool>>("state-player", owners);
+    arena->set_named_prop<region_t>("state-player",
+        new region_t(std::forward<region_t>(owners)));
   }
 
-  void set_state_player(twa_graph_ptr arena, unsigned state, unsigned owner)
+  void set_state_player(twa_graph_ptr arena, unsigned state, bool owner)
   {
     if (state >= arena->num_states())
       throw std::runtime_error("set_state_player(): invalid state number");
 
-    std::vector<bool> *owners = arena->get_named_prop<std::vector<bool>>
-      ("state-player");
+    region_t *owners = arena->get_named_prop<region_t>("state-player");
     if (!owners)
-      {
-        owners = new std::vector<bool>(arena->num_states(), false);
-        arena->set_named_prop<std::vector<bool>>("state-player", owners);
-      }
+      throw std::runtime_error("set_state_player(): Can only set the state of "
+                               "an individual "
+                               "state if \"state-player\" already exists.");
+    if (owners->size() != arena->num_states())
+      throw std::runtime_error("set_state_player(): The \"state-player\" "
+                               "vector has a different "
+                               "size comparerd to the automaton! "
+                               "Called new_state in between?");
 
     (*owners)[state] = owner;
   }
 
-  const std::vector<bool>& get_state_players(const_twa_graph_ptr arena)
+  const region_t& get_state_players(const_twa_graph_ptr arena)
   {
-    std::vector<bool> *owners = arena->get_named_prop<std::vector<bool>>
+    region_t *owners = arena->get_named_prop<region_t>
       ("state-player");
     if (!owners)
       throw std::runtime_error
-        ("get_state_players(): state-player property not defined, not a game");
+        ("get_state_players(): state-player property not defined, not a game?");
 
     return *owners;
   }
 
-  unsigned get_state_player(const_twa_graph_ptr arena, unsigned state)
+  bool get_state_player(const_twa_graph_ptr arena, unsigned state)
   {
     if (state >= arena->num_states())
       throw std::runtime_error("get_state_player(): invalid state number");
 
-    std::vector<bool>* owners = arena->get_named_prop<std::vector<bool>>
-      ("state-player");
+    region_t* owners = arena->get_named_prop<region_t>("state-player");
     if (!owners)
       throw std::runtime_error
-        ("get_state_player(): state-player property not defined, not a game");
+        ("get_state_player(): state-player property not defined, not a game?");
 
-    return (*owners)[state] ? 1 : 0;
+    return (*owners)[state];
+  }
+
+
+  const strategy_t& get_strategy(const_twa_graph_ptr arena)
+  {
+    auto strat_ptr = arena->get_named_prop<strategy_t>("strategy");
+    if (!strat_ptr)
+      throw std::runtime_error("get_strategy(): Named prop "
+                               "\"strategy\" not set."
+                               "Arena not solved?");
+    return *strat_ptr;
+  }
+
+  void set_strategy(twa_graph_ptr arena, const strategy_t& strat)
+  {
+    set_strategy(arena, strategy_t(strat));
+  }
+  void set_strategy(twa_graph_ptr arena, strategy_t&& strat)
+  {
+    if (arena->num_states() != strat.size())
+      throw std::runtime_error("set_strategy(): strategies need to have "
+                               "the same size as the automaton.");
+    arena->set_named_prop<strategy_t>("strategy",
+        new strategy_t(std::forward<strategy_t>(strat)));
   }
 
   void set_synthesis_outputs(const twa_graph_ptr& arena, const bdd& outs)
@@ -969,6 +1067,85 @@ namespace spot
     else
       throw std::runtime_error
           ("get_synthesis_outputs(): synthesis-outputs not defined");
+  }
+
+  std::vector<std::string>
+  get_synthesis_output_aps(const const_twa_graph_ptr& arena)
+  {
+    std::vector<std::string> out_names;
+
+    bdd outs = get_synthesis_outputs(arena);
+
+    auto dict = arena->get_dict();
+
+    auto to_bdd = [&](const auto& x)
+      {
+        return bdd_ithvar(dict->has_registered_proposition(x, arena.get()));
+      };
+
+    for (const auto& ap : arena->ap())
+      if (bdd_implies(outs, to_bdd(ap)))
+        out_names.push_back(ap.ap_name());
+
+    return out_names;
+  }
+
+
+  void set_state_winners(twa_graph_ptr arena, const region_t& winners)
+  {
+    set_state_winners(arena, region_t(winners));
+  }
+
+  void set_state_winners(twa_graph_ptr arena, region_t&& winners)
+  {
+    if (winners.size() != arena->num_states())
+      throw std::runtime_error
+        ("set_state_winners(): There must be as many winners as states");
+
+    arena->set_named_prop<region_t>("state-winner",
+        new region_t(std::forward<region_t>(winners)));
+  }
+
+  void set_state_winner(twa_graph_ptr arena, unsigned state, bool winner)
+  {
+    if (state >= arena->num_states())
+      throw std::runtime_error("set_state_winner(): invalid state number");
+
+    region_t *winners = arena->get_named_prop<region_t>("state-winner");
+    if (!winners)
+      throw std::runtime_error("set_state_winner(): Can only set the state of "
+                               "an individual "
+                               "state if \"state-winner\" already exists.");
+    if (winners->size() != arena->num_states())
+      throw std::runtime_error("set_state_winner(): The \"state-winnerr\" "
+                               "vector has a different "
+                               "size compared to the automaton! "
+                               "Called new_state in between?");
+
+    (*winners)[state] = winner;
+  }
+
+  const region_t& get_state_winners(const_twa_graph_ptr arena)
+  {
+    region_t *winners = arena->get_named_prop<region_t>("state-winner");
+    if (!winners)
+      throw std::runtime_error
+        ("get_state_winners(): state-winner property not defined, not a game?");
+
+    return *winners;
+  }
+
+  bool get_state_winner(const_twa_graph_ptr arena, unsigned state)
+  {
+    if (state >= arena->num_states())
+      throw std::runtime_error("get_state_winner(): invalid state number");
+
+    region_t* winners = arena->get_named_prop<region_t>("state-winner");
+    if (!winners)
+      throw std::runtime_error
+        ("get_state_winner(): state-winner property not defined, not a game?");
+
+    return (*winners)[state];
   }
 
 
