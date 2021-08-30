@@ -41,7 +41,7 @@ def equiv(a, b):
     return incl(a, b) and incl(b, a)
 
 
-def do_split(f, in_list, out_list):
+def do_split(f, out_list):
     aut = spot.translate(f)
     outputs = spot.buddy.bddtrue
     for a in out_list:
@@ -49,50 +49,42 @@ def do_split(f, in_list, out_list):
     s = spot.split_2step(aut, outputs, False, False)
     return aut, s
 
-def str_diff(expect, obtained):
-    res = expect == obtained
-    if not res:
-        print("Expected:\n", expect, "\nbut obtained:\n", obtained)
-    return res
-
-
-
-aut, s = do_split('(FG !a) <-> (GF b)', ['a'], ['b'])
+aut, s = do_split('(FG !a) <-> (GF b)', ['b'])
 assert equiv(aut, spot.unsplit_2step(s))
 
 del aut
 del s
 gcollect()
 
-aut, s = do_split('GFa && GFb', ['a'], ['b'])
+aut, s = do_split('GFa && GFb', ['b'])
 assert equiv(aut, spot.unsplit_2step(s))
-assert str_diff("""HOA: v1
-States: 3
-Start: 0
-AP: 2 "a" "b"
-acc-name: generalized-Buchi 2
-Acceptance: 2 Inf(0)&Inf(1)
-properties: trans-labels explicit-labels trans-acc complete
-properties: deterministic
-spot-state-player: 0 1 1
---BODY--
-State: 0
-[0] 1
-[!0] 2
-State: 1
-[!1] 0 {0}
-[1] 0 {0 1}
-State: 2
-[!1] 0
-[1] 0 {1}
---END--""", s.to_str() )
+# FIXME see below
+# assert str_diff("""HOA: v1
+# States: 3
+# Start: 0
+# AP: 2 "a" "b"
+# acc-name: generalized-Buchi 2
+# Acceptance: 2 Inf(0)&Inf(1)
+# properties: trans-labels explicit-labels trans-acc complete
+# properties: deterministic
+# spot-state-player: 0 1 1
+# --BODY--
+# State: 0
+# [0] 1
+# [!0] 2
+# State: 1
+# [!1] 0 {0}
+# [1] 0 {0 1}
+# State: 2
+# [!1] 0
+# [1] 0 {1}
+# --END--""", s.to_str() )
 
 del aut
 del s
 gcollect()
 
-aut, s = do_split('! ((G (req -> (F ack))) && (G (go -> (F grant))))',
-                  ['go', 'req'], ['ack'])
+aut, s = do_split('! ((G (req -> (F ack))) && (G (go -> (F grant))))', ['ack'])
 assert equiv(aut, spot.unsplit_2step(s))
 # FIXME s.to_str() is NOT the same on Debian stable and on Debian unstable
 #       we should investigate this
@@ -137,5 +129,5 @@ gcollect()
 
 aut, s = do_split('((G (((! g_0) || (! g_1)) && ((r_0 && (X r_1)) -> (F (g_0 \
     && g_1))))) && (G (r_0 -> F g_0))) && (G (r_1 -> F g_1))',
-                  ['r_0', 'r_1'], ['g_0', 'g_1'])
+                  ['g_0', 'g_1'])
 assert equiv(aut, spot.unsplit_2step(s))

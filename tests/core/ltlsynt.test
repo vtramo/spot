@@ -25,23 +25,23 @@ set -e
 cat >exp <<EOF
 parity 17;
 0 1 0 7,8 "INIT";
-8 3 1 1,2;
+8 3 1 2;
 2 1 0 11,12;
-12 5 1 1,4;
-4 1 0 7,15;
-15 3 1 5,6;
-6 1 0 7,15;
-7 3 1 2;
-5 1 0 16,17;
-17 4 1 5,6;
-16 4 1 2;
-1 1 0 9,10;
-10 3 1 1,5;
-9 3 1 2,3;
+12 5 1 2,3;
 3 1 0 13,14;
-14 4 1 1,4;
-13 4 1 2,3;
-11 5 1 2,3;
+14 4 1 2,3;
+13 4 1 1,4;
+4 1 0 8,15;
+15 3 1 5,6;
+6 1 0 8,15;
+5 1 0 16,17;
+17 4 1 2;
+16 4 1 5,6;
+1 1 0 9,10;
+10 3 1 2,3;
+9 3 1 1,5;
+11 5 1 1,4;
+7 3 1 1,2;
 parity 13;
 0 1 0 1,2 "INIT";
 2 1 1 3;
@@ -59,11 +59,11 @@ parity 13;
 1 1 1 6,3;
 parity 5;
 1 1 0 4,5 "INIT";
-5 5 1 0,1;
+5 4 1 1,1;
+4 5 1 0,1;
 0 1 0 2,3;
-3 3 1 0,0;
-2 5 1 1;
-4 4 1 1,1;
+3 5 1 1;
+2 3 1 0,0;
 EOF
 
 : > out
@@ -221,7 +221,7 @@ cat >exp <<EOF
 translating formula done in X seconds
 automaton has 3 states and 2 colors
 split inputs and outputs done in X seconds
-automaton has 9 states
+automaton has 10 states
 determinization done
 DPA has 12 states, 4 colors
 simplification done

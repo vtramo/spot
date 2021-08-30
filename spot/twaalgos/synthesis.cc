@@ -143,7 +143,12 @@ namespace spot
     split->copy_acceptance_of(aut);
     split->new_states(aut->num_states());
     split->set_init_state(aut->get_init_state_number());
+    split->set_named_prop<bdd>("synthesis-output", new bdd(output_bdd));
 
+    auto [is_unsat, unsat_mark] = aut->acc().unsat_mark();
+    if (!is_unsat && complete_env)
+      throw std::runtime_error("split_2step(): Can not complete arena for "
+                               "env as there is no unsat mark.");
 
     bdd input_bdd = bddtrue;
     {
@@ -166,7 +171,7 @@ namespace spot
 
     // a sort of hash-map for all new intermediate states
     std::unordered_multimap<size_t, unsigned> env_hash;
-    env_hash.reserve((int) 1.5 * aut->num_states());
+    env_hash.reserve((int) (1.5 * aut->num_states()));
     // a local map for edges leaving the current src
     // this avoids creating and then combining edges for each minterm
     // Note there are usually "few" edges leaving a state
@@ -188,11 +193,15 @@ namespace spot
 
     // If a completion is demanded we might have to create sinks
     // Sink controlled by player
-    auto get_sink_con_state = [&split]()
+    auto get_sink_con_state = [&split, um = unsat_mark](bool create = true)
       {
-        static unsigned sink_con=0;
-        if (SPOT_UNLIKELY(sink_con == 0))
-          sink_con = split->new_state();
+        static unsigned sink_con=-1u;
+        if (SPOT_UNLIKELY((sink_con == -1u) && create))
+          {
+            sink_con = split->new_states(2);
+            split->new_edge(sink_con, sink_con+1, bddtrue, um);
+            split->new_edge(sink_con+1, sink_con, bddtrue, um);
+          }
         return sink_con;
       };
 
@@ -242,10 +251,8 @@ namespace spot
         // get different intermediate states
         std::sort(e_cache.begin(), e_cache.end(), less_info);
 
-        while (all_letters != bddfalse)
+        for (auto one_letter : minterms_of(all_letters, input_bdd))
           {
-            bdd one_letter = bdd_satoneset(all_letters, support, bddtrue);
-            all_letters -= one_letter;
 
             dests.clear();
             for (const auto& e_info : e_cache)
@@ -314,15 +321,20 @@ namespace spot
       } // v-src
 
     split->merge_edges();
-    split->prop_universal(spot::trival::maybe());
+    split->prop_universal(trival::maybe());
 
     // The named property
     // compute the owners
     // env is equal to false
-    std::vector<bool> owner(split->num_states(), false);
+    std::vector<bool>* owner =
+        new std::vector<bool>(split->num_states(), false);
     // All "new" states belong to the player
-    std::fill(owner.begin()+aut->num_states(), owner.end(), true);
-    set_state_players(split, std::move(owner));
+    std::fill(owner->begin()+aut->num_states(), owner->end(), true);
+    // Check if sinks have been created
+    if (get_sink_con_state(false) != -1u)
+      owner->at(get_sink_con_state(false)) = false;
+    split->set_named_prop("state-player", owner);
+
     // Done
     return split;
   }
