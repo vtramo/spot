@@ -162,6 +162,8 @@ namespace spot
     acd(const scc_info& si);
     acd(const const_twa_graph_ptr& aut);
 
+    ~acd();
+
     /// \brief Walk through the ACD.
     ///
     /// Given a \a branch number, and an edge, this returns
@@ -246,6 +248,20 @@ namespace spot
     void dot(std::ostream&) const;
 
   private:
+    const scc_info* si_;
+    bool own_si_ = false;
+
+    // This structure is used to represent one node in the ACD forest.
+    // The tree use a left-child / right-sibling representation
+    // (called here first_child, next_sibling).  Each node
+    // additionally store a level (depth in the ACD, adjusted at the
+    // end of the construction so that all node on the same level have
+    // the same parity), the SCC (which is also it's tree number), and
+    // some bit vectors representing the edges and states of that
+    // node.  Those bit vectors are as large as the original
+    // automaton, and they are shared among nodes from the different
+    // trees of the ACD forest (since each tree correspond to a
+    // different SCC, they cannot share state or edges).
     struct acd_node
     {
       unsigned parent;
@@ -253,23 +269,47 @@ namespace spot
       unsigned first_child = 0;
       unsigned level;
       unsigned scc;
-      std::vector<bool> edges;
-      std::vector<bool> states;
+      std::vector<bool>& edges;
+      std::vector<bool>& states;
+      acd_node(std::vector<bool>& e, std::vector<bool>& s) noexcept
+        : edges(e), states(s)
+      {
+      }
     };
+    // We store the nodes in a deque so that their addresses do not
+    // change.
     std::deque<acd_node> nodes_;
+    // Likewise for bitvectors: this is the support for all edge vectors
+    // and state vectors used in acd_node.
+    std::deque<std::vector<bool>> bitvectors;
+    // Information about a tree of the ACD.  Each tree correspond
+    // to an SCC.
     struct scc_data
     {
-      bool trivial;
-      unsigned root = 0;
-      bool is_even;
-      unsigned max_level = 0;
+      bool trivial;             // whether the SCC is trivial we do
+                                // not store any node for trivial
+                                // SCCs.
+      unsigned root = 0;        // root node of a non-trivial SCC.
+      bool is_even;             // parity of the tree, used at the end
+                                // of the construction to adjust
+                                // levels.
+      unsigned max_level = 0;   // Maximum level for this SCC.
+      unsigned num_nodes = 0;   // Number of node in this tree.  This
+                                // is only used to share bitvectors
+                                // between SCC: node with the same
+                                // "rank" in each tree share the same
+                                // bitvectors.
     };
     std::vector<scc_data> trees_;
     unsigned scc_count_;
     const_twa_graph_ptr aut_;
+    // Information about the overall ACD.
     bool is_even_;
     bool has_rabin_shape_ = true;
     bool has_streett_shape_ = true;
+
+    // Build the ACD structure.  Called by the constructors.
+    void build_();
 
     // leftmost branch of \a node that contains \a state
     unsigned leftmost_branch_(unsigned node, unsigned state);

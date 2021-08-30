@@ -368,19 +368,50 @@ namespace spot
   }
 
   acd::acd(const const_twa_graph_ptr& aut)
-    : acd(scc_info(aut))
+    : si_(new scc_info(aut)), own_si_(true), trees_(si_->scc_count())
   {
+    build_();
   }
 
   acd::acd(const scc_info& si)
-    : trees_(si.scc_count())
+    : si_(&si), own_si_(false), trees_(si_->scc_count())
   {
-    unsigned scc_count = scc_count_ = si.scc_count();
-    const_twa_graph_ptr aut = aut_ = si.get_aut();
+    build_();
+  }
+
+  acd::~acd()
+  {
+    if (own_si_)
+      delete si_;
+  }
+
+  void acd::build_()
+  {
+    unsigned scc_count = scc_count_ = si_->scc_count();
+    const_twa_graph_ptr aut = aut_ = si_->get_aut();
     unsigned nedges = aut->get_graph().edge_vector().size();
     unsigned nstates = aut->num_states();
     acc_cond posacc = aut->acc();
     acc_cond negacc(posacc.num_sets(), posacc.get_acceptance().complement());
+
+    // The bitvectors store edge and state-vectors that are shared
+    // among the different trees.
+    auto allocate_vectors_maybe = [&](unsigned n)
+    {
+      if (bitvectors.size() > 2 * n)
+        return;
+      bitvectors.emplace_back(nedges, false);
+      bitvectors.emplace_back(nstates, false);
+    };
+    auto edge_vector = [&] (unsigned n) -> std::vector<bool>&
+    {
+      return bitvectors[2 * n];
+    };
+    auto state_vector = [&] (unsigned n) -> std::vector<bool>&
+    {
+      return bitvectors[2 * n + 1];
+    };
+    allocate_vectors_maybe(0);
 
     // Remember the max level since of each tree of different parity.
     // We will use that to decide if the output should have parity
@@ -391,20 +422,19 @@ namespace spot
 
     for (unsigned scc = 0; scc < scc_count; ++scc)
       {
-        if ((trees_[scc].trivial = si.is_trivial(scc)))
+        if ((trees_[scc].trivial = si_->is_trivial(scc)))
           continue;
+        trees_[scc].num_nodes = 1;
         unsigned root = nodes_.size();
         trees_[scc].root = root;
-        bool is_even = si.is_maximally_accepting_scc(scc);
+        bool is_even = si_->is_maximally_accepting_scc(scc);
         trees_[scc].is_even = is_even;
-        nodes_.emplace_back();
+        nodes_.emplace_back(edge_vector(0), state_vector(0));
         auto& n = nodes_.back();
         n.parent = root;
         n.level = 0;
         n.scc = scc;
-        n.edges.resize(nedges);
-        n.states.resize(nstates);
-        for (auto& e: si.inner_edges_of(scc))
+        for (auto& e: si_->inner_edges_of(scc))
           {
             n.edges[aut->edge_number(e)] = true;
             n.states[e.src] = true;
@@ -420,13 +450,13 @@ namespace spot
 
       auto callback = [&](scc_info si, unsigned siscc)
       {
-        nodes_.emplace_back();
+        unsigned vnum = trees_[scc].num_nodes++;
+        allocate_vectors_maybe(vnum);
+        nodes_.emplace_back(edge_vector(vnum), state_vector(vnum));
         auto& n = nodes_.back();
         n.parent = node;
         n.level = lvl + 1;
         n.scc = scc;
-        n.edges.resize(nedges);
-        n.states.resize(nstates);
         for (auto& e: si.inner_edges_of(siscc))
           {
             n.edges[aut->edge_number(e)] = true;
@@ -435,7 +465,7 @@ namespace spot
       };
 
       unsigned before_size = nodes_.size();
-      maximal_accepting_loops_for_scc(si, scc,
+      maximal_accepting_loops_for_scc(*si_, scc,
                                       accepting_node ? negacc : posacc,
                                       nodes_[node].edges, callback);
       unsigned after_size = nodes_.size();
@@ -586,7 +616,8 @@ namespace spot
         const char* sep = "T: ";
         for (unsigned n = 1; n <= nedges; ++n)
           {
-            bool val = n < nedges ? edges[n] : false;
+            bool val = n < nedges && edges[n]
+              && si_->scc_of(aut_->edge_storage(n).dst) == scc;
             if (val != lastval)
               {
                 if (lastval)
@@ -617,7 +648,7 @@ namespace spot
         sep = "\nQ: ";
         for (unsigned n = 0; n <= nstates; ++n)
           {
-            bool val = n < nstates ? states[n] : false;
+            bool val = n < nstates && states[n] && si_->scc_of(n) == scc;
             if (val != lastval)
               {
                 if (lastval)
