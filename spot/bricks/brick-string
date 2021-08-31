@@ -133,16 +133,16 @@ namespace brq
             return _transform.process( _stream, v );
         }
 
-        template< typename T > auto process( const T &v, fallback )
-        {
-            int start = _stream.size();
-            _stream << v;
-            size_t count = _stream.size() - start;
-            _stream.size() = start;
-            char buf[ count ];
-            std::memcpy( buf, _stream.buffer() + start, count );
-            _transform.process( _stream, std::string_view( buf, count ) );
-        }
+        // template< typename T > auto process( const T &v, fallback )
+        // {
+        //     int start = _stream.size();
+        //     _stream << v;
+        //     size_t count = _stream.size() - start;
+        //     _stream.size() = start;
+        //     char buf[ count ];
+        //     std::memcpy( buf, _stream.buffer() + start, count );
+        //     _transform.process( _stream, std::string_view( buf, count ) );
+        // }
 
         template< typename T > self_t &operator<<( const T &v )
         {
