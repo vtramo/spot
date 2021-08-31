@@ -22,41 +22,13 @@
 #include <deque>
 #include <spot/twaalgos/zlktree.hh>
 #include <spot/twaalgos/genem.hh>
-#include "spot/priv/bddalloc.hh"
 
 namespace spot
 {
-  zielonka_tree::zielonka_tree(const acc_cond& cond)
+  namespace
   {
-    const acc_cond::acc_code& code = cond.get_acceptance();
-    auto used = code.used_sets();
-    unsigned c = used.count();
-    unsigned max = used.max_set();
-
-    bdd_allocator ba;
-    int base = ba.allocate_variables(c);
-    assert(base == 0);
-    std::vector<bdd> col_to_bdd(max ? max : 1, bddfalse);
-    std::vector<unsigned> bdd_to_col(c);
-    bdd all_neg = bddtrue;
-    for (unsigned i = 0; i < max; ++i)
-      if (used.has(i))
-        {
-          bdd_to_col[base] = i;
-          all_neg &= bdd_nithvar(base);
-          col_to_bdd[i] = bdd_ithvar(base++);
-        }
-
-    bdd poscond = code.to_bdd(col_to_bdd.data());
-    bdd negcond = !poscond;
-
-    nodes_.emplace_back();
-    nodes_[0].parent = 0;
-    nodes_[0].colors = used;
-    nodes_[0].level = 0;
-
-    // Or goal is the find the list of maximal models for a formula named
-    // cond and defined later for each node.
+    // Or goal is the find the list of maximal models for a formula
+    // named cond and defined later for each node.
     //
     // For instance if cond is satisfied by {1}, {3}, {1,2}, {1,2,3},
     // {0,3}, and {0,1,3}, then the maximal models are {1,2,3} and
@@ -76,8 +48,61 @@ namespace spot
       unsigned size;
       acc_cond::mark_t model;
     };
-    std::vector<size_model> models;
 
+    void max_models(acc_cond cond,
+                    acc_cond::mark_t colors,
+                    std::vector<size_model>& out)
+    {
+      if (!colors)
+        return;
+      if (cond.accepting(colors))
+        {
+          unsigned sz = colors.count();
+          auto iter = out.begin();
+          while (iter != out.end())
+            {
+              if (iter->size < sz)
+                // We have checked all larger models.
+                break;
+              if (colors.subset(iter->model))
+                // curmodel is covered by iter->model.
+                return;
+              ++iter;
+            }
+          // insert the model
+          iter = out.insert(iter, {sz, colors});
+          ++iter;
+          // erase all models it contains
+          out.erase(std::remove_if(iter, out.end(),
+                                   [&](auto& mod) {
+                                     return mod.model.subset(colors);
+                                   }), out.end());
+        }
+      else if (acc_cond::mark_t fu = cond.fin_unit())
+        {
+          max_models(cond.remove(fu, true), colors - fu, out);
+        }
+      else if (int fo = cond.fin_one(); fo >= 0)
+        {
+          acc_cond::mark_t fo_m = {(unsigned) fo};
+          max_models(cond.remove(fo_m, true), colors - fo_m, out);
+          max_models(cond.remove(fo_m, false), colors, out);
+        }
+    }
+  }
+
+  zielonka_tree::zielonka_tree(const acc_cond& cond)
+  {
+    const acc_cond::acc_code& code = cond.get_acceptance();
+    auto used = code.used_sets();
+    acc_cond negcond(cond.num_sets(), cond.get_acceptance().complement());
+
+    nodes_.emplace_back();
+    nodes_[0].parent = 0;
+    nodes_[0].colors = used;
+    nodes_[0].level = 0;
+
+    std::vector<size_model> models;
     // This loop is a BFS over the increasing set of nodes.
     for (unsigned node = 0; node < nodes_.size(); ++node)
     {
@@ -86,67 +111,12 @@ namespace spot
       if (node == 0)
         is_even_ = is_accepting;
 
-      // colors that do not appear in this node should
-      // be set to false in the acceptance.
-      bdd to_remove = bddtrue;
-      for (unsigned c: (colors ^ used).sets())
-        to_remove &= !col_to_bdd[c];
-      bdd cond = bdd_restrict(is_accepting ? negcond : poscond, to_remove);
-
-      // These is where we will store the ordered list of models, as
-      // explained in the declation of that vector.
+      acc_cond c = (is_accepting ? negcond : cond).restrict_to(colors);
       models.clear();
+      max_models(c, colors, models);
 
-      while (cond != bddfalse)
-        {
-          // Find one model of cond.  If it has some don't cares
-          // variable, we interpret them as true, so in effect, we can
-          // start from a model where all colors are sets, and only
-          // unset those that are negative in the output of
-          // bdd_satone.
-          bdd one = bdd_satone(cond);
-          cond -= one;
-          acc_cond::mark_t curmodel = colors;
-          while (one != bddtrue)
-            {
-              unsigned v = bdd_to_col[bdd_var(one)];
-              if (bdd_high(one) == bddfalse)
-                {
-                  curmodel.clear(v);
-                  one = bdd_low(one);
-                }
-              else
-                {
-                  one = bdd_high(one);
-                }
-            }
-          //
-          unsigned sz = curmodel.count();
-          if (sz == 0)
-            // ignore the empty set
-            continue;
-          auto iter = models.begin();
-          while (iter != models.end())
-            {
-              if (iter->size < sz)
-                // We have checked all larger models.
-                break;
-              if (curmodel.subset(iter->model))
-                // curmodel is covered by iter->model.
-                goto donotinsert;
-              ++iter;
-            }
-          // insert the model
-          iter = models.insert(iter, {sz, curmodel});
-          ++iter;
-          // erase all models it contains
-          models.erase(std::remove_if(iter, models.end(),
-                                      [&](auto& mod) {
-                                        return mod.model.subset(curmodel);
-                                      }), models.end());
-        donotinsert:;
-        }
-      if (models.empty()) // This is a leaf of the tree.
+      unsigned num_children = models.size();
+      if (num_children == 0) // This is a leaf of the tree.
         {
           if (num_branches_++ == 0)
             one_branch_ = node;
@@ -154,7 +124,6 @@ namespace spot
         }
       unsigned first = nodes_.size();
       nodes_[node].first_child = first;
-      unsigned num_children = models.size();
       nodes_.reserve(first + num_children);
       for (auto& m: models)
         nodes_.push_back({node, static_cast<unsigned>(nodes_.size() + 1),
