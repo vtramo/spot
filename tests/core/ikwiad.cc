@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2007-2019 Laboratoire de Recherche et Développement
-// de l'Epita (LRDE).
+// Copyright (C) 2007-2019, 2021 Laboratoire de Recherche et
+// Développement de l'Epita (LRDE).
 // Copyright (C) 2003-2007 Laboratoire d'Informatique de Paris 6
 // (LIP6), département Systèmes Répartis Coopératifs (SRC), Université
 // Pierre et Marie Curie.
@@ -1249,7 +1249,7 @@ checked_main(int argc, char** argv)
                   switch (output)
                     {
                     case 0:
-                      spot::print_dot(std::cout, std::dynamic_pointer_cast
+                      spot::print_dot(std::cout, std::static_pointer_cast
                                             <spot::tgta_explicit>(a)->get_ta());
                       break;
                     case 12:
