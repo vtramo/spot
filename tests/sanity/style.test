@@ -164,7 +164,7 @@ for dir in "$TOP/spot" "$TOP/bin" "$TOP/tests"; do
       $GREP '[	 ]if ([^()]*([^()]*)[^()]*).*;' $tmp &&
 	diag 'if body should be on another line.'
 
-      $GREP '[	 ]else.*;' $tmp &&
+      $GREP -E '[	 ]else.*;(|.*}.*)$' $tmp &&
 	diag 'else body should be on another line.'
 
       $GREP '[	 ]while(' $tmp &&
