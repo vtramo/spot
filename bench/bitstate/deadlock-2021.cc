@@ -79,20 +79,22 @@ static void run_one_deadlock_bench(deadlock_model model, deadlock_type type)
   spot::ec_stats stats = {};
   if (type == deadlock_type::REF)
   {
-    stats = instanciate<
+    stats = spot::instanciate<
       spot::swarmed_deadlock<State, Iterator, Hash, Equal, std::false_type>,
       Kripke_ptr, State, Iterator, Hash, Equal> (sys);
   }
   else if (type == deadlock_type::CUSTOM_BF_DISABLE)
   {
-    stats = instanciate<spot::swarmed_deadlock_bitstate<State, Iterator, Hash,
+    stats = spot::instanciate<spot::swarmed_deadlock_bitstate<State,
+                                                        Iterator, Hash,
                                                         Equal, std::false_type>,
                         Kripke_ptr, State, Iterator, Hash, Equal>(
       sys, nullptr, false, model.hm_size + (model.filter_size / 32), 0);
   }
   else if (type == deadlock_type::CUSTOM_BF_ENABLE)
   {
-    stats = instanciate<spot::swarmed_deadlock_bitstate<State, Iterator, Hash,
+    stats = spot::instanciate<spot::swarmed_deadlock_bitstate<State,
+                                                        Iterator, Hash,
                                                         Equal, std::false_type>,
                         Kripke_ptr, State, Iterator, Hash, Equal>(
       sys, nullptr, false, model.hm_size, model.filter_size);
