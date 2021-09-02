@@ -663,7 +663,7 @@ following figure:
 #+END_SRC
 [[file:dot2tex.svg]]
 
-Here an example with bullets denoting acceptance sets, and SCCs:
+Here is an example with bullets denoting acceptance sets, and SCCs:
 
 #+BEGIN_SRC sh :exports code
 ltl2tgba -G -D '!a & FGa' --dot=sbarx | dot2tex --autosize --nominsize > out.tex
@@ -685,17 +685,10 @@ Caveats:
 - =dot2tex= should be called with option =--autosize= in order to
   compute the size of each label before calling GraphViz to layout the
   graph.  This is because GraphViz cannot compute the correct size of
-  mathematical formulas.  Unfortunately, the release of =dot2tex
-  2.9.0= contains a bug where sizes are interpreted as integers instead
-  of floats.  This can cause labels or shapes to disappear.  This bug
-  of =dot2tex= was fixed in 2014, but at the time of writing
-  (summer 2017) no new release of =dot2tex= has been made.  To work around this,
-  make sure you install =dot2tex= from its git repository:
-  #+BEGIN_SRC sh :exports code
-  git clone https://github.com/kjellmf/dot2tex.git
-  cd dot2tex
-  sudo python setup.py install
-  #+END_SRC
+  mathematical formulas.  Make sure you use =dot2tex= version 2.11 or
+  later, as earlier releases had a bug where sizes were interpreted
+  as integers instead of floats, causing labels or shapes to
+  disappear.
 - The default size of nodes seems slightly too big for our usage.
   Using =--nominsize= is just one way around it.  Refer to the
   [[https://dot2tex.readthedocs.io/en/latest/][=dot2tex= manual]] for finer ways to set the node size.
