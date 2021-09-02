@@ -67,7 +67,7 @@ namespace spot
       : mem_size_(mem_size), mem_size_bits_(mem_size * BITS_PER_ELEMENT),
       hash_functions_(hash_functions)
     {
-      bits_ = new std::atomic<uint64_t>[mem_size_]();
+      bits_ = new std::atomic<uint64_t>[mem_size_];
       if (hash_functions.empty())
         throw std::invalid_argument("Bloom filter has no hash functions");
     }

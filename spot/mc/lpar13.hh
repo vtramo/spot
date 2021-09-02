@@ -254,6 +254,12 @@ namespace spot
       return dfs_number;
     }
 
+    unsigned unique_states()
+    {
+      // FIXME
+      return 0;
+    }
+
     unsigned int transitions()
     {
       return trans_;

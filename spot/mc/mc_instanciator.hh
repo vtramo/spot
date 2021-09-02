@@ -56,6 +56,7 @@ namespace spot
           std::is_same<void,        decltype(u->finalize())>::value          &&
           std::is_same<bool,        decltype(u->finisher())>::value          &&
           std::is_same<unsigned,    decltype(u->states())>::value            &&
+          std::is_same<unsigned,    decltype(u->unique_states())>::value     &&
           std::is_same<unsigned,    decltype(u->transitions())>::value       &&
           std::is_same<unsigned,    decltype(u->walltime())>::value          &&
           std::is_same<std::string, decltype(u->name())>::value              &&
@@ -100,7 +101,8 @@ namespace spot
     tm.start("Initialisation");
     // FIXME: use singleton instead? (only used in bloemen)
     // FIXME: different params for make_shared_structure and constructor?
-    ss[0] = algo_name::make_shared_structure(map, 0, std::forward<Params>(params)...);
+    ss[0] = algo_name::make_shared_structure(map, 0,
+                                             std::forward<Params>(params)...);
     for (unsigned i = 0; i < nbth; ++i)
       {
         swarmed[i] = new algo_name(*sys, prop, map, ss[0], i, stop,
@@ -166,6 +168,8 @@ namespace spot
         result.value.emplace_back(swarmed[i]->result());
         result.finisher.emplace_back(swarmed[i]->finisher());
       }
+
+    result.unique_states = swarmed[0]->unique_states();
 
     if (trace)
       {
@@ -239,10 +243,11 @@ namespace spot
          <spot::swarmed_deadlock<State, Iterator, Hash, Equal, std::true_type>,
            kripke_ptr, State, Iterator, Hash, Equal> (sys, prop, trace);
 
-      case mc_algorithm::DEADLOCK_BITSTATE:
-        return instanciate
-         <spot::swarmed_deadlock_bitstate<State, Iterator, Hash, Equal, std::true_type>,
-           kripke_ptr, State, Iterator, Hash, Equal> (sys, prop, trace);
+        // FIXME: provide ability to fix the size of the hashmap
+        // case mc_algorithm::DEADLOCK_BITSTATE: return instanciate
+        //   <spot::swarmed_deadlock_bitstate<State, Iterator, Hash,
+        //   Equal, std::true_type>, kripke_ptr, State, Iterator,
+        //   Hash, Equal> (sys, prop, trace);
 
       case mc_algorithm::REACHABILITY:
         return instanciate

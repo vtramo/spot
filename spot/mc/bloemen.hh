@@ -537,6 +537,12 @@ namespace spot
       return states_;
     }
 
+    unsigned unique_states()
+    {
+      // FIXME
+      return 0;
+    }
+
     unsigned transitions()
     {
       return transitions_;

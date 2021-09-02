@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2015, 2016, 2017, 2018, 2019, 2020 Laboratoire de Recherche et
-// Developpement de l'Epita
+// Copyright (C) 2020 Laboratoire de Recherche et Developpement de
+// l'Epita
 //
 // This file is part of Spot, a model checking library.
 //
@@ -107,7 +107,8 @@ namespace spot
                       size_t hs_size, size_t filter_size)
     {
       auto mtx_ptr = new std::mutex();
-      auto hs_ptr = new concurrent_hash_set<State, StateHash, StateEqual>(mtx_ptr, hs_size);
+      auto hs_ptr =
+        new concurrent_hash_set<State, StateHash, StateEqual>(mtx_ptr, hs_size);
       auto bf_ptr = new concurrent_bloom_filter(filter_size);
       return new hs_mtx_wrapper{ mtx_ptr, hs_ptr, bf_ptr };
     }
@@ -228,7 +229,7 @@ namespace spot
       if (it->colors[tid_] == static_cast<int>(OPEN))
         return nullptr;
 
-      if (it->equal({s,nullptr}))
+      if (it->equal({s, nullptr}))
       {
         if (filter_size_ != 0)
         {
@@ -315,6 +316,12 @@ namespace spot
       return states_;
     }
 
+    unsigned unique_states()
+    {
+      // All state pass through the hashmap before going to the bloom filter
+      return map_->nb_inserted();
+    }
+
     unsigned transitions()
     {
       return transitions_;
@@ -365,7 +372,7 @@ namespace spot
     unsigned tid_;                         ///< \brief Thread's current ID
     shared_map map_;                       ///< \brief Map shared by threads
     StateHash state_hash_;
-    concurrent_bloom_filter* bloom_filter_;///< \brief BF shared by threads
+    concurrent_bloom_filter* bloom_filter_; ///< \brief BF shared by threads
     std::mutex *mtx_;
     spot::timer_map tm_;                   ///< \brief Time execution
     unsigned states_ = 0;                  ///< \brief Number of states
@@ -406,7 +413,7 @@ namespace spot
     std::optional<std::size_t> search(T element) const
     {
       // Capacity threshold
-      if (SPOT_UNLIKELY((100. * (double) nb_elements_ / hs_size_) >= 90. ))
+      if (SPOT_UNLIKELY((100. * (double) nb_elements_ / hs_size_) >= 90.))
         return std::nullopt;
 
       // Linear probing
@@ -417,7 +424,7 @@ namespace spot
         if (SPOT_UNLIKELY(nb_loop == hs_size_))
           return std::nullopt;
         idx = (idx + 1) % hs_size_;
-        nb_loop++;
+        ++nb_loop;
       }
       return std::optional<std::size_t>(idx);
     }
@@ -426,7 +433,7 @@ namespace spot
     {
       //std::scoped_lock<std::mutex> lock(*mtx_);
 
-      if (auto idx = search(element))
+      if (auto idx = search(element); idx)
       {
         if (hs_[*idx] != nullptr)
           return {hs_[*idx], false};
@@ -448,6 +455,7 @@ namespace spot
         {
           hs_[*idx] = new deadlock_pair<State, StateHash, StateEqual>{element};
           ++nb_elements_;
+          ++nb_inserted_;
           return {hs_[*idx], true};
         }
       }
@@ -491,10 +499,16 @@ namespace spot
         return false;
     }
 
+    unsigned nb_inserted()
+    {
+      return nb_inserted_;
+    }
+
   private:
     std::atomic<T*> *hs_;
-    std::atomic<std::size_t> nb_elements_;
+    std::atomic<std::size_t> nb_elements_ = 0;
+    std::atomic<std::size_t> nb_inserted_ = 0;
     std::mutex *mtx_;
-    std::size_t hs_size_;
+    std::size_t hs_size_ = 0;
   };
 }

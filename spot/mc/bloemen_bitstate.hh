@@ -84,7 +84,8 @@ namespace spot
     ///< \brief Shortcut to ease shared map manipulation
     using shared_map = concurrent_hash_set_uf<State, StateHash, StateEqual>*;
 
-    iterable_uf_bitstate(const iterable_uf_bitstate<State, StateHash, StateEqual>& uf):
+    iterable_uf_bitstate(const iterable_uf_bitstate<State, StateHash,
+                         StateEqual>& uf):
       map_(uf.map_), tid_(uf.tid_), size_(std::thread::hardware_concurrency()),
       nb_th_(std::thread::hardware_concurrency()), inserted_(0),
       p_(sizeof(uf_element)),
@@ -141,7 +142,8 @@ namespace spot
       uf_element* a_root = find(it);
       if (a_root->uf_status_.load() == uf_status::DEAD)
         return {claim_status::CLAIM_DEAD, it};
-      // XXX(thibault): est-ce qu'en parallèle on doit faire ce même test pour le cas de DONE ?
+      // XXX(thibault): est-ce qu'en parallèle on doit faire ce même
+      // test pour le cas de DONE ?
 
       if ((a_root->worker_.load() & w_id) != 0)
         return {claim_status::CLAIM_FOUND, it};
@@ -446,14 +448,17 @@ namespace spot
         size_t hs_size, size_t filter_size)
     {
       auto mtx_ptr = new std::mutex();
-      auto hs_ptr = new concurrent_hash_set_uf<State, StateHash, StateEqual>(mtx_ptr, hs_size);
+      auto hs_ptr =
+        new concurrent_hash_set_uf<State, StateHash, StateEqual>(mtx_ptr,
+                                                                 hs_size);
       return new uf(hs_ptr, i, filter_size);
     }
 
    swarmed_bloemen_bitstate(kripkecube<State, SuccIterator>& sys,
                             twacube_ptr, /* useless here */
                             shared_map& map, /* useless here */
-                            iterable_uf_bitstate<State, StateHash, StateEqual>* uf,
+                            iterable_uf_bitstate<State, StateHash,
+                                                 StateEqual>* uf,
                             unsigned tid,
                             std::atomic<bool>& stop,
                             size_t hs_size, /* useless here */
@@ -636,7 +641,7 @@ namespace spot
         if (SPOT_UNLIKELY(nb_loop == hs_size_))
           return std::nullopt;
         idx = (idx + 1) % hs_size_;
-        nb_loop++;
+        ++nb_loop;
       }
       return std::optional<std::size_t>(idx);
     }
@@ -667,7 +672,8 @@ namespace spot
         {
           hs_[*idx] = element;
           // XXX(thibault): move allocation/deallocation out of HM
-          // hs_[*idx] = new iterable_uf_bitstate<State, StateHash, StateEqual>::uf_element{element};
+          // hs_[*idx] = new iterable_uf_bitstate<State, StateHash,
+          // StateEqual>::uf_element{element};
           ++nb_elements_;
           return {hs_[*idx], true};
         }

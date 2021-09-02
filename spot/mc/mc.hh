@@ -62,6 +62,7 @@ namespace spot
    std::vector<mc_rvalue> value;      ///< \brief The return status
    std::vector<bool> finisher;        ///< \brief Is it the finisher thread?
    std::string trace;                 ///< \brief The output trace
+   unsigned unique_states = 0;
   };
 
   SPOT_API std::ostream& operator<<(std::ostream& os, const mc_algorithm& ma)

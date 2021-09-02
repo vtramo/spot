@@ -70,10 +70,10 @@ static std::vector<reachability_model> parse_config(std::string path)
   return models;
 }
 
-static spot::ltsmin_kripkecube_ptr load_model(std::string path)
+static spot::ltsmin_kripkecube_ptr load_model(std::string path,
+                                              unsigned nb_threads)
 {
   const unsigned compression_level = 0;
-  const unsigned nb_threads = 4;
 
   try
   {
@@ -92,31 +92,35 @@ static void run_one_reachability_bench(spot::ltsmin_kripkecube_ptr sys,
     std::size_t hs_size, std::size_t bf_size)
 {
   auto stats =
-      instanciate<spot::swarmed_deadlock_bitstate<State, Iterator, Hash,
+    spot::instanciate<spot::swarmed_deadlock_bitstate<State, Iterator, Hash,
                                                   Equal, std::false_type>,
                   Kripke_ptr, State, Iterator, Hash, Equal>(
           sys, nullptr, false, hs_size, bf_size);
 
   // Print stats
-  std::cout << hs_size << "," << bf_size
-  // XXX: for deadlock use map_.stats().used
-  // XXX: for deadlock_bitstate use an atomic integer to count map insert
-            << "," << stats.states[0]
+  std::cout << "#nb_threads,ht_size,bf_size," << std::endl;
+  std::cout << sys->get_threads()
+            << ','
+            << hs_size << ","
+            << bf_size << ",------"
+            << stats.unique_states
             << "\n";
 }
 
 int main(int argc, char** argv)
 {
-  if (argc != 2)
+  if (argc != 3)
   {
-    std::cout << "Usage: ./reachability-2021 [CONFIG_PATH]\n";
+    std::cout << "Usage: ./reachability-2021 [CONFIG_PATH] nb_threads\n";
     return 1;
   }
 
   auto models = parse_config(argv[1]);
+  unsigned nb_threads = (unsigned) atoi(argv[2]);
+
   for (auto model : models)
   {
-    auto sys = load_model(model.path);
+    auto sys = load_model(model.path, nb_threads);
     if (!sys)
     {
       std::cerr << "Could not load model: " << model.path << " (skipping)\n";
