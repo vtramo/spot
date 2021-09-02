@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2011, 2012, 2014-2020 Laboratoire de Recherche
+// Copyright (C) 2011, 2012, 2014-2021 Laboratoire de Recherche
 // et Développement de l'Epita (LRDE).
 // Copyright (C) 2003, 2004  Laboratoire d'Informatique de Paris 6 (LIP6),
 // département Systèmes Répartis Coopératifs (SRC), Université Pierre
@@ -115,6 +115,8 @@ namespace spot
       const char* nl_ = "\\n";
       const char* label_pre_ = "label=\"";
       char label_post_ = '"';
+      bool opt_id_ = false;
+      std::string opt_id_graph_;
 
       const_twa_graph_ptr aut_;
       std::string opt_font_;
@@ -278,6 +280,18 @@ namespace spot
               break;
             case 'h':
               opt_vertical_ = false;
+              break;
+            case 'i':
+              if (*options == '(')
+                {
+                  auto* end = strchr(++options, ')');
+                  if (!end)
+                    throw std::runtime_error
+                      ("unclosed \"i(...\" for print_dot()");
+                  opt_id_graph_ = std::string(options, end - options);
+                options = end + 1;
+                }
+              opt_id_ = true;
               break;
             case 'k':
               opt_state_labels_ = true;
@@ -516,8 +530,19 @@ namespace spot
                   os_ << 'T' << d << 'T' << dest;
                 else
                   os_ << d;
-                if (style && *style)
-                  os_ << " [" << style << ']';
+                if ((style && *style) || opt_id_)
+                  {
+                    os_ << " [";
+                    const char* sep = "";
+                    if (style && *style)
+                      {
+                        os_ << style;
+                        sep = ",";
+                      }
+                    if (opt_id_)
+                      os_ << sep << "id=\"E" << dest << 'E' << d << '\"';
+                    os_ << ']';
+                  }
                 os_ << '\n';
               }
             univ = 2;
@@ -628,6 +653,12 @@ namespace spot
               << "\"\n  node [fontname=\"" << opt_font_
               << "\"]\n  edge [fontname=\"" << opt_font_
               << "\"]\n";
+        if (opt_id_)
+          {
+            if (!opt_id_graph_.empty())
+              escape_str(os_ << "  id=\"", opt_id_graph_) << "\"\n";
+            os_ << "  node [id=\"S\\N\"]\n";
+          }
         // Always copy the environment variable into a static string,
         // so that we (1) look it up once, but (2) won't crash if the
         // environment is changed.
@@ -805,8 +836,15 @@ namespace spot
                   os_ << '#' << aut_->get_graph().index_of_edge(t);
                 os_ << '"';
               }
+            if (opt_id_)
+              {
+                unsigned index = aut_->get_graph().index_of_edge(t);
+                os_ << ", id=\"E" << index << '"';
+                // Somehow \E must appear as \\E in tooltip in
+                // graphviz 2.43.0; this looks like a bug.
+                os_ << ", tooltip=\"\\\\E\\n#" << index << '"';
+              }
           }
-
         std::string highlight;
         int color_num = -1;
         if (highlight_edges_)
@@ -966,6 +1004,8 @@ namespace spot
                   // May only occur if the call to
                   // determine_unknown_acceptance() above is removed.
                   os_ << "  color=orange\n";
+                if (opt_id_)
+                  os_ << "  id=\"SCC" << i << "\"\n";
 
                 if (name_ || opt_show_acc_)
                   {

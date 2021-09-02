@@ -100,3 +100,7 @@ g#version{transform-origin:50% 50%;animation-duration:3s;animation-name:animspot
 88%{transform:scale(1.1)}
 100%{transform:scale(1)}
 }
+#iddemo #E3 path{animation:flashstroke 1s linear infinite;}
+@keyframes flashstroke{50%{stroke:red;stroke-width:1.5;}}
+#iddemo #E3 polygon{animation:flashfill 1s linear infinite;}
+@keyframes flashfill{50%{stroke:red;stroke-width:1.5;fill:red}}

@@ -129,6 +129,14 @@ New in spot 2.9.8.dev (not yet released)
   - print_dot() will display states from player 1 using a diamond
     shape.
 
+  - print_dot() has a new option "i" to define id=... attributes for
+    states (S followed by the state number), edges (E followed by the
+    edge number), and SCCs (SCC followed by SCC number).  The option
+    "i(graphid)" will also set the id of the graph.  These id
+    attributes are useful if an automaton is converted into SVG and
+    one needs to refer to some particular state/edge/SCC with CSS or
+    javascript.  See https://spot.lrde.epita.fr/oaut.html#SVG-and-CSS
+
   - spot::postproc has new configuration variables that define
     thresholds to disable some costly operation in order to speedup
     the processing of large automata.  (Those variables are typically

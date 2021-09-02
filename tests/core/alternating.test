@@ -55,76 +55,87 @@ EOF
 
 test "1 2 4" = "`autfilt --stats='%u %[s]u %[e]u' alt.hoa`"
 
-autfilt --has-univ-branch --has-exist-branch --dot=bans alt.hoa >alt.dot
+autfilt --has-univ-branch --has-exist-branch --dot=bansi alt.hoa >alt.dot
 
+aho='arrowhead=onormal'
+b='style=bold,'
+tE='tooltip="\\E'
 cat >expect.dot <<EOF
 digraph "" {
   rankdir=LR
   label="Fin(⓿)\n[co-Büchi]"
   labelloc="t"
   node [shape="box",style="rounded",width="0.5"]
+  node [id="S\N"]
   I [label="", style=invis, width=0]
-  I -> -11 [arrowhead=onormal]
+  I -> -11 [$aho]
   subgraph cluster_0 {
   color=green
+  id="SCC0"
   label=""
   2 [label="G(a)"]
   }
   subgraph cluster_1 {
   color=red
+  id="SCC1"
   label=""
   1 [label="FG(a)\n⓿"]
   }
   subgraph cluster_2 {
   color=green
+  id="SCC2"
   label=""
   6 [label="t"]
   }
   subgraph cluster_3 {
   color=red
+  id="SCC3"
   label=""
   4 [label="F(b)\n⓿"]
   }
   subgraph cluster_4 {
   color=green
+  id="SCC4"
   label=""
   3 [label="GF(b)"]
   -8 [label=<>,shape=point,width=0.05,height=0.05]
   }
   subgraph cluster_5 {
   color=red
+  id="SCC5"
   label=""
   5 [label="((a) U (b))\n⓿"]
   }
   subgraph cluster_6 {
   color=black
+  id="SCC6"
   label=""
   0 [label="((((a) U (b)) && GF(b)) && FG(a))"]
   }
   -11 [label=<>,shape=point,width=0.05,height=0.05]
-  -11 -> 0
-  -11 -> 2
-  0 -> -1 [label="b", arrowhead=onormal]
+  -11 -> 0 [id="E-11E0"]
+  -11 -> 2 [id="E-11E2"]
+  0 -> -1 [label="b", id="E1", $tE\n#1", $aho]
   -1 [label=<>,shape=point,width=0.05,height=0.05]
-  -1 -> 1
-  -1 -> 3
-  0 -> -4 [label="a & !b", style=bold, color="#E31A1C", arrowhead=onormal]
+  -1 -> 1 [id="E-1E1"]
+  -1 -> 3 [id="E-1E3"]
+  0 -> -4 [label="a & !b", id="E2", $tE\n#2", $b color="#E31A1C", $aho]
   -4 [label=<>,shape=point,width=0.05,height=0.05]
-  -4 -> 1 [style=bold, color="#E31A1C"]
-  -4 -> 3 [style=bold, color="#E31A1C"]
-  -4 -> 5 [style=bold, color="#E31A1C"]
-  1 -> 2 [label="a"]
-  1 -> 1 [label="1"]
-  2 -> 2 [label="a"]
-  3 -> 3 [label="b"]
-  3 -> -8 [label="!b", style=bold, color="#FF7F00", arrowhead=onormal]
-  -8 -> 3 [style=bold, color="#FF7F00"]
-  -8 -> 4 [style=bold, color="#FF7F00"]
-  4 -> 6 [label="b"]
-  4 -> 4 [label="!b"]
-  5 -> 6 [label="b"]
-  5 -> 5 [label="a & !b"]
-  6 -> 6 [label="1"]
+  -4 -> 1 [$b color="#E31A1C",id="E-4E1"]
+  -4 -> 3 [$b color="#E31A1C",id="E-4E3"]
+  -4 -> 5 [$b color="#E31A1C",id="E-4E5"]
+  1 -> 2 [label="a", id="E3", $tE\n#3"]
+  1 -> 1 [label="1", id="E4", $tE\n#4"]
+  2 -> 2 [label="a", id="E5", $tE\n#5"]
+  3 -> 3 [label="b", id="E6", $tE\n#6"]
+  3 -> -8 [label="!b", id="E7", $tE\n#7", $b color="#FF7F00", $aho]
+  -8 -> 3 [$b color="#FF7F00",id="E-8E3"]
+  -8 -> 4 [$b color="#FF7F00",id="E-8E4"]
+  4 -> 6 [label="b", id="E8", $tE\n#8"]
+  4 -> 4 [label="!b", id="E9", $tE\n#9"]
+  5 -> 6 [label="b", id="E10", $tE\n#10"]
+  5 -> 5 [label="a & !b", id="E11", $tE\n#11"]
+  6 -> 6 [label="1", id="E12", $tE\n#12"]
 }
 EOF
 
@@ -502,7 +513,6 @@ EOF
 
 run 0 autfilt --dot='baryf(Lato)' ex6 > ex6.dot
 
-style='arrowhead=onormal'
 cat >expect6.dot<<EOF
 digraph "" {
   rankdir=LR
@@ -513,20 +523,20 @@ digraph "" {
   node [fontname="Lato"]
   edge [fontname="Lato"]
   I [label="", style=invis, width=0]
-  I -> -1 [arrowhead=onormal]
+  I -> -1 [$aho]
   -1 [label=<>,shape=point,width=0.05,height=0.05]
   -1 -> 0
   -1 -> 1
   0 [label=<0>]
   0 -> 0 [label=<!a &amp; !c>]
-  0 -> -1.1 [label=<a &amp; b &amp; !c>, style=bold, color="#FF4DA0", $style]
+  0 -> -1.1 [label=<a &amp; b &amp; !c>, $b color="#FF4DA0", $aho]
   -1.1 [label=<>,shape=point,width=0.05,height=0.05]
-  -1.1 -> 0 [style=bold, color="#FF4DA0"]
-  -1.1 -> 1 [style=bold, color="#FF4DA0"]
-  0 -> -1.2 [label=<a &amp; !c>, style=bold, color="#FF7F00", arrowhead=onormal]
+  -1.1 -> 0 [$b color="#FF4DA0"]
+  -1.1 -> 1 [$b color="#FF4DA0"]
+  0 -> -1.2 [label=<a &amp; !c>, $b color="#FF7F00", $aho]
   -1.2 [label=<>,shape=point,width=0.05,height=0.05]
-  -1.2 -> 0 [style=bold, color="#FF7F00"]
-  -1.2 -> 1 [style=bold, color="#FF7F00"]
+  -1.2 -> 0 [$b color="#FF7F00"]
+  -1.2 -> 1 [$b color="#FF7F00"]
   1 [label=<1>]
   1 -> 1 [label=<b>]
 }
@@ -608,16 +618,16 @@ digraph "SLAA for c R (c | G(a & b) | (F!b & F!a))" {
   }
   0 -> 4 [label=<c>]
   0 -> 0 [label=<!a &amp; !b &amp; !c>]
-  0 -> -1 [label=<a &amp; b &amp; !c>, arrowhead=onormal]
+  0 -> -1 [label=<a &amp; b &amp; !c>, $aho]
   -1 -> 0
   -1 -> 1
-  0 -> -4 [label=<a &amp; !b &amp; !c>, arrowhead=onormal]
+  0 -> -4 [label=<a &amp; !b &amp; !c>, $aho]
   -4 -> 0
   -4 -> 2
-  0 -> -7 [label=<!a &amp; b &amp; !c>, arrowhead=onormal]
+  0 -> -7 [label=<!a &amp; b &amp; !c>, $aho]
   -7 -> 0
   -7 -> 3
-  0 -> -10 [label=<a &amp; b &amp; !c>, arrowhead=onormal]
+  0 -> -10 [label=<a &amp; b &amp; !c>, $aho]
   -10 -> 0
   -10 -> 2
   -10 -> 3
@@ -701,17 +711,17 @@ digraph "SLAA for c R (c | G(a & b) | (F!b & F!a))" {
   }
   0 -> 4 [label=<c>]
   0 -> 0 [label=<!a &amp; !b &amp; !c>]
-  0 -> -1 [label=<a &amp; b &amp; !c>, arrowhead=onormal]
+  0 -> -1 [label=<a &amp; b &amp; !c>, $aho]
   -1 -> 0
   -1 -> 1
-  0 -> -4 [label=<a &amp; !b &amp; !c>, arrowhead=onormal]
+  0 -> -4 [label=<a &amp; !b &amp; !c>, $aho]
   -4 -> 0
   -4 -> 2
-  0 -> -7 [label=<!a &amp; b &amp; !c>, arrowhead=onormal]
+  0 -> -7 [label=<!a &amp; b &amp; !c>, $aho]
   -7 -> 0
   -7 -> 3
   1 -> 1 [label=<a &amp; b>]
-  1 -> -10 [label=<a &amp; b &amp; !c>, arrowhead=onormal]
+  1 -> -10 [label=<a &amp; b &amp; !c>, $aho]
   -10 -> 0
   -10 -> 2
   -10 -> 3
@@ -756,17 +766,17 @@ digraph "" {
   I [label="", style=invis, width=0]
   I -> 0
   0 [label=<0>]
-  0 -> -1.1 [label=<b &amp; c>, style=bold, color="#FF4DA0", arrowhead=onormal]
+  0 -> -1.1 [label=<b &amp; c>, $b color="#FF4DA0", $aho]
   -1.1 [label=<>,shape=point,width=0.05,height=0.05]
-  -1.1 -> 1 [style=bold, color="#FF4DA0"]
-  -1.1 -> 2 [style=bold, color="#FF4DA0"]
+  -1.1 -> 1 [$b color="#FF4DA0"]
+  -1.1 -> 2 [$b color="#FF4DA0"]
   1 [label=<1>]
-  1 -> -1.1 [label=<a &amp; b>, style=bold, color="#FF4DA0", arrowhead=onormal]
+  1 -> -1.1 [label=<a &amp; b>, $b color="#FF4DA0", $aho]
   2 [label=<2>]
-  2 -> -1.2 [label=<!a &amp; !b &amp; !c>, style=bold, color="#FF7F00", $style]
+  2 -> -1.2 [label=<!a &amp; !b &amp; !c>, $b color="#FF7F00", $aho]
   -1.2 [label=<>,shape=point,width=0.05,height=0.05]
-  -1.2 -> 1 [style=bold, color="#FF7F00"]
-  -1.2 -> 2 [style=bold, color="#FF7F00"]
+  -1.2 -> 1 [$b color="#FF7F00"]
+  -1.2 -> 2 [$b color="#FF7F00"]
 }
 EOF
 
@@ -803,20 +813,20 @@ digraph "" {
   I [label="", style=invis, width=0]
   I -> 0
   0 [label=<0>]
-  0 -> -1.1 [label=<b &amp; c>, style=bold, color="#FF4DA0", arrowhead=onormal]
+  0 -> -1.1 [label=<b &amp; c>, $b color="#FF4DA0", $aho]
   -1.1 [label=<>,shape=point,width=0.05,height=0.05]
-  -1.1 -> 1 [style=bold, color="#FF4DA0"]
-  -1.1 -> 2 [style=bold, color="#FF4DA0"]
+  -1.1 -> 1 [$b color="#FF4DA0"]
+  -1.1 -> 2 [$b color="#FF4DA0"]
   1 [label=<1>]
-  1 -> -1.3 [label=<a &amp; b>, style=bold, color="#6A3D9A", arrowhead=onormal]
+  1 -> -1.3 [label=<a &amp; b>, $b color="#6A3D9A", $aho]
   -1.3 [label=<>,shape=point,width=0.05,height=0.05]
-  -1.3 -> 1 [style=bold, color="#6A3D9A"]
-  -1.3 -> 2 [style=bold, color="#6A3D9A"]
+  -1.3 -> 1 [$b color="#6A3D9A"]
+  -1.3 -> 2 [$b color="#6A3D9A"]
   2 [label=<2>]
-  2 -> -1.2 [label=<!a &amp; !b &amp; !c>, style=bold, color="#FF7F00", $style]
+  2 -> -1.2 [label=<!a &amp; !b &amp; !c>, $b color="#FF7F00", $aho]
   -1.2 [label=<>,shape=point,width=0.05,height=0.05]
-  -1.2 -> 1 [style=bold, color="#FF7F00"]
-  -1.2 -> 2 [style=bold, color="#FF7F00"]
+  -1.2 -> 1 [$b color="#FF7F00"]
+  -1.2 -> 2 [$b color="#FF7F00"]
 }
 EOF
 
@@ -881,10 +891,10 @@ digraph "SLAA for G((b & Fa) | (!b & G!a))" {
   -4 [label=<>,shape=point,width=0.05,height=0.05]
   }
   0 -> 0 [label=<a &amp; b>]
-  0 -> -1 [label=<!a &amp; b>, arrowhead=onormal]
+  0 -> -1 [label=<!a &amp; b>, $aho]
   -1 -> 0
   -1 -> 1
-  0 -> -4 [label=<!a &amp; !b>, arrowhead=onormal]
+  0 -> -4 [label=<!a &amp; !b>, $aho]
   -4 -> 0
   -4 -> 2
   1 -> 3 [label=<a>]

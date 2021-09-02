@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2012-2020 Laboratoire de Recherche et Développement
+// Copyright (C) 2012-2021 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -97,7 +97,8 @@ static const argp_option options[] =
     /**************************************************/
     { nullptr, 0, nullptr, 0, "Output format:", 3 },
     { "dot", 'd',
-      "1|a|A|b|B|c|C(COLOR)|e|E|f(FONT)|h|k|K|n|N|o|r|R|s|t|u|v|y|+INT|<INT|#",
+      "1|a|A|b|B|c|C(COLOR)|e|E|f(FONT)|h|i(ID)|"
+      "k|K|n|N|o|r|R|s|t|u|v|y|+INT|<INT|#",
       OPTION_ARG_OPTIONAL,
       "GraphViz's format.  Add letters for "
       "(1) force numbered states, "
@@ -113,6 +114,7 @@ static const argp_option options[] =
       "(f(FONT)) use FONT, "
       "(g) hide edge labels, "
       "(h) horizontal layout, "
+      "(i) or (i(GRAPHID)) add IDs, "
       "(k) use state labels when possible, "
       "(K) use transition labels (default), "
       "(n) show name, "

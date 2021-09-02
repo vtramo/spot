@@ -26,7 +26,7 @@ ltl2tgba --help | sed -n 's/ *$//g;/Output format:/,/^$/p' | sed '1d;$d'
                              'unambiguous', 'stutter-invariant',
                              'stutter-sensitive-example', 'semi-determinism',
                              or 'strength'.
-  -d, --dot[=1|a|A|b|B|c|C(COLOR)|e|E|f(FONT)|h|k|K|n|N|o|r|R|s|t|u|v|y|+INT|<INT|#]
+  -d, --dot[=1|a|A|b|B|c|C(COLOR)|e|E|f(FONT)|h|i(ID)|k|K|n|N|o|r|R|s|t|u|v|y|+INT|<INT|#]
                              GraphViz's format.  Add letters for (1) force
                              numbered states, (a) show acceptance condition
                              (default), (A) hide acceptance condition, (b)
@@ -35,16 +35,17 @@ ltl2tgba --help | sed -n 's/ *$//g;/Output format:/,/^$/p' | sed '1d;$d'
                              nodes, (C) color nodes with COLOR, (d) show
                              origins when known, (e) force elliptic nodes, (E)
                              force rEctangular nodes, (f(FONT)) use FONT, (g)
-                             hide edge labels, (h) horizontal layout, (k) use
-                             state labels when possible, (K) use transition
-                             labels (default), (n) show name, (N) hide name,
-                             (o) ordered transitions, (r) rainbow colors for
-                             acceptance sets, (R) color acceptance sets by
-                             Inf/Fin, (s) with SCCs, (t) force transition-based
-                             acceptance, (u) hide true states, (v) vertical
-                             layout, (y) split universal edges by color, (+INT)
-                             add INT to all set numbers, (<INT) display at most
-                             INT states, (#) show internal edge numbers
+                             hide edge labels, (h) horizontal layout, (i) or
+                             (i(GRAPHID)) add IDs, (k) use state labels when
+                             possible, (K) use transition labels (default), (n)
+                             show name, (N) hide name, (o) ordered transitions,
+                             (r) rainbow colors for acceptance sets, (R) color
+                             acceptance sets by Inf/Fin, (s) with SCCs, (t)
+                             force transition-based acceptance, (u) hide true
+                             states, (v) vertical layout, (y) split universal
+                             edges by color, (+INT) add INT to all set numbers,
+                             (<INT) display at most INT states, (#) show
+                             internal edge numbers
   -H, --hoaf[=1.1|i|k|l|m|s|t|v]   Output the automaton in HOA format
                              (default).  Add letters to select (1.1) version
                              1.1 of the format, (i) use implicit labels for
@@ -584,8 +585,46 @@ The dot output can also be customized via two environment variables:
 
 #+BEGIN_SRC sh :exports code
 export SPOT_DOTDEFAULT='Brf(Lato)C(#ffffa0)'
-export SPOT_DOTEXTRA='edge[arrowhead=vee, arrowsize=.7]'
+export SPOT_DOTEXTRA='node[fontsize=12] fontsize=12 stylesheet="spot.css" edge[arrowhead=vee, arrowsize=.7, fontsize=12]'
 #+END_SRC
+
+** SVG and CSS
+  :PROPERTIES:
+  :CUSTOM_ID: SVG-and-CSS
+  :END:
+
+Each state, edge, or SCC in an automaton has a unique number.  When
+passing option =i= to the dot printer, this unique number will be used
+to form a unique =id= attribute for these elements: a prefix =S= (for
+state), =E= (for edge), or "SCC=" is simply added to the unique
+number.  Additionally, using =i(graphid)= will define =graphid= as
+that =id= of the automaton.  GraphViz will keep these identifier in
+the generated SVG, so this makes it possible to modify rendering
+of the automaton using CSS or javascript.
+
+As an example, the CSS file we use on this page contains:
+#+BEGIN_SRC css
+#iddemo #E3 path{animation:flashstroke 1s linear infinite;}
+@keyframes flashstroke{50%{stroke:red;stroke-width:1.5;}}
+#iddemo #E3 polygon{animation:flashfill 1s linear infinite;}
+@keyframes flashfill{50%{stroke:red;stroke-width:1.5;fill:red}}
+#+END_SRC
+therefore the third edge of any graph whose =id= is =iddemo= will
+be animated:
+
+#+NAME: oaut-dot4
+#+BEGIN_SRC sh :exports code
+  ltl2tgba -G -D 'GFa <-> XGb' --dot='i(iddemo).'
+#+END_SRC
+
+#+BEGIN_SRC dot :file oaut-dot4.svg :var txt=oaut-dot4 :exports results
+$txt
+#+END_SRC
+
+#+RESULTS:
+[[file:oaut-dot4.svg]]
+
+
 
 ** Working with =dot2tex=
   :PROPERTIES:

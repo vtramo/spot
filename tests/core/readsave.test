@@ -314,34 +314,38 @@ EOF
 
 autfilt -H input |
     SPOT_DEFAULT_FORMAT=dot \
-    SPOT_DOTDEFAULT=vcsnaA \
+    SPOT_DOTDEFAULT=vcsnaAi \
     SPOT_DOTEXTRA='/* hello world */' \
     autfilt >output
 
 cat >expected <<EOF
 digraph "" {
   node [shape="circle"]
+  node [id="S\N"]
   /* hello world */
   I [label="", style=invis, height=0]
   I -> 3
   subgraph cluster_0 {
   color=green
+  id="SCC0"
   1 [label="s1", peripheries=2]
   }
   subgraph cluster_1 {
   color=green
+  id="SCC1"
   0 [label="s0", peripheries=2]
   }
   subgraph cluster_2 {
   color=black
+  id="SCC2"
   3 [label="s3"]
   }
-  0 -> 0 [label="b"]
-  1 -> 1 [label="a"]
+  0 -> 0 [label="b", id="E1", tooltip="\\\\E\n#1"]
+  1 -> 1 [label="a", id="E2", tooltip="\\\\E\n#2"]
   2 [label="s2"]
-  2 -> 0 [label="b"]
-  3 -> 1 [label="a"]
-  3 -> 0 [label="b"]
+  2 -> 0 [label="b", id="E3", tooltip="\\\\E\n#3"]
+  3 -> 1 [label="a", id="E4", tooltip="\\\\E\n#4"]
+  3 -> 0 [label="b", id="E5", tooltip="\\\\E\n#5"]
 }
 EOF
 
@@ -371,7 +375,7 @@ digraph "G(Fa & Fb)" {
 EOF
 diff output expected
 
-ltl2tgba -dban 'GFa & GFb' >output
+ltl2tgba -d'bani(foo)' 'GFa & GFb' >output
 cat output
 cat >expected <<EOF
 digraph "G(Fa & Fb)" {
@@ -379,13 +383,15 @@ digraph "G(Fa & Fb)" {
   label="G(Fa & Fb)\nInf(⓿)&Inf(❶)\n[gen. Büchi 2]"
   labelloc="t"
   node [shape="circle"]
+  id="foo"
+  node [id="S\N"]
   I [label="", style=invis, width=0]
   I -> 0
   0 [label="0"]
-  0 -> 0 [label="!a & !b"]
-  0 -> 0 [label="a & !b\n⓿"]
-  0 -> 0 [label="!a & b\n❶"]
-  0 -> 0 [label="a & b\n⓿❶"]
+  0 -> 0 [label="!a & !b", id="E1", tooltip="\\\\E\n#1"]
+  0 -> 0 [label="a & !b\n⓿", id="E2", tooltip="\\\\E\n#2"]
+  0 -> 0 [label="!a & b\n❶", id="E3", tooltip="\\\\E\n#3"]
+  0 -> 0 [label="a & b\n⓿❶", id="E4", tooltip="\\\\E\n#4"]
 }
 EOF
 diff output expected
