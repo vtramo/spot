@@ -25,7 +25,7 @@
 
 namespace spot
 {
-  /// \brief make each transition (conditionally, see do__simpify)
+  /// \brief make each transition (conditionally, see do_simplify)
   ///        a 2-step transition
   ///
   /// Given a set of atomic propositions I, split each transition
@@ -55,6 +55,22 @@ namespace spot
   SPOT_API twa_graph_ptr
   split_2step(const const_twa_graph_ptr& aut,
               const bdd& output_bdd, bool complete_env, bool do_simplify);
+
+
+  /// \brief make each transition a 2-step transition.
+  ///        This algorithm is only applicable if all transitions of the
+  ///        graph have the form p -- ins & outs --> q.
+  ///        That is they are a conjunction of a condition over the input
+  ///        propositions ins and a condition over the output propositions outs
+  /// \param aut          automaton to be transformed
+  /// \param output_bdd   conjunction of all output AP, all APs not present
+  ///                     are treated as inputs
+  SPOT_API void
+  split_2step_fast_here(const twa_graph_ptr& aut, const bdd& output_bdd);
+
+  SPOT_API twa_graph_ptr
+  split_2step_fast(const const_twa_graph_ptr& aut, const bdd& output_bdd);
+
 
   /// \brief the reverse of split_2step
   ///

@@ -3456,6 +3456,16 @@ namespace spot
     if (!mm->acc().is_t())
       throw std::runtime_error("Mealy machine needs true acceptance!\n");
 
+    auto orig_spref = get_state_players(mm);
+    if (orig_spref.size() != mm->num_states())
+      throw std::runtime_error("Inconsistent \"state-player\"");
+
+    if (std::any_of(mm->edges().begin(), mm->edges().end(),
+                    [&](const auto& e){return orig_spref[e.src]
+                                              == orig_spref[e.dst]; }))
+      throw std::runtime_error("Arena is not alternating!");
+
+
     // Check if finite traces exist
     // If so, deactivate fast minimization
     // todo : this is overly conservative
@@ -3479,10 +3489,7 @@ namespace spot
         if (premin == -1)
           return mm;
         else
-          {
-            auto mm_res = minimize_mealy_fast(mm, premin == 1);
-            return mm_res;
-          }
+          return minimize_mealy_fast(mm, premin == 1);
       };
 
     const_twa_graph_ptr mmw = do_premin();
@@ -3490,11 +3497,7 @@ namespace spot
 
     // 0 -> "Env" next is input props
     // 1 -> "Player" next is output prop
-    auto spptr =
-        mmw->get_named_prop<std::vector<bool>>("state-player");
-    if (!spptr)
-      throw std::runtime_error("\"state-player\" must be defined!");
-    const auto& spref = *spptr;
+    const auto& spref = get_state_players(mmw);
     assert((spref.size() == mmw->num_states())
            && "Inconsistent state players");
 

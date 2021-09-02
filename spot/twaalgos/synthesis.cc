@@ -193,14 +193,18 @@ namespace spot
 
     // If a completion is demanded we might have to create sinks
     // Sink controlled by player
-    auto get_sink_con_state = [&split, um = unsat_mark](bool create = true)
+    unsigned sink_con = -1u;
+    unsigned sink_env = -1u;
+    auto get_sink_con_state = [&split, &sink_con, &sink_env,
+                               um = unsat_mark]
+                              (bool create = true)
       {
-        static unsigned sink_con=-1u;
         if (SPOT_UNLIKELY((sink_con == -1u) && create))
           {
-            sink_con = split->new_states(2);
-            split->new_edge(sink_con, sink_con+1, bddtrue, um);
-            split->new_edge(sink_con+1, sink_con, bddtrue, um);
+            sink_con = split->new_state();
+            sink_env = split->new_state();
+            split->new_edge(sink_con, sink_env, bddtrue, um);
+            split->new_edge(sink_env, sink_con, bddtrue, um);
           }
         return sink_con;
       };
@@ -331,12 +335,93 @@ namespace spot
     // All "new" states belong to the player
     std::fill(owner->begin()+aut->num_states(), owner->end(), true);
     // Check if sinks have been created
-    if (get_sink_con_state(false) != -1u)
-      owner->at(get_sink_con_state(false)) = false;
+    if (sink_env != -1u)
+      owner->at(sink_env) = false;
     split->set_named_prop("state-player", owner);
 
     // Done
     return split;
+  }
+
+  void
+  split_2step_fast_here(const twa_graph_ptr& aut, const bdd& output_bdd)
+  {
+    struct dst_cond_color_t
+    {
+      std::pair<unsigned, int> dst_cond;
+      acc_cond::mark_t color;
+    };
+
+    auto hasher = [](const dst_cond_color_t& dcc) noexcept
+      {
+        return dcc.color.hash() ^ pair_hash()(dcc.dst_cond);
+      };
+    auto equal = [](const dst_cond_color_t& dcc1,
+                    const dst_cond_color_t& dcc2) noexcept
+      {
+        return (dcc1.dst_cond == dcc2.dst_cond)
+               && (dcc1.color == dcc2.color);
+      };
+
+    std::unordered_map<dst_cond_color_t, unsigned,
+                       decltype(hasher),
+                       decltype(equal)> player_map(aut->num_edges(),
+                                                   hasher, equal);
+
+    auto get_ps = [&](unsigned dst, const bdd& ocond,
+                      acc_cond::mark_t color)
+      {
+        dst_cond_color_t key{std::make_pair(dst, ocond.id()),
+                             color};
+        auto [it, inserted] =
+            player_map.try_emplace(key, aut->num_states() + 1);
+        if (!inserted)
+          return it->second;
+        unsigned ns = aut->new_state();
+        assert(ns == it->second);
+        aut->new_edge(ns, dst, ocond, color);
+        return ns;
+      };
+
+    std::vector<unsigned> to_treat(aut->num_edges());
+    std::transform(aut->edges().begin(), aut->edges().end(),
+                   to_treat.begin(), [&](const auto& e)
+                   { return aut->edge_number(e); });
+
+    std::for_each(to_treat.begin(), to_treat.end(),
+                  [&](unsigned eidx)
+                  {
+                    const auto& e = aut->edge_storage(eidx);
+                    bdd incond = bdd_exist(e.cond, output_bdd);
+                    bdd outcond = bdd_existcomp(e.cond, output_bdd);
+                    assert(((incond&outcond) == e.cond)
+                          && "Precondition violated");
+                    // Modify
+                    // Create new state and trans
+                    unsigned new_dst = get_ps(e.dst, outcond, e.acc);
+                    // redirect
+                    aut->edge_storage(eidx).dst = new_dst;
+                    aut->edge_storage(eidx).cond = incond;
+                  });
+
+    auto* sp_ptr =
+        aut->get_or_set_named_prop<std::vector<bool>>("state-player");
+
+    sp_ptr->resize(aut->num_states());
+    std::fill(sp_ptr->begin(), sp_ptr->end(), false);
+    for (auto& eit : player_map)
+      (*sp_ptr)[eit.second] = true;
+    //Done
+  }
+
+  twa_graph_ptr
+  split_2step_fast(const const_twa_graph_ptr& aut, const bdd& output_bdd)
+  {
+    auto aut2 = make_twa_graph(aut, twa::prop_set::all());
+    aut2->copy_acceptance_of(aut);
+    aut2->set_named_prop<bdd>("synthesis-output", new bdd(output_bdd));
+    split_2step_fast_here(aut2, output_bdd);
+    return aut2;
   }
 
   twa_graph_ptr
@@ -423,9 +508,13 @@ namespace spot
     assert((sp[arena->get_init_state_number()] == false)
            && "Env needs to have first turn!");
 
-    assert(std::all_of(arena->edges().begin(), arena->edges().end(),
+    assert(std::none_of(arena->edges().begin(), arena->edges().end(),
            [&sp](const auto& e)
-             { return sp.at(e.src) != sp.at(e.dst); }));
+             { bool same_player = sp.at(e.src) == sp.at(e.dst);
+               if (same_player)
+                 std::cerr << e.src << " and " << e.dst << " belong to same "
+                           << "player, arena not alternating!\n";
+               return same_player; }));
 
     auto strat_split = spot::make_twa_graph(arena->get_dict());
     strat_split->copy_ap_of(arena);
@@ -445,7 +534,7 @@ namespace spot
       size_t operator()(const dca& d) const noexcept
       {
         return pair_hash()(std::make_pair(d.dst, d.condvar))
-               ^ d.acc.hash();
+               ^ wang32_hash(d.acc.hash());
       }
     };
     struct dca_equal
@@ -453,7 +542,7 @@ namespace spot
       bool operator()(const dca& d1, const dca& d2) const noexcept
       {
         return std::tie(d1.dst, d1.condvar, d1.acc)
-               == std::tie(d2.dst, d2.condvar, d2.acc);
+              == std::tie(d2.dst, d2.condvar, d2.acc);
       }
     };
 
@@ -482,16 +571,16 @@ namespace spot
     // Check if there exists already a local player state
     // that has the same dst, cond and (if keep_acc is true) acc
     auto get_spl = [&](unsigned dst, const bdd& cond, acc_cond::mark_t acc)
-    {
-      dca d{dst, (unsigned) cond.id(), acc};
-      auto it = p_map.find(d);
-      if (it != p_map.end())
-        return it->second;
-      unsigned ns = strat_split->new_state();
-      p_map[d] = ns;
-      strat_split->new_edge(ns, dst, cond, acc);
-      return ns;
-    };
+      {
+        dca d{dst, (unsigned) cond.id(), acc};
+        auto it = p_map.find(d);
+        if (it != p_map.end())
+          return it->second;
+        unsigned ns = strat_split->new_state();
+        p_map[d] = ns;
+        strat_split->new_edge(ns, dst, cond, acc);
+        return ns;
+      };
 
     while (!todo.empty())
       {
@@ -522,10 +611,10 @@ namespace spot
 
     // Sorting edges in place
     auto comp_edge = [](const auto& e1, const auto& e2)
-    {
-      return std::tuple(e1.dst, e1.acc, e1.cond.id())
-             < std::tuple(e2.dst, e2.acc, e2.cond.id());
-    };
+      {
+        return std::tuple(e1.dst, e1.acc, e1.cond.id())
+              < std::tuple(e2.dst, e2.acc, e2.cond.id());
+      };
     auto sort_edges_of =
         [&, &split_graph = strat_split->get_graph()](unsigned s)
       {
@@ -597,8 +686,6 @@ namespace spot
                           });
       };
 
-//    print_hoa(std::cout, strat_split) << '\n';
-
     const unsigned n_sstrat = strat_split->num_states();
     std::vector<unsigned> remap(n_sstrat, -1u);
     bool changed_any;
@@ -632,10 +719,6 @@ namespace spot
                 break;
               }
           }
-
-//      std::for_each(remap.begin(), remap.end(),
-//                     [](auto e){std::cout << e << ' ';});
-//      std::cout << std::endl;
 
       if (!changed_any)
         break;
@@ -671,10 +754,6 @@ namespace spot
               }
           }
 
-//      std::for_each(remap.begin(), remap.end(), [](auto e)
-//        {std::cout << e << ' '; });
-//      std::cout << std::endl;
-
       if (!changed_any)
         break;
       // Redirect changed targets and set possibly mergeable states
@@ -688,8 +767,6 @@ namespace spot
           }
     }
 
-//    print_hoa(std::cout, strat_split) << std::endl;
-
     // Defrag and alternate
     if (remap[strat_split->get_init_state_number()] != -1u)
       strat_split->set_init_state(remap[strat_split->get_init_state_number()]);
@@ -702,16 +779,7 @@ namespace spot
 
     strat_split->defrag_states(remap, st);
 
-//    unsigned n_old;
-//    do
-//    {
-//      n_old = strat_split->num_edges();
-//      strat_split->merge_edges();
-//      strat_split->merge_states();
-//    } while (n_old != strat_split->num_edges());
-
     alternate_players(strat_split, false, false);
-//    print_hoa(std::cout, strat_split) << std::endl;
     // What we do now depends on whether we unsplit or not
     if (unsplit)
       {
@@ -1164,6 +1232,34 @@ namespace spot
                              const std::vector<std::string>& output_aps,
                              game_info &gi)
   {
+    auto vs = gi.verbose_stream;
+
+    if (vs)
+      *vs << "trying to create strategy directly\n";
+
+    auto ret_sol_maybe = [&vs]()
+      {
+        if (vs)
+          *vs << "direct strategy might exist but was not found.\n";
+        return strategy_like_t{0, nullptr, bddfalse};
+      };
+    auto ret_sol_none = [&vs]()
+      {
+        if (vs)
+          *vs << "no direct strategy exists.\n";
+        return strategy_like_t{-1, nullptr, bddfalse};
+      };
+    auto ret_sol_exists = [&vs](auto strat)
+      {
+        if (vs)
+        {
+          *vs << "direct strategy was found.\n"
+              << "direct strat has " << strat->num_states()
+              << " states and " << strat->num_sets() << " colors\n";
+        }
+        return strategy_like_t{1, strat, bddfalse};
+      };
+
     // We need a lot of look-ups
     auto output_aps_set = std::set<std::string>(output_aps.begin(),
                                                 output_aps.end());
@@ -1174,7 +1270,7 @@ namespace spot
     if (is_and)
       {
         if (f.size() != 2)
-          return {0, nullptr, bddfalse};
+          return ret_sol_maybe();
         if (f[1].is(op::G))
           f = formula::And({f[1], f[0]});
         f_equiv = f[1];
@@ -1188,7 +1284,7 @@ namespace spot
 
     if (!f_equiv.is(op::Equiv) || (!f_g.is_tt() && (!f_g.is(op::G)
                                                   || !f_g[0].is_boolean())))
-      return {0, nullptr, bddfalse};
+      return ret_sol_maybe();
 //    stopwatch sw;
     twa_graph_ptr res;
 
@@ -1215,7 +1311,7 @@ namespace spot
       }
     // We need to have f(inputs) <-> f(outputs)
     if (has_right_ins || has_left_outs || !has_right_outs)
-      return {0, nullptr, bddfalse};
+      return ret_sol_maybe();
 
     bool is_gf_bool_right = right.is({op::G, op::F});
     bool is_fg_bool_right = right.is({op::F, op::G});
@@ -1234,7 +1330,7 @@ namespace spot
       {
         bool right_bool = right[0][0].is_boolean();
         if (!right_bool)
-          return {0, nullptr, bddfalse};
+          return ret_sol_maybe();
         auto trans = create_translator(gi);
         trans.set_type(postprocessor::Buchi);
         trans.set_pref(postprocessor::Deterministic | postprocessor::Complete);
@@ -1246,12 +1342,17 @@ namespace spot
           sw.start();
         res = trans.run(left);
         if (bv)
-          bv->trans_time = sw.stop();
+          {
+            auto delta = sw.stop();
+            bv->trans_time += delta;
+            if (vs)
+              *vs << "tanslating formula done in " << delta << " seconds\n";
+          }
 
         for (auto& out : right_outs)
           res->register_ap(out.ap_name());
         if (!is_deterministic(res))
-          return {0, nullptr, bddfalse};
+          return ret_sol_maybe();
         bdd form_bdd = bddtrue;
         if (is_and)
           {
@@ -1262,7 +1363,7 @@ namespace spot
                                       formula_to_bdd(f_g[0],
                                                      res->get_dict(), res);
             if (bdd_exist(form_bdd, output_bdd) != bddtrue)
-              return {0, nullptr, bddfalse};
+              return ret_sol_maybe();
           }
         bdd right_bdd = formula_to_bdd(right_sub, res->get_dict(), res);
         bdd neg_right_bdd = bdd_not(right_bdd);
@@ -1283,24 +1384,10 @@ namespace spot
               }
             // form_bdd has to be true all the time. So we cannot only do it
             // between SCCs.
-            e.cond &= form_bdd;
-            if (e.cond == bddfalse)
-              return {-1, nullptr, bddfalse};
+            if (!bdd_have_common_assignment(e.cond, form_bdd))
+              return ret_sol_none();
             e.acc = {};
           }
-
-        if (bv)
-          {
-            auto& vs = gi.verbose_stream;
-            if (vs)
-              {
-                *vs << "translating formula into strategy done in "
-                    << bv->trans_time << " seconds\n";
-                *vs << "automaton has " << res->num_states()
-                    << " states and " << res->num_sets() << " colors\n";
-              }
-          }
-
 
         bdd output_bdd = bddtrue;
         for (auto &out : output_aps_set)
@@ -1310,9 +1397,9 @@ namespace spot
         res->set_acceptance(acc_cond::acc_code::t());
 
         res->prop_complete(trival::maybe());
-        return {1, res, bddfalse};
+        return ret_sol_exists(res);
       }
-    return {0, nullptr, bddfalse};
+    return ret_sol_maybe();
   }
 
 } // spot

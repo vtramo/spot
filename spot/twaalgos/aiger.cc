@@ -34,7 +34,7 @@
 #include <spot/twa/twagraph.hh>
 #include <spot/misc/bddlt.hh>
 #include <spot/misc/minato.hh>
-#include <spot/twaalgos/game.hh>
+#include <spot/twaalgos/synthesis.hh>
 
 #define STR(x) #x
 #define STR_(x) STR(x)
@@ -1893,7 +1893,47 @@ namespace spot
     return auts_to_aiger(new_vec, mode);
   }
 
-    std::ostream &
+  aig_ptr
+  strategies_to_aig(const std::vector<strategy_like_t>& strat_vec,
+                    const char *mode,
+                    const std::vector<std::string>& ins,
+                    const std::vector<std::vector<std::string>>& outs)
+  {
+    // todo extend to TGBA and possibly others
+    const unsigned ns = strat_vec.size();
+    std::vector<twa_graph_ptr> strategies;
+    strategies.reserve(ns);
+    std::vector<std::vector<std::string>> outs_used;
+    outs_used.reserve(ns);
+
+    for (unsigned i = 0; i < ns; ++i)
+      {
+        switch (strat_vec[i].success)
+        {
+        case -1:
+          throw std::runtime_error("strategies_to_aig(): Partial strat is "
+                                   "not feasible!");
+        case 0:
+          throw std::runtime_error("strategies_to_aig(): Partial strat has "
+                                   "unknown status!");
+        case 1:
+        {
+          strategies.push_back(strat_vec[i].strat_like);
+          outs_used.push_back(outs[i]);
+          break;
+        }
+        case 2:
+          throw std::runtime_error("strategies_to_aig(): TGBA not "
+                                   "yet supported.");
+        default:
+          throw std::runtime_error("strategies_to_aig(): Unknown "
+                                   "success identifier.");
+        }
+      }
+    return strategies_to_aig(strategies, mode, ins, outs_used);
+  }
+
+  std::ostream &
   print_aiger(std::ostream &os, const_aig_ptr circuit)
   {
     if (not circuit)

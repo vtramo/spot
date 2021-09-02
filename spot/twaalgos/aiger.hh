@@ -35,6 +35,9 @@
 
 namespace spot
 {
+  // Forward for synthesis
+  struct strategy_like_t;
+
   class aig;
 
   typedef std::shared_ptr<aig> aig_ptr;
@@ -449,6 +452,13 @@ namespace spot
   /// \brief Like above, but explicitly handing over the propositions
   SPOT_API aig_ptr
   strategies_to_aig(const std::vector<twa_graph_ptr>& strat_vec,
+                    const char* mode,
+                    const std::vector<std::string>& ins,
+                    const std::vector<std::vector<std::string>>& outs);
+
+  /// \brief Like above, but works on strategy_like elements
+  SPOT_API aig_ptr
+  strategies_to_aig(const std::vector<strategy_like_t>& strat_vec,
                     const char* mode,
                     const std::vector<std::string>& ins,
                     const std::vector<std::vector<std::string>>& outs);

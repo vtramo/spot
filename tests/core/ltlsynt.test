@@ -74,11 +74,9 @@ diff out exp
 
 cat >exp <<EOF
 REALIZABLE
-aag 3 1 1 1 1
+aag 1 1 0 1 0
 2
-4 1
-6
-6 2 4
+2
 i0 a
 o0 b
 EOF
@@ -87,9 +85,8 @@ diff out exp
 
 cat >exp <<EOF
 REALIZABLE
-aag 2 1 1 1 0
+aag 1 1 0 1 0
 2
-4 1
 2
 i0 a
 o0 b
@@ -99,11 +96,9 @@ diff out exp
 
 cat >exp <<EOF
 REALIZABLE
-aag 3 1 1 1 1
+aag 1 1 0 1 0
 2
-4 1
-6
-6 2 4
+2
 i0 a
 o0 b
 EOF
@@ -112,11 +107,9 @@ diff out exp
 
 cat >exp <<EOF
 REALIZABLE
-aag 3 1 1 1 1
+aag 1 1 0 1 0
 2
-4 1
-6
-6 2 4
+2
 i0 a
 o0 b
 EOF
@@ -125,11 +118,9 @@ diff out exp
 
 cat >exp <<EOF
 REALIZABLE
-aag 3 1 1 1 1
+aag 1 1 0 1 0
 2
-4 1
-6
-6 2 4
+2
 i0 a
 o0 b
 EOF
@@ -138,9 +129,8 @@ diff out exp
 
 cat >exp <<EOF
 REALIZABLE
-aag 2 1 1 1 0
+aag 1 1 0 1 0
 2
-4 1
 2
 i0 a
 o0 b
@@ -150,11 +140,9 @@ diff out exp
 
 cat >exp <<EOF
 REALIZABLE
-aag 3 1 1 1 1
+aag 1 1 0 1 0
 2
-4 1
-6
-6 2 4
+2
 i0 a
 o0 b
 EOF
@@ -163,9 +151,8 @@ diff out exp
 
 cat >exp <<EOF
 REALIZABLE
-aag 2 1 1 1 0
+aag 1 1 0 1 0
 2
-4 1
 2
 i0 a
 o0 b
@@ -185,7 +172,7 @@ i0 a
 o0 b
 o1 c
 EOF
-ltlsynt --ins=a --outs=b,c -f 'GFa <-> (GFb & GFc)' --aiger=isop >out
+ltlsynt --ins=a --outs=b,c -f 'GFa <-> (GFb & GFc)' --algo=ds --aiger=isop >out
 diff out exp
 
 cat >exp <<EOF
@@ -199,7 +186,8 @@ i0 a
 o0 b
 o1 c
 EOF
-ltlsynt --ins=a --outs=b,c -f 'GFa <-> (GFb & GFc)' --aiger=isop+dc >out
+ltlsynt --ins=a --outs=b,c -f 'GFa <-> (GFb & GFc)' \
+  --algo=ds --aiger=isop+dc >out
 diff out exp
 
 cat >exp <<EOF
@@ -214,51 +202,59 @@ i0 a
 o0 b
 o1 c
 EOF
-ltlsynt --ins=a --outs=b,c -f 'GFa <-> (GFb & GFc)' --aiger=ite >out
+ltlsynt --ins=a --outs=b,c -f 'GFa <-> (GFb & GFc)' --algo=ds --aiger=ite >out
 diff out exp
 
 cat >exp <<EOF
-translating formula done in X seconds
-automaton has 3 states and 2 colors
-split inputs and outputs done in X seconds
-automaton has 10 states
-determinization done
-DPA has 12 states, 4 colors
-simplification done
-DPA has 10 states
-determinization and simplification took X seconds
-parity game solved in X seconds
+trying to create strategy directly
+tanslating formula done in X seconds
+direct strategy was found.
+direct strat has 1 states and 0 colors
 EOF
 ltlsynt --ins='a' --outs='b' -f 'GFa <-> GFb' --verbose --realizability 2> out
 sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
 diff outx exp
 
 cat >exp <<EOF
-translating formula done in X seconds
-automaton has 2 states and 4 colors
-simplification done in X seconds
-DPA has 2 states
-split inputs and outputs done in X seconds
-automaton has 6 states
-parity game solved in X seconds
+trying to create strategy directly
+tanslating formula done in X seconds
+direct strategy was found.
+direct strat has 1 states and 0 colors
+final strategy has 1 states and 2 edges
+minimization took X seconds
 EOF
 ltlsynt --ins=a --outs=b -f 'GFa <-> GFb' --verbose --algo=ps 2> out
 sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
 diff outx exp
 
 cat >exp <<EOF
-translating formula done in X seconds
-automaton has 16 states and 2 colors
-LAR construction done in X seconds
-DPA has 16 states, 4 colors
-split inputs and outputs done in X seconds
-automaton has 47 states
-parity game solved in X seconds
+trying to create strategy directly
+tanslating formula done in X seconds
+direct strategy was found.
+direct strat has 16 states and 0 colors
 EOF
 ltlsynt --ins='a,b,c,d' --outs='e' -f '(Fa & Fb & Fc & Fd) <-> GFe' \
         --verbose --realizability --algo=lar 2> out
 sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
 diff outx exp
+
+cat >exp <<EOF
+trying to create strategy directly
+direct strategy might exist but was not found.
+translating formula done in X seconds
+automaton has 2 states and 3 colors
+LAR construction done in X seconds
+DPA has 4 states, 3 colors
+split inputs and outputs done in X seconds
+automaton has 12 states
+Identified as parity game.
+game solved in X seconds
+EOF
+ltlsynt -f "G(Fi0 && Fi1 && Fi2) -> G(i1 <-> o0)" --outs="o0" --algo=lar \
+        --verbose --realizability 2> out
+sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
+diff outx exp
+
 
 for r in '' '--real'; do
     opts="$r --ins=a --outs=b -f"
@@ -279,10 +275,10 @@ for a in sd ds lar lar.old; do
     test 1 = `grep -c ",.$a.," FILE` || exit 1
 done
 
-ltlsynt --algo=lar $opts 'FGa <-> GF(c&a)' --print-pg --csv >out
-grep parity out
-grep 'FGa.*,"lar",' out
-grep formula out
+# ltlsynt --algo=lar --ins=a --outs=b -f 'FGa <-> GF(c&a)' --print-pg --csv >out
+# grep parity out
+# grep 'FGa.*,"lar",' out
+# grep formula out
 
 
 F0='(G ((((req) -> (X ((grant) && (X ((grant) && (X (grant))))))) && ((grant)
@@ -424,9 +420,93 @@ ltlsynt --outs=p0 -f '!XXF(p0 & (p0 M Gp0))' > out
 diff out exp
 
 f='Fp0 U XX((p0 & F!p1) | (!p0 & Gp1))'
-ltlsynt --verbose --algo=ps --outs=p1 --ins=p0 -f "$f" 2>err
+ltlsynt --verbose --algo=ps --outs=p1 --ins=p0 -f "$f" -x"dpa-simul=1" 2>err
 grep 'DPA has 13 states' err
 ltlsynt -x dpa-simul=0 --verbose --algo=ps --outs=p1 --ins=p0 -f "$f" 2>err
 grep 'DPA has 29 states' err
 ltlsynt --verbose -x wdba-minimize=1 --algo=ps --outs=p1 --ins=p0 -f "$f" 2>err
 grep 'DPA has 12 states' err
+
+cat >exp <<EOF
+REALIZABLE
+aag 34 4 3 2 27
+2
+4
+6
+8
+10 39
+12 62
+14 68
+25
+31
+16 11 13
+18 14 16
+20 10 12
+22 15 20
+24 19 23
+26 11 12
+28 15 26
+30 19 29
+32 7 9
+34 16 32
+36 15 32
+38 35 37
+40 3 32
+42 2 4
+44 6 42
+46 8 42
+48 5 32
+50 10 14
+52 12 14
+54 41 45
+56 47 49
+58 51 53
+60 54 56
+62 58 60
+64 33 51
+66 42 53
+68 64 66
+i0 i0
+i1 i1
+i2 i2
+i3 i3
+o0 o0
+o1 o1
+EOF
+ltlsynt -f "G((i0 && i1)<->X(o0)) && G((i2|i3)<->X(o1))" --outs="o0,o1"\
+  --aiger=isop --algo=lar -x"specification-decomposition=0" >out
+diff out exp
+
+cat >exp <<EOF
+REALIZABLE
+aag 18 4 4 2 10
+2
+4
+6
+8
+10 26
+12 28
+14 34
+16 36
+18
+20
+18 11 12
+20 15 16
+22 2 4
+24 10 12
+26 23 25
+28 22 25
+30 14 16
+32 7 9
+34 31 32
+36 31 33
+i0 i0
+i1 i1
+i2 i2
+i3 i3
+o0 o0
+o1 o1
+EOF
+ltlsynt -f "G((i0 && i1)<->X(o0)) && G((i2|i3)<->X(o1))" --outs="o0,o1"\
+  --aiger=isop --algo=lar -x"specification-decomposition=1" >out
+diff out exp

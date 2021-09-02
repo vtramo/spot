@@ -24,6 +24,7 @@
 #include <ostream>
 #include <unordered_map>
 #include <vector>
+#include <optional>
 
 #include <bddx.h>
 #include <spot/misc/optionmap.hh>
@@ -92,10 +93,9 @@ namespace spot
   /// \brief Benchmarking and options structure for games and synthesis
   ///
   /// \note This structure is designed to interface with the algorithms
-  /// found in spot/twaalgos/synthesis.hh
+  /// found in spot/twaalgos/synthesis.hh and spot/twaalgos/game.hh
   struct SPOT_API game_info
   {
-
     enum class solver
     {
       DET_SPLIT=0,
@@ -116,7 +116,6 @@ namespace spot
       double aig_time = 0.0;
       unsigned nb_states_arena = 0;
       unsigned nb_states_arena_env = 0;
-      unsigned nb_states_parity_game = 0;
       unsigned nb_strat_states = 0;
       unsigned nb_strat_edges = 0;
       unsigned nb_latches = 0;
@@ -128,7 +127,6 @@ namespace spot
       : force_sbacc{false},
         s{solver::LAR},
         minimize_lvl{0},
-        out_choice{0},
         bv{},
         verbose_stream{nullptr},
         dict(make_bdd_dict())
@@ -138,7 +136,6 @@ namespace spot
     bool force_sbacc;
     solver s;
     int minimize_lvl;
-    int out_choice;
     std::optional<bench_var> bv;
     std::ostream* verbose_stream;
     option_map opt;
