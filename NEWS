@@ -239,16 +239,12 @@ New in spot 2.9.8.dev (not yet released)
     Additionally, this function now returns the number of states that
     have been merged (and therefore removed from the automaton).
 
-  - spot::zielonka_tree is a new class that can be constructed from
-    any acceptance condition to help paritizing it.
-    spot::zielonka_tree_transform() will paritize an automaton using
-    the Zielong Tree of its acceptance.  Similarly, spot::acd class
-    implement the Alternating Cycle Decomposition of any automaton.
-    The spot::acd_transform() function uses it to paritize any
-    automaton optimally.  These two transformations are based on a
-    paper by Casares et al. (ICALP'21).  The python bindings for
-    spot.zielonka_tree and spot.acd will display those structure
-    graphically, making it easier to explore those concepts.
+  - spot::zielonka_tree and spot::acd are new class that implement the
+    Zielonka Tree and Alternatic Cycle Decomposition, based on a paper
+    by Casares et al. (ICALP'21).  Those structures can be used to
+    paritize any automaton, and more.  The graphical rendering of ACD
+    in Jupyter notebooks is Spot's first interactive output.  See
+    https://spot.lrde.epita.fr/ipynb/zlktree.html for more.
 
   Python:
 

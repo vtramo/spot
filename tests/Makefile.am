@@ -449,7 +449,7 @@ TESTS_python = \
   python/twagraph.py \
   python/toweak.py \
   python/_word.ipynb \
-  python/_zlktree.ipynb \
+  python/zlktree.ipynb \
   $(TESTS_ipython)
 endif
 

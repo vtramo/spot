@@ -22,6 +22,7 @@
 #include <deque>
 #include <spot/twaalgos/zlktree.hh>
 #include <spot/twaalgos/genem.hh>
+#include <spot/misc/escape.hh>
 
 namespace spot
 {
@@ -138,6 +139,9 @@ namespace spot
             has_streett_shape_ = false;
         }
     }
+
+    bool empty_is_accepting = code.accepting(acc_cond::mark_t{});
+    empty_is_even_ = empty_is_accepting == is_even_;
   }
 
   void zielonka_tree::dot(std::ostream& os) const
@@ -175,8 +179,10 @@ namespace spot
         ("zielonka_tree::step(): incorrect branch number");
 
     if (!colors)
-      return {branch, nodes_[branch].level + 1};
-
+      {
+        unsigned lvl = nodes_[branch].level;
+        return {branch, lvl + ((lvl & 1) == empty_is_even_)};
+      }
     unsigned child = 0;
     for (;;)
       {
@@ -323,17 +329,6 @@ namespace spot
     throw std::runtime_error(std::string(fn) +
                              "(): SCC number " + std::to_string(num)
                              + " is too large");
-  }
-
-  std::pair<unsigned, unsigned>
-  acd::step(unsigned branch, unsigned edge) const
-  {
-    if (SPOT_UNLIKELY(nodes_.size() < branch || nodes_[branch].first_child))
-      throw std::runtime_error
-        ("acd::next_branch(): incorrect branch number");
-    // FIXME
-    (void)edge;
-    return {branch, 0};
   }
 
   acd::acd(const const_twa_graph_ptr& aut)
@@ -485,7 +480,7 @@ namespace spot
       }
   }
 
-  unsigned acd::leftmost_branch_(unsigned n, unsigned state)
+  unsigned acd::leftmost_branch_(unsigned n, unsigned state) const
   {
   loop:
     unsigned first_child = nodes_[n].first_child;
@@ -507,42 +502,45 @@ namespace spot
   }
 
 
-  unsigned acd::first_branch(unsigned s, unsigned scc)
+  unsigned acd::first_branch(unsigned s) const
   {
-    if (scc > trees_.size())
-      report_invalid_scc_number(scc, "first_branch");
+    if (SPOT_UNLIKELY(aut_->num_states() < s))
+      throw std::runtime_error("first_branch(): unknown state " +
+                               std::to_string(s));
+    unsigned scc = si_->scc_of(s);
     if (trees_[scc].trivial)    // the branch is irrelevant for transiant SCCs
       return 0;
     unsigned n = trees_[scc].root;
-    if (SPOT_UNLIKELY(!nodes_[n].states[s]))
-      throw std::runtime_error("first_branch(): state " +
-                               std::to_string(s) + " not found in SCC " +
-                               std::to_string(scc));
+    assert(nodes_[n].states[s]);
     return leftmost_branch_(n, s);
   }
 
 
   std::pair<unsigned, unsigned>
-  acd::step(unsigned branch, unsigned edge)
+  acd::step(unsigned branch, unsigned edge) const
   {
     if (SPOT_UNLIKELY(nodes_.size() < branch))
       throw std::runtime_error("acd::step(): incorrect branch number");
+    if (SPOT_UNLIKELY(nodes_[branch].edges.size() < edge))
+      throw std::runtime_error("acd::step(): incorrect edge number");
 
     unsigned child = 0;
-    unsigned obranch = branch;
+    unsigned dst = aut_->edge_storage(edge).dst;
     while (!nodes_[branch].edges[edge])
       {
         unsigned parent = nodes_[branch].parent;
         if (SPOT_UNLIKELY(branch == parent))
-          throw std::runtime_error("acd::step(): edge " +
-                                   std::to_string(edge) +
-                                   " is not on branch " +
-                                   std::to_string(obranch));
+          {
+            // We are changing SCC, so the level emitted does not
+            // matter.
+            assert(si_->scc_of(aut_->edge_storage(edge).src)
+                   != si_->scc_of(dst));
+            return { first_branch(dst), 0 };
+          }
         child = branch;
         branch = parent;
       }
     unsigned lvl = nodes_[branch].level;
-    unsigned dst = aut_->edge_storage(edge).dst;
     if (child != 0)
       {
         unsigned start_child = child;
@@ -562,10 +560,14 @@ namespace spot
       }
   }
 
-  void acd::dot(std::ostream& os) const
+  void acd::dot(std::ostream& os, const char* id) const
   {
     os << "digraph acd {\n  labelloc=\"t\"\n  label=\"\n"
        << (is_even_ ? "min even\"" : "min odd\"\n");
+    if (id)
+      escape_str(os << "  id=\"", id)
+        // fill the node so that the entire node is clickable
+        << "\"\n  node [id=\"N\\N\", style=filled, fillcolor=white]\n";
     unsigned ns = nodes_.size();
     for (unsigned n = 0; n < ns; ++n)
       {
@@ -642,9 +644,22 @@ namespace spot
         os << "\nlvl: " << nodes_[n].level;
         if (!first_child)
             os << "\n<" << n << '>';
+        // use a fillcolor so that the entire node is clickable
         os << "\", shape="
-           << (((nodes_[n].level & 1) ^ is_even_) ? "ellipse" : "box")
-           << "]\n";
+           << (((nodes_[n].level & 1) ^ is_even_) ? "ellipse" : "box");
+        if (id)
+          {
+            os << " class=\"";
+            const char* sep = "";
+            for (unsigned n = 0; n < nstates; ++n)
+              if (states[n] && si_->scc_of(n) == scc)
+                {
+                  os << sep << "acdS" << n << '\n';
+                  sep = " ";
+                }
+            os << '\"';
+          }
+        os << "]\n";
         if (first_child)
           {
             unsigned child = first_child;
@@ -657,6 +672,27 @@ namespace spot
           }
       }
     os << "}\n";
+  }
+
+  bool acd::node_acceptance(unsigned n) const
+  {
+    if (SPOT_UNLIKELY(nodes_.size() < n))
+      throw std::runtime_error("acd::node_acceptance(): unknown node");
+    return (nodes_[n].level & 1) ^ is_even_;
+  }
+
+  std::vector<unsigned> acd::edges_of_node(unsigned n) const
+  {
+    if (SPOT_UNLIKELY(nodes_.size() < n))
+      throw std::runtime_error("acd::edges_of_node(): unknown node");
+    std::vector<unsigned> res;
+    unsigned scc = nodes_[n].scc;
+    auto& edges = nodes_[n].edges;
+    unsigned nedges = edges.size();
+    for (unsigned e = 1; e < nedges; ++e)
+      if (edges[e] && si_->scc_of(aut_->edge_storage(e).dst) == scc)
+        res.push_back(e);
+    return res;
   }
 
   twa_graph_ptr
@@ -714,7 +750,7 @@ namespace spot
     };
 
     unsigned init = a->get_init_state_number();
-    zlk_state s(init, theacd.first_branch(init, si.scc_of(init)));
+    zlk_state s(init, theacd.first_branch(init));
     new_state(s);
     unsigned max_color = 0;
     bool is_even = theacd.is_even();
@@ -734,7 +770,7 @@ namespace spot
             unsigned dst_scc = si.scc_of(i.dst);
             if (dst_scc != src_scc)
               {
-                newbranch = theacd.first_branch(i.dst, dst_scc);
+                newbranch = theacd.first_branch(i.dst);
                 prio = 0;
               }
             else

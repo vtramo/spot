@@ -71,10 +71,12 @@ namespace spot
     /// definition since it allows a set of colors to be processed,
     /// and not exactly one color.  When multiple colors are given,
     /// the minimum corresponding level is returned.  When no color is
-    /// given, the branch is not changed and the level returned is one
-    /// more than the depth of that branch (this is as if the tree add
-    /// another layer of leaves labeled by the empty sets, that do not
-    /// store for simplicity).
+    /// given, the branch is not changed and the level returned might
+    /// be one more than the depth of that branch (as if the tree had
+    /// another layer of leaves labeled by the empty sets, that we
+    /// do not store).  Whether the depth for no color is the depth
+    /// of the node or one more depend on whether the absence of
+    /// color had the same parity has the current node.
     std::pair<unsigned, unsigned>
     step(unsigned branch, acc_cond::mark_t colors) const;
 
@@ -127,6 +129,7 @@ namespace spot
     unsigned one_branch_ = 0;
     unsigned num_branches_ = 0;
     bool is_even_;
+    bool empty_is_even_;
     bool has_rabin_shape_ = true;
     bool has_streett_shape_ = true;
   };
@@ -164,18 +167,33 @@ namespace spot
 
     ~acd();
 
-    /// \brief Walk through the ACD.
+    /// \brief Step through the ACD.
     ///
     /// Given a \a branch number, and an edge, this returns
     /// a pair (new branch, level), as needed in definition 4.6 of
     /// \cite casares.21.icalp (or definition 4.20 in the full version).
-    /// We do not have to specify any SCC, because the branch number are
-    /// different in each SCC.
     ///
     /// The level correspond to the priority of a minimum parity acceptance
     /// condition, with the parity odd/even as specified by is_even().
     std::pair<unsigned, unsigned>
     step(unsigned branch, unsigned edge) const;
+
+
+    /// \brief Return the list of edges covered by node n of the ACD.
+    ///
+    /// This is mostly used for interactive display.
+    std::vector<unsigned> edges_of_node(unsigned n) const;
+
+    /// \brief Return the number of nodes in the the ACD forest.
+    unsigned node_count() const
+    {
+      return nodes_.size();
+    }
+
+    /// Tell whether a node store accepting or rejecting cycles.
+    ///
+    /// This is mostly used for interactive display.
+    bool node_acceptance(unsigned n) const;
 
     /// \brief Whether the ACD corresponds to a min even or min odd
     /// parity acceptance in SCC \a scc.
@@ -198,20 +216,9 @@ namespace spot
     }
 
     /// \brief Return the first branch for \a state
-    ///
-    /// \a scc should correspond to the SCC containing \a state.
-    /// (this class does not store the scc_info passed at construction)
-    unsigned first_branch(unsigned state, unsigned scc);
+    unsigned first_branch(unsigned state) const;
 
-    /// \brief Step into the ACD
-    ///
-    /// Given an edge \a edge on branch \a branch,
-    /// return a pair (new branch, level) giving the proirity (\a level) to
-    /// emit, and the branch of the destination state.
-    std::pair<unsigned, unsigned>
-    step(unsigned branch, unsigned edge);
-
-    unsigned scc_max_level(unsigned scc)
+    unsigned scc_max_level(unsigned scc) const
     {
       if (scc >= scc_count_)
         report_invalid_scc_number(scc, "scc_max_level");
@@ -244,8 +251,17 @@ namespace spot
       return has_streett_shape() && has_rabin_shape();
     }
 
+    /// \brief Return the automaton on which the ACD is defined.
+    const const_twa_graph_ptr get_aut() const
+    {
+      return aut_;
+    }
+
     /// \brief Render the ACD as in GraphViz format.
-    void dot(std::ostream&) const;
+    ///
+    /// If \a id is given, it is used to give the graph an id, and,
+    /// all nodes will get ids as well.
+    void dot(std::ostream&, const char* id = nullptr) const;
 
   private:
     const scc_info* si_;
@@ -312,7 +328,7 @@ namespace spot
     void build_();
 
     // leftmost branch of \a node that contains \a state
-    unsigned leftmost_branch_(unsigned node, unsigned state);
+    unsigned leftmost_branch_(unsigned node, unsigned state) const;
 
 #ifndef SWIG
     [[noreturn]] static

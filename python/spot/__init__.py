@@ -436,13 +436,80 @@ class zielonka_tree:
         self.dot(ostr)
         return _ostream_to_svg(ostr)
 
+_acdnum = 0
+
 @_extend(acd)
 class acd:
-    def _repr_svg_(self):
+    def _repr_svg_(self, id=None):
         """Output the ACD as SVG"""
         ostr = ostringstream()
-        self.dot(ostr)
+        self.dot(ostr, id)
         return _ostream_to_svg(ostr)
+
+    def _repr_html_(self):
+        global _acdnum
+        num = _acdnum
+        _acdnum += 1
+        style = '''
+.acdhigh ellipse,.acdacc ellipse,.acdacc path,.acdacc polygon{stroke:green;}
+.acdhigh polygon,.acdrej ellipse,.acdrej path,.acdrej polygon{stroke:red;}
+.acdbold ellipse,.acdbold polygon,.acdbold path{stroke-width:2;}
+.acdrej polygon{fill:red;}
+.acdacc polygon{fill:green;}
+'''
+        js = '''
+function acd{num}_clear(){{
+        $("#acd{num} .node,#acdaut{num} .node,#acdaut{num} .edge")
+        .removeClass("acdhigh acdbold acdacc acdrej");
+}};
+function acd{num}_state(state){{
+        acd{num}_clear();
+        $("#acd{num} .acdS" + state).addClass("acdhigh acdbold");
+        $("#acdaut{num} #S" + state).addClass("acdbold");
+}};
+function acd{num}_edge(edge){{
+        acd{num}_clear();
+        var theedge = $('#acdaut{num} #E' + edge)
+        var classList = theedge.attr('class').split(/\s+/);
+        $.each(classList, function(index, item) {{
+           if (item.startsWith('acdN')) {{
+        $("#acd{num} #" + item.substring(3)).addClass("acdhigh acdbold");
+           }}
+        }});
+        theedge.addClass("acdbold");
+}};
+function acd{num}_node(node, acc){{
+        acd{num}_clear();
+        $("#acdaut{num} .acdN" + node).addClass(acc
+                                                ? "acdacc acdbold"
+                                                : "acdrej acdbold");
+        $("#acd{num} #N" + node).addClass("acdbold acdhigh");
+}};'''.format(num=num)
+        me = 0
+        for n in range(self.node_count()):
+            for e in self.edges_of_node(n):
+                me = max(e, me)
+                js += '$("#acdaut{num} #E{e}").addClass("acdN{n}");'\
+                      .format(num=num, e=e, n=n)
+        for e in range(1, me + 1):
+            js += '$("#acdaut{num} #E{e}")'\
+                  '.click(function(){{acd{num}_edge({e});}});'\
+                  .format(num=num, e=e)
+        for s in range(self.get_aut().num_states()):
+            js += '$("#acdaut{num} #S{s}")'\
+                  '.click(function(){{acd{num}_state({s});}});'\
+                  .format(num=num, s=s)
+        for n in range(self.node_count()):
+            v = int(self.node_acceptance(n))
+            js += '$("#acd{num} #N{n}")'\
+                  '.click(function(){{acd{num}_node({n}, {v});}});'\
+                  .format(num=num, n=n, v=v)
+        html = '<style>{}</style><div>{}</div><div>{}</div><script>{}</script>'\
+               .format(style,
+                       self.get_aut().show('.i(acdaut{})'.format(num)).data,
+                       self._repr_svg_("acd{}".format(num)),
+                       js);
+        return html
 
 
 def automata(*sources, timeout=None, ignore_abort=True,
