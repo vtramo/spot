@@ -372,7 +372,8 @@ TESTS_ipython = \
   python/stutter-inv.ipynb \
   python/testingaut.ipynb \
   python/twagraph-internals.ipynb \
-  python/word.ipynb
+  python/word.ipynb \
+  python/zlktree.ipynb
 
 # TESTS_python contains all tests.  It may includes notebooks we
 # do not consider part of the documentation: those have to start
@@ -449,7 +450,6 @@ TESTS_python = \
   python/twagraph.py \
   python/toweak.py \
   python/_word.ipynb \
-  python/zlktree.ipynb \
   $(TESTS_ipython)
 endif
 
