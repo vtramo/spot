@@ -457,7 +457,7 @@ CLEANFILES = python/test1.dve python/test1.dve2C python/test1.dve.cpp
 
 SUFFIXES = .ipynb .html
 .ipynb.html:
-	$(IPYTHON) nbconvert $< --to html --stdout >$@
+	$(JUPYTER) nbconvert $< --to html --stdout >$@
 
 .PHONY: nb-html
 nb-html: $(TESTS_ipython:.ipynb=.html)

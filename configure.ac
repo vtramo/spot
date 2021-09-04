@@ -197,6 +197,7 @@ AC_CHECK_PROG([SPIN], [spin], [spin])
 AC_CHECK_PROG([LBTT], [lbtt], [lbtt])
 AC_CHECK_PROG([EMACS], [emacs], [emacs])
 AC_CHECK_PROGS([IPYTHON], [ipython3 ipython], [ipython])
+AC_CHECK_PROGS([JUPYTER], [jupyter], [jupyter])
 AC_CHECK_PROG([LBTT_TRANSLATE], [lbtt-translate], [lbtt-translate])
 AX_CHECK_VALGRIND
 # Debian used to reserve the name 'swig' for swig-2.0.  So prefer
