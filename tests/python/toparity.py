@@ -116,7 +116,7 @@ def test(aut, expected_num_states=[], full=True):
             spot.reduce_parity_here(p1)
         assert spot.are_equivalent(aut, p1)
         if expected_num is not None:
-            print(p1.num_states(), expected_num)
+            # print(p1.num_states(), expected_num)
             assert p1.num_states() == expected_num
         if full and opt is not None:
             # Make sure passing opt is the same as setting
@@ -240,11 +240,11 @@ State: 1
 [!0&!1] 0 {1 2}
 --END--"""), [9, 3, 2, 3, 3, 3, 2, 2])
 
-#for i,f in enumerate(spot.randltl(10, 400)):
-#    test(spot.translate(f, "det", "G"), full=(i<100))
-#
-#for f in spot.randltl(5, 2500):
-#    test(spot.translate(f), full=False)
+for i,f in enumerate(spot.randltl(10, 200)):
+    test(spot.translate(f, "det", "G"), full=(i<50))
+
+for f in spot.randltl(5, 500):
+    test(spot.translate(f), full=False)
 
 
 test(spot.automaton("""
@@ -278,7 +278,7 @@ State: 3
 [!0&1] 2 {1 4}
 [0&1] 3 {0}
 --END--
-"""), [80, 47, 104, 104, 102, 29, 6, 6])
+"""), [80, 47, 104, 104, 102, 29, 6, 5])
 
 test(spot.automaton("""
 HOA: v1

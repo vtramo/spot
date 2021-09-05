@@ -20,9 +20,11 @@
 #include "config.h"
 #include <iostream>
 #include <deque>
+#include <memory>
 #include <spot/twaalgos/zlktree.hh>
 #include <spot/twaalgos/genem.hh>
 #include <spot/misc/escape.hh>
+#include <spot/misc/bitvect.hh>
 
 namespace spot
 {
@@ -405,6 +407,13 @@ namespace spot
           }
       }
 
+    struct size_model
+    {
+      unsigned size;
+      std::unique_ptr<bitvect> trans;
+    };
+    std::vector<size_model> out;
+
     // This loop is a BFS over the increasing set of nodes.
     for (unsigned node = 0; node < nodes_.size(); ++node)
     {
@@ -412,26 +421,60 @@ namespace spot
       unsigned lvl = nodes_[node].level;
       bool accepting_node = (lvl & 1) != trees_[scc].is_even;
 
+      out.clear();
       auto callback = [&](scc_info si, unsigned siscc)
       {
-        unsigned vnum = trees_[scc].num_nodes++;
-        allocate_vectors_maybe(vnum);
-        nodes_.emplace_back(edge_vector(vnum), state_vector(vnum));
-        auto& n = nodes_.back();
-        n.parent = node;
-        n.level = lvl + 1;
-        n.scc = scc;
+        bitvect* bv = make_bitvect(nedges);
+        unsigned sz = 0;
         for (auto& e: si.inner_edges_of(siscc))
           {
-            n.edges[aut->edge_number(e)] = true;
-            n.states[e.src] = true;
+            bv->set(aut->edge_number(e));
+            ++sz;
           }
+        auto iter = out.begin();
+        while (iter != out.end())
+          {
+            if (iter->size < sz)
+              // We have checked all larger models.
+              break;
+            if (bv->is_subset_of(*iter->trans))
+              // ignore smaller models
+              {
+                delete bv;
+                return;
+              }
+            ++iter;
+          }
+        // insert the model
+        iter = out.insert(iter, {sz, std::unique_ptr<bitvect>(bv)});
+        ++iter;
+        // erase all models it contains
+        out.erase(std::remove_if(iter, out.end(),
+                                 [&](auto& mod) {
+                                   return mod.trans->is_subset_of(*bv);
+                                 }), out.end());
       };
-
-      unsigned before_size = nodes_.size();
       maximal_accepting_loops_for_scc(*si_, scc,
                                       accepting_node ? negacc : posacc,
                                       nodes_[node].edges, callback);
+
+      unsigned before_size = nodes_.size();
+      for (const auto& [sz, bv]: out)
+        {
+          unsigned vnum = trees_[scc].num_nodes++;
+          allocate_vectors_maybe(vnum);
+          nodes_.emplace_back(edge_vector(vnum), state_vector(vnum));
+          auto& n = nodes_.back();
+          n.parent = node;
+          n.level = lvl + 1;
+          n.scc = scc;
+          for (unsigned e = 1; e < nedges; ++e)
+            if (bv->get(e))
+              {
+                n.edges[e] = true;
+                n.states[aut->edge_storage(e).src] = true;
+              }
+        }
       unsigned after_size = nodes_.size();
       unsigned children = after_size - before_size;
 
