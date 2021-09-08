@@ -97,12 +97,12 @@ namespace spot
   zielonka_tree::zielonka_tree(const acc_cond& cond)
   {
     const acc_cond::acc_code& code = cond.get_acceptance();
-    auto used = code.used_sets();
+    auto all = cond.all_sets();
     acc_cond negcond(cond.num_sets(), cond.get_acceptance().complement());
 
     nodes_.emplace_back();
     nodes_[0].parent = 0;
-    nodes_[0].colors = used;
+    nodes_[0].colors = all;
     nodes_[0].level = 0;
 
     std::vector<size_model> models;
