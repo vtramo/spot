@@ -80,11 +80,25 @@ namespace spot
                                    [&](auto& mod) {
                                      return mod.model.subset(colors);
                                    }), out.end());
+          return;
         }
-      else if (acc_cond::mark_t fu = cond.fin_unit())
+      // If the condition has some Inf(x) forced at the top-level, we
+      // may simply replace Inf(x) by t and Fin(x) by f in condition
+      // to simplify it.  This is a kind of cheap unit-propagation.
+      if (acc_cond::mark_t fu = cond.inf_unit())
+        cond = cond.remove(fu, false);
+      // Now if we have some Fin(x) forced at the top-level,
+      // we know the corresponding color need to me removed from
+      // the set.
+      if (acc_cond::mark_t fu = cond.fin_unit())
         {
           max_models(cond.remove(fu, true), colors - fu, out);
         }
+      // Otherwise, we simply have to pick a random Fin(x) and see if
+      // we can satisfy the condition when x is present or absent.  In
+      // this case, we do not know whether the generated models will
+      // be maximal, so this justifies the inclusion checks between
+      // models at the top of this function.
       else if (int fo = cond.fin_one(); fo >= 0)
         {
           acc_cond::mark_t fo_m = {(unsigned) fo};
