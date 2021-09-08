@@ -1257,6 +1257,19 @@ namespace spot
       /// Return -1 if no such set exist.
       int fin_one() const;
 
+      /// \brief Find a `Inf(i)` that is a unit clause.
+      ///
+      /// This return a mark_t `{i}` such that `Inf(i)` appears as a
+      /// unit clause in the acceptance condition.  I.e., either the
+      /// condition is exactly `Inf(i)`, or the condition has the form
+      /// `...&Inf(i)&...`.  If there is no such `Inf(i)`, an empty
+      /// mark_t is returned.
+      ///
+      /// If multiple unit-Inf appear as unit-clauses, the set of
+      /// those will be returned.  For instance applied to
+      /// `Inf(0)&Inf(1)&(Inf(2)|Fin(3))`, this will return `{0,1}`.
+      mark_t inf_unit() const;
+
       /// \brief Help closing accepting or rejecting cycle.
       ///
       /// Assuming you have a partial cycle visiting all acceptance
@@ -2151,6 +2164,22 @@ namespace spot
     int fin_one() const
     {
       return code_.fin_one();
+    }
+
+    /// \brief Find a `Inf(i)` that is a unit clause.
+    ///
+    /// This return a mark_t `{i}` such that `Inf(i)` appears as a
+    /// unit clause in the acceptance condition.  I.e., either the
+    /// condition is exactly `Inf(i)`, or the condition has the form
+    /// `...&Inf(i)&...`.  If there is no such `Inf(i)`, an empty
+    /// mark_t is returned.
+    ///
+    /// If multiple unit-Inf appear as unit-clauses, the set of
+    /// those will be returned.  For instance applied to
+    /// `Inf(0)&Inf(1)&(Inf(2)|Fin(3))`, this will return `{0,1}`.
+    mark_t inf_unit() const
+    {
+      return code_.inf_unit();
     }
 
     /// \brief Return the top-level disjuncts.

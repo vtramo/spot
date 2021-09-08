@@ -2825,6 +2825,37 @@ namespace spot
     return res;
   }
 
+  acc_cond::mark_t acc_cond::acc_code::inf_unit() const
+  {
+    mark_t res = {};
+    if (empty() || is_f())
+      return res;
+    const acc_cond::acc_word* pos = &back();
+    do
+      {
+        switch (pos->sub.op)
+          {
+          case acc_cond::acc_op::And:
+            --pos;
+            break;
+          case acc_cond::acc_op::Or:
+            pos -= pos->sub.size + 1;
+            break;
+          case acc_cond::acc_op::Fin:
+          case acc_cond::acc_op::InfNeg:
+          case acc_cond::acc_op::FinNeg:
+            pos -= 2;
+            break;
+          case acc_cond::acc_op::Inf:
+            res |= pos[-1].mark;
+            pos -= 2;
+            break;
+          }
+      }
+    while (pos >= &front());
+    return res;
+  }
+
   acc_cond::mark_t acc_cond::acc_code::used_once_sets() const
   {
     mark_t seen = {};

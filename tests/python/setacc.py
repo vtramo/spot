@@ -106,3 +106,20 @@ assert acc == spot.acc_cond('Inf(0)')
 acc = spot.translate('b').get_acceptance()
 collect()
 assert acc == spot.acc_code('Inf(0)')
+
+
+c = spot.acc_cond('Fin(0)&Fin(1)&(Inf(2)|Fin(3))')
+m1 = c.fin_unit()
+m2 = c.inf_unit()
+assert m1 == [0,1]
+assert m2 == []
+c = spot.acc_cond('Inf(0)&Inf(1)&(Inf(2)|Fin(3))')
+m1 = c.fin_unit()
+m2 = c.inf_unit()
+assert m1 == []
+assert m2 == [0,1]
+c = spot.acc_cond('Inf(0)&Inf(1)|(Inf(2)|Fin(3))')
+m1 = c.fin_unit()
+m2 = c.inf_unit()
+assert m1 == []
+assert m2 == []
