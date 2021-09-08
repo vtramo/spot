@@ -110,6 +110,8 @@ static void run_one_reachability_bench(spot::ltsmin_kripkecube_ptr sys,
             << hs_size << ","
             << bf_size << ","
             <<  tm.timer("run").walltime()
+            << ','
+            << stats.unique_states
             << "\n";
 }
 

@@ -56,6 +56,7 @@ namespace spot
           std::is_same<void,        decltype(u->finalize())>::value          &&
           std::is_same<bool,        decltype(u->finisher())>::value          &&
           std::is_same<unsigned,    decltype(u->states())>::value            &&
+          std::is_same<unsigned,    decltype(u->unique_states())>::value     &&
           std::is_same<unsigned,    decltype(u->transitions())>::value       &&
           std::is_same<unsigned,    decltype(u->walltime())>::value          &&
           std::is_same<std::string, decltype(u->name())>::value              &&
@@ -100,7 +101,6 @@ namespace spot
       {
         ss[i] = algo_name::make_shared_structure(map, i);
         swarmed[i] = new algo_name(*sys, prop, map, ss[i], i, stop);
-
         static_assert(spot::is_a_mc_algorithm<decltype(&*swarmed[i])>::value,
                     "error: does not match the kripkecube requirements");
 
@@ -164,6 +164,8 @@ namespace spot
         result.finisher.emplace_back(swarmed[i]->finisher());
       }
 
+    result.unique_states = swarmed[0]->unique_states();
+
     if (trace)
       {
         bool go_on = true;
@@ -195,7 +197,11 @@ namespace spot
     for (unsigned i = 0; i < nbth; ++i)
       {
         delete swarmed[i];
-        delete ss[i];
+        auto tmp = ss[i];
+        for (unsigned j = i; j < nbth; ++j)
+          if (tmp == ss[j])
+            ss[j] = nullptr;
+        delete tmp;
       }
 
     return result;

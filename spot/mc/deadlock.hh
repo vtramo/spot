@@ -91,21 +91,38 @@ namespace spot
   public:
 
     ///< \brief Shortcut to ease shared map manipulation
-    using shared_map = brick::hashset::FastConcurrent <deadlock_pair*,
-                                                       pair_hasher>;
-    using shared_struct = shared_map;
+    using shared_map = brick::hashset::Concurrent <deadlock_pair*,
+    pair_hasher>;
 
-    static shared_struct* make_shared_structure(shared_map, unsigned)
+    struct shared_deadlock
     {
-      return nullptr; // Useless
+      std::atomic<unsigned> unique = 0;
+    };
+
+    using shared_struct = shared_deadlock;
+
+    static shared_struct* make_shared_structure(shared_map, unsigned tid)
+    {
+      static shared_struct *result =  nullptr;
+
+      // FIXME: This is an hack, i don't know how to fix that ;(
+      // Problem description: make_shared_struct is a singleton.
+      // Everything works perfectly but when spawning consecutives
+      // instances of this algorithm, shared_deadlock is not reseted
+      // by mc_instanciator... Since we knwo that mc_instanciator first
+      // work with tid 0, the line below perform the reset.
+      if (tid == 0)
+        result = new shared_struct;
+      return result;
     }
 
     swarmed_deadlock(kripkecube<State, SuccIterator>& sys,
                      twacube_ptr, /* useless here */
-                     shared_map& map, shared_struct* /* useless here */,
+                     shared_map& map,
+                     shared_struct* ss,
                      unsigned tid,
                      std::atomic<bool>& stop):
-      sys_(sys), tid_(tid), map_(map),
+      sys_(sys), tid_(tid), map_(map), ss_(ss),
       nb_th_(std::thread::hardware_concurrency()),
       p_(sizeof(int)*std::thread::hardware_concurrency()),
       p_pair_(sizeof(deadlock_pair)),
@@ -189,6 +206,8 @@ namespace spot
       // FIXME Should we add a local cache to avoid useless allocations?
       if (!b)
         p_.deallocate(ref);
+      else if (it.valid())
+        ++(ss_->unique); // count uniqueness
 
       // The state has been mark dead by another thread
       for (unsigned i = 0; !b && i < nb_th_; ++i)
@@ -205,6 +224,7 @@ namespace spot
       // Mark state as visited.
       (*it)->colors[tid_] = OPEN;
       ++states_;
+
       return true;
     }
 
@@ -238,6 +258,11 @@ namespace spot
     unsigned states()
     {
       return states_;
+    }
+
+    unsigned unique_states()
+    {
+      return ss_->unique;
     }
 
     unsigned transitions()
@@ -289,6 +314,7 @@ namespace spot
     unsigned transitions_ = 0;             ///< \brief Number of transitions
     unsigned tid_;                         ///< \brief Thread's current ID
     shared_map map_;                       ///< \brief Map shared by threads
+    shared_struct* ss_;                    ///< \brief the shared structure
     spot::timer_map tm_;                   ///< \brief Time execution
     unsigned states_ = 0;                  ///< \brief Number of states
     unsigned dfs_ = 0;                     ///< \brief Maximum DFS stack size

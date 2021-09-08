@@ -57,6 +57,7 @@ namespace spot
    std::vector<std::string> name;     ///< \brief The name of the algorithm used
    std::vector<unsigned> walltime;    ///< \brief Walltime for this thread in ms
    std::vector<unsigned> states;      ///< \brief Number of states visited
+   unsigned unique_states;            ///< \brief Number of unique states
    std::vector<unsigned> transitions; ///< \brief Number of transitions visited
    std::vector<int> sccs;             ///< \brief Number of SCCs or -1
    std::vector<mc_rvalue> value;      ///< \brief The return status
