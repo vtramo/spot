@@ -32,6 +32,7 @@
 #include <spot/twacube/twacube.hh>
 #include <spot/twacube/fwd.hh>
 #include <spot/mc/mc.hh>
+#include <spot/mc/bloom_filter.hh>
 
 namespace spot
 {
@@ -56,32 +57,32 @@ namespace spot
     /// \brief Describes the structure of a shared state
     struct deadlock_pair
     {
+      //      deadlock_pair() = delete;
+
       State st;                 ///< \brief the effective state
       int* colors;              ///< \brief the colors (one per thread)
+
+      bool operator==(deadlock_pair b) const
+      {
+        StateEqual eq;
+        return eq(st, b.st);
+      }
+
     };
 
+
     /// \brief The haser for the previous state.
-    struct pair_hasher
+    struct pair_hasher : brq::hash_adaptor<deadlock_pair>
     {
-      pair_hasher(const deadlock_pair*)
-      { }
-
-      pair_hasher() = default;
-
-      brick::hash::hash128_t
-      hash(const deadlock_pair* lhs) const
+      auto
+      hash(const deadlock_pair lhs) const
       {
         StateHash hash;
         // Not modulo 31 according to brick::hashset specifications.
-        unsigned u = hash(lhs->st) % (1<<30);
-        return {u, u};
-      }
-
-      bool equal(const deadlock_pair* lhs,
-                 const deadlock_pair* rhs) const
-      {
-        StateEqual equal;
-        return equal(lhs->st, rhs->st);
+        unsigned u = hash(lhs.st);//  % (1<<30);
+        //  uint64_t tmp =
+        // (uint64_t) (brq::hash(hash(lhs.st))  << 32 | brq::hash(hash(lhs.st) ));
+        return u;
       }
     };
 
@@ -91,12 +92,12 @@ namespace spot
   public:
 
     ///< \brief Shortcut to ease shared map manipulation
-    using shared_map = brick::hashset::Concurrent <deadlock_pair*,
-    pair_hasher>;
+    using shared_map = brq::concurrent_hash_set<deadlock_pair>;
 
     struct shared_deadlock
     {
       std::atomic<unsigned> unique = 0;
+      concurrent_bloom_filter* bloom_filter_ = nullptr;
     };
 
     using shared_struct = shared_deadlock;
@@ -112,7 +113,10 @@ namespace spot
       // by mc_instanciator... Since we knwo that mc_instanciator first
       // work with tid 0, the line below perform the reset.
       if (tid == 0)
-        result = new shared_struct;
+        {
+          result = new shared_struct{0,
+            new concurrent_bloom_filter((size_t) 10000) } ;
+        }
       return result;
     }
 
@@ -125,7 +129,6 @@ namespace spot
       sys_(sys), tid_(tid), map_(map), ss_(ss),
       nb_th_(std::thread::hardware_concurrency()),
       p_(sizeof(int)*std::thread::hardware_concurrency()),
-      p_pair_(sizeof(deadlock_pair)),
       stop_(stop)
     {
       static_assert(spot::is_a_kripkecube_ptr<decltype(&sys),
@@ -151,6 +154,7 @@ namespace spot
         {
           todo_.push_back({initial, sys_.succ(initial, tid_), transitions_});
         }
+
       while (!todo_.empty() && !stop_.load(std::memory_order_relaxed))
         {
           if (todo_.back().it->done())
@@ -196,33 +200,40 @@ namespace spot
         ref[i] = UNKNOWN;
 
       // Try to insert the new state in the shared map.
-      deadlock_pair* v = (deadlock_pair*) p_pair_.allocate();
-      v->st = s;
-      v->colors = ref;
-      auto it = map_.insert(v);
+      deadlock_pair v  {s, ref};
+      static auto fn_hash = pair_hasher();
+      auto it = map_.insert(v, fn_hash);
+
+      auto colors = it->colors;
+      auto st = it->st;
+
+      // assert(colors);
+      // assert(st);
+      //      assert(it.valid());
+
       bool b = it.isnew();
 
       // Insertion failed, delete element
       // FIXME Should we add a local cache to avoid useless allocations?
       if (!b)
         p_.deallocate(ref);
-      else if (it.valid())
+      else //if (it.valid())
         ++(ss_->unique); // count uniqueness
 
       // The state has been mark dead by another thread
       for (unsigned i = 0; !b && i < nb_th_; ++i)
-        if ((*it)->colors[i] == static_cast<int>(CLOSED))
+        if (colors[i] == static_cast<int>(CLOSED))
           return false;
 
       // The state has already been visited by the current thread
-      if ((*it)->colors[tid_] == static_cast<int>(OPEN))
+      if (colors[tid_] == static_cast<int>(OPEN))
         return false;
 
       // Keep a ptr over the array of colors
-      refs_.push_back((*it)->colors);
+      refs_.push_back(colors);
 
       // Mark state as visited.
-      (*it)->colors[tid_] = OPEN;
+      colors[tid_] = OPEN;
       ++states_;
 
       return true;
@@ -230,6 +241,10 @@ namespace spot
 
     bool pop()
     {
+      StateHash sh;
+      ss_->bloom_filter_->insert(sh(todo_.back().s));
+
+
       // Track maximum dfs size
       dfs_ = todo_.size()  > dfs_ ? todo_.size() : dfs_;
 
@@ -321,7 +336,6 @@ namespace spot
     /// \brief Maximum number of threads that can be handled by this algorithm
     unsigned nb_th_ = 0;
     fixed_size_pool<pool_type::Unsafe> p_;  ///< \brief Color Allocator
-    fixed_size_pool<pool_type::Unsafe> p_pair_;  ///< \brief State Allocator
     bool deadlock_ = false;                ///< \brief Deadlock detected?
     std::atomic<bool>& stop_;              ///< \brief Stop-the-world boolean
     /// \brief Stack that grows according to the todo stack. It avoid multiple
