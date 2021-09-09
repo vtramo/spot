@@ -81,3 +81,7 @@ GTAGS
 *.dsc
 *.gcov
 spot.spec
+*.dve.cpp
+*.dve2C
+bench/bitstate/reachability
+bench/bitstate/data
