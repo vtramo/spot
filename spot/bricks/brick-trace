@@ -1,0 +1,428 @@
+// -*- mode: C++; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+
+/*
+ * Macros for run-time-configurable debug tracing.
+ */
+
+/*
+ * (c) 2019 Petr Ročkai <code@fixp.eu>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+#pragma once
+
+#include <string_view>
+#include <charconv>
+#include <iomanip>
+#include <tuple>
+#include <variant>
+
+#ifdef __divine__
+#include <sys/cdefs.h>
+#include <sys/trace.h>
+#else
+#include <unordered_set>
+#include <cstring>
+#define __debugfn
+#define __boring
+#endif
+
+#ifdef __unix__
+#include <unistd.h>
+#else
+#include <cstdio>
+#endif
+
+/* The purpose of the TRACE macro is to allow tracing statements to be included
+ * in production code, just like ASSERT macros allow for sanity checks and
+ * pre/post-condition checking. If compiled with NDEBUG, it's a noop and in
+ * debug builds, the output must be enabled by setting environment variables
+ * BRICK_TRACE and optionally BRICK_NOTRACE, which accept either `all`, a file
+ * name (without path) or a file name and a line number (formatted like
+ * `file.cpp:15`). A runtime-disabled trace point compiles to a few lookups in
+ * std::unordered_set.
+ *
+ * Normally, the formatted trace output is printed using std::cerr. The
+ * formatting is done using a brq::string_builder (see below) to cut down on
+ * overhead and to prevent exceptions being thrown. When built for DiOS, the
+ * output is done unconditionally using the __dios_trace mechanism, and the
+ * entire trace function is marked as __debugfn (i.e. it is not executed during
+ * model checking, only for counter-example generation -- TRACE therefore only
+ * causes very modest overhead in DIVINE). */
+
+#define BRICK_LOCATION(stmt) ::brq::trace_location{ __LINE__, __FILE__, stmt }
+
+#ifdef NDEBUG
+#define TRACE(...) static_cast< decltype(__VA_ARGS__, void(0)) >(0)
+#else
+#define TRACE(...) ::brq::trace_fn( BRICK_LOCATION( "" ), __VA_ARGS__ )
+#endif
+
+namespace brq
+{
+
+    /* A simple string builder, similar to std::stringstream but much lighter.
+     * Only works with 8-bit characters (i.e. no wchar_t or char32_t). Provides
+     * a basic selection of formatting operators. To provide formatting
+     * operators for custom types, the following idiom may be useful to use the
+     * same definition for std::ostream and for string_builder (also works for
+     * friend-style definitions):
+     *
+     * template< typename stream >
+     * auto operator<<( stream &o, my_type t ) -> decltype( o << "" )
+     * {
+     *     // ...
+     * }
+     *
+     * Besides accepting values to format, string_builder also understands
+     * std::dec and std::hex IO manipulators. */
+
+    struct string_builder
+    {
+        char *_buffer = nullptr;
+        int32_t _capacity:30, _offset:30;
+        bool _hex:1, _oom:1;
+
+        string_builder( const string_builder & ) = delete;
+        string_builder( string_builder &&o )
+            : _buffer( o._buffer ), _capacity( o._capacity ), _offset( o._offset ),
+              _hex( o._hex ), _oom( o._oom )
+        {
+            o._buffer = nullptr;
+            o._capacity = 0;
+            o._offset = 0;
+        }
+
+        string_builder() noexcept : _capacity( 0 ), _offset( 0 ), _hex( false ), _oom( false ) {}
+        ~string_builder() noexcept { free( _buffer ); }
+
+        char *pointer() noexcept { return _buffer + _offset; }
+        char *buffer_end() noexcept { return _buffer + _capacity - 1; }
+        const char *buffer() const noexcept { return _buffer ? _buffer : ""; }
+        std::string_view data() const noexcept { return std::string_view( _buffer, _offset ); }
+        int size() noexcept { return _offset; }
+        bool truncated() { return _oom; }
+        string_builder &hex( bool h = true ) { _hex = h; return *this; }
+        string_builder &dec() { _hex = false; return *this; }
+
+        bool _make_space( int sz ) noexcept
+        {
+            if ( _oom )
+                return false;
+            if ( _offset + sz < _capacity )
+                return true;
+
+            int new_capacity = _capacity + std::max( _capacity / 2, sz + 1 );
+            void *mem = realloc( _buffer, new_capacity );
+            if ( mem )
+            {
+                _buffer = static_cast< char * >( mem );
+                _capacity = new_capacity;
+            }
+            else
+                _oom = true;
+
+            return !_oom;
+        }
+
+        string_builder &operator<<( std::string_view str ) noexcept
+        {
+            if ( !_make_space( str.size() ) ) return *this;
+            std::copy( str.begin(), str.end(), pointer() );
+            _offset += str.size();
+            _buffer[ _offset ] = 0;
+            return *this;
+        }
+
+        string_builder &operator<<( char c ) noexcept
+        {
+            *this << int( c );
+            if ( std::isprint( c ) )
+            {
+                if ( !_make_space( 3 ) ) return *this;
+                _buffer[ _offset++ ] = '\'';
+                _buffer[ _offset++ ] = c;
+                _buffer[ _offset++ ] = '\'';
+                _buffer[ _offset ] = 0;
+            }
+            return *this;
+        }
+
+        string_builder &operator<<( const void *ptr ) noexcept
+        {
+            auto was_hex = _hex;
+            _hex = true;
+            (*this) << uintptr_t( ptr );
+            _hex = was_hex;
+            return *this;
+        }
+
+        string_builder &operator<<( const char *str ) noexcept
+        {
+            return (*this) << std::string_view( str );
+        }
+
+        template< typename C >
+        auto operator<<( const C &c ) noexcept
+            -> std::enable_if_t< !std::is_same< typename C::value_type, char >::value,
+                                 decltype( *this << *c ) >
+        {
+            if ( c.has_value() )
+                return *this << "[ " << *c << " ]";
+            else
+                return *this << "<null>";
+        }
+
+        template< typename C >
+        auto operator<<( const C &c ) noexcept
+            -> std::enable_if_t< !std::is_same< typename C::value_type, char >::value,
+                                 decltype( *this << *c.begin() << *c.end() ) >
+        {
+            bool first = true;
+            *this << "[";
+            for ( const auto &e : c )
+                *this << ( first ? first = false, " " : ", " ) << e;
+            *this << ( first ? "]" : " ]" );
+            return *this;
+        }
+
+        template< int i = 0, typename... T >
+        auto &operator<<( const std::tuple< T... > &t ) noexcept
+        {
+            if ( i == 0 )
+                *this << "[";
+            if constexpr ( i < sizeof...( T ) )
+            {
+                *this << ( i > 0 ? ", " : " " ) << std::get< i >( t );
+                return this->operator<<< i + 1 >( t );
+            }
+            else
+                return *this << ( i == 0 ? "]" : " ]" );
+        }
+
+        template< typename... T >
+        auto &operator<<( const std::variant< T... > &v ) noexcept
+        {
+            return std::visit( [&]( const auto &val ) -> auto & { return *this << val; }, v );
+        }
+
+        template< typename A, typename B >
+        auto operator<<( const std::pair< A, B > &p ) noexcept
+            -> decltype( *this << p.first << p.second )
+        {
+            return *this << "[ " << p.first << ", " << p.second << " ]";
+        }
+
+        string_builder &operator<<( decltype( std::hex ) manip ) noexcept
+        {
+            if ( manip == std::hex )
+                _hex = true;
+            if ( manip == std::dec )
+                _hex = false;
+            return *this;
+        }
+
+        template< typename F >
+        auto operator<<( const F &f ) noexcept
+            -> decltype( f( *this ), *this )
+        {
+            return f( *this ), *this;
+        }
+
+        template< typename V >
+        auto operator<<( const V &val ) noexcept
+            -> decltype( std::to_chars( _buffer, _buffer, val ), *this )
+        {
+            int cap = 16;
+            std::to_chars_result result;
+            do {
+                if ( !_make_space( cap ) ) return *this;
+                if constexpr ( std::is_integral< V >::value )
+                    result = std::to_chars( pointer(), buffer_end(), val, _hex ? 16 : 10 );
+                else
+                    result = std::to_chars( pointer(), buffer_end(), val );
+                cap *= 2;
+            } while ( result.ec == std::errc::value_too_large );
+
+            _offset = result.ptr - _buffer;
+            _buffer[ _offset ] = 0;
+            return *this;
+        }
+
+        template< typename T >
+        string_builder &pad( int pad, const T &v, char p = ' ' )
+        {
+            int start = _offset;
+            *this << v;
+            int w = _offset - start;
+            pad -= w;
+            if ( pad <= 0 )
+                return *this;
+            _make_space( pad );
+            if ( !_oom )
+            {
+                std::memmove( _buffer + start + pad, _buffer + start, w + 1 );
+                std::memset( _buffer + start, p, pad );
+                _offset += pad;
+            }
+            return *this;
+        }
+    };
+
+    /* Wrap __FILE__ and __LINE__, optionally together with a stringified
+     * assertion statement. Needs to be cheap to construct and pass around,
+     * since in debug builds this happens a lot. */
+
+    struct trace_location
+    {
+        int line;
+        const char *_file, *_statement;
+
+        std::string_view filename() const
+        {
+            std::string_view r( _file );
+            r = r.substr( r.find( '/' ) == r.npos ? 0 : r.rfind( '/' ) + 1 );
+            return r;
+        }
+
+        const char *statement() const
+        {
+            return _statement;
+        }
+    };
+
+    /* Format a bunch of values into a stream, separated by spaces. Values that
+     * don't have a string_builder formatting operator are printed as
+     * <unknown>, because TRACE statements can include values whose types
+     * depend on template parameters and we don't want TRACE uses to cause
+     * unexpected instantiation failures (especially for cases where the user
+     * doesn't care about the trace output). */
+
+    struct fallback
+    {
+        template< typename T >
+        constexpr fallback( const T & ) {}
+    };
+
+    template< typename stream, typename T >
+    auto format( stream &acc, const T &t ) noexcept
+        -> decltype( acc << t, void(0) )
+    {
+        acc << t;
+    }
+
+    template< typename stream >
+    void format( stream &acc, fallback ) noexcept
+    {
+        acc << "<unknown>";
+    }
+
+    template< typename stream >
+    void format_args( stream & ) noexcept {}
+
+    template< typename stream, typename A, typename... Args >
+    void format_args( stream &acc, const A &a, const Args & ... as ) noexcept
+    {
+        format( acc, a );
+        if constexpr ( !std::is_same< A, decltype( std::hex ) >::value )
+            acc << " ";
+        format_args( acc, as... );
+    }
+
+    /* In debug builds, decide which traces are active at run-time. This is to
+     * prevent swamping the user with irrelevant traces from library code they
+     * might be using. For short programs (e.g. unit tests), it might be okay
+     * to just say `env BRICK_TRACE=all program`. */
+
+    namespace trace_impl
+    {
+#ifdef __divine__
+        static bool enabled( const trace_location & ) { return true; }
+#else
+        using pair = std::pair< std::string_view, int >;
+        struct hash
+        {
+            auto operator()( pair p ) const
+            {
+                return std::hash< std::string_view >()( p.first ) + std::hash< int >()( p.second );
+            }
+        };
+        using Set = std::unordered_set< std::pair< std::string_view, int >, hash >;
+
+        static inline Set init( const char *str_ )
+        {
+            if ( !str_ )
+                return Set();
+
+            std::string_view str( str_ );
+            Set i;
+            while ( !str.empty() )
+            {
+                auto s = str.find( ',' );
+                auto filename = str.substr( 0, s ), lineno = filename;
+                lineno.remove_prefix( std::min( lineno.find( ':' ), lineno.size() ) );
+                int line = 0;
+                if ( lineno.size() )
+                {
+                    filename.remove_suffix( lineno.size() );
+                    lineno.remove_prefix( 1 );
+                    line = strtol( lineno.begin(), nullptr, 10 );
+                }
+                i.emplace( filename, line );
+                if ( s == str.npos )
+                    return i;
+                str = str.substr( s + 1 );
+            }
+            return i;
+        }
+
+        static bool enabled( const trace_location &l )
+        {
+            static Set yes = init( getenv( "BRICK_TRACE" ) ), no = init( getenv( "BRICK_NOTRACE" ) );
+            static bool all = getenv( "BRICK_TRACE" ) && !strcmp( getenv( "BRICK_TRACE" ), "all" );
+            return ( all || yes.count( { l.filename(), 0 } ) || yes.count( { l.filename(), l.line } ) ) &&
+                   !no.count( { l.filename(), 0 } ) && !no.count( { l.filename(), l.line } );
+        }
+#endif
+    }
+
+    template< typename... Args >
+    __debugfn void trace_fn( trace_location l, const Args &... args ) noexcept
+    {
+        if ( !trace_impl::enabled( l ) )
+            return;
+        string_builder acc;
+        acc << l.filename() << ":" << l.line << ": ";
+#ifndef __divine__
+        acc << "[" << pthread_self() << "] ";
+#endif
+        format_args( acc, args... );
+
+#ifdef __divine__
+        if ( acc.truncated() )
+            __vm_cancel();
+        __dios_trace_internal( 0, "%s", acc.buffer() );
+#else
+        acc << "\n";
+#ifdef __unix__
+        ::write( 2, acc.buffer(), acc.size() );
+#else
+        std::fwrite( acc.buffer(), 1, acc.size(), stderr );
+        std::fflush( stderr );
+#endif
+#endif
+    }
+}
+
+// vim: syntax=cpp tabstop=4 shiftwidth=4 expandtab

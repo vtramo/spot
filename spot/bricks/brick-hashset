@@ -242,7 +242,6 @@ namespace brq::impl
     template< typename T >
     struct alignas( std::min( 16ul, sizeof( tagged< T > ) ) ) atomic_cell : cell_base< T >
     {
-        // FIX HERE: remove name shadowing
         using taggedT = tagged< T >;
         using bare_value = typename taggedT::Type;
         using atomic_value = std::atomic< bare_value >;
@@ -328,16 +327,10 @@ namespace brq::impl
     template< typename T >
     using default_cell = std::conditional_t< ( sizeof( T ) < 16 ), compact_cell< T >, fast_cell< T > >;
 
-    template< typename T, typename = void > struct is_lock_free : std::false_type {};
-    template< typename T >
-    struct is_lock_free< T, std::enable_if_t< std::is_trivially_copy_constructible_v< T > > >
-    {
-        static constexpr bool value = std::atomic< typename tagged< T >::Type >::is_always_lock_free;
-    };
-
     template< typename T >
     using concurrent_cell =
-        std::conditional_t< is_lock_free< T >::value, atomic_cell< T >, locked_cell< T > >;
+        std::conditional_t< std::atomic< typename tagged< T >::Type >::is_always_lock_free,
+                            atomic_cell< T >, locked_cell< T > >;
 
     template< typename Cell_ >
     struct hash_set_base
@@ -371,9 +364,7 @@ namespace brq::impl
         brq::refcount_ptr< hash_table, true > next;
         std::atomic< size_t > _size;
         std::atomic< ssize_t > to_rehash;
-        // FIX HERE: replace flexible array member with array of size 1
-        uint8_t _data[1];
-        Cell &data( int i = 0 ) { return reinterpret_cast< Cell * >( _data )[ i ]; }
+        Cell data[];
 
         using value_type = typename Cell::value_type;
 
@@ -381,8 +372,7 @@ namespace brq::impl
         using Lookup = std::pair< typename Cell::pointer, LookupTag >;
         enum InsertMode { Rehash, Insert };
 
-        // FIX HERE: fix recursive template depth exceeded
-        /*template< typename stream >
+        template< typename stream >
         friend auto operator<<( stream &o, LookupTag t ) -> decltype( o << "" )
         {
             switch ( t )
@@ -392,7 +382,7 @@ namespace brq::impl
                 case Invalid: return o << "invalid";
                 default: return o << int( t );
             }
-        }*/
+        }
 
         static void *operator new( size_t objsize, size_t cellcount )
         {
@@ -411,14 +401,7 @@ namespace brq::impl
         hash_table( size_t size, ssize_t rehash )
             : next( nullptr ), _size( size ), to_rehash( rehash )
         {
-            std::uninitialized_default_construct( &data(), &data() + size );
-        }
-
-        ~hash_table()
-        {
-            auto s = size();
-            for ( decltype( s ) i = 0; i < s; ++i )
-                data( i ).~Cell();
+            std::uninitialized_default_construct( data, data + size );
         }
 
         size_t size() { return _size.load( std::memory_order_relaxed ); }
@@ -428,7 +411,7 @@ namespace brq::impl
         Cell *segment_begin( int id )
         {
             ASSERT_LT( id, segment_count() );
-            return &data() + segment_size() * id;
+            return data + segment_size() * id;
         }
 
         static constexpr const size_t cluster_bytes = 32;
@@ -453,12 +436,10 @@ namespace brq::impl
             ASSERT_EQ( mask | size(), mask + size() );
 
             Cell *tomb = nullptr;
-            // FIX HERE: unused variable tomb if concurrent is set
-            (void)(tomb);
 
             for ( unsigned i = 0; i < max; ++i )
             {
-                Cell &cell = data( index( h, i, mask ) );
+                Cell &cell = data[ index( h, i, mask ) ];
 
                 if ( cell.invalid() )
                     return { nullptr, Invalid };
@@ -489,21 +470,19 @@ namespace brq::impl
         auto find_generic( const X &x, hash64_t h, F match )
             -> std::pair< decltype( match( std::declval< Cell & >(), x, h ) ), LookupTag >
         {
-            // FIX HERE: explicit cast from nullptr to bool needed by GCC
-            const auto nil = (decltype( match( std::declval< Cell & >(), x, h ) )) nullptr;
             const size_t mask = size() - 1;
 
             for ( size_t i = 0; i < max_chain; ++i )
             {
-                Cell &cell = data( index( h, i, mask ) );
+                Cell &cell = data[ index( h, i, mask ) ];
                 if ( cell.invalid() )
-                    return { nil, Invalid };
+                    return { nullptr, Invalid };
                 if ( cell.empty() )
-                    return { nil, Empty };
+                    return { nullptr, Empty };
                 if ( auto v = match( cell, x, h ) )
                     return { v, Found };
             }
-            return { nil, Empty };
+            return { nullptr, Empty };
         }
 
         template< typename X, typename A >
@@ -552,12 +531,6 @@ namespace brq::impl
 
         brq::refcount_ptr< table > _table;
 
-        // FIX HERE: add missing delete operator
-        static void operator delete( void *memory )
-        {
-            free(memory);
-        }
-
         size_t capacity()
         {
             while ( await_update() );
@@ -571,7 +544,7 @@ namespace brq::impl
             hash_set_stats st;
             st.capacity = _table->size();
             for ( size_t i = 0; i < st.capacity; ++i )
-                if ( !_table->data( i ).empty() )
+                if ( !_table->data[ i ].empty() )
                     st.used ++;
             return st;
         }
@@ -666,8 +639,6 @@ namespace brq::impl
                     case A::Bury: buried = c.bury(); return true;
                     case A::Done: buried = true; return true;
                     case A::Mismatch: return false;
-                    // FIX HERE: add missing default
-                    default: return false;
                 }
             };
 
@@ -732,12 +703,10 @@ namespace brq::impl
 
                 if ( !result )
                 {
-                    // FIX HERE: replace string_builder with std::stringstream
-                    // (prevent segfault)
-                    std::stringstream err;
+                    string_builder err;
                     err << "hash table " << _table << " failed to rehash at size " << _table->size();
                     to.to_rehash.store( 0 ); /* prevent stalls and deadlocks */
-                    throw std::runtime_error( err.str() );
+                    throw std::runtime_error( err.buffer() );
                 }
             }
 
@@ -787,10 +756,10 @@ namespace brq::impl
             _table = make_table( o.capacity(), 0 );
             _table->to_rehash = _table->segment_count();
             /* TODO avoid the default-construct + overwrite here */
-            std::copy( &o._table->data(), &o._table->data() + capacity(), &_table->data() );
+            std::copy( o._table->data, o._table->data + capacity(), _table->data );
         }
 
-        cell &cell_at( size_t index ) { return _table->data( index ); }
+        cell &cell_at( size_t index ) { return _table->data[ index ]; }
         value_type valueAt( size_t idx ) { return cell_at( idx ).fetch(); }
         bool valid( size_t idx ) { return !cell_at( idx ).empty(); }
     };

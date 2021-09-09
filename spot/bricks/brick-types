@@ -32,9 +32,9 @@
 #include "brick-assert"
 #include "brick-string"
 
+
 #include <memory>
 #include <cstring>
-#include <string>
 #include <type_traits>
 #include <functional>
 #if __cplusplus > 201402L && __has_include(<variant>) && __has_include(<optional>) // C++17
@@ -355,22 +355,6 @@ struct StrongEnumFlags {
     UnderlyingType store;
 };
 
-template< typename T >
-brq::parse_result from_string( std::string_view s, brick::types::StrongEnumFlags< T > &f )
-{
-    T val;
-
-    for ( auto c : brq::splitter( s, ',' ) )
-    {
-        if ( auto r = from_string( c, val ) ; !r )
-            return r;
-        else
-            f |= val;
-    }
-
-    return {};
-}
-
 /* implementation of Union */
 
 namespace _impl {
@@ -456,6 +440,14 @@ struct ApplyResult< F, T, Ts... > : _ApplyResult< F, T, ApplyResult< F, Ts... > 
 template< typename F > struct ApplyResult< F > {};
 
 }
+
+struct UnionException : std::exception {
+    UnionException( std::string msg ) : msg( msg ) { }
+
+    virtual const char *what() const noexcept override { return msg.c_str(); }
+
+    std::string msg;
+};
 
 template< typename T >
 struct InPlace { };
