@@ -353,7 +353,7 @@ namespace brq
         using pair = std::pair< std::string_view, int >;
         struct hash
         {
-            auto operator()( pair p ) const
+            auto operator()( pair p ) const noexcept
             {
                 return std::hash< std::string_view >()( p.first ) + std::hash< int >()( p.second );
             }

@@ -364,7 +364,7 @@ namespace brq::impl
         brq::refcount_ptr< hash_table, true > next;
         std::atomic< size_t > _size;
         std::atomic< ssize_t > to_rehash;
-        Cell data[];
+        Cell data[1];
 
         using value_type = typename Cell::value_type;
 

@@ -140,15 +140,15 @@ int vasprintf (char **result, const char *format, va_list args)
 
 namespace {
 
-std::string fmtf( const char* f, ... ) {
-    char *c;
-    va_list ap;
-    va_start( ap, f );
-    vasprintf( &c, f, ap );
-    std::string ret( c );
-    free( c );
-    return ret;
-}
+// std::string fmtf( const char* f, ... ) {
+//     char *c;
+//     va_list ap;
+//     va_start( ap, f );
+//     vasprintf( &c, f, ap );
+//     std::string ret( c );
+//     free( c );
+//     return ret;
+// }
 
 /// Format any value into a string using a std::stringstream
 template< typename T >
