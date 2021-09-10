@@ -92,15 +92,15 @@ namespace spot
         {
           max_models(cond.remove(fu, true), colors - fu, out);
         }
-      // Otherwise, we simply have to pick a random Fin(x) and see if
-      // we can satisfy the condition when x is present or absent.  In
-      // this case, we do not know whether the generated models will
-      // be maximal, so this justifies the inclusion checks between
-      // models at the top of this function.
-      else if (int fo = cond.fin_one(); fo >= 0)
+      // Otherwise, we simply have to pick some arbitrary Fin(x) and
+      // see if we can satisfy the condition when x is present or
+      // absent.  In this case, we do not know whether the generated
+      // models will be maximal, so this justifies the inclusion
+      // checks between models at the top of this function.
+      else if (auto [fo, fpart] = cond.fin_one_extract(); fo >= 0)
         {
           acc_cond::mark_t fo_m = {(unsigned) fo};
-          max_models(cond.remove(fo_m, true), colors - fo_m, out);
+          max_models(fpart.remove(fo_m, true), colors - fo_m, out);
           max_models(cond.remove(fo_m, false), colors, out);
         }
     }

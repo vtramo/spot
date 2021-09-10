@@ -99,6 +99,8 @@ namespace spot
   ///   \cite baier.19.atva , with the above bug fixed.
   /// - "spot29" improves upon the worst case of atva19.  This is
   ///   the default.
+  /// - "spot210" improves upon "spot29" in a few cases where a Fin
+  ///   is shared by multiple disjuncts.
   SPOT_API void
   generic_emptiness_check_select_version(const char* emversion = nullptr);
 

@@ -25,7 +25,7 @@ namespace spot
 {
   namespace
   {
-    enum genem_version_t { spot28, atva19, spot29 };
+    enum genem_version_t { spot28, atva19, spot29, spot210 };
     static genem_version_t genem_version = spot29;
   }
 
@@ -33,13 +33,15 @@ namespace spot
   {
     if (emversion == nullptr || !strcasecmp(emversion, "spot29"))
       genem_version = spot29;
+    else if (!strcasecmp(emversion, "spot210"))
+      genem_version = spot210;
     else if (!strcasecmp(emversion, "spot28"))
       genem_version = spot28;
     else if (!strcasecmp(emversion, "atva19"))
       genem_version = atva19;
     else
-      throw std::invalid_argument("generic_emptiness_check version should"
-                                  " be one of {spot28, atva19, spot29}");
+      throw std::invalid_argument("generic_emptiness_check version should be "
+                                  "one of {spot28, atva19, spot29, spot210}");
   }
 
   namespace
@@ -108,34 +110,39 @@ namespace spot
       acc_cond acc = autacc.restrict_to(sets);
       acc = acc.remove(si.common_sets_of(scc), false);
 
-      if (SPOT_LIKELY(genem_version == spot29 || !EarlyStop))
+      if (SPOT_LIKELY(genem_version == spot210 || !EarlyStop))
+        do
+          {
+            auto [fo, fpart] = acc.fin_one_extract();
+            assert(fo >= 0);
+            // Try to accept when Fin(fo) == true
+            acc_cond::mark_t fo_m = {(unsigned) fo};
+            if (!scc_split_check<EarlyStop, Extra>
+                (si, scc, fpart.remove(fo_m, true), extra, fo_m))
+              if constexpr (EarlyStop)
+                return false;
+            // Try to accept when Fin(fo) == false
+            acc = acc.force_inf(fo_m);
+          }
+        while (!acc.is_f());
+      else if (genem_version == spot29)
         do
           {
             acc_cond::acc_code rest = acc_cond::acc_code::f();
-            if (EarlyStop)
-              {
-                for (const acc_cond& disjunct: acc.top_disjuncts())
-                  if (acc_cond::mark_t fu = disjunct.fin_unit())
-                    {
-                      if (!scc_split_check<EarlyStop, Extra>
-                          (si, scc, disjunct.remove(fu, true), extra, fu))
-                        if constexpr (EarlyStop)
-                          return false;
-                    }
-                  else
-                    {
-                      rest |= disjunct.get_acceptance();
-                    }
-                if (rest.is_f())
-                  break;
-              }
-            else
-              {
-                rest = acc.get_acceptance();
-                if (acc_cond::mark_t fu = rest.fin_unit())
-                  return scc_split_check<EarlyStop, Extra>
-                    (si, scc, rest.remove(fu, true), extra, fu);
-              }
+            for (const acc_cond& disjunct: acc.top_disjuncts())
+              if (acc_cond::mark_t fu = disjunct.fin_unit())
+                {
+                  if (!scc_split_check<EarlyStop, Extra>
+                      (si, scc, disjunct.remove(fu, true), extra, fu))
+                    if constexpr (EarlyStop)
+                      return false;
+                }
+              else
+                {
+                  rest |= disjunct.get_acceptance();
+                }
+            if (rest.is_f())
+              break;
             acc_cond subacc(acc.num_sets(), std::move(rest));
             int fo = subacc.fin_one();
             assert(fo >= 0);
