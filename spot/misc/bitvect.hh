@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2013-2020 Laboratoire de Recherche et Développement
+// Copyright (C) 2013-2021 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -362,6 +362,45 @@ namespace spot
     bool operator<=(const bitvect& other) const
     {
       return !(other < *this);
+    }
+
+    template<typename F>
+    void foreach_set_index(F callback) const
+    {
+      const size_t bpb = 8 * sizeof(bitvect::block_t);
+      size_t rest = size() % bpb;
+      for (size_t i = 0; i <= block_count_ - 1; ++i)
+        {
+          block_t b = storage_[i];
+          if ((i == block_count_ - 1) && rest)
+            // The last block might not be fully used, scan only the
+            // relevant portion.
+            b &= (1UL << rest) - 1;
+          if (b != 0)
+            {
+              unsigned base = i * bpb;
+#if __GNUC__
+              // This version is probably faster on sparse bitsets.
+              do
+                {
+                  unsigned bit = __builtin_ctzl(b);
+                  b ^= 1UL << bit;
+                  callback(base + bit);
+                }
+              while (b);
+#else
+              unsigned bit = 0;
+              do
+                {
+                  if (b & 1)
+                    callback(base + bit);
+                  ++bit;
+                  b >>= 1;
+                }
+              while (b);
+#endif
+            }
+        }
     }
 
     friend SPOT_API bitvect* make_bitvect(size_t bitcount);

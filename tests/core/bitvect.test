@@ -1,7 +1,7 @@
 #!/bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2013, 2015, 2016 Laboratoire de Recherche et Développement
-# de l'Epita (LRDE).
+# Copyright (C) 2013, 2015, 2016, 2021 Laboratoire de Recherche et
+# Développement de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
 #
@@ -23,7 +23,7 @@
 
 set -e
 
-run 0 ../bitvect | tee stderr
+run 0 ../bitvect | sed 's/ $//' | tee stderr
 cat >expected <<EOF
 
    0_________1_________2_________3_________4_________5_________6_________7_____
@@ -43,7 +43,11 @@ w: 000000000010110000000000000000100000000001
 
 x: 000000000000000000000000000000000000000000000000000000000000100000000010000
 x: 000000000010110000000000000000100000000001000000000000000000100000000010000
+foreach in v: 7,10,12,
+foreach in w: 10,12,13,30,41,
+foreach in x: 10,12,13,30,41,60,70,
 subset? 1 0
+foreach in x-x:
 
    0_________1_________2_________3_________4_________5_________6_________7_____
    0123456789012345678901234567890123456789012345678901234567890123456789012345

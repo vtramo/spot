@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2013-2016, 2018 Laboratoire de Recherche et
+// Copyright (C) 2013-2016, 2018, 2021 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -35,6 +35,11 @@ static void ruler()
   std::cout << "\n\n";
 }
 
+static void print_callback(unsigned t)
+{
+  std::cout << t << ',';
+}
+
 #define ECHO(name) std::cout << #name": " << *name << '\n'
 
 int main()
@@ -65,8 +70,23 @@ int main()
   *x |= *w;
   ECHO(x);
 
+  std::cout << "foreach in v: ";
+  v->foreach_set_index(print_callback);
+  std::cout << '\n';
+  std::cout << "foreach in w: ";
+  w->foreach_set_index(print_callback);
+  std::cout << '\n';
+  std::cout << "foreach in x: ";
+  x->foreach_set_index(print_callback);
+  std::cout << '\n';
+
   std::cout << "subset? " << w->is_subset_of(*x)
             << ' ' << v->is_subset_of(*w) << '\n';
+
+  *x -= *x;
+  std::cout << "foreach in x-x: ";
+  x->foreach_set_index(print_callback);
+  std::cout << '\n';
 
   delete v;
   delete w;
