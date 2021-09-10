@@ -271,7 +271,7 @@ namespace spot
   bool
   maximal_accepting_loops_for_scc(const scc_info& si, unsigned scc,
                                   const acc_cond& forced_acc,
-                                  const std::vector<bool>& keep,
+                                  const bitvect& keep,
                                   std::function<void(const scc_info&,
                                                      unsigned)> callback)
   {

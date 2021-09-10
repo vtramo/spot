@@ -22,6 +22,7 @@
 #include <vector>
 #include <spot/twa/twagraph.hh>
 #include <spot/twaalgos/emptiness.hh>
+#include <spot/misc/bitvect.hh>
 
 namespace spot
 {
@@ -792,7 +793,7 @@ namespace spot
     const_twa_graph_ptr aut_;
     acc_cond old_acc_;
     bool restore_old_acc_ = false;
-    const std::vector<bool>* keep_ = nullptr;
+    const bitvect* keep_ = nullptr;
 
     static scc_info::edge_filter_choice
     filter_scc_and_mark_(const twa_graph::edge_storage_t& e,
@@ -833,7 +834,7 @@ namespace spot
     scc_and_mark_filter(const scc_info& lower_si,
                         unsigned lower_scc,
                         acc_cond::mark_t cut_sets,
-                        const std::vector<bool>& keep)
+                        const bitvect& keep)
     : scc_and_mark_filter(lower_si, lower_scc, cut_sets)
     {
       keep_ = &keep;

@@ -20,11 +20,9 @@
 #include "config.h"
 #include <iostream>
 #include <deque>
-#include <memory>
 #include <spot/twaalgos/zlktree.hh>
 #include <spot/twaalgos/genem.hh>
 #include <spot/misc/escape.hh>
-#include <spot/misc/bitvect.hh>
 
 namespace spot
 {
@@ -380,16 +378,16 @@ namespace spot
     {
       if (bitvectors.size() > 2 * n)
         return;
-      bitvectors.emplace_back(nedges, false);
-      bitvectors.emplace_back(nstates, false);
+      bitvectors.emplace_back(std::unique_ptr<bitvect>(make_bitvect(nedges)));
+      bitvectors.emplace_back(std::unique_ptr<bitvect>(make_bitvect(nstates)));
     };
-    auto edge_vector = [&] (unsigned n) -> std::vector<bool>&
+    auto edge_vector = [&] (unsigned n) -> bitvect&
     {
-      return bitvectors[2 * n];
+      return *bitvectors[2 * n];
     };
-    auto state_vector = [&] (unsigned n) -> std::vector<bool>&
+    auto state_vector = [&] (unsigned n) -> bitvect&
     {
-      return bitvectors[2 * n + 1];
+      return *bitvectors[2 * n + 1];
     };
     allocate_vectors_maybe(0);
 
@@ -416,8 +414,8 @@ namespace spot
         n.scc = scc;
         for (auto& e: si_->inner_edges_of(scc))
           {
-            n.edges[aut->edge_number(e)] = true;
-            n.states[e.src] = true;
+            n.edges.set(aut->edge_number(e));
+            n.states.set(e.src);
           }
       }
 
@@ -482,11 +480,7 @@ namespace spot
           n.parent = node;
           n.level = lvl + 1;
           n.scc = scc;
-          bv->foreach_set_index([&](unsigned e)
-          {
-            n.edges[e] = true;
-            n.states[aut->edge_storage(e).src] = true;
-          });
+          n.edges |= *bv;
         }
       unsigned after_size = nodes_.size();
       unsigned children = after_size - before_size;
@@ -534,6 +528,16 @@ namespace spot
           ++node.level;
         trees_[scc].max_level = std::max(trees_[scc].max_level, node.level);
       }
+    // Compute the set of states hit by each edge vector.
+    // Skip the first ones, because they are used in the roots of each tree
+    // and have already been filled.
+    unsigned nv = bitvectors.size();
+    for (unsigned n = 2; n < nv; n += 2)
+      bitvectors[n]->foreach_set_index([&aut,
+                                        &states=*bitvectors[n+1]](unsigned e)
+      {
+        states.set(aut->edge_storage(e).src);
+      });
   }
 
   unsigned acd::leftmost_branch_(unsigned n, unsigned state) const
@@ -546,7 +550,7 @@ namespace spot
     unsigned child = first_child;
     do
       {
-        if (nodes_[child].states[state])
+        if (nodes_[child].states.get(state))
           {
             n = child;
             goto loop;
@@ -567,7 +571,7 @@ namespace spot
     if (trees_[scc].trivial)    // the branch is irrelevant for transiant SCCs
       return 0;
     unsigned n = trees_[scc].root;
-    assert(nodes_[n].states[s]);
+    assert(nodes_[n].states.get(s));
     return leftmost_branch_(n, s);
   }
 
@@ -582,7 +586,7 @@ namespace spot
 
     unsigned child = 0;
     unsigned dst = aut_->edge_storage(edge).dst;
-    while (!nodes_[branch].edges[edge])
+    while (!nodes_[branch].edges.get(edge))
       {
         unsigned parent = nodes_[branch].parent;
         if (SPOT_UNLIKELY(branch == parent))
@@ -604,7 +608,7 @@ namespace spot
         do
           {
             child = nodes_[child].next_sibling;
-            if (nodes_[child].states[dst])
+            if (nodes_[child].states.get(dst))
               return {leftmost_branch_(child, dst), lvl};
           }
         while (child != start_child);
@@ -643,7 +647,7 @@ namespace spot
         const char* sep = "T: ";
         for (unsigned n = 1; n <= nedges; ++n)
           {
-            bool val = n < nedges && edges[n]
+            bool val = n < nedges && edges.get(n)
               && si_->scc_of(aut_->edge_storage(n).dst) == scc;
             if (val != lastval)
               {
@@ -675,7 +679,7 @@ namespace spot
         sep = "\nQ: ";
         for (unsigned n = 0; n <= nstates; ++n)
           {
-            bool val = n < nstates && states[n] && si_->scc_of(n) == scc;
+            bool val = n < nstates && states.get(n) && si_->scc_of(n) == scc;
             if (val != lastval)
               {
                 if (lastval)
@@ -708,7 +712,7 @@ namespace spot
             os << " class=\"";
             const char* sep = "";
             for (unsigned n = 0; n < nstates; ++n)
-              if (states[n] && si_->scc_of(n) == scc)
+              if (states.get(n) && si_->scc_of(n) == scc)
                 {
                   os << sep << "acdS" << n << '\n';
                   sep = " ";
@@ -746,7 +750,7 @@ namespace spot
     auto& edges = nodes_[n].edges;
     unsigned nedges = edges.size();
     for (unsigned e = 1; e < nedges; ++e)
-      if (edges[e] && si_->scc_of(aut_->edge_storage(e).dst) == scc)
+      if (edges.get(e) && si_->scc_of(aut_->edge_storage(e).dst) == scc)
         res.push_back(e);
     return res;
   }

@@ -21,6 +21,7 @@
 
 #include <spot/twaalgos/emptiness.hh>
 #include <spot/twaalgos/sccinfo.hh>
+#include <spot/misc/bitvect.hh>
 
 namespace spot
 {
@@ -73,13 +74,13 @@ namespace spot
   /// `si->inner_edges_of(num)` lists the relevant edges.
   ///
   /// The search is restricted to a set of edges of the given SCC
-  /// for which \a keep (an array indexed by edge numbers) is true.
+  /// for which \a keep (a bitvect indexed by edge numbers) is true.
   ///
   /// Returns false iff no accepting loop where found.
   SPOT_API bool
   maximal_accepting_loops_for_scc(const scc_info& si, unsigned scc,
                                   const acc_cond& forced_acc,
-                                  const std::vector<bool>& keep,
+                                  const bitvect& keep,
                                   std::function<void(const scc_info&,
                                                      unsigned)> callback);
 #endif

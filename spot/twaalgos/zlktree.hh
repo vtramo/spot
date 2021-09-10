@@ -21,6 +21,8 @@
 
 #include <iosfwd>
 #include <deque>
+#include <memory>
+#include <spot/misc/bitvect.hh>
 #include <spot/twa/twagraph.hh>
 #include <spot/twaalgos/sccinfo.hh>
 
@@ -285,9 +287,9 @@ namespace spot
       unsigned first_child = 0;
       unsigned level;
       unsigned scc;
-      std::vector<bool>& edges;
-      std::vector<bool>& states;
-      acd_node(std::vector<bool>& e, std::vector<bool>& s) noexcept
+      bitvect& edges;
+      bitvect& states;
+      acd_node(bitvect& e, bitvect& s) noexcept
         : edges(e), states(s)
       {
       }
@@ -297,7 +299,7 @@ namespace spot
     std::deque<acd_node> nodes_;
     // Likewise for bitvectors: this is the support for all edge vectors
     // and state vectors used in acd_node.
-    std::deque<std::vector<bool>> bitvectors;
+    std::deque<std::unique_ptr<bitvect>> bitvectors;
     // Information about a tree of the ACD.  Each tree correspond
     // to an SCC.
     struct scc_data

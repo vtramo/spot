@@ -888,7 +888,7 @@ namespace spot
       if (auto choice = f(e, e.dst, si->get_filter_data());
           choice != edge_filter_choice::keep)
         return choice;
-    if (!(*d.keep_)[d.aut_->edge_number(e)] || (d.cut_sets_ & e.acc))
+    if (!(*d.keep_).get(d.aut_->edge_number(e)) || (d.cut_sets_ & e.acc))
       return edge_filter_choice::cut;
     return edge_filter_choice::keep;
   }
