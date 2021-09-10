@@ -1251,12 +1251,6 @@ namespace spot
       /// `Fin(0)&Fin(1)&(Inf(2)|Fin(3))`, this will return `{0,1}`.
       mark_t fin_unit() const;
 
-      /// \brief Return one acceptance set i that appear as `Fin(i)`
-      /// in the condition.
-      ///
-      /// Return -1 if no such set exist.
-      int fin_one() const;
-
       /// \brief Find a `Inf(i)` that is a unit clause.
       ///
       /// This return a mark_t `{i}` such that `Inf(i)` appears as a
@@ -1269,6 +1263,31 @@ namespace spot
       /// those will be returned.  For instance applied to
       /// `Inf(0)&Inf(1)&(Inf(2)|Fin(3))`, this will return `{0,1}`.
       mark_t inf_unit() const;
+
+      /// \brief Return one acceptance set i that appears as `Fin(i)`
+      /// in the condition.
+      ///
+      /// Return -1 if no such set exist.
+      int fin_one() const;
+
+      /// \brief Return one acceptance set i that appears as `Fin(i)`
+      /// in the condition, and all disjuncts containing it.
+      ///
+      /// If the condition is a disjunction and one of the disjunct
+      /// has the shape `...&Fin(i)&...`, then `i` will be prefered
+      /// over any arbitrary Fin.
+      ///
+      /// The second element of the pair, is the same acceptance
+      /// condition in which all top-level disjunct not featuring
+      /// `Fin(i)` have been removed.
+      ///
+      /// For example on
+      /// `Fin(1)&Inf(2)|Inf(3)&Inf(4)|Inf(5)&(Fin(1)|Fin(7))`
+      /// the output would be the pair
+      /// `(1, Fin(1)&Inf(2)|Inf(5)&(Fin(1)|Fin(7)))`.
+      /// On that example `Fin(1)` is prefered to `Fin(7)` because
+      /// it appears at the top-level.
+      std::pair<int, acc_code> fin_one_extract() const;
 
       /// \brief Help closing accepting or rejecting cycle.
       ///
@@ -2157,15 +2176,6 @@ namespace spot
       return code_.fin_unit();
     }
 
-    /// \brief Return one acceptance set i that appear as `Fin(i)`
-    /// in the condition.
-    ///
-    /// Return -1 if no such set exist.
-    int fin_one() const
-    {
-      return code_.fin_one();
-    }
-
     /// \brief Find a `Inf(i)` that is a unit clause.
     ///
     /// This return a mark_t `{i}` such that `Inf(i)` appears as a
@@ -2180,6 +2190,38 @@ namespace spot
     mark_t inf_unit() const
     {
       return code_.inf_unit();
+    }
+
+    /// \brief Return one acceptance set i that appear as `Fin(i)`
+    /// in the condition.
+    ///
+    /// Return -1 if no such set exist.
+    int fin_one() const
+    {
+      return code_.fin_one();
+    }
+
+    /// \brief Return one acceptance set i that appears as `Fin(i)`
+    /// in the condition, and all disjuncts containing it.
+    ///
+    /// If the condition is a disjunction and one of the disjunct
+    /// has the shape `...&Fin(i)&...`, then `i` will be prefered
+    /// over any arbitrary Fin.
+    ///
+    /// The second element of the pair, is the same acceptance
+    /// condition in which all top-level disjunct not featuring
+    /// `Fin(i)` have been removed.
+    ///
+    /// For example on
+    /// `Fin(1)&Inf(2)|Inf(3)&Inf(4)|Inf(5)&(Fin(1)|Fin(7))`
+    /// the output would be the pair
+    /// `(1, Fin(1)&Inf(2)|Inf(5)&(Fin(1)|Fin(7)))`.
+    /// On that example `Fin(1)` is prefered to `Fin(7)` because
+    /// it appears at the top-level.
+    std::pair<int, acc_cond> fin_one_extract() const
+    {
+      auto [f, c] = code_.fin_one_extract();
+      return {f, {num_sets(), std::move(c)}};
     }
 
     /// \brief Return the top-level disjuncts.

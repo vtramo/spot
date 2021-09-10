@@ -468,6 +468,8 @@ namespace std {
   %template(liststr) list<std::string>;
   %template(pairunsigned) pair<unsigned, unsigned>;
   %template(pairmark_t) pair<spot::acc_cond::mark_t, spot::acc_cond::mark_t>;
+  %template(pairintacccode) pair<int, spot::acc_cond::acc_code>;
+  %template(pairintacccond) pair<int, spot::acc_cond>;
   %template(vectorformula) vector<spot::formula>;
   %template(vectorunsigned) vector<unsigned>;
   %template(vectorpairunsigned) vector<pair<unsigned, unsigned>>;

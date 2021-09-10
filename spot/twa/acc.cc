@@ -2646,6 +2646,118 @@ namespace spot
 
   namespace
   {
+    int has_top_fin(const acc_cond::acc_word* pos, bool top = true)
+    {
+      if (pos->sub.op == acc_cond::acc_op::Fin)
+        {
+          acc_cond::mark_t m = pos[-1].mark;
+          if (top || m.is_singleton())
+            return m.min_set() - 1;
+        }
+      else if (pos->sub.op == acc_cond::acc_op::And)
+        {
+          auto sub = pos - pos->sub.size;
+          do
+            {
+              --pos;
+              if (int f = has_top_fin(pos, false); f >= 0)
+                return f;
+              pos -= pos->sub.size;
+            }
+          while (sub < pos);
+        }
+      else if (top && pos->sub.op == acc_cond::acc_op::Or)
+        {
+          auto sub = pos - pos->sub.size;
+          do
+            {
+              --pos;
+              if (int f = has_top_fin(pos); f >= 0)
+                return f;
+              pos -= pos->sub.size;
+            }
+          while (sub < pos);
+        }
+      return -1;
+    }
+
+    bool uses_fin(const acc_cond::acc_word* pos, acc_cond::mark_t f)
+    {
+      auto sub = pos - pos->sub.size;
+      do
+        {
+          switch (pos->sub.op)
+            {
+            case acc_cond::acc_op::And:
+            case acc_cond::acc_op::Or:
+              --pos;
+              break;
+            case acc_cond::acc_op::Fin:
+              if (pos[-1].mark & f)
+                return true;
+              SPOT_FALLTHROUGH;
+            case acc_cond::acc_op::Inf:
+            case acc_cond::acc_op::InfNeg:
+            case acc_cond::acc_op::FinNeg:
+              pos -= 2;
+              break;
+            }
+        }
+      while (sub < pos);
+      return false;
+    }
+
+    acc_cond::acc_code extract_fin(const acc_cond::acc_word* pos,
+                                   acc_cond::mark_t f)
+    {
+      auto start = pos - pos->sub.size;
+      switch (pos->sub.op)
+        {
+        case acc_cond::acc_op::And:
+        case acc_cond::acc_op::Fin:
+        case acc_cond::acc_op::Inf:
+          return pos;
+        case acc_cond::acc_op::Or:
+          {
+            --pos;
+            auto res = acc_cond::acc_code::f();
+            do
+              {
+                if (uses_fin(pos, f))
+                  {
+                    acc_cond::acc_code tmp(pos);
+                    tmp |= std::move(res);
+                    std::swap(tmp, res);
+                  }
+                pos -= pos->sub.size + 1;
+              }
+            while (pos > start);
+            return res;
+          }
+        case acc_cond::acc_op::FinNeg:
+        case acc_cond::acc_op::InfNeg:
+          SPOT_UNREACHABLE();
+          return {};
+        }
+      SPOT_UNREACHABLE();
+      return {};
+    }
+  }
+
+  std::pair<int, acc_cond::acc_code>
+  acc_cond::acc_code::fin_one_extract() const
+  {
+    if (is_t() || is_f())
+      return {-1, *this};
+    const acc_cond::acc_word* pos = &back();
+    int selected_fin = has_top_fin(pos);
+    if (selected_fin < 0)
+      selected_fin = fin_one();
+    return {selected_fin, extract_fin(pos, {(unsigned) selected_fin})};
+  }
+
+  namespace
+  {
     bool
     find_unit_clause(acc_cond::acc_code code, bool& conj, bool& fin,
                      acc_cond::mark_t& res)
