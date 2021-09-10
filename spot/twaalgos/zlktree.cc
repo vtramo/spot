@@ -482,12 +482,11 @@ namespace spot
           n.parent = node;
           n.level = lvl + 1;
           n.scc = scc;
-          for (unsigned e = 1; e < nedges; ++e)
-            if (bv->get(e))
-              {
-                n.edges[e] = true;
-                n.states[aut->edge_storage(e).src] = true;
-              }
+          bv->foreach_set_index([&](unsigned e)
+          {
+            n.edges[e] = true;
+            n.states[aut->edge_storage(e).src] = true;
+          });
         }
       unsigned after_size = nodes_.size();
       unsigned children = after_size - before_size;
