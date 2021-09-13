@@ -876,6 +876,8 @@ namespace spot
 
     [](std::vector<std::string> sv, std::string msg)
       {
+        if (sv.size() < 2)
+          return;
         std::sort(sv.begin(), sv.end());
         const unsigned svs = sv.size() - 1;
         for (unsigned i = 0; i < svs; ++i)

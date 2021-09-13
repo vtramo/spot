@@ -445,6 +445,7 @@ TESTS_python = \
   python/stutter.py \
   python/rs_like.py \
   python/sum.py \
+  python/synthesis.py \
   python/toparity.py \
   python/trival.py \
   python/tra2tba.py \
