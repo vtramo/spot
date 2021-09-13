@@ -103,7 +103,7 @@ namespace{
     spot::acc_cond::mark_t acc;
     size_t pre_hash;
   };
-  // We define a order between the edges to avoid creating multiple
+  // We define an order between the edges to avoid creating multiple
   // states that in fact correspond to permutations of the order of the
   // outgoing edges
   struct less_info_t
@@ -1769,13 +1769,7 @@ namespace spot
 
     f = extract_and(f, outs_set);
     if (!(f.is(op::And)))
-      {
-        auto [_, outs_f] = aps_of(f, outs_set);
-        return {
-                {f},
-                {outs_f}
-                }; // todo this is not nice, change style?!
-      }
+      return { {f}, { aps_of(f, outs_set).second } };
     // Atomics prop of children
     std::vector<std::set<formula>> children_outs;
     // Independent formulas

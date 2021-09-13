@@ -156,7 +156,7 @@ namespace spot
   /// acceptance condition
   ///
   /// \param arena The game arena
-  /// \param gi struct ofr options and benchmarking
+  /// \param gi struct for options and benchmarking
   /// \return Whether the initial state is won by player or not
   /// \pre Relies on the named properties "state-player"
   /// \post The named properties "strategy" and "state-winner" are set

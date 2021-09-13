@@ -454,7 +454,7 @@ namespace
       {
         assert(std::all_of(strategies.begin(), strategies.end(),
                            [](const auto& sl){return sl.success == 1; })
-               && "ltlsynt: Can not handle GTBA as strategy.");
+               && "ltlsynt: Can not handle TGBA as strategy.");
         tot_strat = strategies.front().strat_like;
         for (size_t i = 1; i < strategies.size(); ++i)
           tot_strat = spot::product(tot_strat, strategies[i].strat_like);
