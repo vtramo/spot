@@ -159,6 +159,19 @@ class aig:
             return ostr.str()
         raise ValueError("unknown string format: " + format)
 
+    def evaluate(self, gen):
+        self.circ_init()
+        outputs_pos = self.outputs()
+        out_names = self.output_names()
+        for x in gen:
+            if len(x) != self.num_inputs():
+                raise ValueError("Incorrect number of inputs")
+            self.circ_step(x)
+            values = self.circ_state()
+            res_val = [values[index] for index in outputs_pos]
+            assert(len(res_val) == len(out_names))
+            yield list(zip(out_names, res_val))
+
 __twa__acc1 = twa.acc
 __twa__acc2 = twa.get_acceptance
 
