@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2014, 2015, 2017 Laboratoire de Recherche et
+// Copyright (C) 2014, 2015, 2017, 2021 Laboratoire de Recherche et
 // Développement de l'EPITA.
 //
 // This file is part of Spot, a model checking library.
@@ -27,7 +27,8 @@
   int hoayylex(hoayy::parser::semantic_type *yylval, \
                spot::location *yylloc, \
                void* yyscanner, \
-               spot::parse_aut_error_list& error_list)
+               spot::parse_aut_error_list& error_list, \
+               std::map<std::string, bdd>& fmap)
 YY_DECL;
 
 namespace spot

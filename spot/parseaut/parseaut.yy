@@ -52,8 +52,8 @@ extern "C" int strverscmp(const char *s1, const char *s2);
 #endif
 
 // Work around Bison not letting us write
-//  %lex-param { res.h->errors }
-#define PARSE_ERROR_LIST res.h->errors
+//  %lex-param { res.h->errors, res.fcache }
+#define PARSE_ERROR_LIST res.h->errors, res.fcache
 
   inline namespace hoayy_support
   {
@@ -237,26 +237,27 @@ extern "C" int strverscmp(const char *s1, const char *s2);
 %token PROPERTIES "properties:"
 %token BODY "--BODY--"
 %token END "--END--"
-%token STATE "State:";
-%token SPOT_HIGHLIGHT_EDGES "spot.highlight.edges:";
-%token SPOT_HIGHLIGHT_STATES "spot.highlight.states:";
-%token SPOT_STATE_PLAYER "spot.state-player:";
-%token <str> IDENTIFIER "identifier";  // also used by neverclaim
-%token <str> HEADERNAME "header name";
-%token <str> ANAME "alias name";
-%token <str> STRING "string";
-%token <num> INT "integer";
+%token STATE "State:"
+%token SPOT_HIGHLIGHT_EDGES "spot.highlight.edges:"
+%token SPOT_HIGHLIGHT_STATES "spot.highlight.states:"
+%token SPOT_STATE_PLAYER "spot.state-player:"
+%token <str> IDENTIFIER "identifier"  // also used by neverclaim
+%token <str> HEADERNAME "header name"
+%token <str> ANAME "alias name"
+%token <str> STRING "string"
+%token <num> INT "integer"
 %token ENDOFFILE 0 "end of file"
+%token <str> '['
 
 %token DRA "DRA"
 %token DSA "DSA"
 %token V2 "v2"
 %token EXPLICIT "explicit"
 %token ACCPAIRS "Acceptance-Pairs:"
-%token ACCSIG "Acc-Sig:";
-%token ENDOFHEADER "---";
+%token ACCSIG "Acc-Sig:"
+%token ENDOFHEADER "---"
 %token <str> LINEDIRECTIVE "#line"
-
+%token <b> BDD
 
 %left '|'
 %left '&'
@@ -1394,11 +1395,16 @@ label: '[' label-expr ']'
 	   {
              res.cur_label = bdd_from_int($2);
              bdd_delref($2);
+             if ($1)
+               res.fcache[*$1] = res.cur_label;
+             delete $1;
 	   }
+     | BDD { res.cur_label = bdd_from_int($1); }
      | '[' error ']'
            {
 	     error(@$, "ignoring this invalid label");
 	     res.cur_label = bddtrue;
+             delete $1;
 	   }
 state-label_opt: %empty { res.has_state_label = false; }
                | label

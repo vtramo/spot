@@ -154,7 +154,28 @@ identifier  [[:alpha:]_][[:alnum:]_.-]*
   "--BODY--"		return token::BODY;
   "--END--"		BEGIN(INITIAL); return token::END;
   "State:"		return token::STATE;
-  [tf{}()\[\]&|!]	return *yytext;
+  "["[^\n\r\[\]]+"]"        {
+                          // For labels that do not span over several lines,
+                          // we look them up in fmap to speed the construction
+                          // of automata that use the same label multiple times.
+                          std::string* s =
+                              new std::string(yytext + 1, yyleng - 2);
+                          if (auto i = fmap.find(*s); i != fmap.end())
+                             {
+                                delete s;
+                                yylval->b = i->second.id();
+                                return token::BDD;
+                             }
+                          yylval->str = s;
+                          yylloc->end = yylloc->begin + 1;
+                          yyless(1);
+                          return *yytext;
+                        }
+  "["                   {
+                          yylval->str = nullptr;
+                          return *yytext;
+                        }
+  [tf{}()\]&|!]	        return *yytext;
 
   {identifier}          {
 			   yylval->str = new std::string(yytext, yyleng);
