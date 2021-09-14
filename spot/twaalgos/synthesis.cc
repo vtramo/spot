@@ -1656,18 +1656,19 @@ namespace // anonymous for subsformula
   }
 
   static formula
-  extract_and(const formula& f, const std::set<std::string>& outs)
+  extract_and(const formula& f, const std::set<std::string>& outs,
+              bool can_extract_impl)
   {
     if (f.is(op::And))
       {
         std::vector<formula> children;
         for (auto fi : f)
-          children.push_back(extract_and(fi, outs));
+          children.push_back(extract_and(fi, outs, can_extract_impl));
         return formula::And(children);
       }
     if (f.is(op::Not))
     {
-      auto child = extract_and(f[0], outs);
+      auto child = extract_and(f[0], outs, false);
       // ¬(⋀¬xᵢ) ≡ ⋁xᵢ
       if (child.is(op::And))
         {
@@ -1682,7 +1683,7 @@ namespace // anonymous for subsformula
             {
               std::vector<formula> children;
               for (auto fi : child)
-                children.push_back(extract_and(formula::Not(fi), outs));
+                children.push_back(extract_and(formula::Not(fi), outs, false));
               return formula::Or(children);
             }
         }
@@ -1690,22 +1691,25 @@ namespace // anonymous for subsformula
       if (child.is(op::F))
         {
           // The result can be G(And).
-          auto f2 = formula::G(extract_and(formula::Not(child[0]), outs));
+          auto f2 =
+            formula::G(extract_and(formula::Not(child[0]), outs, false));
           // What ?
           return f2;
         }
       // ¬(φ→ψ) ≡ φ ∧ ¬ψ
       else if (child.is(op::Implies))
         {
-          return formula::And({extract_and(child[0], outs),
-                               extract_and(formula::Not(child[1]), outs)});
+          return formula::And({
+            extract_and(child[0], outs, false),
+            extract_and(formula::Not(child[1]), outs, false)
+          });
         }
       // ¬(φ ∨ ψ) ≡ ¬φ ∧ ¬ψ
       else if (child.is(op::Or))
         {
           std::vector<formula> children;
           for (auto fi : child)
-            children.push_back(extract_and(formula::Not(fi), outs));
+            children.push_back(extract_and(formula::Not(fi), outs, false));
           return formula::And(children);
         }
     }
@@ -1713,20 +1717,21 @@ namespace // anonymous for subsformula
     // X(⋀φᵢ) = ⋀(X(φᵢ))
     if (f.is(op::G, op::X))
       {
-        auto child_ex = extract_and(f[0], outs);
+        auto child_ex = extract_and(f[0], outs, false);
         if (child_ex.is(op::And))
           {
             std::vector<formula> children;
             const auto f_kind = f.kind();
             for (auto fi : child_ex)
-              children.push_back(extract_and(formula::unop(f_kind, fi), outs));
+              children.push_back(
+                extract_and(formula::unop(f_kind, fi), outs, false));
             return formula::And(children);
           }
       }
     // ⋀φᵢ U ψ ≡ ⋀(φᵢ U ψ)
     if (f.is(op::U))
       {
-        auto left_child_ex = extract_and(f[0], outs);
+        auto left_child_ex = extract_and(f[0], outs, false);
         if (left_child_ex.is(op::And))
           {
             std::vector<formula> children;
@@ -1737,8 +1742,8 @@ namespace // anonymous for subsformula
       }
     if (f.is(op::Implies))
       {
-        auto right_extr = extract_and(f[1], outs);
-        auto left_extr = extract_and(f[0], outs);
+        auto right_extr = extract_and(f[1], outs, false);
+        auto left_extr = extract_and(f[0], outs, false);
         // φ → (⋀ψᵢ) ≡ ⋀(φ → ψᵢ)
         if (!(left_extr.is(op::And)))
           {
@@ -1751,7 +1756,7 @@ namespace // anonymous for subsformula
               }
           }
         // ⋀φᵢ → ⋀ψᵢ
-        else if (right_extr.is(op::And))
+        else if (right_extr.is(op::And) && can_extract_impl)
           {
             auto extr_f = formula::Implies(left_extr, right_extr);
             return split_implication(extr_f, outs);
@@ -1769,7 +1774,7 @@ namespace spot
   {
     std::set<std::string> outs_set(outs.begin(), outs.end());
 
-    f = extract_and(f, outs_set);
+    f = extract_and(f, outs_set, true);
     if (!(f.is(op::And)))
       return { {f}, { aps_of(f, outs_set).second } };
     // Atomics prop of children
