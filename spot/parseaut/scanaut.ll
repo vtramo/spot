@@ -189,6 +189,12 @@ identifier  [[:alpha:]_][[:alnum:]_.-]*
 			   yylval->str = new std::string(yytext + 1, yyleng - 1);
 			   return token::ANAME;
 			}
+  /* Handle short numbers without going through parse_int() for efficiency. */
+  [0-9]                 yylval->num = *yytext - '0'; return token::INT;
+  [0-9][0-9]            {
+                          yylval->num = (yytext[0] * 10) + yytext[1] - '0' * 11;
+                          return token::INT;
+                        }
   [0-9]+                parse_int(); return token::INT;
 }
 
@@ -204,6 +210,12 @@ identifier  [[:alpha:]_][[:alnum:]_.-]*
   "Acceptance-Pairs:"	return token::ACCPAIRS;
   "Acc-Sig:"		return token::ACCSIG;
   "---"			return token::ENDOFHEADER;
+  /* Handle short numbers without going through parse_int() for efficiency. */
+  [0-9]                 yylval->num = *yytext - '0'; return token::INT;
+  [0-9][0-9]            {
+                          yylval->num = (yytext[0] * 10) + yytext[1] - '0' * 11;
+                          return token::INT;
+                        }
   [0-9]+                parse_int(); return token::INT;
   /* The start of any automaton is the end of this one.
      We do not try to detect LBTT automata, as that would
