@@ -1,6 +1,6 @@
 ## -*- coding: utf-8 -*-
-## Copyright (C) 2013-2019 Laboratoire de Recherche et Développement
-## de l'Epita (LRDE).
+## Copyright (C) 2013-2019, 2021 Laboratoire de Recherche et
+## Développement de l'Epita (LRDE).
 ##
 ## This file is part of Spot, a model checking library.
 ##
@@ -41,5 +41,6 @@ GH = https://raw.githubusercontent.com/martinus
 RH = $(GH)/robin-hood-hashing/master/src/include/robin_hood.h
 .PHONY: update
 update:
-	wget $(RH) -O $(srcdir)/robin_hood.hh || \
-	  curl $(RH) -o $(srcdir)/robin_hood.hh
+	wget $(RH) -O robin_hood.tmp || curl $(RH) -o robin_hood.tmp
+	sed 's/std::malloc/malloc/' robin_hood.tmp > $(srcdir)/robin_hood.hh
+	rm -f robin_hood.tmp
