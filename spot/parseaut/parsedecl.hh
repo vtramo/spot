@@ -20,6 +20,7 @@
 #pragma once
 
 #include <string>
+#include "spot/priv/robin_hood.hh"
 #include <spot/parseaut/parseaut.hh>
 #include <spot/misc/location.hh>
 
@@ -28,7 +29,7 @@
                spot::location *yylloc, \
                void* yyscanner, \
                spot::parse_aut_error_list& error_list, \
-               std::map<std::string, bdd>& fmap)
+               robin_hood::unordered_flat_map<std::string, bdd>& fmap)
 YY_DECL;
 
 namespace spot

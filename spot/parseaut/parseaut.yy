@@ -33,6 +33,7 @@
 {
 #include "config.h"
 #include <spot/misc/common.hh>
+#include <spot/priv/robin_hood.hh>
 #include <string>
 #include <cstring>
 #include <sstream>
@@ -64,7 +65,7 @@ extern "C" int strverscmp(const char *s1, const char *s2);
        over and over, and to register all their atomic_propositions in
        the bdd_dict.  Keep the bdd result around so we can reuse
        it.  */
-    typedef std::map<std::string, bdd> formula_cache;
+    typedef robin_hood::unordered_flat_map<std::string, bdd> formula_cache;
 
     typedef std::pair<int, std::string*> pair;
     typedef spot::twa_graph::namer<std::string> named_tgba_t;

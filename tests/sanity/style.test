@@ -313,7 +313,7 @@ for dir in "$TOP/spot" "$TOP/bin" "$TOP/tests"; do
 	  # (in the latter case they do not have to specify the priv/
 	  # directory, so they will not match this regex).
 	  case $file in
-	    */priv/*|*/bin/*);;
+	    */priv/*|*/bin/*|*/parsedecl.hh);;
 	    *)
 	      $GREP '#.*include.*priv/' $tmp &&
 		diag 'Do not include private headers in public headers.'
