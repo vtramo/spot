@@ -437,6 +437,10 @@ namespace spot
   /// \note The states of each strategy are represented by a block of latches
   ///       not affected by the others. For this to work in a general setting,
   ///       the outputs must be disjoint.
+  /// \note Attention: Only the propositions actually used in the strategy
+  ///       appear in the aiger circuit. So it can happen that, for instance,
+  ///       propositions marked as output during the call to create_game
+  ///       are absent.
   SPOT_API aig_ptr
   strategies_to_aig(const std::vector<const_twa_graph_ptr>& strat_vec,
                     const char* mode);
@@ -444,12 +448,16 @@ namespace spot
   /// \brief Like above, but explicitly handing over which propositions
   ///        are inputs and outputs and does therefore not rely on the
   ///        named property "synthesis-outputs"
+  /// \note All properties in ins and out are guaranteed to appear in the
+  ///       aiger circuit.
   SPOT_API aig_ptr
   strategy_to_aig(const twa_graph_ptr& aut, const char *mode,
                   const std::vector<std::string>& ins,
                   const std::vector<std::string>& outs);
 
   /// \brief Like above, but explicitly handing over the propositions
+  /// \note All properties in ins and out are guaranteed to appear in the
+  ///       aiger circuit.
   SPOT_API aig_ptr
   strategies_to_aig(const std::vector<twa_graph_ptr>& strat_vec,
                     const char* mode,

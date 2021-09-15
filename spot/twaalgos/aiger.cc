@@ -1401,7 +1401,9 @@ namespace
   static aig_ptr
   auts_to_aiger(const std::vector<std::pair<const_twa_graph_ptr, bdd>>&
                     strat_vec,
-                const char* mode)
+                const char* mode,
+                const std::vector<std::string>& unused_ins = {},
+                const std::vector<std::string>& unused_outs = {})
   {
     // The aiger circuit cannot encode the acceptance condition
     // Test that the acceptance condition is true
@@ -1458,6 +1460,17 @@ namespace
             }
         }
     }
+
+    // Create two new vector holding used and unused inputs/outputs
+    // Used propositions appear first
+    std::vector<std::string> input_names_all = input_names;
+    input_names_all.insert(input_names_all.end(),
+                           unused_ins.cbegin(),
+                          unused_ins.cend());
+    std::vector<std::string> output_names_all = output_names;
+    output_names_all.insert(output_names_all.end(),
+                            unused_outs.cbegin(),
+                            unused_outs.cend());
 
     // Decide on which outcond to use
     // The edges of the automaton all have the form in&out
@@ -1530,7 +1543,7 @@ namespace
 
     assert(output_names.size() == (unsigned) bdd_nodecount(all_outputs));
     aig_ptr circuit_ptr =
-        std::make_shared<aig>(input_names, output_names,
+        std::make_shared<aig>(input_names_all, output_names_all,
                               n_latches, strat_vec[0].first->get_dict());
     aig& circuit = *circuit_ptr;
 
@@ -1770,6 +1783,10 @@ namespace
     // Reset them
     for (unsigned i = 0; i < n_outs; ++i)
       circuit.set_output(i, bdd2var_min(out[i], out_dc[i]));
+    // Add the unused propositions
+    const unsigned n_outs_all = output_names_all.size();
+    for (unsigned i = n_outs; i < n_outs_all; ++i)
+      circuit.set_output(i, circuit.aig_false());
     for (unsigned i = 0; i < n_latches; ++i)
       circuit.set_next_latch(i, bdd2var_min(latch[i], bddfalse));
     return circuit_ptr;
@@ -1832,15 +1849,26 @@ namespace spot
       check_double_names(all_ap, "Atomic propositions appears in input "
                                  "and output propositions; ");
     }
-    // Register all to make sure they exist in the aut
-    std::for_each(ins.begin(), ins.end(),
-                  [s = aut](auto&& e){s->register_ap(e); });
-    bdd all_outputs = bddtrue;
-    std::for_each(outs.begin(), outs.end(),
-                  [&ao = all_outputs, s=aut](auto&& e)
-                  {ao &= bdd_ithvar(s->register_ap(e)); });
+    // Check if there exist outs or ins that are not used by the
+    // strategy
+    // ins -> simply declare them
+    // outs -> set them to false
+    std::vector<std::string> unused_outs;
+    std::vector<std::string> unused_ins;
+    {
+      std::set<std::string> used_aps;
+      for (const auto& f : aut->ap())
+        used_aps.insert(f.ap_name());
+      for (const auto& ao : outs)
+        if (!used_aps.count(ao))
+          unused_outs.push_back(ao);
+      for (const auto& ai : ins)
+        if (!used_aps.count(ai))
+          unused_outs.push_back(ai);
+    }
     // todo Some additional checks?
-    return auts_to_aiger({{aut, all_outputs}}, mode);
+    return auts_to_aiger({{aut, get_synthesis_outputs(aut)}}, mode,
+                         unused_ins, unused_outs);
   }
 
   // Note: This ignores the named property
@@ -1875,22 +1903,32 @@ namespace spot
     std::vector<std::pair<const_twa_graph_ptr, bdd>> new_vec;
     new_vec.reserve(strat_vec.size());
 
+    std::set<std::string> used_aps;
+
     for (size_t i = 0; i < strat_vec.size(); ++i)
       {
-        // Register all to make sure they exist in the aut
-        std::for_each(ins.begin(), ins.end(),
-                      [s=strat_vec[i]](auto&& e){s->register_ap(e); });
-        bdd this_outputs = bddtrue;
-        std::for_each(outs[i].begin(), outs[i].end(),
-                      [&to = this_outputs, s=strat_vec[i]](auto&& e)
-                      {to &= bdd_ithvar(s->register_ap(e)); });
-        if (this_outputs == bddfalse)
-          throw std::runtime_error("Inconsistency in outputs of strat "
-                                   + std::to_string(i) + ".\n");
+        for (const auto& f : strat_vec[i]->ap())
+          used_aps.insert(f.ap_name());
         // todo Some additional checks?
-        new_vec.emplace_back(strat_vec[i], this_outputs);
+        new_vec.emplace_back(strat_vec[i],
+                             get_synthesis_outputs(strat_vec[i]));
       }
-    return auts_to_aiger(new_vec, mode);
+
+        // Check if there exist outs or ins that are not used by the
+    // strategy
+    // ins -> simply declare them
+    // outs -> set them to false
+    std::vector<std::string> unused_outs;
+    std::vector<std::string> unused_ins;
+    for (const auto& cao : outs)
+      for (const auto& ao : cao)
+        if (!used_aps.count(ao))
+          unused_outs.push_back(ao);
+    for (const auto& ai : ins)
+      if (!used_aps.count(ai))
+        unused_outs.push_back(ai);
+
+    return auts_to_aiger(new_vec, mode, unused_ins, unused_outs);
   }
 
   aig_ptr
