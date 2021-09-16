@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2015-2018 Laboratoire de Recherche et Développement
+// Copyright (C) 2015-2018, 2021 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -55,7 +55,9 @@ namespace spot
     std::vector<acc_cond::mark_t> one_in(ns, acc_cond::mark_t({}));
     std::vector<bool> true_state(ns, false);
     acc_cond::mark_t true_state_acc = {};
-    unsigned true_state_last;
+    // Do not initialize true_state_last, but prevent GCC from warning
+    // about a possible uninitialized use later.
+    unsigned true_state_last = unsigned();
     for (auto& e: old->edges())
       for (unsigned d: old->univ_dests(e.dst))
         if (si.scc_of(e.src) == si.scc_of(d))
@@ -92,9 +94,12 @@ namespace spot
       [&](unsigned state, acc_cond::mark_t m) -> unsigned
       {
         bool ts = true_state[state];
-        if (ts)
+        if (ts) // Merge all true states.
           {
-            state = true_state_last; // Merge all true states.
+            // g++ 10.2 is afraid true_state_last might be
+            // uninitialized, however if ts==true, it means some true
+            // state were found, and the last true state is known.
+            state = true_state_last;
             m = {};
           }
         pair_t x(state, m);

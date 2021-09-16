@@ -333,16 +333,19 @@ namespace spot
   void aig::unregister_lit_(unsigned v)
   {
     assert(((v&1) == 0) && "Expected positive form");
-    unsigned n_del;
-    n_del = bdd2var_.erase(var2bdd_[v].id());
+    unsigned n_del = bdd2var_.erase(var2bdd_[v].id());
     assert(n_del);
+    (void) n_del;
     n_del = var2bdd_.erase(v);
     assert(n_del);
+    (void) n_del;
     v = v ^ 1;
     n_del = bdd2var_.erase(var2bdd_[v].id());
     assert(n_del);
+    (void) n_del;
     n_del = var2bdd_.erase(v);
     assert(n_del);
+    (void) n_del;
   }
 
   // Get propositions that are commun to all
@@ -442,13 +445,13 @@ namespace spot
         std::copy(and_gates_.begin()+sf.second, and_gates_.end(),
                   gates.begin());
       }
-    // 1 Delete all literals
+    // 1. Delete all literals
     // max_var_old was used before
     // max_var_ is currently used
-    for (unsigned v = sf.first+2; v <= max_var_; v += 2)
+    for (unsigned v = sf.first + 2; v <= max_var_; v += 2)
       unregister_lit_(v);
-    // 2 Set back the gates
-    and_gates_.erase(and_gates_.begin()+sf.second, and_gates_.end());
+    // 2. Set back the gates
+    and_gates_.erase(and_gates_.begin() + sf.second, and_gates_.end());
     max_var_ = sf.first;
     return ss;
   }
@@ -461,6 +464,7 @@ namespace spot
     assert(gates.size() == vardict.size());
     assert(sf.first == max_var_);
     assert(sf.second == and_gates_.size());
+    (void)sf;
     unsigned new_max_var_ = max_var_ + gates.size()*2;
     for (auto& p : vardict)
       {
@@ -970,6 +974,7 @@ namespace spot
               }
           }
         assert(n_occur_old == n_occur);
+        (void) n_occur_old;
       }
     // All products should now be created
     assert(std::all_of(needed_prods.cbegin(), needed_prods.cend(),
@@ -1027,6 +1032,7 @@ namespace spot
             }
           }
         assert(n_occur_old == n_occur);
+        (void) n_occur_old;
       }
   }
 
@@ -1082,9 +1088,10 @@ namespace spot
         return v - (1 + circ.num_inputs_ + circ.num_latches_);
       };
     auto& var2bdd = circ.var2bdd_;
+#ifndef NDEBUG
     auto& bdd2var = circ.bdd2var_;
-    std::function<bdd(unsigned)> get_gate_bdd;
-    get_gate_bdd = [&](unsigned g)->bdd
+#endif
+    auto get_gate_bdd = [&](unsigned g, auto self)->bdd
       {
         unsigned v = circ.gate_var(g);
         auto it = var2bdd.find(v);
@@ -1107,7 +1114,7 @@ namespace spot
           else
           {
             // Construct it
-            gsbdd[i] = get_gate_bdd(v2g(circ.aig_pos(gsv[i])));
+            gsbdd[i] = self(v2g(circ.aig_pos(gsv[i])), self);
             // Odd idx -> negate
             if (gsv[i]&1)
               gsbdd[i] = bdd_not(gsbdd[i]);
@@ -1121,7 +1128,7 @@ namespace spot
     // Also it should be consistent
     const unsigned n_gates = res_ptr->num_gates();
     for (unsigned g = 0; g < n_gates; ++g)
-      get_gate_bdd(g);
+      get_gate_bdd(g, get_gate_bdd);
     //Check that all outputs and next_latches exist
     auto check = [&var2bdd](unsigned v)
       {
@@ -1569,8 +1576,9 @@ namespace
         const auto& sn = state_numbers.at(i);
 
         auto latchoff = latch_offset[i];
+#ifndef NDEBUG
         auto latchoff_next = latch_offset.at(i+1);
-
+#endif
         auto alog2n = log2n[i];
         auto state2bdd = [&](auto s)
           {

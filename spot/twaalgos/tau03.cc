@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2011, 2013-2020  Laboratoire de Recherche et
+// Copyright (C) 2011, 2013-2021  Laboratoire de Recherche et
 // Developpement de l'Epita (LRDE).
 // Copyright (C) 2004, 2005  Laboratoire d'Informatique de Paris 6 (LIP6),
 // département Systèmes Répartis Coopératifs (SRC), Université Pierre
@@ -305,12 +305,14 @@ namespace spot
           }
         acc_cond::mark_t get_acc() const
           {
-            SPOT_ASSUME(!is_white());
+            assert(!is_white());
+            SPOT_ASSUME(acc);
             return *acc;
           }
         void cumulate_acc(acc_cond::mark_t a)
           {
             assert(!is_white());
+            SPOT_ASSUME(acc);
             *acc |= a;
           }
         bool is_white() const

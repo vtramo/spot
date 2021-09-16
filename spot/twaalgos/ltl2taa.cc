@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2009-2010, 2012-2016, 2018-2019 Laboratoire de
+// Copyright (C) 2009-2010, 2012-2016, 2018-2019, 2021 Laboratoire de
 // Recherche et Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -344,9 +344,11 @@ namespace spot
           pos[i] = vs[i].succ_.size();
 
         // g++ (Debian 8.3.0-3) 8.3.0 in --coverage mode,
-        // reports a "potential null pointer dereference" on the next
-        // line without this assert...
+        // and g++ 11.2.1-6 with -O3 -g -DNDEBUG
+        // both report a "potential null pointer dereference" on the
+        // while condition.
         assert(pos.size() > 0);
+        SPOT_ASSUME(pos.data());
         while (pos[0] != 0)
         {
           std::vector<formula> u; // Union

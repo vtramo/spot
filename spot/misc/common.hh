@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2013-2020 Laboratoire de Recherche et Développement
+// Copyright (C) 2013-2021 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -71,6 +71,8 @@
 #if defined(SPOT_BUILD) or defined(SPOT_DEBUG)
   #define SPOT_ASSERT(x) spot_assert__(x)
 #else
+   // Do not replace by SPOT_ASSUME(x), as x can have some costly
+   // side-effects we do not want to pay outside of debug mode.
   #define SPOT_ASSERT(x) while (0)
 #endif
 
@@ -117,7 +119,7 @@
 #define SPOT_UNIMPLEMENTED() throw std::runtime_error("unimplemented");
 
 
-#if SPOT_DEBUG
+#if SPOT_DEBUG && !defined(NDEBUG)
 #define SPOT_ASSUME(cond) assert(cond)
 #else
 #define SPOT_ASSUME(cond)                       \

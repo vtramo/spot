@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2011, 2013, 2014, 2015, 2016, 2018 Laboratoire de recherche
+// Copyright (C) 2011, 2013-2016, 2018, 2021 Laboratoire de recherche
 // et développement de l'Epita (LRDE).
 // Copyright (C) 2004, 2005, 2006 Laboratoire d'Informatique de Paris
 // 6 (LIP6), département Systèmes Répartis Coopératifs (SRC),
@@ -462,7 +462,7 @@ namespace spot
                                     state_ptr_equal> m_source_trans;
 
     template<bool cycle>
-    class min_path: public bfs_steps
+    class min_path final: public bfs_steps
     {
     public:
       min_path(ars_statistics* ars,
@@ -486,10 +486,8 @@ namespace spot
       const state* search(const state* start, twa_run::steps& l)
       {
         const state* s = filter(start);
-        if (s)
-          return this->bfs_steps::search(s, l);
-        else
-          return nullptr;
+        SPOT_ASSERT(s);
+        return this->bfs_steps::search(s, l);
       }
 
       const state* filter(const state* s) override

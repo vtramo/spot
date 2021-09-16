@@ -3352,10 +3352,12 @@ namespace
           {
             return mmw->out(e.dst).begin()->cond;
           };
+#ifndef NDEBUG
         auto get_env_dst = [&](const auto& e)
           {
             return mmw->out(e.dst).begin()->dst;
           };
+#endif
 
         // The first two loops cover all env-edges
         for (unsigned group = 0; group < n_groups; ++group)
@@ -3617,6 +3619,7 @@ namespace spot
       throw std::runtime_error("right: Mealy machine must have an "
                                "environment controlled initial state.");
 
+#ifndef NDEBUG
     auto check_out = [](const const_twa_graph_ptr& aut,
                         const auto& sp)
       {
@@ -3635,7 +3638,7 @@ namespace spot
            "Left mealy machine has multiple or no player edges for a state");
     assert(check_out(right, spr) &&
            "Right mealy machine has multiple or no player edges for a state");
-
+#endif
     // Get for each env state of right the uncovered input letters
     std::vector<bdd> ucr(right->num_states(), bddtrue);
     const unsigned nsr = right->num_states();

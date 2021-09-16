@@ -50,6 +50,7 @@ namespace spot
   void int_unionfind::makeset(int e)
   {
     assert(e == (int) id.size());
+    (void)e;
     id.push_back(-1);
   }
 

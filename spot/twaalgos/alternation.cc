@@ -252,10 +252,9 @@ namespace spot
 
       bdd state_as_bdd(unsigned s)
       {
-        auto p = state_as_bdd_cache_.emplace(s, bddfalse);
+        auto p = state_as_bdd_cache_.insert({s, bddfalse});
         if (!p.second)
           return p.first->second;
-
         bool marked = (int)s < 0;
         if (marked)
           s = ~s;
