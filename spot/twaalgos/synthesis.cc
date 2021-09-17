@@ -1197,43 +1197,55 @@ namespace spot
 
 }
 
-namespace //Anonymous for try_create_strat
-{
-  using namespace spot;
-  std::map<formula, std::pair<std::set<formula>, std::set<formula>>> ap_cache;
-
-  static std::pair<std::set<formula>, std::set<formula>>
-  aps_of(formula f, const std::set<std::string> &outs)
-  {
-    auto cache_value = ap_cache.find(f);
-    if (cache_value != ap_cache.end())
-      return cache_value->second;
-
-    std::set<formula> ins_f, outs_f;
-    f.traverse([&](const formula& f)
-               {
-                 if (f.is(op::ap))
-                 {
-                   if (outs.count(f.ap_name()))
-                     outs_f.insert(f);
-                   else
-                     ins_f.insert(f);
-                 }
-                 return false;
-               });
-    std::pair<std::set<formula>, std::set<formula>> res({ins_f, outs_f});
-    ap_cache.insert({f, res});
-    return res;
-  }
-}
-
 namespace spot
 {
+  //Anonymous for try_create_strat
+  namespace
+  {
+    class formula_2_inout_props
+    {
+    private:
+      std::map<formula, std::pair<std::set<formula>, std::set<formula>>> data_;
+      std::vector<std::string> outs_;
+
+    public:
+
+      formula_2_inout_props(std::vector<std::string> outs) : outs_(outs)
+      {}
+
+      std::pair<std::set<formula>, std::set<formula>>
+      aps_of(formula f)
+      {
+        auto cache_value = data_.find(f);
+        if (cache_value != data_.end())
+          return cache_value->second;
+        std::set<formula> ins_f, outs_f;
+        f.traverse([&](const formula& f)
+                  {
+                    if (f.is(op::ap))
+                    {
+                      auto cache_value =
+                        std::find(outs_.begin(), outs_.end(), f.ap_name());
+                      if (cache_value != outs_.end())
+                        outs_f.insert(f);
+                      else
+                        ins_f.insert(f);
+                    }
+                    return false;
+                  });
+        std::pair<std::set<formula>, std::set<formula>> res({ins_f, outs_f});
+        data_.insert({f, res});
+        return res;
+      }
+    };
+  }
+
   strategy_like_t
   try_create_direct_strategy(formula f,
                              const std::vector<std::string>& output_aps,
                              game_info &gi)
   {
+    formula_2_inout_props form2props(output_aps);
     auto vs = gi.verbose_stream;
 
     if (vs)
@@ -1293,8 +1305,8 @@ namespace spot
     formula left = f_equiv[0],
             right = f_equiv[1];
 
-    auto [left_ins, left_outs] = aps_of(left, output_aps_set);
-    auto [right_ins, right_outs] = aps_of(right, output_aps_set);
+    auto [left_ins, left_outs] = form2props.aps_of(left);
+    auto [right_ins, right_outs] = form2props.aps_of(right);
 
     bool has_left_outs = !left_outs.empty();
     bool has_left_ins = !left_ins.empty();
@@ -1433,7 +1445,8 @@ namespace // anonymous for subsformula
 
   static std::pair<std::set<formula>, std::set<formula>>
   algo4(const std::vector<formula> &assumptions,
-        const std::set<std::string> &outs)
+        const std::set<std::string> &outs,
+        formula_2_inout_props& form2props)
   {
     // Two variables are "connected" if they share an assumption.
     // It creates a dependency graph and our goal is to find the propositions
@@ -1447,7 +1460,7 @@ namespace // anonymous for subsformula
     std::stack<unsigned> todo;
     unsigned first_free = 0;
 
-    auto next_free = [&first_free, &assumptions, &outs, &ass_size, &done]()
+    auto next_free = [&]()
       {
         while (first_free < ass_size)
           {
@@ -1457,7 +1470,7 @@ namespace // anonymous for subsformula
                 continue;
               }
             auto f = assumptions[first_free];
-            auto [_, o] = aps_of(f, outs);
+            auto o = form2props.aps_of(f).second;
             if (!o.empty())
               return true;
             ++first_free;
@@ -1473,7 +1486,7 @@ namespace // anonymous for subsformula
             todo.pop();
             formula current_form = assumptions[current_index];
             done[current_index] = true;
-            auto [ins_current, outs_current] = aps_of(current_form, outs);
+            auto [ins_current, outs_current] = form2props.aps_of(current_form);
             result.first.insert(ins_current.begin(), ins_current.end());
             result.second.insert(outs_current.begin(), outs_current.end());
             for (unsigned i = 0; i < ass_size; ++i)
@@ -1481,7 +1494,7 @@ namespace // anonymous for subsformula
                 if (done[i])
                   continue;
                 auto other_form = assumptions[i];
-                auto [ins_other, outs_other] = aps_of(other_form, outs);
+                auto [ins_other, outs_other] = form2props.aps_of(other_form);
                 if (are_intersecting(ins_current, ins_other) ||
                     are_intersecting(outs_other, outs_other))
                   todo.push(i);
@@ -1492,7 +1505,8 @@ namespace // anonymous for subsformula
   }
 
   static formula
-  split_implication(const formula &f, const std::set<std::string> &outs)
+  split_implication(const formula &f, const std::set<std::string> &outs,
+                    formula_2_inout_props& form2props)
   {
     assert(f.is(op::Implies));
     assert(f[0].is(op::And));
@@ -1504,8 +1518,8 @@ namespace // anonymous for subsformula
     for (auto g : f[1])
       guarantees.push_back(g);
     // Set of input/output props that cannot be shared between
-    // subspectifications
-    auto decRelProps = algo4(assumptions, outs);
+    // subspecifications
+    auto decRelProps = algo4(assumptions, outs, form2props);
     auto &decRelProps_ins = decRelProps.first;
     auto &decRelProps_outs = decRelProps.second;
     // Assumptions that don't contain an atomic proposition in decRelProps
@@ -1532,7 +1546,7 @@ namespace // anonymous for subsformula
               done[current_index] = true;
               auto current_form = forms[current_index];
               current_res = formula::And({current_res, current_form});
-              auto [ins_f, outs_f] = aps_of(current_form, outs);
+              auto [ins_f, outs_f] = form2props.aps_of(current_form);
               std::set<formula> ins_f_dec, outs_f_dec;
               std::set_intersection(ins_f.begin(), ins_f.end(),
                                     decRelProps_ins.begin(),
@@ -1548,7 +1562,7 @@ namespace // anonymous for subsformula
                 {
                   if (done[i])
                     continue;
-                  auto [ins_i, outs_i] = aps_of(forms[i], outs);
+                  auto [ins_i, outs_i] = form2props.aps_of(forms[i]);
                   if (are_intersecting(ins_i, ins_f_dec)
                    || are_intersecting(outs_i, outs_f_dec))
                     todo.emplace(i);
@@ -1576,7 +1590,7 @@ namespace // anonymous for subsformula
                        formula &, formula &,
                        std::vector<bool> &,
                        std::vector<bool> &)> bip;
-    bip = [&outs, &bip](formula f, std::vector<formula> &src_vect,
+    bip = [&bip, &form2props](formula f, std::vector<formula> &src_vect,
                         std::vector<formula> &dst_vect,
                         std::set<formula> &ins_dec,
                         std::set<formula> &outs_dec,
@@ -1585,7 +1599,7 @@ namespace // anonymous for subsformula
                         std::vector<bool> &done_right)
     {
       left_res = formula::And({left_res, f});
-      auto [ins_f, outs_f] = aps_of(f, outs);
+      auto [ins_f, outs_f] = form2props.aps_of(f);
       std::set<formula> f_ins_dec, f_outs_dec;
       std::set_intersection(ins_f.begin(), ins_f.end(), ins_dec.begin(),
                             ins_dec.end(), std::inserter(f_ins_dec,
@@ -1599,7 +1613,7 @@ namespace // anonymous for subsformula
         if (done_right[i])
           continue;
         auto f2 = dst_vect[i];
-        auto [f2_ins, f2_outs] = aps_of(f2, outs);
+        auto [f2_ins, f2_outs] = form2props.aps_of(f2);
         if (are_intersecting(f2_ins, f_ins_dec)
           || are_intersecting(f2_outs, f_outs_dec))
         {
@@ -1625,7 +1639,7 @@ namespace // anonymous for subsformula
           continue;
         done_ass[i] = true;
         auto &ass = assumptions_split[i];
-        auto [left_aps, right_aps] = aps_of(ass, outs);
+        auto [left_aps, right_aps] = form2props.aps_of(ass);
         // If an assumption hasn't any decRelProp, it is considered as
         // a free assumption.
         if (!are_intersecting(left_aps, decRelProps_ins))
@@ -1657,18 +1671,19 @@ namespace // anonymous for subsformula
 
   static formula
   extract_and(const formula& f, const std::set<std::string>& outs,
-              bool can_extract_impl)
+              bool can_extract_impl, formula_2_inout_props& form2props)
   {
     if (f.is(op::And))
       {
         std::vector<formula> children;
         for (auto fi : f)
-          children.push_back(extract_and(fi, outs, can_extract_impl));
+          children.push_back(
+            extract_and(fi, outs, can_extract_impl, form2props));
         return formula::And(children);
       }
     if (f.is(op::Not))
     {
-      auto child = extract_and(f[0], outs, false);
+      auto child = extract_and(f[0], outs, false, form2props);
       // ¬(⋀¬xᵢ) ≡ ⋁xᵢ
       if (child.is(op::And))
         {
@@ -1683,7 +1698,8 @@ namespace // anonymous for subsformula
             {
               std::vector<formula> children;
               for (auto fi : child)
-                children.push_back(extract_and(formula::Not(fi), outs, false));
+                children.push_back(
+                  extract_and(formula::Not(fi), outs, false, form2props));
               return formula::Or(children);
             }
         }
@@ -1692,7 +1708,8 @@ namespace // anonymous for subsformula
         {
           // The result can be G(And).
           auto f2 =
-            formula::G(extract_and(formula::Not(child[0]), outs, false));
+            formula::G(
+              extract_and(formula::Not(child[0]), outs, false, form2props));
           // What ?
           return f2;
         }
@@ -1700,8 +1717,8 @@ namespace // anonymous for subsformula
       else if (child.is(op::Implies))
         {
           return formula::And({
-            extract_and(child[0], outs, false),
-            extract_and(formula::Not(child[1]), outs, false)
+            extract_and(child[0], outs, false, form2props),
+            extract_and(formula::Not(child[1]), outs, false, form2props)
           });
         }
       // ¬(φ ∨ ψ) ≡ ¬φ ∧ ¬ψ
@@ -1709,7 +1726,8 @@ namespace // anonymous for subsformula
         {
           std::vector<formula> children;
           for (auto fi : child)
-            children.push_back(extract_and(formula::Not(fi), outs, false));
+            children.push_back(
+              extract_and(formula::Not(fi), outs, false, form2props));
           return formula::And(children);
         }
     }
@@ -1717,21 +1735,22 @@ namespace // anonymous for subsformula
     // X(⋀φᵢ) = ⋀(X(φᵢ))
     if (f.is(op::G, op::X))
       {
-        auto child_ex = extract_and(f[0], outs, false);
+        auto child_ex = extract_and(f[0], outs, false, form2props);
         if (child_ex.is(op::And))
           {
             std::vector<formula> children;
             const auto f_kind = f.kind();
             for (auto fi : child_ex)
               children.push_back(
-                extract_and(formula::unop(f_kind, fi), outs, false));
+                extract_and(
+                  formula::unop(f_kind, fi), outs, false, form2props));
             return formula::And(children);
           }
       }
     // ⋀φᵢ U ψ ≡ ⋀(φᵢ U ψ)
     if (f.is(op::U))
       {
-        auto left_child_ex = extract_and(f[0], outs, false);
+        auto left_child_ex = extract_and(f[0], outs, false, form2props);
         if (left_child_ex.is(op::And))
           {
             std::vector<formula> children;
@@ -1742,8 +1761,8 @@ namespace // anonymous for subsformula
       }
     if (f.is(op::Implies))
       {
-        auto right_extr = extract_and(f[1], outs, false);
-        auto left_extr = extract_and(f[0], outs, false);
+        auto right_extr = extract_and(f[1], outs, false, form2props);
+        auto left_extr = extract_and(f[0], outs, false, form2props);
         // φ → (⋀ψᵢ) ≡ ⋀(φ → ψᵢ)
         if (!(left_extr.is(op::And)))
           {
@@ -1759,7 +1778,7 @@ namespace // anonymous for subsformula
         else if (right_extr.is(op::And) && can_extract_impl)
           {
             auto extr_f = formula::Implies(left_extr, right_extr);
-            return split_implication(extr_f, outs);
+            return split_implication(extr_f, outs, form2props);
           }
       }
     return f;
@@ -1772,11 +1791,12 @@ namespace spot
   std::pair<std::vector<formula>, std::vector<std::set<formula>>>
   split_independant_formulas(formula f, const std::vector<std::string>& outs)
   {
+    formula_2_inout_props form2props(outs);
     std::set<std::string> outs_set(outs.begin(), outs.end());
 
-    f = extract_and(f, outs_set, true);
+    f = extract_and(f, outs_set, true, form2props);
     if (!(f.is(op::And)))
-      return { {f}, { aps_of(f, outs_set).second } };
+      return { {f}, { form2props.aps_of(f).second } };
     // Atomics prop of children
     std::vector<std::set<formula>> children_outs;
     // Independent formulas
@@ -1785,7 +1805,7 @@ namespace spot
     std::vector<std::set<formula>> res_outs;
     // For each conj, we calculate the set of output AP
     for (auto child : f)
-      children_outs.push_back(aps_of(child, outs_set).second);
+      children_outs.push_back(form2props.aps_of(child).second);
     unsigned nb_children = f.size();
     // flag to test if a conj is in a "class"
     std::vector<bool> children_class(nb_children, false);
