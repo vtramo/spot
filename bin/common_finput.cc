@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2012-2017, 2019 Laboratoire de Recherche et
+// Copyright (C) 2012-2017, 2019, 2021 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -125,7 +125,7 @@ job_processor::process_string(const std::string& input,
       if (filename)
         error_at_line(0, 0, filename, linenum, "parse error:");
       pf.format_errors(std::cerr);
-      return 1;
+      return 2;
     }
   return process_formula(pf.f, filename, linenum);
 }

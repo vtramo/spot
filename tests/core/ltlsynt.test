@@ -510,3 +510,8 @@ EOF
 ltlsynt -f "G((i0 && i1)<->X(o0)) && G((i2|i3)<->X(o1))" --outs="o0,o1"\
   --aiger=isop --algo=lar -x"specification-decomposition=1" >out
 diff out exp
+
+# Issue #477
+ltlsynt -f 'a U (b' 2>err && exit 1
+test $? -eq 2
+test `wc -l <err` -eq 4

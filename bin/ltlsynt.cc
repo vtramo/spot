@@ -133,7 +133,7 @@ static bool opt_real = false;
 static bool opt_do_verify = false;
 static const char* opt_print_aiger = nullptr;
 
-static spot::game_info gi;
+static spot::game_info* gi;
 
 static char const *const solver_names[] =
   {
@@ -175,8 +175,8 @@ namespace
   static void
   print_csv(const spot::formula& f)
   {
-    auto& vs = gi.verbose_stream;
-    auto& bv = gi.bv;
+    auto& vs = gi->verbose_stream;
+    auto& bv = gi->bv;
     if (not bv)
       throw std::runtime_error("No information available for csv!");
     if (vs)
@@ -209,7 +209,7 @@ namespace
     std::ostringstream os;
     os << f;
     spot::escape_rfc4180(out << '"', os.str());
-    out << "\",\"" << solver_names[(int) gi.s]
+    out << "\",\"" << solver_names[(int) gi->s]
         << "\"," << bv->total_time
         << ',' << bv->trans_time
         << ',' << bv->split_time
@@ -243,17 +243,17 @@ namespace
                 const std::vector<std::string>& output_aps)
   {
     spot::stopwatch sw;
-    if (gi.bv)
+    if (gi->bv)
       sw.start();
 
     auto safe_tot_time = [&]()
     {
-      if (gi.bv)
-        gi.bv->total_time = sw.stop();
+      if (gi->bv)
+        gi->bv->total_time = sw.stop();
     };
 
     bool opt_decompose_ltl =
-      gi.opt.get("specification-decomposition", 0);
+      gi->opt.get("specification-decomposition", 0);
     std::vector<spot::formula> sub_form;
     std::vector<std::set<spot::formula>> sub_outs;
     if (opt_decompose_ltl)
@@ -319,7 +319,7 @@ namespace
       spot::strategy_like_t strat{0, nullptr, bddfalse};
       if (!want_game)
         strat =
-            spot::try_create_direct_strategy(*sub_f, *sub_o, gi);
+            spot::try_create_direct_strategy(*sub_f, *sub_o, *gi);
 
       switch (strat.success)
       {
@@ -331,20 +331,20 @@ namespace
         }
       case 0:
         {
-          auto arena = spot::create_game(*sub_f, *sub_o, gi);
-          if (gi.bv)
+          auto arena = spot::create_game(*sub_f, *sub_o, *gi);
+          if (gi->bv)
             {
-              gi.bv->nb_states_arena += arena->num_states();
+              gi->bv->nb_states_arena += arena->num_states();
               auto spptr =
                   arena->get_named_prop<std::vector<bool>>("state-player");
               assert(spptr);
-              gi.bv->nb_states_arena_env +=
+              gi->bv->nb_states_arena_env +=
                   std::count(spptr->cbegin(), spptr->cend(), false);
               assert((spptr->at(arena->get_init_state_number()) == false)
                      && "Env needs first turn");
             }
           print_game(arena);
-          if (!spot::solve_game(arena, gi))
+          if (!spot::solve_game(arena, *gi))
             {
               std::cout << "UNREALIZABLE" << std::endl;
               safe_tot_time();
@@ -356,7 +356,7 @@ namespace
             {
               spot::strategy_like_t sl;
               sl.success = 1;
-              sl.strat_like = spot::create_strategy(arena, gi);
+              sl.strat_like = spot::create_strategy(arena, *gi);
               sl.glob_cond = bddfalse;
               strategies.push_back(sl);
             }
@@ -372,18 +372,18 @@ namespace
             {
               spot::stopwatch sw_min;
               sw_min.start();
-              bool do_split = 3 <= gi.opt.get("minimization-level", 1);
+              bool do_split = 3 <= gi->opt.get("minimization-level", 1);
               if (do_split)
                 split_2step_fast_here(strat.strat_like,
                     spot::get_synthesis_outputs(strat.strat_like));
-              minimize_strategy_here(strat.strat_like, gi.minimize_lvl);
+              minimize_strategy_here(strat.strat_like, gi->minimize_lvl);
               if (do_split)
                 strat.strat_like = spot::unsplit_2step(strat.strat_like);
               auto delta = sw_min.stop();
-              if (gi.bv)
-                gi.bv->strat2aut_time += delta;
-              if (gi.verbose_stream)
-                *gi.verbose_stream << "final strategy has "
+              if (gi->bv)
+                gi->bv->strat2aut_time += delta;
+              if (gi->verbose_stream)
+                *gi->verbose_stream << "final strategy has "
                                    << strat.strat_like->num_states()
                                    << " states and "
                                    << strat.strat_like->num_edges()
@@ -429,21 +429,21 @@ namespace
     if (opt_print_aiger)
       {
         spot::stopwatch sw2;
-        if (gi.bv)
+        if (gi->bv)
           sw2.start();
         saig = spot::strategies_to_aig(strategies, opt_print_aiger,
                                        input_aps,
                                        sub_outs_str);
-        if (gi.bv)
+        if (gi->bv)
           {
-            gi.bv->aig_time = sw2.stop();
-            gi.bv->nb_latches = saig->num_latches();
-            gi.bv->nb_gates = saig->num_gates();
+            gi->bv->aig_time = sw2.stop();
+            gi->bv->nb_latches = saig->num_latches();
+            gi->bv->nb_gates = saig->num_gates();
           }
-        if (gi.verbose_stream)
+        if (gi->verbose_stream)
           {
-            *gi.verbose_stream << "AIG circuit was created in "
-                               << gi.bv->aig_time
+            *gi->verbose_stream << "AIG circuit was created in "
+                               << gi->bv->aig_time
                                << " and has " << saig->num_latches()
                                << " latches and "
                                << saig->num_gates() << " gates\n";
@@ -470,7 +470,7 @@ namespace
 
 
     // TODO: different options to speed up verification?!
-    spot::translator trans(gi.dict, &gi.opt);
+    spot::translator trans(gi->dict, &gi->opt);
     auto neg_spec = trans.run(spot::formula::Not(f));
     if (saig)
       {
@@ -519,20 +519,20 @@ namespace
   };
 }
 
-  static int
-  parse_opt(int key, char *arg, struct argp_state *)
+static int
+parse_opt(int key, char *arg, struct argp_state *)
 {
   // Called from C code, so should not raise any exception.
   BEGIN_EXCEPTION_PROTECT;
   switch (key)
     {
     case OPT_ALGO:
-      gi.s = XARGMATCH("--algo", arg, solver_args, solver_types);
+      gi->s = XARGMATCH("--algo", arg, solver_args, solver_types);
       break;
     case OPT_CSV:
       opt_csv = arg ? arg : "-";
-      if (not gi.bv)
-        gi.bv = spot::game_info::bench_var();
+      if (not gi->bv)
+        gi->bv = spot::game_info::bench_var();
       break;
     case OPT_INPUT:
       {
@@ -558,7 +558,7 @@ namespace
       }
     case OPT_PRINT:
       opt_print_pg = true;
-      gi.force_sbacc = true;
+      gi->force_sbacc = true;
       break;
     case OPT_PRINT_HOA:
       opt_print_hoa = true;
@@ -571,20 +571,20 @@ namespace
       opt_real = true;
       break;
     case OPT_VERBOSE:
-      gi.verbose_stream = &std::cerr;
-      if (not gi.bv)
-        gi.bv = spot::game_info::bench_var();
+      gi->verbose_stream = &std::cerr;
+      if (not gi->bv)
+        gi->bv = spot::game_info::bench_var();
       break;
     case OPT_VERIFY:
       opt_do_verify = true;
       break;
     case 'x':
       {
-        const char* opt = gi.opt.parse_options(arg);
+        const char* opt = gi->opt.parse_options(arg);
         if (opt)
           error(2, 0, "failed to parse --options near '%s'", opt);
         // Dispatch the options to the gi structure
-        gi.minimize_lvl = gi.opt.get("minimization-level", 1);
+        gi->minimize_lvl = gi->opt.get("minimization-level", 1);
       }
       break;
     }
@@ -596,31 +596,37 @@ int
 main(int argc, char **argv)
 {
   return protected_main(argv, [&] {
-      //gi.opt.set("simul", 0);     // no simulation, except...
-      //gi.opt.set("dpa-simul", 1); // ... after determinization
-      gi.opt.set("tls-impl", 1);  // no automata-based implication check
-      gi.opt.set("wdba-minimize", 2); // minimize only syntactic oblig
-      const argp ap = { options, parse_opt, nullptr,
-                        argp_program_doc, children, nullptr, nullptr };
-      if (int err = argp_parse(&ap, argc, argv, ARGP_NO_HELP, nullptr, nullptr))
-        exit(err);
-      check_no_formula();
+    // Create gi_ as a local variable, so make sure it is destroyed
+    // before all global variables.
+    spot::game_info gi_;
+    gi = &gi_;
+    //gi_.opt.set("simul", 0);     // no simulation, except...
+    //gi_.opt.set("dpa-simul", 1); // ... after determinization
+    gi_.opt.set("tls-impl", 1);  // no automata-based implication check
+    gi_.opt.set("wdba-minimize", 2); // minimize only syntactic oblig
+    const argp ap = { options, parse_opt, nullptr,
+                      argp_program_doc, children, nullptr, nullptr };
+    if (int err = argp_parse(&ap, argc, argv, ARGP_NO_HELP, nullptr, nullptr))
+      exit(err);
+    check_no_formula();
 
-      // Check if inputs and outputs are distinct
-      // Inputs can be empty, outputs not
-      if (not all_input_aps.empty())
-        {
-          for (const auto& ai : all_input_aps)
-            if (std::count(all_output_aps.begin(), all_output_aps.end(), ai))
-              throw std::runtime_error("ltlsynt(): " + ai +
-                                       " appears in the input AND output APs.");
-        }
+    // Check if inputs and outputs are distinct
+    // Inputs can be empty, outputs not
+    if (not all_input_aps.empty())
+      {
+        for (const auto& ai : all_input_aps)
+          if (std::count(all_output_aps.begin(), all_output_aps.end(), ai))
+            throw std::runtime_error("ltlsynt(): " + ai +
+                                     " appears in the input AND output APs.");
+      }
 
-      ltl_processor processor(all_input_aps, all_output_aps);
-
-      auto res = processor.run();
-      // Diagnose unused -x options
-      gi.opt.report_unused_options();
-      return res;
-    });
+    ltl_processor processor(all_input_aps, all_output_aps);
+    if (int res = processor.run(); res == 0 || res == 1)
+      {
+        // Diagnose unused -x options
+        gi_.opt.report_unused_options();
+        return res;
+      }
+    return 2;
+  });
 }
