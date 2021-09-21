@@ -501,14 +501,15 @@ namespace spot
       };
 
     // Now we have equivalence classes
-    // and a state can only be in exactly
+    // and a state can only be in exactly one.
     // (Otherwise the classes would have fused)
     // For each equiv class we take the first state as representative
-    // and redirect all incoming edges to this one
+    // and redirect all incoming edges to this one.
     std::vector<unsigned> remap(nb_states, -1U);
     for (const auto& [_, class_v] : equiv_class_)
       for (const auto& aclass : class_v)
         {
+          (void)_; // please some versions of GCC
           unsigned rep = *aclass.begin();
           for (auto it = ++aclass.begin(); it != aclass.end(); ++it)
             remap[*it] = rep;
