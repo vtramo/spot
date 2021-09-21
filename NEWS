@@ -15,8 +15,31 @@ New in spot 2.9.8.dev (not yet released)
 
   - ltlsynt --aiger option now takes an optional argument indicating
     how the bdd and states are to be encoded in the aiger output.
-    Choices are "ITE" for the if-then-else normal form or "ISOP" for
-    relying on irreducible sums of products.
+    The option has to be given in the form 
+    ite|isop|both[+ud][+dc][+sub0|sub1|sub2] where the first 
+    only obligatory argument decides whether "if-then-else" ("ite")
+    or irreducible-sum-of-products ("isop") is to be used.
+    "both" executes both strategies and retains the smaller circuits.
+    The additional options are for fine-tuning. "ud" also encodes the 
+    dual of the conditions and retains the smaller circuits.
+    "dc" computes if for some inputs we do not care whether the
+    output is high or low and try to use this information to compute
+    a smaller circuit. "subX" indicates different strategies to find
+    common subexpressions, with "sub0" indicating no extra computations.
+
+  - ltlsynt --verify checks the computed strategy or aiger circuit 
+    against the specification.
+
+  - ltlsynt -x "specification-decomposition" determines whether or not
+    the algorithm should try to decompose the formula into subformulas
+    and generate a strategy for each subformula before recombining them
+    into a circuit.
+
+  - ltlsynt -x "minimization-level=[0-5]" determines how to minimize
+    the strategy (a monitor). 0, no minimization; 1, regular DFA 
+    minimization; 2, signature based minimization with 
+    output assignement; 3, SAT based minimization; 4, 1 then 3;
+    5, 2 then 3.
 
   - ltl2tgba, autfilt, dstar2tgba, and randaut learned a --buchi
     option, or -b for short.  This output Büchi automata without
@@ -34,6 +57,13 @@ New in spot 2.9.8.dev (not yet released)
   - autfilt learned a --kill-states=NUM[,NUM...] option.
 
   Library:
+  - Spot now provides convenient function to create and solve game.
+    The functions are located in twaalgos/game.hh and 
+    twaalgos/synthesis.hh. Moreover a new structure holding 
+    all the necessary options called game_info is now available.
+
+  - A new class called aig is introduced to represent 
+    and-inverter-graphs, which is useful for synthesis.
 
   - Historically, Spot labels automata by Boolean formulas over
     atomic propositions. These Boolean formulas are represented
@@ -254,7 +284,7 @@ New in spot 2.9.8.dev (not yet released)
 
   Python:
 
-  - Bindings for functions related to games.
+  - Bindings for functions related to games and aig-circuits.
     See https://spot.lrde.epita.fr/ipynb/games.html for examples.
 
   - spot::twa::prop_set was previously abstent from the Python
