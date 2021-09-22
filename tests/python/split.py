@@ -46,7 +46,7 @@ def do_split(f, out_list):
     outputs = spot.buddy.bddtrue
     for a in out_list:
         outputs &= spot.buddy.bdd_ithvar(aut.get_dict().varnum(spot.formula(a)))
-    s = spot.split_2step(aut, outputs, False, False)
+    s = spot.split_2step(aut, outputs, False)
     return aut, s
 
 aut, s = do_split('(FG !a) <-> (GF b)', ['b'])

@@ -135,8 +135,7 @@ namespace spot
 {
   twa_graph_ptr
   split_2step(const const_twa_graph_ptr& aut,
-              const bdd& output_bdd, bool complete_env,
-              bool do_simplify)
+              const bdd& output_bdd, bool complete_env)
   {
     auto split = make_twa_graph(aut->get_dict());
     split->copy_ap_of(aut);
@@ -216,25 +215,6 @@ namespace spot
         e_cache.clear();
 
         auto out_cont = aut->out(src);
-        // Short-cut if we do not want to
-        // split the edges of nodes that have
-        // a single outgoing edge
-        if (do_simplify
-            && (++out_cont.begin()) == out_cont.end())
-          {
-            // "copy" the edge
-            const auto& e = *out_cont.begin();
-            split->new_edge(src, e.dst, e.cond, e.acc);
-            // Check if it needs to be completed
-            if (complete_env)
-              {
-                bdd missing = bddtrue - bdd_exist(e.cond, output_bdd);
-                if (missing != bddfalse)
-                  split->new_edge(src, get_sink_con_state(), missing);
-              }
-            // We are done for this state
-            continue;
-          }
 
         // Avoid looping over all minterms
         // we only loop over the minterms that actually exist
@@ -433,9 +413,11 @@ namespace spot
     out->copy_acceptance_of(aut);
     out->copy_ap_of(aut);
 
-    // split_2step is not guaranteed to produce
-    // states that alternate between env and player do to do_simplify
+    // split_2step is guaranteed to produce an alternating arena
     auto owner = get_state_players(aut);
+#ifndef NDEGUB
+    (void) owner;
+#endif
 
     std::vector<unsigned> state_map(aut->num_states(), unseen_mark);
     auto seen = [&](unsigned s){return state_map[s] != unseen_mark; };
@@ -456,30 +438,16 @@ namespace spot
         todo.pop_front();
 
         for (const auto& i : aut->out(cur))
-          {
-            // if the dst is also owned env
-            if (!owner[i.dst])
-              {
-                // This can only happen if there is only
-                // one outgoing edges for cur
-                assert(([&aut, cur]()->bool
-                          {
-                            auto out_cont = aut->out(cur);
-                            return (++(out_cont.begin()) == out_cont.end());
-                          })());
-                if (!seen(i.dst))
-                  todo.push_back(i.dst);
-                out->new_edge(cur_m, map_s(i.dst), i.cond, i.acc);
-                continue; // Done with cur
-              }
-            for (const auto& o : aut->out(i.dst))
-              {
-                if (!seen(o.dst))
-                  todo.push_back(o.dst);
-                out->new_edge(cur_m, map_s(o.dst),
-                              i.cond & o.cond, i.acc | o.acc);
-              }
-          }
+          for (const auto& o : aut->out(i.dst))
+            {
+              assert((owner.at(cur) != owner.at(o.src))
+                     && (owner.at(cur) == owner.at(o.dst)
+                     && "Arena is not alternating!"));
+              if (!seen(o.dst))
+                todo.push_back(o.dst);
+              out->new_edge(cur_m, map_s(o.dst),
+                            i.cond & o.cond, i.acc | o.acc);
+            }
       }
     out->set_init_state(map_s(aut->get_init_state_number()));
     // Try to set outputs
@@ -952,7 +920,7 @@ namespace spot
               << bv->paritize_time << " seconds\n";
         if (bv)
           sw.start();
-        dpa = split_2step(tmp, outs, true, false);
+        dpa = split_2step(tmp, outs, true);
         colorize_parity_here(dpa, true);
         if (bv)
           bv->split_time += sw.stop();
@@ -975,7 +943,7 @@ namespace spot
               << " states\n";
         if (bv)
           sw.start();
-        dpa = split_2step(aut, outs, true, false);
+        dpa = split_2step(aut, outs, true);
         colorize_parity_here(dpa, true);
         if (bv)
           bv->split_time += sw.stop();
@@ -988,8 +956,7 @@ namespace spot
       case solver::SPLIT_DET:
       {
         sw.start();
-        auto split = split_2step(aut, outs,
-                                true, false);
+        auto split = split_2step(aut, outs, true);
         if (bv)
           bv->split_time += sw.stop();
         if (vs)
@@ -1045,7 +1012,7 @@ namespace spot
 
         if (bv)
           sw.start();
-        dpa = split_2step(dpa, outs, true, false);
+        dpa = split_2step(dpa, outs, true);
         colorize_parity_here(dpa, true);
         if (bv)
           bv->split_time += sw.stop();

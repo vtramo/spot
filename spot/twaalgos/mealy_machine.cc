@@ -507,7 +507,7 @@ namespace spot
     // Split if the initial aut was split
     if (orig_is_split)
       {
-        mmc = split_2step(mmc, outs, false, false);
+        mmc = split_2step(mmc, outs, false);
         bool orig_init_player =
             mm->get_named_prop<std::vector<bool>>("state-player")
                 ->at(mm->get_init_state_number());
@@ -582,7 +582,7 @@ namespace spot
     mm->purge_unreachable_states();
     if (orig_is_split)
       {
-        mm = split_2step(mm, outs, false, false);
+        mm = split_2step(mm, outs, false);
         alternate_players(mm, init_player, false);
         mm->set_named_prop("synthesis-outputs", new bdd(outs));
       }

@@ -25,8 +25,8 @@
 
 namespace spot
 {
-  /// \brief make each transition (conditionally, see do_simplify)
-  ///        a 2-step transition
+  /// \brief make each transition a 2-step transition, transforming
+  ///        the graph into an alternating arena
   ///
   /// Given a set of atomic propositions I, split each transition
   ///     p -- cond --> q                cond in 2^2^AP
@@ -45,16 +45,13 @@ namespace spot
   ///                     are treated as inputs
   /// \param complete_env Whether the automaton should be complete for the
   ///                     environment, i.e. the player of I
-  /// \param do_simplify  If a state has a single outgoing transition
-  ///                     we do not necessarily have to split it
-  ///                     to solve the game
   /// \note: This function also computes the state players
   /// \note: If the automaton is to be completed for both env and player
   ///        then egdes between the sinks will be added
   /// (assuming that the environnement/player of I) plays first
   SPOT_API twa_graph_ptr
   split_2step(const const_twa_graph_ptr& aut,
-              const bdd& output_bdd, bool complete_env, bool do_simplify);
+              const bdd& output_bdd, bool complete_env);
 
 
   /// \brief make each transition a 2-step transition.
