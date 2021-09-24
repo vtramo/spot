@@ -167,6 +167,11 @@ namespace spot
     /// shape that is tested.  When that happens, node_count() is set
     /// to 0.
     ABORT_WRONG_SHAPE = 4,
+    /// Order the children of a node by decreasing size of the number
+    /// of states they would introduce if that child appears as the
+    /// last child of an "ACD" round in the state-based version of the
+    /// ACD output.
+    ORDER_HEURISTIC = 8,
   };
 
 #ifndef SWIG
@@ -407,13 +412,15 @@ namespace spot
   /// optimal transition-based output (optimal in the sense of least
   /// number of duplicated states), while the acd_tansform_sbacc() variant
   /// produces state-based output from transition-based input and without
-  /// any optimality claim.
+  /// any optimality claim.  The \a order_heuristics argument, enabled
+  /// by default activates the ORDER_HEURISTICS option of the ACD.
   /// @{
   SPOT_API
   twa_graph_ptr acd_transform(const const_twa_graph_ptr& aut,
                               bool colored = false);
   SPOT_API
   twa_graph_ptr acd_transform_sbacc(const const_twa_graph_ptr& aut,
-                                    bool colored = false);
+                                    bool colored = false,
+                                    bool order_heuristic = true);
   /// @}
 }

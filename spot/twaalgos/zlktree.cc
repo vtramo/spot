@@ -20,6 +20,7 @@
 #include "config.h"
 #include <iostream>
 #include <deque>
+#include <algorithm>
 #include <spot/twaalgos/zlktree.hh>
 #include <spot/twaalgos/genem.hh>
 #include <spot/misc/escape.hh>
@@ -439,6 +440,15 @@ namespace spot
     };
     std::vector<size_model> out;
 
+    std::unique_ptr<bitvect> seen_src;
+    std::unique_ptr<bitvect> seen_dst;
+    std::unique_ptr<bitvect> seen_dup;
+    if (!!(opt_ & acd_options::ORDER_HEURISTIC))
+      {
+        seen_src.reset(make_bitvect(nstates));
+        seen_dst.reset(make_bitvect(nstates));
+        seen_dup.reset(make_bitvect(nstates));
+      }
     // This loop is a BFS over the increasing set of nodes.
     for (unsigned node = 0; node < nodes_.size(); ++node)
     {
@@ -483,9 +493,55 @@ namespace spot
                                       accepting_node ? negacc : posacc,
                                       nodes_[node].edges, callback);
 
+      if (!!(opt_ & acd_options::ORDER_HEURISTIC))
+        {
+          // Find states that appear in multiple children
+          seen_dup->clear_all(); // duplicate states
+          seen_src->clear_all(); // union of all children states
+          for (auto& [sz, bv]: out)
+            {
+              seen_dst->clear_all(); // local states of the node
+              bv->foreach_set_index([&aut, &seen_dst](unsigned e)
+              {
+                seen_dst->set(aut->edge_storage(e).src);
+              });
+              seen_dup->add_common(*seen_src, *seen_dst);
+              *seen_src |= *seen_dst;
+            }
+          // Now the union in seen_src is not useful anymore.  Process
+          // each node again, but consider only the states that are in
+          // seen_dup.
+          for (auto& [sz, bv]: out)
+            {
+              seen_src->clear_all(); // local source of the node
+              bv->foreach_set_index([&aut, &seen_src, &seen_dup](unsigned e)
+              {
+                unsigned idx = aut->edge_storage(e).src;
+                if (seen_dup->get(idx))
+                  seen_src->set(idx); // store duplicates
+              });
+              seen_dst->clear_all();
+              // Count the number of states reached by leaving this node.
+              seen_src->foreach_set_index([&aut, bv=bv.get(),
+                                           &seen_dst](unsigned s)
+              {
+                for (auto& e: aut->out(s))
+                  if (!bv->get(aut->edge_number(e)))
+                    seen_dst->set(e.dst);
+              });
+              sz = seen_dst->count();
+            }
+          // reorder by decreasing number of new states reached
+          std::stable_sort(out.begin(), out.end(),
+                           [&](auto& p1, auto& p2) {
+                             return p1.size > p2.size;
+                           });
+        }
+
       unsigned before_size = nodes_.size();
       for (const auto& [sz, bv]: out)
         {
+          (void)sz;
           unsigned vnum = trees_[scc].num_nodes++;
           allocate_vectors_maybe(vnum);
           nodes_.emplace_back(edge_vector(vnum), state_vector(vnum));
@@ -877,12 +933,13 @@ namespace spot
   // ACD, to
   template<bool sbacc>
   twa_graph_ptr
-  acd_transform_(const const_twa_graph_ptr& a, bool colored)
+  acd_transform_(const const_twa_graph_ptr& a, bool colored,
+                 acd_options options = acd_options::NONE)
   {
     auto res = make_twa_graph(a->get_dict());
     res->copy_ap_of(a);
     scc_info si(a, scc_info_options::TRACK_STATES);
-    acd theacd(si);
+    acd theacd(si, options);
 
     // If we desire non-colored output, we can omit the maximal
     // color of each SCC if it has the same parity as max_level.
@@ -1022,9 +1079,12 @@ namespace spot
   }
 
   twa_graph_ptr
-  acd_transform_sbacc(const const_twa_graph_ptr& a, bool colored)
+  acd_transform_sbacc(const const_twa_graph_ptr& a, bool colored,
+                      bool order_heuristic)
   {
-    return acd_transform_<true>(a, colored);
+    return acd_transform_<true>(a, colored, order_heuristic
+                                ? acd_options::ORDER_HEURISTIC
+                                : acd_options::NONE);
   }
 
 }

@@ -255,6 +255,16 @@ namespace spot
       return *this;
     }
 
+    bitvect& add_common(const bitvect& other1, const bitvect& other2)
+    {
+      SPOT_ASSERT(other1.size_ <= size_ && other2.size_ <= size_);
+      unsigned m = std::min(other2.block_count_,
+                            std::min(other1.block_count_, block_count_));
+      for (size_t i = 0; i < m; ++i)
+        storage_[i] |= other1.storage_[i] & other2.storage_[i];
+      return *this;
+    }
+
     bool intersects(const bitvect& other)
     {
       SPOT_ASSERT(other.size_ <= size_);
@@ -300,6 +310,32 @@ namespace spot
       block_t mask = (1UL << rest) - 1;
       return ((storage_[i] & mask & other.storage_[i])
               == (storage_[i] & mask));
+    }
+
+    unsigned count() const
+    {
+      size_t i;
+      const size_t bpb = 8 * sizeof(bitvect::block_t);
+      size_t rest = size() % bpb;
+      size_t c = 0;
+      for (i = 0; i < block_count_; ++i)
+        {
+          block_t v = storage_[i];
+          if ((i == block_count_ - 1) && rest)
+            // The last block might not be fully used, scan only the
+            // relevant portion.
+            v &= (1UL << rest) - 1;
+#ifdef __GNUC__
+          c += __builtin_popcountl(v);
+#else
+          while (v)
+            {
+              ++c;
+              v &= v - 1;
+            }
+#endif
+        }
+      return c;
     }
 
     bool operator==(const bitvect& other) const
