@@ -152,6 +152,48 @@ namespace spot
 
 
   /// \ingroup twa_acc_transform
+  /// \brief Options to alter the behavior of acd
+  enum class acd_options
+  {
+    /// Build the ACD, without checking its shape.
+    NONE = 0,
+    /// Check if the ACD has Rabin shape.
+    CHECK_RABIN = 1,
+    /// Check if the ACD has Streett shape.
+    CHECK_STREETT = 2,
+    /// Check if the ACD has Parity shape
+    CHECK_PARITY = CHECK_RABIN | CHECK_STREETT,
+    /// Abort the construction of the ACD if it does not have the
+    /// shape that is tested.  When that happens, node_count() is set
+    /// to 0.
+    ABORT_WRONG_SHAPE = 4,
+  };
+
+#ifndef SWIG
+  inline
+  bool operator!(acd_options me)
+  {
+    return me == acd_options::NONE;
+  }
+
+  inline
+  acd_options operator&(acd_options left, acd_options right)
+  {
+    typedef std::underlying_type_t<acd_options> ut;
+    return static_cast<acd_options>(static_cast<ut>(left)
+                                    & static_cast<ut>(right));
+  }
+
+  inline
+  acd_options operator|(acd_options left, acd_options right)
+  {
+    typedef std::underlying_type_t<acd_options> ut;
+    return static_cast<acd_options>(static_cast<ut>(left)
+                                    | static_cast<ut>(right));
+  }
+#endif
+
+  /// \ingroup twa_acc_transform
   /// \brief Alternating Cycle Decomposition implementation
   ///
   /// This class implements an Alternating Cycle Decomposition
@@ -164,8 +206,8 @@ namespace spot
   {
   public:
     /// \brief Build a Alternating Cycle Decomposition an SCC decomposition
-    acd(const scc_info& si);
-    acd(const const_twa_graph_ptr& aut);
+    acd(const scc_info& si, acd_options opt = acd_options::NONE);
+    acd(const const_twa_graph_ptr& aut, acd_options opt = acd_options::NONE);
 
     ~acd();
 
@@ -229,29 +271,24 @@ namespace spot
 
     /// \brief Whether the ACD has Rabin shape.
     ///
-    /// The ACD has Rabin shape of all accepting (round) nodes have
-    /// at most one child.
-    bool has_rabin_shape() const
-    {
-      return has_rabin_shape_;
-    }
+    /// The ACD has Rabin shape if all accepting (round) nodes have no
+    /// children with a state in common.  The acd should be built with
+    /// option CHECK_RABIN or CHECK_PARITY for this function to work.
+    bool has_rabin_shape() const;
 
     /// \brief Whether the ACD has Streett shape.
     ///
-    /// The ACD has Streett shape of all rejecting (square) nodes have
-    /// at most one child.
-    bool has_streett_shape() const
-    {
-      return has_streett_shape_;
-    }
+    /// The ACD has Streett shape if all rejecting (square) nodes have no
+    /// children with a state in common.  The acd should be built with
+    /// option CHECK_STREETT or CHECK_PARITY for this function to work.
+    bool has_streett_shape() const;
 
-    /// \brief Whether the ACD has parity shape.
+    /// \brief Whether the ACD has Streett shape.
     ///
-    /// The ACD has parity shape of all nodes have at most one child.
-    bool has_parity_shape() const
-    {
-      return has_streett_shape() && has_rabin_shape();
-    }
+    /// The ACD has Streett shape if all nodes have no
+    /// children with a state in common.  The acd should be built with
+    /// option CHECK_PARITY for this function to work.
+    bool has_parity_shape() const;
 
     /// \brief Return the automaton on which the ACD is defined.
     const const_twa_graph_ptr get_aut() const
@@ -268,6 +305,7 @@ namespace spot
   private:
     const scc_info* si_;
     bool own_si_ = false;
+    acd_options opt_;
 
     // This structure is used to represent one node in the ACD forest.
     // The tree use a left-child / right-sibling representation
@@ -335,6 +373,8 @@ namespace spot
 #ifndef SWIG
     [[noreturn]] static
     void report_invalid_scc_number(unsigned num, const char* fn);
+    [[noreturn]] static void report_need_opt(const char* opt);
+    [[noreturn]] static void report_empty_acd(const char* fn);
 #endif
   };
 

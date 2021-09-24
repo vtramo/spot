@@ -23,6 +23,7 @@
 #include <spot/twaalgos/zlktree.hh>
 #include <spot/twaalgos/genem.hh>
 #include <spot/misc/escape.hh>
+using namespace std::string_literals;
 
 namespace spot
 {
@@ -188,7 +189,7 @@ namespace spot
   std::pair<unsigned, unsigned>
   zielonka_tree::step(unsigned branch, acc_cond::mark_t colors) const
   {
-    if (SPOT_UNLIKELY(nodes_.size() < branch || nodes_[branch].first_child))
+    if (SPOT_UNLIKELY(nodes_.size() <= branch || nodes_[branch].first_child))
       throw std::runtime_error
         ("zielonka_tree::step(): incorrect branch number");
 
@@ -345,14 +346,26 @@ namespace spot
                              + " is too large");
   }
 
-  acd::acd(const const_twa_graph_ptr& aut)
-    : si_(new scc_info(aut)), own_si_(true), trees_(si_->scc_count())
+  void acd::report_need_opt(const char* opt)
+  {
+    throw std::runtime_error("ACD should be built with option "s + opt);
+  }
+
+  void acd::report_empty_acd(const char* fn)
+  {
+    throw
+      std::runtime_error(std::string(fn) +
+                         "(): ACD is empty, did you use ABORT_WRONG_SHAPE?");
+  }
+
+  acd::acd(const const_twa_graph_ptr& aut, acd_options opt)
+    : si_(new scc_info(aut)), own_si_(true), opt_(opt), trees_(si_->scc_count())
   {
     build_();
   }
 
-  acd::acd(const scc_info& si)
-    : si_(&si), own_si_(false), trees_(si_->scc_count())
+  acd::acd(const scc_info& si, acd_options opt)
+    : si_(&si), own_si_(false), opt_(opt), trees_(si_->scc_count())
   {
     build_();
   }
@@ -507,10 +520,39 @@ namespace spot
         }
       else if (children > 1)
         {
-          if (accepting_node)
-            has_rabin_shape_ = false;
-          else
-            has_streett_shape_ = false;
+          // Check the shape if requested.
+          if ((has_rabin_shape_
+               && !!(opt_ & acd_options::CHECK_RABIN)
+               && accepting_node)
+              || (has_streett_shape_
+                  && !!(opt_ & acd_options::CHECK_STREETT)
+                  && !accepting_node))
+            {
+              std::unique_ptr<bitvect> seen(make_bitvect(nstates));
+              std::unique_ptr<bitvect> cur(make_bitvect(nstates));
+              for (const auto& [sz, bv]: out)
+                {
+                  cur->clear_all();
+                  bv->foreach_set_index([&aut, &cur](unsigned e)
+                  {
+                    cur->set(aut->edge_storage(e).src);
+                  });
+                  if (cur->intersects(*seen))
+                    {
+                      if (accepting_node)
+                        has_rabin_shape_ = false;
+                      else
+                        has_streett_shape_ = false;
+                      if (!!(opt_ & acd_options::ABORT_WRONG_SHAPE))
+                        {
+                          nodes_.clear();
+                          return;
+                        }
+                      break;
+                    }
+                  *seen |= *cur;
+                }
+            }
         }
     }
     // Now we decide if the ACD corresponds to a "min even" or "max
@@ -565,11 +607,14 @@ namespace spot
   unsigned acd::first_branch(unsigned s) const
   {
     if (SPOT_UNLIKELY(aut_->num_states() < s))
-      throw std::runtime_error("first_branch(): unknown state " +
+      throw std::runtime_error("acd::first_branch(): unknown state " +
                                std::to_string(s));
     unsigned scc = si_->scc_of(s);
     if (trees_[scc].trivial)    // the branch is irrelevant for transiant SCCs
       return 0;
+    if (SPOT_UNLIKELY(nodes_.empty()))
+      // make sure we do not complain about this if all SCCs are trivial.
+      report_empty_acd("acd::first_branch");
     unsigned n = trees_[scc].root;
     assert(nodes_[n].states.get(s));
     return leftmost_branch_(n, s);
@@ -579,7 +624,7 @@ namespace spot
   std::pair<unsigned, unsigned>
   acd::step(unsigned branch, unsigned edge) const
   {
-    if (SPOT_UNLIKELY(nodes_.size() < branch))
+    if (SPOT_UNLIKELY(nodes_.size() <= branch))
       throw std::runtime_error("acd::step(): incorrect branch number");
     if (SPOT_UNLIKELY(nodes_[branch].edges.size() < edge))
       throw std::runtime_error("acd::step(): incorrect edge number");
@@ -622,13 +667,13 @@ namespace spot
 
   void acd::dot(std::ostream& os, const char* id) const
   {
+    unsigned ns = nodes_.size();
     os << "digraph acd {\n  labelloc=\"t\"\n  label=\"\n"
-       << (is_even_ ? "min even\"" : "min odd\"\n");
+       << (ns ? (is_even_ ? "min even\"" : "min odd\"") : "empty ACD\"");
     if (id)
       escape_str(os << "  id=\"", id)
         // fill the node so that the entire node is clickable
         << "\"\n  node [id=\"N\\N\", style=filled, fillcolor=white]\n";
-    unsigned ns = nodes_.size();
     for (unsigned n = 0; n < ns; ++n)
       {
         acc_cond::mark_t m = {};
@@ -736,14 +781,14 @@ namespace spot
 
   bool acd::node_acceptance(unsigned n) const
   {
-    if (SPOT_UNLIKELY(nodes_.size() < n))
+    if (SPOT_UNLIKELY(nodes_.size() <= n))
       throw std::runtime_error("acd::node_acceptance(): unknown node");
     return (nodes_[n].level & 1) ^ is_even_;
   }
 
   std::vector<unsigned> acd::edges_of_node(unsigned n) const
   {
-    if (SPOT_UNLIKELY(nodes_.size() < n))
+    if (SPOT_UNLIKELY(nodes_.size() <= n))
       throw std::runtime_error("acd::edges_of_node(): unknown node");
     std::vector<unsigned> res;
     unsigned scc = nodes_[n].scc;
@@ -753,6 +798,27 @@ namespace spot
       if (edges.get(e) && si_->scc_of(aut_->edge_storage(e).dst) == scc)
         res.push_back(e);
     return res;
+  }
+
+  bool acd::has_rabin_shape() const
+  {
+    if (!(opt_ & acd_options::CHECK_RABIN))
+      report_need_opt("CHECK_RABIN");
+    return has_rabin_shape_;
+  }
+
+  bool acd::has_streett_shape() const
+  {
+    if (!(opt_ & acd_options::CHECK_STREETT))
+      report_need_opt("CHECK_STREETT");
+    return has_streett_shape_;
+  }
+
+  bool acd::has_parity_shape() const
+  {
+    if ((opt_ & acd_options::CHECK_PARITY) != acd_options::CHECK_PARITY)
+      report_need_opt("CHECK_PARITY");
+    return has_streett_shape_ && has_rabin_shape_;
   }
 
   twa_graph_ptr
