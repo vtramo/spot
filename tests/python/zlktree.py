@@ -117,3 +117,10 @@ except RuntimeError as e:
     assert 'unknown node' in str(e)
 else:
     report_missing_exception()
+
+try:
+    aa.node_level(0)
+except RuntimeError as e:
+    assert 'unknown node' in str(e)
+else:
+    report_missing_exception()

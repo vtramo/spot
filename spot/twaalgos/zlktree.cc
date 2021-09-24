@@ -646,24 +646,68 @@ namespace spot
         branch = parent;
       }
     unsigned lvl = nodes_[branch].level;
-    if (child != 0)
+    if (child == 0)             // came here without climbing up
+      return { leftmost_branch_(branch, dst), lvl };
+
+    unsigned start_child = child;
+    // find the next children that contains dst.
+    do
       {
-        unsigned start_child = child;
-        // find the next children that contains dst.
-        do
-          {
-            child = nodes_[child].next_sibling;
-            if (nodes_[child].states.get(dst))
-              return {leftmost_branch_(child, dst), lvl};
-          }
-        while (child != start_child);
-        return { branch, lvl };
+        child = nodes_[child].next_sibling;
+        if (nodes_[child].states.get(dst))
+          return {leftmost_branch_(child, dst), lvl};
       }
-    else
-      {
-        return { leftmost_branch_(branch, dst), lvl };
-      }
+    while (child != start_child);
+    return { branch, lvl };
   }
+
+  unsigned acd::state_step(unsigned node, unsigned edge) const
+  {
+    // The rule is almost similar to step(), except we do note
+    // go down to the leftmost leave after we have seen a round
+    // of all children.
+    if (SPOT_UNLIKELY(nodes_.size() <= node))
+      throw std::runtime_error("acd::step(): incorrect node number");
+    if (SPOT_UNLIKELY(nodes_[node].edges.size() < edge))
+      throw std::runtime_error("acd::step(): incorrect edge number");
+
+    unsigned child = 0;
+    auto& es = aut_->edge_storage(edge);
+    unsigned dst = es.dst;
+    unsigned src = es.src;
+    // If we are not on a leaf of the subtree of src, go there before
+    // continuing.
+    node = leftmost_branch_(node, src);
+    while (!nodes_[node].edges.get(edge))
+      {
+        unsigned parent = nodes_[node].parent;
+        if (SPOT_UNLIKELY(node == parent))
+          {
+            // Changing SCc
+            return first_branch(dst);
+          }
+        child = node;
+        node = parent;
+      }
+    if (child == 0)             // came here without climbing up
+      return leftmost_branch_(node, dst);
+    unsigned start_child = child;
+    // find the next children that contains dst.
+    do
+      {
+        child = nodes_[child].next_sibling;
+        if (nodes_[child].states.get(dst))
+          {
+            if (child <= start_child)
+              return node; // full loop of children done
+            else
+              return child;
+          }
+      }
+    while (child != start_child);
+    return node;
+  }
+
 
   void acd::dot(std::ostream& os, const char* id) const
   {
@@ -786,6 +830,14 @@ namespace spot
     return (nodes_[n].level & 1) ^ is_even_;
   }
 
+  /// Return the level of a node.
+  unsigned acd::node_level(unsigned n)
+  {
+    if (SPOT_UNLIKELY(nodes_.size() <= n))
+      throw std::runtime_error("acd::node_level(): unknown node");
+    return nodes_[n].level;
+  }
+
   std::vector<unsigned> acd::edges_of_node(unsigned n) const
   {
     if (SPOT_UNLIKELY(nodes_.size() <= n))
@@ -821,8 +873,11 @@ namespace spot
     return has_streett_shape_ && has_rabin_shape_;
   }
 
+  // This handle both the transition-based and state-based version of
+  // ACD, to
+  template<bool sbacc>
   twa_graph_ptr
-  acd_transform(const const_twa_graph_ptr& a, bool colored)
+  acd_transform_(const const_twa_graph_ptr& a, bool colored)
   {
     auto res = make_twa_graph(a->get_dict());
     res->copy_ap_of(a);
@@ -844,6 +899,8 @@ namespace spot
     // state-based acceptance is lost,
     // inherently-weak automata become weak.
     res->prop_copy(a, { false, false, true, true, true, true });
+    if constexpr (sbacc)
+      res->prop_state_acc(true);
 
     auto orig_states = new std::vector<unsigned>();
     auto branches = new std::vector<unsigned>();
@@ -889,24 +946,42 @@ namespace spot
         unsigned src_scc = si.scc_of(s.first);
         unsigned scc_max_lvl = theacd.scc_max_level(src_scc);
         bool scc_max_lvl_can_be_omitted = (scc_max_lvl & 1) == max_level_is_odd;
+        unsigned src_prio;
+        if constexpr (!sbacc)
+          {
+            (void)src_prio; // this is only used for sbacc
+          }
+        else
+          {
+            src_prio = si.is_trivial(src_scc) ?
+              scc_max_lvl : theacd.node_level(branch);
+            if (!scc_max_lvl_can_be_omitted || src_prio != scc_max_lvl)
+              max_color = std::max(max_color, src_prio);
+          }
         for (auto& i: a->out(s.first))
           {
             unsigned newbranch;
             unsigned prio;
+            if constexpr (sbacc) // All successor have the same colors.
+              prio = src_prio;
             unsigned dst_scc = si.scc_of(i.dst);
             if (dst_scc != src_scc)
               {
                 newbranch = theacd.first_branch(i.dst);
-                prio = 0;
+                if constexpr (!sbacc)
+                  prio = 0;
               }
             else
               {
-                std::tie(newbranch, prio) =
-                  theacd.step(branch, a->edge_number(i));
+                if constexpr (!sbacc)
+                  std::tie(newbranch, prio) =
+                    theacd.step(branch, a->edge_number(i));
+                else
+                  newbranch = theacd.state_step(branch, a->edge_number(i));
               }
             zlk_state d(i.dst, newbranch);
             unsigned dst = new_state(d);
-            if (!colored && ((dst_scc != src_scc)
+            if (!colored && ((!sbacc && dst_scc != src_scc)
                              || (scc_max_lvl_can_be_omitted
                                  && scc_max_lvl == prio)))
               {
@@ -914,7 +989,8 @@ namespace spot
               }
             else
               {
-                max_color = std::max(max_color, prio);
+                if (!sbacc)
+                  max_color = std::max(max_color, prio);
                 res->new_edge(src, dst, i.cond, {prio});
               }
           }
@@ -937,6 +1013,18 @@ namespace spot
     if (a->prop_inherently_weak())
       res->prop_weak(true);
     return res;
+  }
+
+  twa_graph_ptr
+  acd_transform(const const_twa_graph_ptr& a, bool colored)
+  {
+    return acd_transform_<false>(a, colored);
+  }
+
+  twa_graph_ptr
+  acd_transform_sbacc(const const_twa_graph_ptr& a, bool colored)
+  {
+    return acd_transform_<true>(a, colored);
   }
 
 }

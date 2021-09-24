@@ -222,6 +222,13 @@ namespace spot
     std::pair<unsigned, unsigned>
     step(unsigned branch, unsigned edge) const;
 
+    /// \brief Step through the ACD, with rules for state-based output.
+    ///
+    /// Given a \a node number, and an edge, this returns
+    /// the new node to associate to the destination state.  This
+    /// node is not necessarily a leave, and its level should be
+    /// the level for the output state.
+    unsigned state_step(unsigned node, unsigned edge) const;
 
     /// \brief Return the list of edges covered by node n of the ACD.
     ///
@@ -238,6 +245,9 @@ namespace spot
     ///
     /// This is mostly used for interactive display.
     bool node_acceptance(unsigned n) const;
+
+    /// Return the level of a node.
+    unsigned node_level(unsigned n);
 
     /// \brief Whether the ACD corresponds to a min even or min odd
     /// parity acceptance in SCC \a scc.
@@ -392,7 +402,18 @@ namespace spot
   /// if the input has n colors. If \colored is unsed (the default),
   /// output transitions will use at most one color, and output
   /// automaton will use at most n colors.
+  ///
+  /// The acd_tranform() is the original function producing
+  /// optimal transition-based output (optimal in the sense of least
+  /// number of duplicated states), while the acd_tansform_sbacc() variant
+  /// produces state-based output from transition-based input and without
+  /// any optimality claim.
+  /// @{
   SPOT_API
   twa_graph_ptr acd_transform(const const_twa_graph_ptr& aut,
                               bool colored = false);
+  SPOT_API
+  twa_graph_ptr acd_transform_sbacc(const const_twa_graph_ptr& aut,
+                                    bool colored = false);
+  /// @}
 }
