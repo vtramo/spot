@@ -1472,16 +1472,22 @@ namespace spot
     // returned in the case of a WDBA.
     complete_here(a);
 
+    bool orig_is_valid = false;
+
     if (states == -1 && max_states == -1)
       {
         if (state_based)
           max_states = sbacc(a)->num_states();
         else
           max_states = a->num_states();
-        // If we have not user-supplied acceptance, the input
-        // automaton is a valid one, so we start the search with one
-        // less state.
-        max_states -= !user_supplied_acc;
+        // If we have no user-supplied acceptance, and we are not
+        // guessing state-based upperbound, the input automaton is a
+        // valid one, so we start the search with one less state.
+        if (!user_supplied_acc && (!state_based || a->prop_state_acc()))
+          {
+            --max_states;
+            orig_is_valid = true;
+          }
       }
 
 
@@ -1525,7 +1531,7 @@ namespace spot
               (a, state_based, sat_langmap, max_states);
         }
 
-        if (!a && !user_supplied_acc)
+        if (!a && orig_is_valid)
           a = orig;
       }
     else

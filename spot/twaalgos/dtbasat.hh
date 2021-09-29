@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2013, 2014, 2015 Laboratoire de Recherche et
+// Copyright (C) 2013-2015, 2021 Laboratoire de Recherche et
 // Développement de l'Epita.
 //
 // This file is part of Spot, a model checking library.
@@ -38,7 +38,7 @@ namespace spot
   /// turning the TBA into a BA.
   ///
   /// If no equivalent deterministic TBA with \a target_state_number
-  /// states is found, a null pointer
+  /// states is found, this returns a null pointer.
   SPOT_API twa_graph_ptr
   dtba_sat_synthetize(const const_twa_graph_ptr& a,
                       int target_state_number,

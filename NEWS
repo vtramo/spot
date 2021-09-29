@@ -298,6 +298,11 @@ New in spot 2.9.8.dev (not yet released)
   - tgba_determinize() could create parity automata using more colors
     than necessary.  (Related to issue #298)
 
+  - There were two corners cases under which sat_minimize() would
+    return the original transition-based automaton when asked to
+    produce state-based output without changing the acceptance
+    condition.
+
   Deprecation notices:
 
   - twa_graph::defrag_states() and digraph::defrag_states() now take

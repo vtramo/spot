@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2015, 2020  Laboratoire de Recherche et Développement
+# Copyright (C) 2015, 2020, 2021  Laboratoire de Recherche et Développement
 # de l'Epita
 #
 # This file is part of Spot, a model checking library.
@@ -237,3 +237,13 @@ min4 = spot.sat_minimize(aut, acc='parity max odd 3',
                          colored=True, sat_naive=True)
 assert min4.num_sets() == 3
 assert min4.num_states() == 2
+
+
+aut = spot.translate('GFa')
+assert aut.num_sets() == 1
+assert aut.num_states() == 1
+assert aut.is_deterministic()
+out = spot.sat_minimize(aut, state_based=True)
+assert out.num_states() == 2
+out = spot.sat_minimize(aut, state_based=True, max_states=1)
+assert out is None
