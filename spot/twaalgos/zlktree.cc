@@ -386,6 +386,10 @@ namespace spot
     acc_cond posacc = aut->acc();
     acc_cond negacc(posacc.num_sets(), posacc.get_acceptance().complement());
 
+    if (nstates <= 1)
+      // The ordering heuristic does not help if we have a single state.
+      opt_ = opt_ - acd_options::ORDER_HEURISTIC;
+
     // The bitvectors store edge and state-vectors that are shared
     // among the different trees.
     auto allocate_vectors_maybe = [&](unsigned n)
@@ -508,19 +512,20 @@ namespace spot
               seen_dup->add_common(*seen_src, *seen_dst);
               *seen_src |= *seen_dst;
             }
+          if (seen_dup->is_fully_clear())
+            goto skip_sort;
           // Now the union in seen_src is not useful anymore.  Process
           // each node again, but consider only the states that are in
           // seen_dup.
           for (auto& [sz, bv]: out)
             {
               seen_src->clear_all(); // local source of the node
-              bv->foreach_set_index([&aut, &seen_src, &seen_dup](unsigned e)
+              bv->foreach_set_index([&aut, &seen_src](unsigned e)
               {
-                unsigned idx = aut->edge_storage(e).src;
-                if (seen_dup->get(idx))
-                  seen_src->set(idx); // store duplicates
+                seen_src->set(aut->edge_storage(e).src);
               });
               seen_dst->clear_all();
+              *seen_src &= *seen_dup;
               // Count the number of states reached by leaving this node.
               seen_src->foreach_set_index([&aut, bv=bv.get(),
                                            &seen_dst](unsigned s)
@@ -536,6 +541,7 @@ namespace spot
                            [&](auto& p1, auto& p2) {
                              return p1.size > p2.size;
                            });
+        skip_sort:;
         }
 
       unsigned before_size = nodes_.size();

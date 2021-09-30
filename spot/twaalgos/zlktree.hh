@@ -196,6 +196,15 @@ namespace spot
     return static_cast<acd_options>(static_cast<ut>(left)
                                     | static_cast<ut>(right));
   }
+
+  inline
+  acd_options operator-(acd_options left, acd_options right)
+  {
+    typedef std::underlying_type_t<acd_options> ut;
+    return static_cast<acd_options>(static_cast<ut>(left)
+                                    & ~static_cast<ut>(right));
+  }
+
 #endif
 
   /// \ingroup twa_acc_transform
