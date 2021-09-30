@@ -24,6 +24,7 @@
 #include <spot/twaalgos/zlktree.hh>
 #include <spot/twaalgos/genem.hh>
 #include <spot/misc/escape.hh>
+#include <spot/priv/robin_hood.hh>
 using namespace std::string_literals;
 
 namespace spot
@@ -386,6 +387,21 @@ namespace spot
     acc_cond posacc = aut->acc();
     acc_cond negacc(posacc.num_sets(), posacc.get_acceptance().complement());
 
+    // Cache for nodes.  The first instance of any node that
+    // has {colors,minstate} is given in this map.  This can be used
+    // to speedup the computation of successors of other nodes
+    // with the same parameters.
+    typedef std::pair<acc_cond::mark_t, unsigned> nmap_key_t;
+    struct nmap_key_hash
+    {
+      std::size_t
+      operator() (const std::pair<acc_cond::mark_t, unsigned> &pair) const
+      {
+        return pair.first.hash() ^ std::hash<unsigned>()(pair.second);
+      }
+    };
+    robin_hood::unordered_node_map<nmap_key_t, unsigned, nmap_key_hash> nmap;
+
     if (nstates <= 1)
       // The ordering heuristic does not help if we have a single state.
       opt_ = opt_ - acd_options::ORDER_HEURISTIC;
@@ -430,6 +446,8 @@ namespace spot
         n.parent = root;
         n.level = 0;
         n.scc = scc;
+        n.colors = si_->acc_sets_of(scc);
+        n.minstate = si_->one_state_of(scc);
         for (auto& e: si_->inner_edges_of(scc))
           {
             n.edges.set(aut->edge_number(e));
@@ -441,8 +459,34 @@ namespace spot
     {
       unsigned size;
       std::unique_ptr<bitvect> trans;
+      acc_cond::mark_t colors;
+      unsigned minstate;
     };
     std::vector<size_model> out;
+
+    auto handle_leaf = [&](unsigned scc, unsigned lvl)
+    {
+      // this node is a leaf.
+      if (trees_[scc].is_even)
+        max_level_of_even_tree = lvl;
+      else
+        max_level_of_odd_tree = lvl;
+    };
+    // Chain the children together, and connect them to the parent
+    auto chain_children = [this](unsigned node, unsigned before, unsigned after)
+    {
+      // Chain the children together, and connect them to the parent
+      for (unsigned child = before; child < after; ++child)
+        {
+          unsigned next = child + 1;
+          if (next == after)
+            {
+              next = before;
+              nodes_[node].first_child = before;
+            }
+          nodes_[child].next_sibling = next;
+        }
+    };
 
     std::unique_ptr<bitvect> seen_src;
     std::unique_ptr<bitvect> seen_dst;
@@ -456,19 +500,57 @@ namespace spot
     // This loop is a BFS over the increasing set of nodes.
     for (unsigned node = 0; node < nodes_.size(); ++node)
     {
-      unsigned scc = nodes_[node].scc;
-      unsigned lvl = nodes_[node].level;
+      auto& nn = nodes_[node];
+      unsigned scc = nn.scc;
+      unsigned lvl = nn.level;
       bool accepting_node = (lvl & 1) != trees_[scc].is_even;
+
+      // If we have already computed an SCC restricted to nn.colors and using
+      // nn.minstate as smallest state, then simply copy its successors.
+      if (auto it = nmap.find({nn.colors, nn.minstate}); it != nmap.end())
+        {
+          auto& ref = nodes_[it->second];
+          unsigned fc = ref.first_child;
+          if (!fc)
+            {
+              handle_leaf(scc, lvl);
+              continue;
+            }
+          unsigned child = fc;
+          unsigned before = nodes_.size();
+          do
+            {
+              auto& c = nodes_[child];
+              nodes_.emplace_back(c.edges, c.states);
+              auto& n = nodes_.back();
+              n.parent = node;
+              n.level = lvl + 1;
+              n.scc = ref.scc;
+              n.colors = c.colors;
+              n.minstate = c.minstate;
+              child = c.next_sibling;
+            }
+          while (child != fc);
+          chain_children(node, before, nodes_.size());
+          continue;
+        }
+      else
+        {
+          nmap.emplace(nmap_key_t{nn.colors, nn.minstate}, node);
+        }
 
       out.clear();
       auto callback = [&](scc_info si, unsigned siscc)
       {
         bitvect* bv = make_bitvect(nedges);
         unsigned sz = 0;
+        acc_cond::mark_t colors = si.acc_sets_of(siscc);
+        unsigned minstate = -1U;
         for (auto& e: si.inner_edges_of(siscc))
           {
             bv->set(aut->edge_number(e));
             ++sz;
+            minstate = std::min(minstate, e.src);
           }
         auto iter = out.begin();
         while (iter != out.end())
@@ -476,7 +558,11 @@ namespace spot
             if (iter->size < sz)
               // We have checked all larger models.
               break;
-            if (bv->is_subset_of(*iter->trans))
+            // Checking inclusion of edges is enough,
+            // but checking inclusion of colors is way faster
+            if (colors.subset(iter->colors)
+                && (minstate == iter->minstate
+                    || bv->is_subset_of(*iter->trans)))
               // ignore smaller models
               {
                 delete bv;
@@ -485,7 +571,8 @@ namespace spot
             ++iter;
           }
         // insert the model
-        iter = out.insert(iter, {sz, std::unique_ptr<bitvect>(bv)});
+        iter = out.insert(iter, {sz, std::unique_ptr<bitvect>(bv),
+                                 colors, minstate});
         ++iter;
         // erase all models it contains
         out.erase(std::remove_if(iter, out.end(),
@@ -502,8 +589,11 @@ namespace spot
           // Find states that appear in multiple children
           seen_dup->clear_all(); // duplicate states
           seen_src->clear_all(); // union of all children states
-          for (auto& [sz, bv]: out)
+          for (auto& [sz, bv, colors, minstate]: out)
             {
+              (void) sz;
+              (void) colors;
+              (void) minstate;
               seen_dst->clear_all(); // local states of the node
               bv->foreach_set_index([&aut, &seen_dst](unsigned e)
               {
@@ -517,8 +607,10 @@ namespace spot
           // Now the union in seen_src is not useful anymore.  Process
           // each node again, but consider only the states that are in
           // seen_dup.
-          for (auto& [sz, bv]: out)
+          for (auto& [sz, bv, colors, minstate]: out)
             {
+              (void) colors;
+              (void) minstate;
               seen_src->clear_all(); // local source of the node
               bv->foreach_set_index([&aut, &seen_src](unsigned e)
               {
@@ -545,9 +637,11 @@ namespace spot
         }
 
       unsigned before_size = nodes_.size();
-      for (const auto& [sz, bv]: out)
+      for (const auto& [sz, bv, colors, minstate]: out)
         {
-          (void)sz;
+          (void) sz;
+          (void) colors;
+          (void) minstate;
           unsigned vnum = trees_[scc].num_nodes++;
           allocate_vectors_maybe(vnum);
           nodes_.emplace_back(edge_vector(vnum), state_vector(vnum));
@@ -556,29 +650,16 @@ namespace spot
           n.level = lvl + 1;
           n.scc = scc;
           n.edges |= *bv;
+          n.colors = colors;
+          n.minstate = minstate;
         }
       unsigned after_size = nodes_.size();
       unsigned children = after_size - before_size;
-
-      // Chain the children together, and connect them to the parent
-      for (unsigned child = before_size; child < after_size; ++child)
-        {
-          unsigned next = child + 1;
-          if (next == after_size)
-            {
-              next = before_size;
-              nodes_[node].first_child = before_size;
-            }
-          nodes_[child].next_sibling = next;
-        }
+      chain_children(node, before_size, after_size);
 
       if (children == 0)
         {
-          // this node is a leaf.
-          if (trees_[scc].is_even)
-            max_level_of_even_tree = lvl;
-          else
-            max_level_of_odd_tree = lvl;
+          handle_leaf(scc, lvl);
         }
       else if (children > 1)
         {
@@ -592,8 +673,10 @@ namespace spot
             {
               std::unique_ptr<bitvect> seen(make_bitvect(nstates));
               std::unique_ptr<bitvect> cur(make_bitvect(nstates));
-              for (const auto& [sz, bv]: out)
+              for (const auto& [sz, bv, colors, minstate]: out)
                 {
+                  (void) colors;
+                  (void) minstate;
                   cur->clear_all();
                   bv->foreach_set_index([&aut, &cur](unsigned e)
                   {
@@ -782,7 +865,6 @@ namespace spot
         << "\"\n  node [id=\"N\\N\", style=filled, fillcolor=white]\n";
     for (unsigned n = 0; n < ns; ++n)
       {
-        acc_cond::mark_t m = {};
         os << "  " << n << " [label=\"";
         unsigned scc = nodes_[n].scc;
         // The top of each tree has level 0 or 1, depending on whether
@@ -820,11 +902,9 @@ namespace spot
                 lastchange = n;
                 sep = ",";
               }
-            if (val)
-              m |= aut_->edge_data(n).acc;
           }
         unsigned first_child = nodes_[n].first_child;
-        os << '\n' << m;
+        os << '\n' << nodes_[n].colors;
         auto& states = nodes_[n].states;
         unsigned nstates = states.size();
         sep = "\nQ: ";
@@ -893,11 +973,18 @@ namespace spot
   }
 
   /// Return the level of a node.
-  unsigned acd::node_level(unsigned n)
+  unsigned acd::node_level(unsigned n) const
   {
     if (SPOT_UNLIKELY(nodes_.size() <= n))
       throw std::runtime_error("acd::node_level(): unknown node");
     return nodes_[n].level;
+  }
+
+  const acc_cond::mark_t& acd::node_colors(unsigned n) const
+  {
+    if (SPOT_UNLIKELY(nodes_.size() <= n))
+      throw std::runtime_error("acd::node_colors(): unknown node");
+    return nodes_[n].colors;
   }
 
   std::vector<unsigned> acd::edges_of_node(unsigned n) const
