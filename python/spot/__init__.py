@@ -1031,7 +1031,10 @@ def _add_twa_graph(meth, name=None):
 
 for meth in ('scc_filter', 'scc_filter_states',
              'is_deterministic', 'is_unambiguous',
-             'contains'):
+             'contains', 'get_strategy',
+             'set_state_players', 'get_state_players',
+             'set_state_player', 'get_state_player',
+             'get_state_winners', 'get_state_winner'):
     _add_twa_graph(meth)
 _add_twa_graph('are_equivalent', 'equivalent_to')
 
