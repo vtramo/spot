@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2011-2020 Laboratoire de Recherche et Developpement
+// Copyright (C) 2011-2021 Laboratoire de Recherche et Developpement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -125,14 +125,23 @@ namespace spot
           result = !as_bdd(f[0]);
           break;
         case op::Xor:
-          result = bdd_apply(as_bdd(f[0]), as_bdd(f[1]), bddop_xor);
-          break;
+          {
+            bdd l = as_bdd(f[0]);
+            result = bdd_apply(l, as_bdd(f[1]), bddop_xor);
+            break;
+          }
         case op::Implies:
-          result = bdd_apply(as_bdd(f[0]), as_bdd(f[1]), bddop_imp);
-          break;
+          {
+            bdd l = as_bdd(f[0]);
+            result = bdd_apply(l, as_bdd(f[1]), bddop_imp);
+            break;
+          }
         case op::Equiv:
-          result = bdd_apply(as_bdd(f[0]), as_bdd(f[1]), bddop_biimp);
-          break;
+          {
+            bdd l = as_bdd(f[0]);
+            result = bdd_apply(l, as_bdd(f[1]), bddop_biimp);
+            break;
+          }
         case op::And:
           {
             result = bddtrue;
@@ -4038,9 +4047,14 @@ namespace spot
     bool result;
 
     if (f.is_boolean() && g.is_boolean())
-      result = bdd_implies(as_bdd(f), as_bdd(g));
+      {
+        bdd l = as_bdd(f);
+        result = bdd_implies(l, as_bdd(g));
+      }
     else
-      result = syntactic_implication_aux(f, g);
+      {
+        result = syntactic_implication_aux(f, g);
+      }
 
     // Cache result
     {
