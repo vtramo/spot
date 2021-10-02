@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2015, 2016, 2018, 2020 Laboratoire de Recherche et
+// Copyright (C) 2015-2016, 2018, 2020-2021 Laboratoire de Recherche et
 // Développement de l'Epita.
 //
 // This file is part of Spot, a model checking library.
@@ -100,7 +100,7 @@ static void test_bdd_to_cube()
 
   // The BDD to convert
   bdd x;
-  bool result;
+  int result;
 
   // Test bddtrue
   x = bddtrue;
@@ -122,6 +122,8 @@ static void test_bdd_to_cube()
   x = (bdd_ithvar(idx_a) | bdd_ithvar(idx_b)) & bdd_ithvar(idx_d);
   result = test_translation(x, cubeset, binder, reverse_binder, aps);
   assert(result);
+
+  (void)result;
 
   // Free all variables
   d->unregister_variable(idx_e, d);

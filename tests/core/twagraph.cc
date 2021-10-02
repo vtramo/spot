@@ -212,6 +212,7 @@ static void f6()
 
   unsigned out = tg->merge_states_of();
   assert(out == 3);
+  (void) out;
 }
 
 // Compare merge_states() and merge_states_of()
