@@ -515,3 +515,24 @@ diff out exp
 ltlsynt -f 'a U (b' 2>err && exit 1
 test $? -eq 2
 test `wc -l <err` -eq 4
+
+
+cat >expected <<EOF
+REALIZABLE
+HOA: v1
+States: 1
+Start: 0
+AP: 3 "b" "c" "a"
+acc-name: all
+Acceptance: 0 t
+properties: trans-labels explicit-labels state-acc deterministic
+--BODY--
+State: 0
+[!0&!1 | !1&!2] 0
+[0&1&2] 0
+--END--
+EOF
+ltlsynt --ins=a,b -f 'G (a & b <=> c)' >stdout
+diff stdout expected
+ltlsynt --outs=c -f 'G (a & b <=> c)' >stdout
+diff stdout expected

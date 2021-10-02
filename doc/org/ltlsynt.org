@@ -19,13 +19,16 @@ N}$ satisfies \phi.
 =ltlsynt= has three mandatory options:
 - =--ins=: a comma-separated list of input atomic propositions;
 - =--outs=: a comma-separated list of output atomic propositions;
-- =--formula= or =--file=: a LTL/PSL specification.
+- =--formula= or =--file=: a specification in LTL or PSL.
+
+One of =--ins= or =--outs= may be omitted, as any atomic proposition not listed
+as input can be assumed to be an output and vice-versa.
 
 The following example illustrates the synthesis of a controller acting as an
 =AND= gate. We have two inputs =a= and =b= and one output =c=, and we want =c=
 to always be the =AND= of the two inputs:
-#+BEGIN_SRC sh
-ltlsynt --ins=a,b --outs=c -f 'G (a & b <=> c)'
+#+BEGIN_SRC sh :exports both
+ltlsynt --ins=a,b -f 'G (a & b <=> c)'
 #+END_SRC
 
 #+RESULTS:
@@ -40,15 +43,15 @@ Acceptance: 0 t
 properties: trans-labels explicit-labels state-acc deterministic
 --BODY--
 State: 0
-[0&1&2] 0
 [!0&!1 | !1&!2] 0
+[0&1&2] 0
 --END--
 #+end_example
 
 The output is composed of two parts:
-- the first one is a single line REALIZABLE or UNREALIZABLE;
-- the second one is an automaton describing the controller (if the input
-  specification is realizable). In this example, the controller has a single
+- the first one is a single line =REALIZABLE= or =UNREALIZABLE;=
+- the second one, only present in the =REALIZABLE= case is an automaton describing the controller.
+  In this example, the controller has a single
   state, with two loops labeled by =a & b & c= and =(!a | !b) & !c=.
 
 If a controller exists, then one with finite memory exists. Such controllers
@@ -61,29 +64,27 @@ The following example illustrates the case of an unrealizable specification. As
 eventually hold.
 
 #+BEGIN_SRC sh :epilogue true
-ltlsynt --ins=a --outs=b -f 'F a'
+ltlsynt --ins=a -f 'F a'
 #+END_SRC
 
 #+RESULTS:
 : UNREALIZABLE
 
 
-By default, the controller is output in HOA format, but it can be output as an
-[[http://fmv.jku.at/aiger/][AIGER]] circuit thanks to the =--aiger= flag. This
-is the output format required for the [[http://syntcomp.org/][SYNTCOMP]]
-competition.
+By default, the controller is output in HOA format, but it can be
+output as an [[http://fmv.jku.at/aiger/][AIGER]] circuit thanks to the =--aiger= flag. This is the
+output format required for the [[http://syntcomp.org/][SYNTCOMP]] competition.
 
 The generation of a controller can be disabled with the flag =--realizability=.
-In this case, =ltlsynt= output is limited to REALIZABLE or UNREALIZABLE.
+In this case, =ltlsynt= output is limited to =REALIZABLE= or =UNREALIZABLE=.
 
 * TLSF
 
-=ltlsynt= was made with the [[http://syntcomp.org/][SYNTCOMP]] competition in
-mind, and more specifically the TLSF track of this competition.  TLSF is a
-high-level specification language created for the purpose of this competition.
+=ltlsynt= was made with the [[http://syntcomp.org/][SYNTCOMP]] competition in mind, and more
+specifically the TLSF track of this competition.  TLSF is a high-level
+specification language created for the purpose of this competition.
 Fortunately, the SYNTCOMP organizers also provide a tool called
-[[https://github.com/reactive-systems/syfco][=syfco=]] which can translate a
-TLSF specification to an LTL formula.
+[[https://github.com/reactive-systems/syfco][=syfco=]] which can translate a TLSF specification to an LTL formula.
 
 The following four steps show you how a TLSF specification called =FILE= can
 be synthesized using =syfco= and =ltlsynt=:

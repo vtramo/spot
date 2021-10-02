@@ -30,6 +30,7 @@
 #include <spot/misc/escape.hh>
 #include <spot/misc/timer.hh>
 #include <spot/tl/formula.hh>
+#include <spot/tl/apcollect.hh>
 #include <spot/twa/twagraph.hh>
 #include <spot/twaalgos/aiger.hh>
 #include <spot/twaalgos/game.hh>
@@ -511,7 +512,35 @@ namespace
 
     int process_formula(spot::formula f, const char*, int) override
     {
-      int res = solve_formula(f, input_aps_, output_aps_);
+      auto unknown_aps = [](spot::formula f,
+                            const std::vector<std::string>& known)
+      {
+        std::vector<std::string> unknown;
+        std::set<spot::formula> seen;
+        f.traverse([&](const spot::formula& s)
+        {
+          if (s.is(spot::op::ap))
+            {
+              if (!seen.insert(s).second)
+                return false;
+              const std::string& a = s.ap_name();
+              if (std::find(known.begin(), known.end(), a) == known.end())
+                unknown.push_back(a);
+            }
+          return false;
+        });
+        return unknown;
+      };
+
+      // Decide which atomic propositions are input or output.
+      int res;
+      if (input_aps_.empty() && !output_aps_.empty())
+        res = solve_formula(f, unknown_aps(f, output_aps_), output_aps_);
+      else if (output_aps_.empty() && !input_aps_.empty())
+        res = solve_formula(f, input_aps_, unknown_aps(f, input_aps_));
+      else
+        res = solve_formula(f, input_aps_, output_aps_);
+
       if (opt_csv)
         print_csv(f);
       return res;
@@ -611,14 +640,11 @@ main(int argc, char **argv)
     check_no_formula();
 
     // Check if inputs and outputs are distinct
-    // Inputs can be empty, outputs not
-    if (not all_input_aps.empty())
-      {
-        for (const auto& ai : all_input_aps)
-          if (std::count(all_output_aps.begin(), all_output_aps.end(), ai))
+    for (const auto& ai : all_input_aps)
+      if (std::find(all_output_aps.begin(), all_output_aps.end(), ai)
+          != all_output_aps.end())
             throw std::runtime_error("ltlsynt(): " + ai +
                                      " appears in the input AND output APs.");
-      }
 
     ltl_processor processor(all_input_aps, all_output_aps);
     if (int res = processor.run(); res == 0 || res == 1)

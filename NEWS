@@ -10,6 +10,9 @@ New in spot 2.9.8.dev (not yet released)
 
   Command-line tools:
 
+  - ltlsynt now accepts only one of the --ins or --outs options
+    to be given and will deduce the value of this other one.
+
   - ltlsynt learned --print-game-hoa to output its internal parity
     game in the HOA format (with an extension described below).
 
@@ -42,7 +45,7 @@ New in spot 2.9.8.dev (not yet released)
     5, 2 then 3.
 
   - ltl2tgba, autfilt, dstar2tgba, and randaut learned a --buchi
-    option, or -b for short.  This output Büchi automata without
+    option, or -b for short.  This outputs Büchi automata without
     forcing state-based acceptance.
 
     The following aliases have also been added for consistency:
