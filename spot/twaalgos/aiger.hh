@@ -50,7 +50,7 @@ namespace spot
   /// AIG circuits can be used to represent controllers, which is currently
   /// their sole purpose within spot.
   /// AIGs produce a output sequence based on the following rules:
-  /// 1) All latches are initialised to 0
+  /// 1) All latches are initialized to 0
   /// 2) The next input is read.
   /// 3) The output and the state of the latches for the next turn
   ///    are given by the gates as a function of the current latches and inputs
@@ -145,17 +145,17 @@ namespace spot
 
     /// \brief roll_back to the saved point.
     ///
-    /// \param sp : The safe_point to revert back to
-    /// \param do_stash : Whether or not to save the changes to be possibly
+    /// \param sp The safe_point to revert back to
+    /// \param do_stash Whether or not to save the changes to be possibly
     ///                   reapplied later on
-    /// \note: This function is semi-public. Make sure you know what you are
+    /// \note This function is semi-public. Make sure you know what you are
     ///        doing when using it.
     safe_stash roll_back_(safe_point sp,
                           bool do_stash = false);
     /// \brief Reapply to stored changes on top of a safe_point
-    /// \note: ss has to be obtained from roll_back_(sp, true)
-    ///        This function is semi-public. Make sure you know what you are
-    ///        doing when using it.
+    /// \note \a ss has to be obtained from `roll_back_(sp, true)`
+    ///       This function is semi-public. Make sure you know what you are
+    ///       doing when using it.
     void reapply_(safe_point sp, const safe_stash& ss);
 
     /// \brief Get the number of outputs
@@ -163,8 +163,8 @@ namespace spot
     {
       return num_outputs_;
     }
-    /// \brief Get the variables associated to the ouputs
-    /// \note Only available after call to aig::set_output
+    /// \brief Get the variables associated to the outputs
+    /// \note Only available after a call to aig::set_output
     const std::vector<unsigned>& outputs() const
     {
       SPOT_ASSERT(std::none_of(outputs_.begin(), outputs_.end(),
@@ -414,20 +414,20 @@ namespace spot
   };
 
   /// \brief Convert a strategy into an aig relying on the transformation
-  ///        described by mode.
+  ///        described by \a mode.
   /// \param mode This param has to be of the form
-  ///             ite|isop|both [+dc][+dual][+so0|+so1|+so2|+so3]
-  ///             Where ite means encoded via if-then-else normalform
-  ///             isop means encoded via irreducible sum of products
-  ///             both means trying both encodings and keep the smaller circuit.
-  ///             +dc is optional and tries to take advantage of "do not care"
-  ///             outputs to minimize the circuit.
-  ///             +dual is optional and indicates that the algorithm
-  ///             should also try to encode the negation to generate smaller
-  ///             circuits.
-  ///             +sox indicates that the conditions can be seperated into
-  ///             blocks with so0 being no separation, so1 separation into
-  ///             input/latches/gates (isop only) and so2 tries to seek
+  ///             `ite|isop|both [+dc][+ud][+sub0|+sub1|+sub2]`
+  ///             Where `ite` means encoded via if-then-else normal form,
+  ///             `isop` means encoded via irredundant sum-of-products,
+  ///             `both` means trying both encodings to keep the smaller one.
+  ///             `+dc` is optional and tries to take advantage of "do not care"
+  ///             outputs to minimize the encoding.
+  ///             `+dual` is optional and indicates that the algorithm
+  ///             should also try to encode the negation of each condition in
+  ///             case its encoding is smaller.
+  ///             `+subN` indicates that the conditions can be separated into
+  ///             blocks with `sub0` being no separation, `sub1` separation into
+  ///             input/latches/gates (`isop` only) and `sub2` tries to seek
   ///             common subformulas.
   SPOT_API aig_ptr
   strategy_to_aig(const const_twa_graph_ptr& aut, const char* mode);

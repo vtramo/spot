@@ -1706,7 +1706,7 @@ namespace
                   else
                     throw std::runtime_error(buffer + " does not describe a "
                     "mode supported for AIGER creation. Expected\n"
-                    "ite|isop|both[+sub][+dc][+ud]\n"
+                    "ite|isop|both[+sub0|sub1|sub2][+dc][+ud]\n"
                     "or a coma separated list of such expressions.");
                 }
             res.push_back(std::move(this_opt));
