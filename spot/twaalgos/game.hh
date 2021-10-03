@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2017-2020 Laboratoire de Recherche et Développement
+// Copyright (C) 2017-2021 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -33,7 +33,10 @@
 
 namespace spot
 {
+  /// \addtogroup games Functions related to game solving
+  /// \ingroup twa_algorithms
 
+  /// \ingroup games
   /// \brief Transform an automaton into a parity game by propagating
   /// players
   ///
@@ -55,6 +58,7 @@ namespace spot
   typedef std::vector<unsigned> strategy_t;
 
 
+  /// \ingroup games
   /// \brief solve a parity-game
   ///
   /// The arena is a deterministic max odd parity automaton with a
@@ -74,6 +78,7 @@ namespace spot
   SPOT_API
   bool solve_parity_game(const twa_graph_ptr& arena);
 
+  /// \ingroup games
   /// \brief Solve a safety game.
   ///
   /// The arena should be represented by an automaton with true
@@ -90,6 +95,7 @@ namespace spot
   SPOT_API
   bool solve_safety_game(twa_graph_ptr game);
 
+  /// \ingroup games
   /// \brief Benchmarking and options structure for games and synthesis
   ///
   /// \note This structure is designed to interface with the algorithms
@@ -142,14 +148,17 @@ namespace spot
     bdd_dict_ptr dict;
   };
 
+  /// \ingroup games
   /// \brief Stream solvers
   SPOT_API std::ostream&
   operator<<(std::ostream& os, game_info::solver s);
 
+  /// \ingroup games
   /// \brief Stream benchmarks and options
   SPOT_API std::ostream &
   operator<<(std::ostream &os, const game_info &gi);
 
+  /// \ingroup games
   /// \brief Generic interface for game solving
   ///
   /// Calls the most suitable solver, depending on the type of game/
@@ -163,6 +172,7 @@ namespace spot
   SPOT_API bool
   solve_game(twa_graph_ptr arena, game_info& gi);
 
+  /// \ingroup games
   /// \brief Generic interface for game solving
   ///
   /// See solve_game(arena, gi)
@@ -170,11 +180,13 @@ namespace spot
   solve_game(twa_graph_ptr arena);
 
 
+  /// \ingroup games
   /// \brief Print a max odd parity game using PG-solver syntax
   SPOT_API
   void pg_print(std::ostream& os, const const_twa_graph_ptr& arena);
 
 
+  /// \ingroup games
   /// \brief Highlight the edges of a strategy on an automaton.
   ///
   /// Pass a negative color to not display the corresponding strategy.
@@ -183,34 +195,48 @@ namespace spot
                                    int player0_color = 5,
                                    int player1_color = 4);
 
+  /// \ingroup games
   /// \brief Set the owner for all the states.
+  /// @{
   SPOT_API
   void set_state_players(twa_graph_ptr arena, const region_t& owners);
   SPOT_API
   void set_state_players(twa_graph_ptr arena, region_t&& owners);
+  /// @}
 
+  /// \ingroup games
   /// \brief Set the owner of a state.
   SPOT_API
   void set_state_player(twa_graph_ptr arena, unsigned state, bool owner);
 
+  /// \ingroup games
   /// \brief Get the owner of a state.
   SPOT_API
   bool get_state_player(const_twa_graph_ptr arena, unsigned state);
+
+  /// \ingroup games
   /// \brief Get the owner of all states
   SPOT_API
   const region_t& get_state_players(const_twa_graph_ptr arena);
 
+  /// \ingroup games
   /// \brief Get or set the strategy
+  /// @{
   SPOT_API
   const strategy_t& get_strategy(const_twa_graph_ptr arena);
   SPOT_API
   void set_strategy(twa_graph_ptr arena, const strategy_t& strat);
   SPOT_API
   void set_strategy(twa_graph_ptr arena, strategy_t&& strat);
+  /// @}
 
+  /// \ingroup games
   /// \brief Set all synthesis outputs as a conjunction
   SPOT_API
   void set_synthesis_outputs(const twa_graph_ptr& arena, const bdd& outs);
+
+  /// \ingroup games
+  /// \brief Get all synthesis outputs as a conjunction
   SPOT_API
   bdd get_synthesis_outputs(const const_twa_graph_ptr& arena);
 
@@ -219,19 +245,26 @@ namespace spot
   std::vector<std::string>
   get_synthesis_output_aps(const const_twa_graph_ptr& arena);
 
+  /// \ingroup games
   /// \brief Set the winner for all the states.
+  /// @{
   SPOT_API
   void set_state_winners(twa_graph_ptr arena, const region_t& winners);
   SPOT_API
   void set_state_winners(twa_graph_ptr arena, region_t&& winners);
+  /// @}
 
+  /// \ingroup games
   /// \brief Set the winner of a state.
   SPOT_API
   void set_state_winner(twa_graph_ptr arena, unsigned state, bool winner);
 
+  /// \ingroup games
   /// \brief Get the winner of a state.
   SPOT_API
   bool get_state_winner(const_twa_graph_ptr arena, unsigned state);
+
+  /// \ingroup games
   /// \brief Get the winner of all states
   SPOT_API
   const region_t& get_state_winners(const_twa_graph_ptr arena);

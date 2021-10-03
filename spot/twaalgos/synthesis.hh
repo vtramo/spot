@@ -25,6 +25,10 @@
 
 namespace spot
 {
+  /// \addtogroup synthesis Reactive Synthesis
+  /// \ingroup twa_algorithms
+
+  /// \ingroup synthesis
   /// \brief make each transition a 2-step transition, transforming
   ///        the graph into an alternating arena
   ///
@@ -40,42 +44,49 @@ namespace spot
   /// (p,a) may be non-deterministic.
   /// This function is used to transform an automaton into a turn-based game in
   /// the context of LTL reactive synthesis.
+  ///
   /// \param aut          automaton to be transformed
   /// \param output_bdd   conjunction of all output AP, all APs not present
   ///                     are treated as inputs
   /// \param complete_env Whether the automaton should be complete for the
   ///                     environment, i.e. the player of I
-  /// \note: This function also computes the state players
-  /// \note: If the automaton is to be completed for both env and player
-  ///        then egdes between the sinks will be added
+  /// \note This function also computes the state players
+  /// \note If the automaton is to be completed for both env and player
+  ///       then egdes between the sinks will be added
   /// (assuming that the environnement/player of I) plays first
   SPOT_API twa_graph_ptr
   split_2step(const const_twa_graph_ptr& aut,
               const bdd& output_bdd, bool complete_env);
 
 
+  /// \ingroup synthesis
   /// \brief make each transition a 2-step transition.
-  ///        This algorithm is only applicable if all transitions of the
-  ///        graph have the form p -- ins & outs --> q.
-  ///        That is they are a conjunction of a condition over the input
-  ///        propositions ins and a condition over the output propositions outs
+  ///
+  /// This algorithm is only applicable if all transitions of the
+  /// graph have the form p -- ins & outs --> q.
+  /// That is they are a conjunction of a condition over the input
+  /// propositions ins and a condition over the output propositions outs
+  ///
   /// \param aut          automaton to be transformed
   /// \param output_bdd   conjunction of all output AP, all APs not present
   ///                     are treated as inputs
+  /// @{
   SPOT_API void
   split_2step_fast_here(const twa_graph_ptr& aut, const bdd& output_bdd);
 
   SPOT_API twa_graph_ptr
   split_2step_fast(const const_twa_graph_ptr& aut, const bdd& output_bdd);
+  /// @}
 
-
+  /// \ingroup synthesis
   /// \brief the reverse of split_2step
   ///
-  /// \note: This function relies on the named property "state-player"
+  /// \note This function relies on the named property "state-player"
   SPOT_API twa_graph_ptr
   unsplit_2step(const const_twa_graph_ptr& aut);
 
 
+  /// \ingroup synthesis
   /// \brief Creates a game from a specification and a set of
   /// output propositions
   ///
@@ -89,22 +100,26 @@ namespace spot
               const std::vector<std::string>& all_outs,
               game_info& gi);
 
+  /// \ingroup synthesis
   /// \brief create_game called with default options
   SPOT_API twa_graph_ptr
   create_game(const formula& f,
               const std::vector<std::string>& all_outs);
 
+  /// \ingroup synthesis
   /// \brief Like create_game but formula given as string
   SPOT_API twa_graph_ptr
   create_game(const std::string& f,
               const std::vector<std::string>& all_outs,
               game_info& gi);
 
+  /// \ingroup synthesis
   /// \brief create_game called with default options
   SPOT_API twa_graph_ptr
   create_game(const std::string& f,
               const std::vector<std::string>& all_outs);
 
+  /// \ingroup synthesis
   /// \brief Takes a solved game and restricts the automaton to the
   ///        winning strategy of the player
   ///
@@ -117,6 +132,7 @@ namespace spot
   apply_strategy(const spot::twa_graph_ptr& arena,
                  bool unsplit, bool keep_acc);
 
+  /// \ingroup synthesis
   /// \brief Minimizes a strategy. Strategies are infact
   /// Mealy machines. So we can use techniques designed for them
   ///
@@ -130,24 +146,25 @@ namespace spot
   ///                 minimization with output assignment as preprocessing
   /// \note min_lvl 1 and 2 work more efficiently on UNSPLIT strategies,
   ///       whereas min_lvl 3, 4 and 5 mandate a SPLIT strategy
+  /// @{
   SPOT_API void
   minimize_strategy_here(twa_graph_ptr& strat, int min_lvl);
 
-  ///\brief Like minimize_strategy_here
   SPOT_API twa_graph_ptr
   minimize_strategy(const_twa_graph_ptr& strat, int min_lvl);
+  /// @}
 
-
+  /// \ingroup synthesis
   /// \brief creates a strategy from a solved game taking into account the
-  ///        options given in gi
+  ///        options given in \a gi
+  /// @{
   SPOT_API twa_graph_ptr
   create_strategy(twa_graph_ptr arena, game_info& gi);
-
-  /// \brief Like create_strategy but with default options
   SPOT_API twa_graph_ptr
   create_strategy(twa_graph_ptr arena);
+  /// @}
 
-
+  /// \ingroup synthesis
   /// \brief A struct that represents different types of strategy like
   ///        objects
   struct SPOT_API
@@ -162,24 +179,28 @@ namespace spot
     bdd glob_cond;
   };
 
-
+  /// \ingroup synthesis
   /// \brief Seeks to decompose a formula into independently synthesizable
   /// sub-parts. The conjunction of all sub-parts then
   /// satisfies the specification
   ///
-  /// The algorithm is largely based on \cite{finkbeiner2021specification}.
+  /// The algorithm is based on work by Finkbeiner et al.
+  /// \cite finkbeiner.21.nfm, \cite finkbeiner.21.arxiv.
+  ///
   /// \param f the formula to split
   /// \param outs vector with the names of all output propositions
   /// \return A vector of pairs holding a subformula and the used output
   ///  propositions each.
+  /// @{
   SPOT_API std::pair<std::vector<formula>, std::vector<std::set<formula>>>
   split_independant_formulas(formula f, const std::vector<std::string>& outs);
 
-  /// \brief Like split_independant_formulas but the formula given as string
   SPOT_API std::pair<std::vector<formula>, std::vector<std::set<formula>>>
   split_independant_formulas(const std::string& f,
                              const std::vector<std::string>& outs);
+  /// @}
 
+  /// \ingroup synthesis
   /// \brief Creates a strategy for the formula given by calling all
   ///        intermediate steps
   ///
@@ -187,6 +208,7 @@ namespace spot
   /// and find directly a strategy or some other representation of a
   /// winning condition without translating the formula as such.
   /// If no such simplifications can be made, it executes the usual way.
+  ///
   /// \param f The formula to synthesize a strategy for
   /// \param output_aps A vector with the name of all output properties.
   ///                   All APs not named in this vector are treated as inputs
