@@ -91,7 +91,7 @@ static const argp_option options[] =
       "\"isop\" for irreducible sum of producs; "
       "\"both\" tries both encodings and keeps the smaller one. "
       "The other options further "
-      "refine the encoding, see aiger:::encode_bdd.", 0},
+      "refine the encoding, see aiger::encode_bdd.", 0},
     { "verbose", OPT_VERBOSE, nullptr, 0,
       "verbose mode", -1 },
     { "verify", OPT_VERIFY, nullptr, 0,
@@ -594,7 +594,7 @@ parse_opt(int key, char *arg, struct argp_state *)
       opt_print_hoa_args = arg;
       break;
     case OPT_PRINT_AIGER:
-      opt_print_aiger = arg ? arg : "INF";
+      opt_print_aiger = arg ? arg : "ite";
       break;
     case OPT_REAL:
       opt_real = true;

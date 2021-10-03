@@ -11,10 +11,15 @@ This tool synthesizes controllers from LTL/PSL formulas.
 
 Consider a set $I$ of /input/ atomic propositions, a set $O$ of output atomic
 propositions, and a PSL formula \phi over the propositions in $I \cup O$.  A
-=controller= realizing \phi is a function $c: 2^{I \cup O} \times 2^I \mapsto
+=controller= realizing \phi is a function $c: (2^{I})^\star \times 2^I \mapsto
 2^O$ such that, for every \omega-word $(u_i)_{i \in N} \in (2^I)^\omega$ over
 the input propositions, the word $(u_i \cup c(u_0 \dots u_{i-1}, u_i))_{i \in
 N}$ satisfies \phi.
+
+If a controller exists, then one with finite memory exists. Such controllers
+are easily represented as automata (or more specifically as I/O automata or
+transducers).  In the automaton representing the controller, the acceptance
+condition is irrelevant and trivially true.
 
 =ltlsynt= has three mandatory options:
 - =--ins=: a comma-separated list of input atomic propositions;
@@ -27,23 +32,25 @@ as input can be assumed to be an output and vice-versa.
 The following example illustrates the synthesis of a controller acting as an
 =AND= gate. We have two inputs =a= and =b= and one output =c=, and we want =c=
 to always be the =AND= of the two inputs:
+
+#+NAME: example
 #+BEGIN_SRC sh :exports both
 ltlsynt --ins=a,b -f 'G (a & b <=> c)'
 #+END_SRC
 
-#+RESULTS:
+#+RESULTS: example
 #+begin_example
 REALIZABLE
 HOA: v1
 States: 1
 Start: 0
-AP: 3 "b" "c" "a"
+AP: 3 "a" "b" "c"
 acc-name: all
 Acceptance: 0 t
 properties: trans-labels explicit-labels state-acc deterministic
 --BODY--
 State: 0
-[!0&!1 | !1&!2] 0
+[!0&!2 | !1&!2] 0
 [0&1&2] 0
 --END--
 #+end_example
@@ -54,10 +61,22 @@ The output is composed of two parts:
   In this example, the controller has a single
   state, with two loops labeled by =a & b & c= and =(!a | !b) & !c=.
 
-If a controller exists, then one with finite memory exists. Such controllers
-are easily represented as automata (or more specifically as I/O automata or
-transducers).  In the automaton representing the controller, the acceptance
-condition is irrelevant and trivially true.
+#+NAME: exampledot
+#+BEGIN_SRC sh :exports none :noweb yes
+sed 1d <<EOF | autfilt --dot=.A
+<<example()>>
+EOF
+#+END_SRC
+
+#+BEGIN_SRC dot :file ltlsyntex.svg :var txt=exampledot :exports results
+  $txt
+#+END_SRC
+
+#+RESULTS:
+[[file:ltlsyntex.svg]]
+
+The label =a & b & c= should be understood as: "if the input is =a&b=,
+the output should be =c=".
 
 The following example illustrates the case of an unrealizable specification. As
 =a= is an input proposition, there is no way to guarantee that it will
@@ -69,7 +88,6 @@ ltlsynt --ins=a -f 'F a'
 
 #+RESULTS:
 : UNREALIZABLE
-
 
 By default, the controller is output in HOA format, but it can be
 output as an [[http://fmv.jku.at/aiger/][AIGER]] circuit thanks to the =--aiger= flag. This is the
@@ -96,18 +114,74 @@ OUT=$(syfco FILE --print-output-signals)
 ltlsynt --formula="$LTL" --ins="$IN" --outs="$OUT"
 #+END_SRC
 
-* Algorithm
+* Internal details
 
 The tool reduces the synthesis problem to a parity game, and solves the parity
-game using Zielonka's recursive algorithm.  The full reduction from LTL to
-parity game is described in the following paper:
-- *Reactive Synthesis from LTL Specification with Spot*, /Thibaud Michaud/,
-  /Maximilien Colange/.  In Proc. of SYNT@CAV'18. to appear.
+game using Zielonka's recursive algorithm.  The process can be pictured as follows.
+
+[[file:ltlsynt.svg]]
+
+LTL decomposition is described by [[https://arxiv.org/abs/2103.08459][Finkbeiner, Geier, and Passing]], and
+can be disabled by passing option =-x specification-decomposition=0=.
+The idea is to split the specification into multiple smaller
+constraints on disjoint subsets of the output values, solve those
+constraints separately, and then combine them while encoding the AIGER
+circuit.
+
+The ad hoc construction on the top is just a shortcut for some type of
+constraints that can be solved directly by converting the constraint
+into a DBA.
+
+Otherwise, conversion to parity game (represented by the blue zone) is
+done using one of several algorithms specified by the =--algo= option.
+The game is then solved, producing a strategy if the game is realizable.
+
+If an =ltlsynt= is in =--realizability= mode, the process stops here
+
+In =--aiger= mode, the strategy is first simplified.  How this is done
+is controled by option =-x minimize-level=N=.  See the [[./man/spot-x.7.html][=spot-x=]](7)
+manpage for details.
+Finally, the strategy is encoded into [[http://fmv.jku.at/aiger/][AIGER]].  The =--aiger= option can
+take an argument to specify a type of encoding to use: by default
+it is =ite= for if-then-else, because it follows the structure of BDD
+used to encode the conditions in the strategy.  An alternative encoding
+is =isop= where condition are first put into irredundant-sum-of-product,
+or =both= if both encodings should be tried.  Additionally, these optiosn
+can accept the suffix =+ud= (use dual) to attempt to encode each condition
+and its negation and keep the smallest one, =+dc= (don't care) to take
+advantage of /don't care/ values in the output, and one of =+sub0=,
+=+sub1=, or =+sub2= to test various grouping of variables in the encoding.
+Multiple encodings can be tried by separating them using commas.
+For instance =--aiger=isop,isop+dc,isop+ud= will try three different encodings.
+
+* Other useful options
 
 You can also ask =ltlsynt= to print to obtained parity game into
-[[https://github.com/tcsprojects/pgsolver][PGSolver]] format, with the flag
-=--print-pg=.  Note that this flag deactivates the resolution of the parity
-game, which is to be deferred to one of the solvers from PGSolver.
+[[https://github.com/tcsprojects/pgsolver][PGSolver]] format, with the flag =--print-pg=, or in the HOA format,
+using =--print-game-hoa=.  These flag deactivate the resolution of the
+parity game.
+
+For benchmarking purpose, the =--csv= option can be used to record
+intermediate statistics about the resolution.
+
+The =--verify= option requests that the produced strategy or aiger
+circuit are compatible with the specification.  This is done by
+ensuring that they do not intersect the negation of the specification.
+
+* References
+
+The initial reduction from LTL to parity game is described in the
+following paper:
+
+- *Reactive Synthesis from LTL Specification with Spot*, /Thibaud Michaud/,
+  /Maximilien Colange/.  Presented in SYNT@CAV'18.  ([[https://www.lrde.epita.fr/dload/papers/michaud.18.synt.pdf][pdf]] | [[https://www.lrde.epita.fr/~max/bibtexbrowser.php?key=michaud.18.synt&bib=perso.bib][bib]])
+
+Further improvements are described in the following paper:
+
+- *Improvements to =ltlsynt=*, /Florian Renkin/, /Philipp Schlehuber/,
+  /Alexandre Duret-Lutz/, and /Adrien Pommellet/.  Presented at the
+  SYNT'21 workshop.  ([[https://www.lrde.epita.fr/~adl/dl/adl/renkin.21.synt.pdf][pdf]] | [[https://www.lrde.epita.fr/~adl/dl/adl_bib.html#renkin.21.synt][bib]])
+
 
 #  LocalWords:  utf ltlsynt AIGER html args mapsto SRC acc aiger TLSF
 #  LocalWords:  UNREALIZABLE unrealizable SYNTCOMP realizability Proc

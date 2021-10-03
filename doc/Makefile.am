@@ -1,5 +1,5 @@
 ## -*- coding: utf-8 -*-
-## Copyright (C) 2010-2011, 2013-2020 Laboratoire de Recherche et
+## Copyright (C) 2010-2011, 2013-2021 Laboratoire de Recherche et
 ## Développement de l'Epita (LRDE).
 ## Copyright (C) 2003-2005 Laboratoire d'Informatique de Paris 6
 ## (LIP6), département Systèmes Répartis Coopératifs (SRC), Université
@@ -103,6 +103,7 @@ ORG_FILES = \
   org/ltlfilt.org \
   org/ltlgrind.org \
   org/ltlsynt.org \
+  org/ltlsynt.tex \
   org/oaut.org \
   org/randaut.org \
   org/randltl.org \
@@ -136,6 +137,7 @@ ORG_FILES = \
 PICTURES_EXTRA = \
   $(srcdir)/org/arch.svg \
   $(srcdir)/org/hierarchy.svg \
+  $(srcdir)/org/ltlsynt.svg \
   $(srcdir)/org/satmin.svg
 
 $(srcdir)/org/satmin.svg: org/satmin.tex
@@ -155,6 +157,12 @@ $(srcdir)/org/hierarchy.svg: org/hierarchy.tex
 	pdflatex hierarchy.tex && \
 	pdf2svg hierarchy.pdf hierarchy.svg && \
 	rm -f hierarchy.pdf hierarchy.aux hierarchy.log
+
+$(srcdir)/org/ltlsynt.svg: org/ltlsynt.tex
+	cd $(srcdir)/org && \
+	pdflatex ltlsynt.tex && \
+	pdf2svg ltlsynt.pdf ltlsynt.svg && \
+	rm -f ltlsynt.pdf ltlsynt.aux ltlsynt.log
 
 $(srcdir)/org-stamp: $(ORG_FILES) $(configure_ac)
 	$(MAKE) org && touch $@
