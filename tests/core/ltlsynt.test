@@ -137,27 +137,11 @@ o0 b
 EOF
 ltlsynt --ins=a --outs=b -f 'GFa <-> GFb' --aiger=isop,isop+dc,isop+ud >out
 diff out exp
-
-cat >exp <<EOF
-REALIZABLE
-aag 1 1 0 1 0
-2
-2
-i0 a
-o0 b
-EOF
 ltlsynt --ins=a --outs=b -f 'GFa <-> GFb' --aiger=ite >out
 diff out exp
-
-cat >exp <<EOF
-REALIZABLE
-aag 1 1 0 1 0
-2
-2
-i0 a
-o0 b
-EOF
 ltlsynt --ins=a --outs=b -f 'GFa <-> GFb' --aiger=ite+ud+dc >out
+diff out exp
+ltlsynt --ins=a --outs=b -f 'GFa <-> GFb' --aiger >out
 diff out exp
 
 cat >exp <<EOF
