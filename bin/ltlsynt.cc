@@ -44,6 +44,7 @@ enum
 {
   OPT_ALGO = 256,
   OPT_CSV,
+  OPT_DECOMPOSE,
   OPT_INPUT,
   OPT_OUTPUT,
   OPT_PRINT,
@@ -75,6 +76,9 @@ static const argp_option options[] =
       " acceptance condition, then use LAR to turn to parity,"
       " then split;"
       " \"lar.old\": old version of LAR, for benchmarking.\n", 0 },
+    { "decompose", OPT_DECOMPOSE, "yes|no", 0,
+      "whether to decompose the specification as multiple output-disjoint "
+      "problems to solve independently (enabled by default)", 0},
     /**************************************************/
     { nullptr, 0, nullptr, 0, "Output options:", 20 },
     { "print-pg", OPT_PRINT, nullptr, 0,
@@ -163,6 +167,20 @@ static spot::game_info::solver const solver_types[] =
   spot::game_info::solver::LAR_OLD,
 };
 ARGMATCH_VERIFY(solver_args, solver_types);
+
+static const char* const decompose_args[] =
+  {
+    "yes", "true", "enabled", "1",
+    "no", "false", "disabled", "0",
+    nullptr
+  };
+static bool decompose_values[] =
+  {
+    true, true, true, true,
+    false, false, false, false,
+  };
+ARGMATCH_VERIFY(decompose_args, decompose_values);
+bool opt_decompose_ltl = true;
 
 namespace
 {
@@ -253,8 +271,6 @@ namespace
         gi->bv->total_time = sw.stop();
     };
 
-    bool opt_decompose_ltl =
-      gi->opt.get("specification-decomposition", 0);
     std::vector<spot::formula> sub_form;
     std::vector<std::set<spot::formula>> sub_outs;
     if (opt_decompose_ltl)
@@ -269,7 +285,7 @@ namespace
     // When trying to split the formula, we can apply transformations that
     // increase its size. This is why we will use the original formula if it
     // has not been cut.
-    if (!opt_decompose_ltl || sub_form.empty())
+    if (sub_form.empty())
     {
       sub_form = { f };
       sub_outs.resize(1);
@@ -562,6 +578,10 @@ parse_opt(int key, char *arg, struct argp_state *)
       opt_csv = arg ? arg : "-";
       if (not gi->bv)
         gi->bv = spot::game_info::bench_var();
+      break;
+    case OPT_DECOMPOSE:
+      opt_decompose_ltl = XARGMATCH("--decompose", arg,
+                                    decompose_args, decompose_values);
       break;
     case OPT_INPUT:
       {

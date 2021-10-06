@@ -238,8 +238,6 @@ sets.  By default this is only enabled when options -B or -S are used.") },
 signature-based BDD implementation, 2 force matrix-based and 0, the default, \
 is a heristic wich choose which implementation to use.") },
     { nullptr, 0, nullptr, 0, "Synthesis options:", 0 },
-    { DOC("specification-decomposition",
-          "Set to 0 to disable specification decomposition.  Default is 1.") },
     { DOC("minimization-level",
           "Specify how AIGER circuits should be simplified.  "
           "(0) no simplification, "

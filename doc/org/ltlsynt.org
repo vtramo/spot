@@ -121,12 +121,12 @@ game using Zielonka's recursive algorithm.  The process can be pictured as follo
 
 [[file:ltlsynt.svg]]
 
-LTL decomposition is described by [[https://arxiv.org/abs/2103.08459][Finkbeiner, Geier, and Passing]], and
-can be disabled by passing option =-x specification-decomposition=0=.
-The idea is to split the specification into multiple smaller
-constraints on disjoint subsets of the output values, solve those
-constraints separately, and then combine them while encoding the AIGER
-circuit.
+LTL decomposition consist in splitting the specification into multiple
+smaller constraints on disjoint subsets of the output values (as
+described by [[https://arxiv.org/abs/2103.08459][Finkbeiner, Geier, and Passing]]), solve those constraints
+separately, and then combine them while encoding the AIGER circuit.
+This is enabled by default, but can be disabled by passing option
+=--decompose=no=.
 
 The ad hoc construction on the top is just a shortcut for some type of
 constraints that can be solved directly by converting the constraint

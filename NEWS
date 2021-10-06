@@ -33,10 +33,10 @@ New in spot 2.9.8.dev (not yet released)
   - ltlsynt --verify checks the computed strategy or aiger circuit
     against the specification.
 
-  - ltlsynt -x "specification-decomposition" determines whether or not
-    the algorithm should try to decompose the formula into subformulas
-    and generate a strategy for each subformula before recombining them
-    into a circuit.
+  - ltlsynt --decompose=yes|no determines whether or not the algorithm
+    should try to decompose the formula into subformulas and generate
+    a strategy for each subformula before recombining them into a
+    circuit.
 
   - ltlsynt -x "minimization-level=[0-5]" determines how to minimize
     the strategy (a monitor). 0, no minimization; 1, regular DFA
