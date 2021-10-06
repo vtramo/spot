@@ -22,8 +22,8 @@ import spot
 # A shared variable caused the 2nd call to create_game to give an incorrect
 # result.
 for i in range(0, 2):
-    gi = spot.game_info()
-    gi.s = spot.game_info.solver_LAR
+    gi = spot.synthesis_info()
+    gi.s = spot.synthesis_info.algo_LAR
     game = spot.create_game("(Ga) <-> (Fb)", ["b"], gi)
     assert not spot.solve_game(game)
 

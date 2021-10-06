@@ -145,9 +145,9 @@ static bool opt_real = false;
 static bool opt_do_verify = false;
 static const char* opt_print_aiger = nullptr;
 
-static spot::game_info* gi;
+static spot::synthesis_info* gi;
 
-static char const *const solver_names[] =
+static char const *const algo_names[] =
   {
    "ds",
    "sd",
@@ -156,7 +156,7 @@ static char const *const solver_names[] =
    "lar.old"
   };
 
-static char const *const solver_args[] =
+static char const *const algo_args[] =
 {
   "detsplit", "ds",
   "splitdet", "sd",
@@ -165,15 +165,15 @@ static char const *const solver_args[] =
   "lar.old",
   nullptr
 };
-static spot::game_info::solver const solver_types[] =
+static spot::synthesis_info::algo const algo_types[] =
 {
-  spot::game_info::solver::DET_SPLIT, spot::game_info::solver::DET_SPLIT,
-  spot::game_info::solver::SPLIT_DET, spot::game_info::solver::SPLIT_DET,
-  spot::game_info::solver::DPA_SPLIT, spot::game_info::solver::DPA_SPLIT,
-  spot::game_info::solver::LAR,
-  spot::game_info::solver::LAR_OLD,
+  spot::synthesis_info::algo::DET_SPLIT, spot::synthesis_info::algo::DET_SPLIT,
+  spot::synthesis_info::algo::SPLIT_DET, spot::synthesis_info::algo::SPLIT_DET,
+  spot::synthesis_info::algo::DPA_SPLIT, spot::synthesis_info::algo::DPA_SPLIT,
+  spot::synthesis_info::algo::LAR,
+  spot::synthesis_info::algo::LAR_OLD,
 };
-ARGMATCH_VERIFY(solver_args, solver_types);
+ARGMATCH_VERIFY(algo_args, algo_types);
 
 static const char* const decompose_args[] =
   {
@@ -256,7 +256,7 @@ namespace
     std::ostringstream os;
     os << f;
     spot::escape_rfc4180(out << '"', os.str());
-    out << "\",\"" << solver_names[(int) gi->s]
+    out << "\",\"" << algo_names[(int) gi->s]
         << "\"," << bv->total_time
         << ',' << bv->trans_time
         << ',' << bv->split_time
@@ -601,12 +601,12 @@ parse_opt(int key, char *arg, struct argp_state *)
   switch (key)
     {
     case OPT_ALGO:
-      gi->s = XARGMATCH("--algo", arg, solver_args, solver_types);
+      gi->s = XARGMATCH("--algo", arg, algo_args, algo_types);
       break;
     case OPT_CSV:
       opt_csv = arg ? arg : "-";
       if (not gi->bv)
-        gi->bv = spot::game_info::bench_var();
+        gi->bv = spot::synthesis_info::bench_var();
       break;
     case OPT_DECOMPOSE:
       opt_decompose_ltl = XARGMATCH("--decompose", arg,
@@ -655,7 +655,7 @@ parse_opt(int key, char *arg, struct argp_state *)
     case OPT_VERBOSE:
       gi->verbose_stream = &std::cerr;
       if (not gi->bv)
-        gi->bv = spot::game_info::bench_var();
+        gi->bv = spot::synthesis_info::bench_var();
       break;
     case OPT_VERIFY:
       opt_do_verify = true;
@@ -678,7 +678,7 @@ main(int argc, char **argv)
   return protected_main(argv, [&] {
     // Create gi_ as a local variable, so make sure it is destroyed
     // before all global variables.
-    spot::game_info gi_;
+    spot::synthesis_info gi_;
     gi = &gi_;
     //gi_.opt.set("simul", 0);     // no simulation, except...
     //gi_.opt.set("dpa-simul", 1); // ... after determinization

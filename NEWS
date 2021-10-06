@@ -57,10 +57,10 @@ New in spot 2.9.8.dev (not yet released)
   - autfilt learned a --kill-states=NUM[,NUM...] option.
 
   Library:
-  - Spot now provides convenient function to create and solve game.
-    The functions are located in twaalgos/game.hh and
-    twaalgos/synthesis.hh. Moreover a new structure holding
-    all the necessary options called game_info is now available.
+  - Spot now provides convenient function to create and solve games.
+    The functions are located in twaalgos/game.hh.  Additional
+    functions related to the application to reactive synthesis are
+    in twaalgos/synthesis.hh.
 
   - A new class called aig is introduced to represent
     and-inverter-graphs, which is useful for synthesis.

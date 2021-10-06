@@ -233,7 +233,7 @@ LAR construction done in X seconds
 DPA has 4 states, 3 colors
 split inputs and outputs done in X seconds
 automaton has 12 states
-Identified as parity game.
+solving game with acceptance: parity max odd 5
 game solved in X seconds
 EOF
 ltlsynt -f "G(Fi0 && Fi1 && Fi2) -> G(i1 <-> o0)" --outs="o0" --algo=lar \

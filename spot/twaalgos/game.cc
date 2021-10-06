@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2017, 2018, 2020 Laboratoire de Recherche et Développement
-// de l'Epita (LRDE).
+// Copyright (C) 2017-2018, 2020-2021 Laboratoire de Recherche et
+// Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
 //
@@ -768,79 +768,20 @@ namespace spot
   } // anonymous
 
 
-  std::ostream& operator<<(std::ostream& os, game_info::solver s)
-  {
-    using solver = game_info::solver;
-    switch (s)
-    {
-      case (solver::DET_SPLIT):
-        os << "ds";
-        break;
-      case (solver::SPLIT_DET):
-        os << "sd";
-        break;
-      case (solver::DPA_SPLIT):
-        os << "ps";
-        break;
-      case (solver::LAR):
-        os << "lar";
-        break;
-      case (solver::LAR_OLD):
-        os << "lar.old";
-        break;
-    }
-    return os;
-}
-
-  std::ostream&
-  operator<<(std::ostream& os, const game_info& gi)
-  {
-    os << "force sbacc: " << gi.force_sbacc << '\n'
-       << "solver: " << gi.s << '\n'
-       << "minimization-lvl: " << gi.minimize_lvl << '\n'
-       << (gi.verbose_stream ? "Is verbose\n" : "Is not verbose\n")
-       << "the bdd_dict used is " << gi.dict.get();
-    return os;
-  }
-
   bool solve_parity_game(const twa_graph_ptr& arena)
   {
     parity_game pg;
     return pg.solve(arena);
   }
 
-  bool solve_game(twa_graph_ptr arena, game_info& gi)
+  bool solve_game(twa_graph_ptr arena)
   {
-    stopwatch sw;
-    if (gi.bv)
-      sw.start();
     bool dummy1, dummy2;
-    bool ret;
-
-    if (arena->acc().is_parity(dummy1, dummy2, true))
-      {
-        if (gi.verbose_stream)
-          *(gi.verbose_stream) << "Identified as parity game.\n";
-        ret = solve_parity_game(arena);
-      }
-    else
-      throw std::runtime_error("No solver available for this arena due to its"
-                               "acceptance condition.");
-    if (gi.bv)
-      gi.bv->solve_time += sw.stop();
-    if (gi.verbose_stream)
-      *(gi.verbose_stream) << "game solved in "
-                           << gi.bv->solve_time << " seconds\n";
-    return ret;
+    if (!arena->acc().is_parity(dummy1, dummy2, true))
+      throw std::runtime_error
+        ("solve_game(): unsupported acceptance condition.");
+    return solve_parity_game(arena);
   }
-
-  bool
-  solve_game(twa_graph_ptr arena)
-  {
-    game_info dummy1;
-    return solve_game(arena, dummy1);
-  }
-
 
   void pg_print(std::ostream& os, const const_twa_graph_ptr& arena)
   {

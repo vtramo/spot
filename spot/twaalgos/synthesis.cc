@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2020 Laboratoire de Recherche et
+// Copyright (C) 2020, 2021 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -771,12 +771,49 @@ namespace spot
     return strat_split;
   }
 
+  std::ostream& operator<<(std::ostream& os, synthesis_info::algo s)
+  {
+    using algo = synthesis_info::algo;
+    const char* name = nullptr;
+    switch (s)
+    {
+      case (algo::DET_SPLIT):
+        name = "ds";
+        break;
+      case (algo::SPLIT_DET):
+        name = "sd";
+        break;
+      case (algo::DPA_SPLIT):
+        name = "ps";
+        break;
+      case (algo::LAR):
+        name = "lar";
+        break;
+      case (algo::LAR_OLD):
+        name = "lar.old";
+        break;
+    }
+    return os << name;
+}
+
+  std::ostream&
+  operator<<(std::ostream& os, const synthesis_info& gi)
+  {
+    os << "force sbacc: " << gi.force_sbacc << '\n'
+       << "solver: " << gi.s << '\n'
+       << "minimization-lvl: " << gi.minimize_lvl << '\n'
+       << (gi.verbose_stream ? "Is verbose\n" : "Is not verbose\n")
+       << "the bdd_dict used is " << gi.dict.get();
+    return os;
+  }
+
+
   namespace // Anonymous create_game
   {
     static translator
-    create_translator(game_info& gi)
+    create_translator(synthesis_info& gi)
     {
-      using solver = game_info::solver;
+      using algo = synthesis_info::algo;
 
       option_map& extra_options = gi.opt;
       auto sol = gi.s;
@@ -793,19 +830,19 @@ namespace spot
       translator trans(dict, &extra_options);
       switch (sol)
       {
-      case solver::LAR:
+      case algo::LAR:
         SPOT_FALLTHROUGH;
-      case solver::LAR_OLD:
+      case algo::LAR_OLD:
         trans.set_type(postprocessor::Generic);
         trans.set_pref(postprocessor::Deterministic);
         break;
-      case solver::DPA_SPLIT:
+      case algo::DPA_SPLIT:
         trans.set_type(postprocessor::ParityMaxOdd);
         trans.set_pref(postprocessor::Deterministic | postprocessor::Colored);
         break;
-      case solver::DET_SPLIT:
+      case algo::DET_SPLIT:
         SPOT_FALLTHROUGH;
-      case solver::SPLIT_DET:
+      case algo::SPLIT_DET:
         break;
       }
       return trans;
@@ -838,9 +875,9 @@ namespace spot
   twa_graph_ptr
   create_game(const formula& f,
               const std::vector<std::string>& all_outs,
-              game_info& gi)
+              synthesis_info& gi)
   {
-    using solver = game_info::solver;
+    using algo = synthesis_info::algo;
 
     [](std::vector<std::string> sv, std::string msg)
       {
@@ -901,7 +938,7 @@ namespace spot
 
     switch (gi.s)
     {
-      case solver::DET_SPLIT:
+      case algo::DET_SPLIT:
       {
         if (bv)
           sw.start();
@@ -930,7 +967,7 @@ namespace spot
               << tmp->num_states() << " states\n";
         break;
       }
-      case solver::DPA_SPLIT:
+      case algo::DPA_SPLIT:
       {
         if (bv)
           sw.start();
@@ -953,7 +990,7 @@ namespace spot
               << dpa->num_states() << " states\n";
         break;
       }
-      case solver::SPLIT_DET:
+      case algo::SPLIT_DET:
       {
         sw.start();
         auto split = split_2step(aut, outs, true);
@@ -983,13 +1020,13 @@ namespace spot
         alternate_players(dpa);
         break;
       }
-      case solver::LAR:
+      case algo::LAR:
         SPOT_FALLTHROUGH;
-      case solver::LAR_OLD:
+      case algo::LAR_OLD:
       {
         if (bv)
           sw.start();
-        if (gi.s == solver::LAR)
+        if (gi.s == algo::LAR)
           {
             dpa = to_parity(aut);
             // reduce_parity is called by to_parity(),
@@ -1034,7 +1071,7 @@ namespace spot
   create_game(const formula& f,
               const std::vector<std::string>& all_outs)
   {
-    game_info dummy;
+    synthesis_info dummy;
     return create_game(f, all_outs, dummy);
   }
 
@@ -1048,7 +1085,7 @@ namespace spot
   twa_graph_ptr
   create_game(const std::string& f,
               const std::vector<std::string>& all_outs,
-              game_info& gi)
+              synthesis_info& gi)
   {
     return create_game(parse_formula(f), all_outs, gi);
   }
@@ -1119,7 +1156,7 @@ namespace spot
   }
 
   twa_graph_ptr
-  create_strategy(twa_graph_ptr arena, game_info& gi)
+  create_strategy(twa_graph_ptr arena, synthesis_info& gi)
   {
     if (!arena)
       throw std::runtime_error("Arena can not be null");
@@ -1158,7 +1195,7 @@ namespace spot
   twa_graph_ptr
   create_strategy(twa_graph_ptr arena)
   {
-    game_info dummy;
+    synthesis_info dummy;
     return create_strategy(arena, dummy);
   }
 
@@ -1210,7 +1247,7 @@ namespace spot
   strategy_like_t
   try_create_direct_strategy(formula f,
                              const std::vector<std::string>& output_aps,
-                             game_info &gi)
+                             synthesis_info &gi)
   {
     formula_2_inout_props form2props(output_aps);
     auto vs = gi.verbose_stream;
@@ -1303,7 +1340,7 @@ namespace spot
     bool is_ok = ((is_gf_bool_right && left.is_syntactic_recurrence())
                 || (is_fg_bool_right && left.is_syntactic_guarantee()));
 
-    // TODO: game_info not updated
+    // TODO: synthesis_info not updated
     // TODO: Verbose
     auto& bv = gi.bv;
     stopwatch sw;
@@ -1818,6 +1855,31 @@ namespace spot
                              const std::vector<std::string>& outs)
   {
     return split_independant_formulas(parse_formula(f), outs);
+  }
+
+  bool
+  solve_game(twa_graph_ptr arena, synthesis_info& gi)
+  {
+    stopwatch sw;
+    if (gi.bv)
+      sw.start();
+    if (gi.verbose_stream)
+      {
+        *(gi.verbose_stream) << "solving game with acceptance: ";
+        std::string name = arena->acc().name();
+        if (!name.empty())
+          *(gi.verbose_stream) << name;
+        else
+          *(gi.verbose_stream) << arena->get_acceptance();
+        *(gi.verbose_stream) << '\n';
+      }
+    bool res = solve_game(arena);
+    if (gi.bv)
+      gi.bv->solve_time += sw.stop();
+    if (gi.verbose_stream)
+      *(gi.verbose_stream) << "game solved in "
+                           << gi.bv->solve_time << " seconds\n";
+    return res;
   }
 
 } // spot

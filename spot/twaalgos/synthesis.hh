@@ -85,6 +85,66 @@ namespace spot
   SPOT_API twa_graph_ptr
   unsplit_2step(const const_twa_graph_ptr& aut);
 
+  /// \ingroup synthesis
+  /// \brief Benchmarking data and options for synthesis
+  struct SPOT_API synthesis_info
+  {
+    enum class algo
+    {
+      DET_SPLIT=0,
+      SPLIT_DET,
+      DPA_SPLIT,
+      LAR,
+      LAR_OLD,
+    };
+
+    struct bench_var
+    {
+      double total_time = 0.0;
+      double trans_time = 0.0;
+      double split_time = 0.0;
+      double paritize_time = 0.0;
+      double solve_time = 0.0;
+      double strat2aut_time = 0.0;
+      double aig_time = 0.0;
+      unsigned nb_states_arena = 0;
+      unsigned nb_states_arena_env = 0;
+      unsigned nb_strat_states = 0;
+      unsigned nb_strat_edges = 0;
+      unsigned nb_latches = 0;
+      unsigned nb_gates = 0;
+      bool realizable = false;
+    };
+
+    synthesis_info()
+    : force_sbacc{false},
+      s{algo::LAR},
+      minimize_lvl{2},
+      bv{},
+      verbose_stream{nullptr},
+      dict(make_bdd_dict())
+    {
+    }
+
+    bool force_sbacc;
+    algo s;
+    int minimize_lvl;
+    std::optional<bench_var> bv;
+    std::ostream* verbose_stream;
+    option_map opt;
+    bdd_dict_ptr dict;
+  };
+
+  /// \ingroup synthesis
+  /// \brief Stream algo
+  SPOT_API std::ostream&
+  operator<<(std::ostream& os, synthesis_info::algo s);
+
+  /// \ingroup synthesis
+  /// \brief Stream benchmarks and options
+  SPOT_API std::ostream &
+  operator<<(std::ostream &os, const synthesis_info &gi);
+
 
   /// \ingroup synthesis
   /// \brief Creates a game from a specification and a set of
@@ -92,13 +152,13 @@ namespace spot
   ///
   /// \param f The specification given as LTL/PSL formula
   /// \param all_outs The names of all output propositions
-  /// \param gi game_info structure
+  /// \param gi synthesis_info structure
   /// \note All propositions in the formula that do not appear in all_outs
   /// arer treated as input variables.
   SPOT_API twa_graph_ptr
   create_game(const formula& f,
               const std::vector<std::string>& all_outs,
-              game_info& gi);
+              synthesis_info& gi);
 
   /// \ingroup synthesis
   /// \brief create_game called with default options
@@ -111,7 +171,7 @@ namespace spot
   SPOT_API twa_graph_ptr
   create_game(const std::string& f,
               const std::vector<std::string>& all_outs,
-              game_info& gi);
+              synthesis_info& gi);
 
   /// \ingroup synthesis
   /// \brief create_game called with default options
@@ -159,7 +219,7 @@ namespace spot
   ///        options given in \a gi
   /// @{
   SPOT_API twa_graph_ptr
-  create_strategy(twa_graph_ptr arena, game_info& gi);
+  create_strategy(twa_graph_ptr arena, synthesis_info& gi);
   SPOT_API twa_graph_ptr
   create_strategy(twa_graph_ptr arena);
   /// @}
@@ -215,6 +275,14 @@ namespace spot
   SPOT_API strategy_like_t
   try_create_direct_strategy(formula f,
                              const std::vector<std::string>& output_aps,
-                             game_info& gi);
+                             synthesis_info& gi);
+
+  /// \ingroup synthesis
+  /// \brief Solve a game, and update synthesis_info
+  ///
+  /// This is just a wrapper around the solve_game() function with a
+  /// single argument.  This one measure the runtime and update \a gi.
+  SPOT_API bool
+  solve_game(twa_graph_ptr arena, synthesis_info& gi);
 
 }
