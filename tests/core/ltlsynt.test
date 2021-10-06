@@ -156,7 +156,8 @@ i0 a
 o0 b
 o1 c
 EOF
-ltlsynt --ins=a --outs=b,c -f 'GFa <-> (GFb & GFc)' --algo=ds --aiger=isop >out
+ltlsynt --ins=a --outs=b,c -f 'GFa <-> (GFb & GFc)' \
+        --algo=ds --simplify=no --aiger=isop >out
 diff out exp
 
 cat >exp <<EOF
@@ -171,7 +172,7 @@ o0 b
 o1 c
 EOF
 ltlsynt --ins=a --outs=b,c -f 'GFa <-> (GFb & GFc)' \
-  --algo=ds --aiger=isop+dc >out
+        --algo=ds --simplify=no --aiger=isop+dc >out
 diff out exp
 
 cat >exp <<EOF
@@ -186,7 +187,8 @@ i0 a
 o0 b
 o1 c
 EOF
-ltlsynt --ins=a --outs=b,c -f 'GFa <-> (GFb & GFc)' --algo=ds --aiger=ite >out
+ltlsynt --ins=a --outs=b,c -f 'GFa <-> (GFb & GFc)' \
+        --algo=ds --simplify=no --aiger=ite >out
 diff out exp
 
 cat >exp <<EOF
@@ -380,7 +382,7 @@ State: 2
 [!0] 2
 --END--
 EOF
-ltlsynt --outs=p0 -x tls-impl=0 -f '!XXF(p0 & (p0 M Gp0))' > out
+ltlsynt --outs=p0 -x tls-impl=0 --simpl=no -f '!XXF(p0 & (p0 M Gp0))' > out
 diff out exp
 
 cat >exp <<EOF
@@ -410,6 +412,14 @@ ltlsynt -x dpa-simul=0 --verbose --algo=ps --outs=p1 --ins=p0 -f "$f" 2>err
 grep 'DPA has 29 states' err
 ltlsynt --verbose -x wdba-minimize=1 --algo=ps --outs=p1 --ins=p0 -f "$f" 2>err
 grep 'DPA has 12 states' err
+
+ltlsynt --outs=p1 -f "$f" -x"dpa-simul=1" --simpl=no | grep 'States: 5'
+ltlsynt --outs=p1 -f "$f" -x"dpa-simul=1" --simpl=bisim | grep 'States: 5'
+ltlsynt --outs=p1 -f "$f" -x"dpa-simul=1" --simpl=bwoa | grep 'States: 4'
+ltlsynt --outs=p1 -f "$f" -x"dpa-simul=1" | grep 'States: 4'
+ltlsynt --outs=p1 -f "$f" -x"dpa-simul=1" --simpl=sat | grep 'States: 2'
+ltlsynt --outs=p1 -f "$f" -x"dpa-simul=1" --simpl=bisim-sat | grep 'States: 2'
+ltlsynt --outs=p1 -f "$f" -x"dpa-simul=1" --simpl=bwoa-sat | grep 'States: 4'
 
 cat >exp <<EOF
 REALIZABLE
@@ -458,7 +468,7 @@ o0 o0
 o1 o1
 EOF
 ltlsynt -f "G((i0 && i1)<->X(o0)) && G((i2|i3)<->X(o1))" --outs="o0,o1"\
-        --aiger=isop --algo=lar --decompose=no >out
+        --aiger=isop --algo=lar --decompose=no --simpl=no >out
 diff out exp
 
 cat >exp <<EOF
@@ -492,10 +502,10 @@ o0 o0
 o1 o1
 EOF
 ltlsynt -f "G((i0 && i1)<->X(o0)) && G((i2|i3)<->X(o1))" --outs="o0,o1"\
-  --aiger=isop --algo=lar --decompose=yes >out
+  --aiger=isop --algo=lar --decompose=yes --simpl=no >out
 diff out exp
 ltlsynt -f "G((i0 && i1)<->X(o0)) && G((i2|i3)<->X(o1))" --outs="o0,o1"\
-  --aiger=isop --algo=lar >out
+  --aiger=isop --algo=lar --simpl=no  >out
 diff out exp
 
 # Issue #477

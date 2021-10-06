@@ -38,11 +38,8 @@ New in spot 2.9.8.dev (not yet released)
     a strategy for each subformula before recombining them into a
     circuit.
 
-  - ltlsynt -x "minimization-level=[0-5]" determines how to minimize
-    the strategy (a monitor). 0, no minimization; 1, regular DFA
-    minimization; 2, signature based minimization with
-    output assignement; 3, SAT based minimization; 4, 1 then 3;
-    5, 2 then 3.
+  - ltlsynt --simplify=no|bisim|bwoa|sat|bisim-sat|bwoa-sat
+    specifies how to simplify the synthesized controler.
 
   - ltl2tgba, autfilt, dstar2tgba, and randaut learned a --buchi
     option, or -b for short.  This outputs Büchi automata without

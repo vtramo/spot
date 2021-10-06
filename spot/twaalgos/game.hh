@@ -132,7 +132,7 @@ namespace spot
     game_info()
       : force_sbacc{false},
         s{solver::LAR},
-        minimize_lvl{0},
+        minimize_lvl{2},
         bv{},
         verbose_stream{nullptr},
         dict(make_bdd_dict())

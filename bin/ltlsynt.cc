@@ -51,6 +51,7 @@ enum
   OPT_PRINT_AIGER,
   OPT_PRINT_HOA,
   OPT_REAL,
+  OPT_SIMPLIFY,
   OPT_VERBOSE,
   OPT_VERIFY
 };
@@ -78,7 +79,13 @@ static const argp_option options[] =
       " \"lar.old\": old version of LAR, for benchmarking.\n", 0 },
     { "decompose", OPT_DECOMPOSE, "yes|no", 0,
       "whether to decompose the specification as multiple output-disjoint "
-      "problems to solve independently (enabled by default)", 0},
+      "problems to solve independently (enabled by default)", 0 },
+    { "simplify", OPT_SIMPLIFY, "no|bisim|bwoa|sat|bisim-sat|bwoa-sat", 0,
+      "simplification to apply to the controler (no) nothing, "
+      "(bisim) bisimulation-based reduction, (bwoa) bissimulation-based "
+      "reduction with output assignment, (sat) SAT-based minimization, "
+      "(bisim-sat) SAT after bisim, (bwoa-sat) SAT after bwoa.  Defaults "
+      "to 'bwoa'.", 0 },
     /**************************************************/
     { nullptr, 0, nullptr, 0, "Output options:", 20 },
     { "print-pg", OPT_PRINT, nullptr, 0,
@@ -181,6 +188,27 @@ static bool decompose_values[] =
   };
 ARGMATCH_VERIFY(decompose_args, decompose_values);
 bool opt_decompose_ltl = true;
+
+static const char* const simplify_args[] =
+  {
+    "no", "false", "disabled", "0",
+    "bisim", "1",
+    "bwoa", "bisim-with-output-assignment", "2",
+    "sat", "3",
+    "bisim-sat", "4",
+    "bwoa-sat", "5",
+    nullptr
+  };
+static unsigned simplify_values[] =
+  {
+    0, 0, 0, 0,
+    1, 1,
+    2, 2, 2,
+    3, 3,
+    4, 4,
+    5, 5,
+  };
+ARGMATCH_VERIFY(simplify_args, simplify_values);
 
 namespace
 {
@@ -389,11 +417,12 @@ namespace
             {
               spot::stopwatch sw_min;
               sw_min.start();
-              bool do_split = 3 <= gi->opt.get("minimization-level", 1);
+              unsigned simplify = gi->minimize_lvl;
+              bool do_split = 3 <= simplify;
               if (do_split)
                 split_2step_fast_here(strat.strat_like,
                     spot::get_synthesis_outputs(strat.strat_like));
-              minimize_strategy_here(strat.strat_like, gi->minimize_lvl);
+              minimize_strategy_here(strat.strat_like, simplify);
               if (do_split)
                 strat.strat_like = spot::unsplit_2step(strat.strat_like);
               auto delta = sw_min.stop();
@@ -619,6 +648,10 @@ parse_opt(int key, char *arg, struct argp_state *)
     case OPT_REAL:
       opt_real = true;
       break;
+    case OPT_SIMPLIFY:
+      gi->minimize_lvl = XARGMATCH("--simplify", arg,
+                                   simplify_args, simplify_values);
+      break;
     case OPT_VERBOSE:
       gi->verbose_stream = &std::cerr;
       if (not gi->bv)
@@ -632,8 +665,6 @@ parse_opt(int key, char *arg, struct argp_state *)
         const char* opt = gi->opt.parse_options(arg);
         if (opt)
           error(2, 0, "failed to parse --options near '%s'", opt);
-        // Dispatch the options to the gi structure
-        gi->minimize_lvl = gi->opt.get("minimization-level", 1);
       }
       break;
     }

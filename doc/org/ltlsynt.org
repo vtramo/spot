@@ -136,23 +136,35 @@ Otherwise, conversion to parity game (represented by the blue zone) is
 done using one of several algorithms specified by the =--algo= option.
 The game is then solved, producing a strategy if the game is realizable.
 
-If an =ltlsynt= is in =--realizability= mode, the process stops here
+If =ltlsynt= is in =--realizability= mode, the process stops here
 
-In =--aiger= mode, the strategy is first simplified.  How this is done
-is controled by option =-x minimize-level=N=.  See the [[./man/spot-x.7.html][=spot-x=]](7)
-manpage for details.
+In synthesis mode, the strategy is first simplified.  How this is done
+can be fine-tuned with option =--simplify=:
+#+BEGIN_SRC sh :exports results
+ltlsynt --help | sed -n '/--simplify=/,/^$/p' | sed '$d'
+#+END_SRC
+#+RESULTS:
+:       --simplify=no|bisim|bwoa|sat|bisim-sat|bwoa-sat
+:                              simplification to apply to the controler (no)
+:                              nothing, (bisim) bisimulation-based reduction,
+:                              (bwoa) bissimulation-based reduction with output
+:                              assignment, (sat) SAT-based minimization,
+:                              (bisim-sat) SAT after bisim, (bwoa-sat) SAT after
+:                              bwoa.  Defaults to 'bwoa'.
+
 Finally, the strategy is encoded into [[http://fmv.jku.at/aiger/][AIGER]].  The =--aiger= option can
-take an argument to specify a type of encoding to use: by default
-it is =ite= for if-then-else, because it follows the structure of BDD
-used to encode the conditions in the strategy.  An alternative encoding
-is =isop= where condition are first put into irredundant-sum-of-product,
-or =both= if both encodings should be tried.  Additionally, these optiosn
-can accept the suffix =+ud= (use dual) to attempt to encode each condition
-and its negation and keep the smallest one, =+dc= (don't care) to take
-advantage of /don't care/ values in the output, and one of =+sub0=,
-=+sub1=, or =+sub2= to test various grouping of variables in the encoding.
-Multiple encodings can be tried by separating them using commas.
-For instance =--aiger=isop,isop+dc,isop+ud= will try three different encodings.
+take an argument to specify a type of encoding to use: by default it
+is =ite= for if-then-else, because it follows the structure of BDD
+used to encode the conditions in the strategy.  An alternative
+encoding is =isop= where condition are first put into
+irredundant-sum-of-product, or =both= if both encodings should be
+tried.  Additionally, these optiosn can accept the suffix =+ud= (use
+dual) to attempt to encode each condition and its negation and keep
+the smallest one, =+dc= (don't care) to take advantage of /don't care/
+values in the output, and one of =+sub0=, =+sub1=, or =+sub2= to test
+various grouping of variables in the encoding.  Multiple encodings can
+be tried by separating them using commas.  For instance
+=--aiger=isop,isop+dc,isop+ud= will try three different encodings.
 
 * Other useful options
 

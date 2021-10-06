@@ -237,18 +237,6 @@ sets.  By default this is only enabled when options -B or -S are used.") },
           "Chose which simulation based reduction to use: 1 force the \
 signature-based BDD implementation, 2 force matrix-based and 0, the default, \
 is a heristic wich choose which implementation to use.") },
-    { nullptr, 0, nullptr, 0, "Synthesis options:", 0 },
-    { DOC("minimization-level",
-          "Specify how AIGER circuits should be simplified.  "
-          "(0) no simplification, "
-          "(1) bisimulation-based reduction, "
-          "(2) simplification using language inclusion and output assignments, "
-          "(3) exact minimization using a SAT solver, "
-          "(4) bisimulation-based reduction before exact minimization via "
-          "SAT solver, "
-          "(5) simplification using output assignments before exact "
-          "minimization via SAT solver.  "
-          "The default value is 1.") },
     { nullptr, 0, nullptr, 0, nullptr, 0 }
   };
 
