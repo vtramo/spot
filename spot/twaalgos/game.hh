@@ -93,14 +93,22 @@ namespace spot
   /// Returns the player winning in the initial state, and sets
   /// the state-winner and strategy named properties.
   SPOT_API
-  bool solve_safety_game(twa_graph_ptr game);
+  bool solve_safety_game(const twa_graph_ptr& game);
 
   /// \ingroup games
   /// \brief Generic interface for game solving
   ///
-  /// See solve_game(arena, gi)
+  /// Dispatch to solve_safety_game() if the acceptance condition is
+  /// t, or to solve_parity_game() if it is a parity acceptance.  Note that
+  /// parity acceptance include Büchi, co-Büchi, Rabin 1, and Streett 1.
+  ///
+  /// Currently unable to solve game with other acceptance conditions
+  /// that are not parity.
+  ///
+  /// Return the winning player for the initial state, and sets
+  /// the state-winner and strategy named properties.
   SPOT_API bool
-  solve_game(twa_graph_ptr arena);
+  solve_game(const twa_graph_ptr& arena);
 
 
   /// \ingroup games

@@ -774,9 +774,12 @@ namespace spot
     return pg.solve(arena);
   }
 
-  bool solve_game(twa_graph_ptr arena)
+  bool solve_game(const twa_graph_ptr& arena)
   {
     bool dummy1, dummy2;
+    auto& acc = arena->acc();
+    if (acc.is_t())
+      return solve_safety_game(arena);
     if (!arena->acc().is_parity(dummy1, dummy2, true))
       throw std::runtime_error
         ("solve_game(): unsupported acceptance condition.");
@@ -1090,7 +1093,7 @@ namespace spot
   }
 
 
-  bool solve_safety_game(twa_graph_ptr game)
+  bool solve_safety_game(const twa_graph_ptr& game)
   {
     if (!game->acc().is_t())
       throw std::runtime_error

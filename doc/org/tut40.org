@@ -119,7 +119,7 @@ strategies.
 #+NAME: game40solved
 #+BEGIN_SRC python :exports none :noweb yes
 <<game40>>
-spot.solve_safety_game(g)
+spot.solve_game(g)
 spot.highlight_strategy(g)
 print(g.to_str('dot', '.g'))
 #+END_SRC
@@ -219,10 +219,13 @@ created using the usual interface:
 #+END_SRC
 
 To solve a safety game =g= that has been created by the above method,
-it is enough to just call =solve_safety_game(g)=.  This function
-returns the player winning in the initial state.  However, as a
-side-effect it defines additional automaton properties that indicate
-the winner of each state, and the associated strategy.
+it is enough to just call =solve_safety_game(g)=.  The function
+=solve_game(g)= used below is a more generic interface that looks at
+the acceptance condition of the game to dispatch to the more specific
+game solver.  These functions returns the player winning in the
+initial state.  However, as a side-effect they define additional
+automaton properties that indicate the winner of each state, and the
+associated strategy.
 
 Therefore to list all simulation pairs we learned from a game starting
 in state $(i,j)$, we could proceed as follow:
@@ -231,7 +234,7 @@ in state $(i,j)$, we could proceed as follow:
 #+BEGIN_SRC python :exports code
 def list_simulations(aut, i, j):
     g = direct_sim_game(aut, i, j)
-    spot.solve_safety_game(g)
+    spot.solve_game(g)
 
     winners = g.get_state_winners()
     owners = g.get_state_players()
@@ -254,6 +257,7 @@ On our running example, that gives:
 #+END_SRC
 
 #+RESULTS:
+: [(4, 0), (5, 1)]
 
 * C++
 
@@ -330,7 +334,7 @@ product of automata.
                   unsigned i, unsigned j)
   {
     auto g = direct_sim_game(aut, i, j);
-    spot::solve_safety_game(g);
+    spot::solve_game(g);
 
     const std::vector<bool>& winners = spot::get_state_winners(g);
     const std::vector<bool>& owners = spot::get_state_players(g);
