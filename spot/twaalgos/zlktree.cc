@@ -242,7 +242,9 @@ namespace spot
   {
     auto res = make_twa_graph(a->get_dict());
     res->copy_ap_of(a);
-    zielonka_tree zlk(a->get_acceptance());
+    auto& acc = a->get_acceptance();
+    zielonka_tree zlk(acc);
+    acc_cond::mark_t mask = acc.used_sets();
 
     // Preserve determinism, weakness, and stutter-invariance
     res->prop_copy(a, { false, true, true, true, true, true });
@@ -289,7 +291,7 @@ namespace spot
 
         for (auto& i: a->out(s.first))
           {
-            auto [newbranch, prio] = zlk.step(branch, i.acc);
+            auto [newbranch, prio] = zlk.step(branch, i.acc & mask);
             zlk_state d(i.dst, newbranch);
             unsigned dst = new_state(d);
             max_color = std::max(max_color, prio);
@@ -1146,12 +1148,10 @@ namespace spot
           }
       }
 
-    if (!colored && max_level == 0)
-      res->set_acceptance(0, acc_cond::acc_code::t());
-    else
-      res->set_acceptance(max_color + 1,
-                          acc_cond::acc_code::parity_min(!is_even,
-                                                         max_color + 1));
+    bool extra = colored || max_level > 0;
+    res->set_acceptance(max_color + extra,
+                        acc_cond::acc_code::parity_min(!is_even,
+                                                       max_color + extra));
 
     // compose original-states with the any previously existing one.
     if (auto old_orig_states =

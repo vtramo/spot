@@ -124,3 +124,13 @@ except RuntimeError as e:
     assert 'unknown node' in str(e)
 else:
     report_missing_exception()
+
+a = spot.translate('true')
+a.set_acceptance(spot.acc_cond('f'))
+b = spot.acd_transform(a)
+assert a.equivalent_to(b)
+
+a = spot.translate('true')
+a.set_acceptance(spot.acc_cond('f'))
+b = spot.zielonka_tree_transform(a)
+assert a.equivalent_to(b)
