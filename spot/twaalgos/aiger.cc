@@ -1473,7 +1473,7 @@ namespace
     std::vector<std::string> input_names_all = input_names;
     input_names_all.insert(input_names_all.end(),
                            unused_ins.cbegin(),
-                          unused_ins.cend());
+                           unused_ins.cend());
     std::vector<std::string> output_names_all = output_names;
     output_names_all.insert(output_names_all.end(),
                             unused_outs.cbegin(),
@@ -1872,7 +1872,7 @@ namespace spot
           unused_outs.push_back(ao);
       for (const auto& ai : ins)
         if (!used_aps.count(ai))
-          unused_outs.push_back(ai);
+          unused_ins.push_back(ai);
     }
     // todo Some additional checks?
     return auts_to_aiger({{aut, get_synthesis_outputs(aut)}}, mode,
@@ -1934,7 +1934,7 @@ namespace spot
           unused_outs.push_back(ao);
     for (const auto& ai : ins)
       if (!used_aps.count(ai))
-        unused_outs.push_back(ai);
+        unused_ins.push_back(ai);
 
     return auts_to_aiger(new_vec, mode, unused_ins, unused_outs);
   }
