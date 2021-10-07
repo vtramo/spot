@@ -370,6 +370,7 @@ TESTS_ipython = \
   python/randltl.ipynb \
   python/satmin.ipynb \
   python/stutter-inv.ipynb \
+  python/synthesis.ipynb \
   python/testingaut.ipynb \
   python/twagraph-internals.ipynb \
   python/word.ipynb \

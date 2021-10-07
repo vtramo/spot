@@ -289,6 +289,7 @@ New in spot 2.9.8.dev (not yet released)
     https://spot.lrde.epita.fr/tut40.html for examples.
 
   - Bindings for functions related to syntethis and aig-circuits.
+    See https://spot.lrde.epita.fr/ipynb/synthesis.html
 
   - spot::twa::prop_set was previously abstent from the Python
     bindings, making it impossible to call make_twa_graph() for copying
