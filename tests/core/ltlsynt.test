@@ -243,7 +243,7 @@ diff outx exp
 
 
 for r in '' '--real'; do
-    opts="$r --ins=a --outs=b -f"
+    opts="$r --ins=a,c --outs=b -f"
     ltlsynt --algo=ds $opts 'GFa <-> GFb' --csv=FILE || :
     ltlsynt --algo=sd $opts 'FGa <-> GF(b&XXb)' --csv='>>FILE' || :
     ltlsynt --algo=ps $opts 'FGa <-> GF(b&XXb)' --csv='>>FILE' || :
@@ -533,3 +533,12 @@ ltlsynt --ins=a,b -f 'G (a & b <=> c)' >stdout
 diff stdout expected
 ltlsynt --outs=c -f 'G (a & b <=> c)' >stdout
 diff stdout expected
+
+
+ltlsynt --ins=a,b --outs=c,a -f 'GFa | FGc | GFb' 2>stderr && :
+test $? -eq 2
+grep "'a' appears both" stderr
+
+ltlsynt --ins=a --outs=c -f 'GFa | FGb | GFc' 2>stderr && :
+test $? -eq 2
+grep "but 'b' is unlisted" stderr

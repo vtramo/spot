@@ -555,10 +555,12 @@ namespace
     {
     }
 
-    int process_formula(spot::formula f, const char*, int) override
+    int process_formula(spot::formula f,
+                        const char* filename, int linenum) override
     {
       auto unknown_aps = [](spot::formula f,
-                            const std::vector<std::string>& known)
+                            const std::vector<std::string>& known,
+                            const std::vector<std::string>* known2 = nullptr)
       {
         std::vector<std::string> unknown;
         std::set<spot::formula> seen;
@@ -569,7 +571,10 @@ namespace
               if (!seen.insert(s).second)
                 return false;
               const std::string& a = s.ap_name();
-              if (std::find(known.begin(), known.end(), a) == known.end())
+              if (std::find(known.begin(), known.end(), a) == known.end()
+                  && (!known2
+                      || std::find(known2->begin(),
+                                   known2->end(), a) == known2->end()))
                 unknown.push_back(a);
             }
           return false;
@@ -580,11 +585,22 @@ namespace
       // Decide which atomic propositions are input or output.
       int res;
       if (input_aps_.empty() && !output_aps_.empty())
-        res = solve_formula(f, unknown_aps(f, output_aps_), output_aps_);
+        {
+          res = solve_formula(f, unknown_aps(f, output_aps_), output_aps_);
+        }
       else if (output_aps_.empty() && !input_aps_.empty())
-        res = solve_formula(f, input_aps_, unknown_aps(f, input_aps_));
+        {
+          res = solve_formula(f, input_aps_, unknown_aps(f, input_aps_));
+        }
       else
-        res = solve_formula(f, input_aps_, output_aps_);
+        {
+          for (const std::string& ap: unknown_aps(f, input_aps_, &output_aps_))
+            error_at_line(2, 0, filename, linenum,
+                          "both --ins and --outs are specified, "
+                          "but '%s' is unlisted",
+                          ap.c_str());
+          res = solve_formula(f, input_aps_, output_aps_);
+        }
 
       if (opt_csv)
         print_csv(f);
@@ -691,11 +707,10 @@ main(int argc, char **argv)
     check_no_formula();
 
     // Check if inputs and outputs are distinct
-    for (const auto& ai : all_input_aps)
+    for (const std::string& ai : all_input_aps)
       if (std::find(all_output_aps.begin(), all_output_aps.end(), ai)
           != all_output_aps.end())
-            throw std::runtime_error("ltlsynt(): " + ai +
-                                     " appears in the input AND output APs.");
+        error(2, 0, "'%s' appears both in --ins and --outs", ai.c_str());
 
     ltl_processor processor(all_input_aps, all_output_aps);
     if (int res = processor.run(); res == 0 || res == 1)
