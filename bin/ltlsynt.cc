@@ -63,9 +63,9 @@ static const argp_option options[] =
     { "outs", OPT_OUTPUT, "PROPS", 0,
       "comma-separated list of controllable (a.k.a. output) atomic"
       " propositions", 0},
-    { "ins", OPT_INPUT, "PROPS", OPTION_ARG_OPTIONAL,
+    { "ins", OPT_INPUT, "PROPS", 0,
       "comma-separated list of controllable (a.k.a. output) atomic"
-      " propositions. If unspecified its the complement of \"outs\".", 0},
+      " propositions", 0},
     /**************************************************/
     { nullptr, 0, nullptr, 0, "Fine tuning:", 10 },
     { "algo", OPT_ALGO, "sd|ds|ps|lar|lar.old", 0,

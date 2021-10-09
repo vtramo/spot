@@ -406,7 +406,7 @@ ltlsynt --outs=p0 -f '!XXF(p0 & (p0 M Gp0))' > out
 diff out exp
 
 f='Fp0 U XX((p0 & F!p1) | (!p0 & Gp1))'
-ltlsynt --verbose --algo=ps --outs=p1 --ins=p0 -f "$f" -x"dpa-simul=1" 2>err
+ltlsynt --verbose --algo=ps --outs p1 --ins p0 -f "$f" -x"dpa-simul=1" 2>err
 grep 'DPA has 13 states' err
 ltlsynt -x dpa-simul=0 --verbose --algo=ps --outs=p1 --ins=p0 -f "$f" 2>err
 grep 'DPA has 29 states' err
