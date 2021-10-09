@@ -225,7 +225,7 @@ namespace
     auto& vs = gi->verbose_stream;
     auto& bv = gi->bv;
     if (not bv)
-      throw std::runtime_error("No information available for csv!");
+      error(2, 0, "no information available for csv (please send bug report)");
     if (vs)
       *vs << "writing CSV to " << opt_csv << '\n';
 
@@ -444,8 +444,8 @@ namespace
           strategies.push_back(strat);
         break;
       default:
-        throw std::runtime_error("ltlsynt: Recieved unexpected success "
-                                 "code during strategy generation!");
+        error(2, 0, "unexpected success code during strategy generation "
+              "(please send bug report)");
       }
     }
 
@@ -523,16 +523,16 @@ namespace
         // Test the aiger
         auto saigaut = saig->as_automaton(false);
         if (neg_spec->intersects(saigaut))
-          throw std::runtime_error("Aiger and negated specification "
-                                   "do intersect -> strategy not OK.");
+          error(2, 0, "Aiger and negated specification do intersect: "
+                "circuit is not OK.");
         std::cout << "c\nCircuit was verified\n";
       }
     else if  (tot_strat)
       {
-        // Test the strat
+        // Test the strategy
         if (neg_spec->intersects(tot_strat))
-          throw std::runtime_error("Strategy and negated specification "
-                                   "do intersect -> strategy not OK.");
+          error(2, 0, "Strategy and negated specification do intersect: "
+                "strategy is not OK.");
         std::cout << "/*Strategy was verified*/\n";
       }
     // Done
