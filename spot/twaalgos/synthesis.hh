@@ -150,34 +150,28 @@ namespace spot
   /// \brief Creates a game from a specification and a set of
   /// output propositions
   ///
-  /// \param f The specification given as LTL/PSL formula
+  /// \param f The specification given as an LTL/PSL formula, or
+  ///          as a string.
   /// \param all_outs The names of all output propositions
   /// \param gi synthesis_info structure
   /// \note All propositions in the formula that do not appear in all_outs
-  /// arer treated as input variables.
+  /// are treated as input variables.
+  /// @{
   SPOT_API twa_graph_ptr
-  create_game(const formula& f,
+  ltl_to_game(const formula& f,
               const std::vector<std::string>& all_outs,
               synthesis_info& gi);
-
-  /// \ingroup synthesis
-  /// \brief create_game called with default options
   SPOT_API twa_graph_ptr
-  create_game(const formula& f,
+  ltl_to_game(const formula& f,
               const std::vector<std::string>& all_outs);
-
-  /// \ingroup synthesis
-  /// \brief Like create_game but formula given as string
   SPOT_API twa_graph_ptr
-  create_game(const std::string& f,
+  ltl_to_game(const std::string& f,
               const std::vector<std::string>& all_outs,
               synthesis_info& gi);
-
-  /// \ingroup synthesis
-  /// \brief create_game called with default options
   SPOT_API twa_graph_ptr
-  create_game(const std::string& f,
+  ltl_to_game(const std::string& f,
               const std::vector<std::string>& all_outs);
+  /// @}
 
   /// \ingroup synthesis
   /// \brief Takes a solved game and restricts the automaton to the

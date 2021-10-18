@@ -376,7 +376,7 @@ namespace
         }
       case 0:
         {
-          auto arena = spot::create_game(*sub_f, *sub_o, *gi);
+          auto arena = spot::ltl_to_game(*sub_f, *sub_o, *gi);
           if (gi->bv)
             {
               gi->bv->nb_states_arena += arena->num_states();

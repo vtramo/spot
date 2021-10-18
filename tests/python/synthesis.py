@@ -19,16 +19,16 @@
 
 import spot
 
-# A shared variable caused the 2nd call to create_game to give an incorrect
+# A shared variable caused the 2nd call to ltl_to_game to give an incorrect
 # result.
 for i in range(0, 2):
     gi = spot.synthesis_info()
     gi.s = spot.synthesis_info.algo_LAR
-    game = spot.create_game("(Ga) <-> (Fb)", ["b"], gi)
+    game = spot.ltl_to_game("(Ga) <-> (Fb)", ["b"], gi)
     assert not spot.solve_game(game)
 
 # A game can have only inputs
-game = spot.create_game("GFa", [])
+game = spot.ltl_to_game("GFa", [])
 assert(game.to_str() == """HOA: v1
 States: 3
 Start: 0

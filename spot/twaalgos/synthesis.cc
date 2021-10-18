@@ -808,7 +808,7 @@ namespace spot
   }
 
 
-  namespace // Anonymous create_game
+  namespace // Anonymous ltl_to_game
   {
     static translator
     create_translator(synthesis_info& gi)
@@ -873,7 +873,7 @@ namespace spot
   } // anonymous
 
   twa_graph_ptr
-  create_game(const formula& f,
+  ltl_to_game(const formula& f,
               const std::vector<std::string>& all_outs,
               synthesis_info& gi)
   {
@@ -1068,26 +1068,26 @@ namespace spot
   }
 
   twa_graph_ptr
-  create_game(const formula& f,
+  ltl_to_game(const formula& f,
               const std::vector<std::string>& all_outs)
   {
     synthesis_info dummy;
-    return create_game(f, all_outs, dummy);
+    return ltl_to_game(f, all_outs, dummy);
   }
 
   twa_graph_ptr
-  create_game(const std::string& f,
+  ltl_to_game(const std::string& f,
               const std::vector<std::string>& all_outs)
   {
-    return create_game(parse_formula(f), all_outs);
+    return ltl_to_game(parse_formula(f), all_outs);
   }
 
   twa_graph_ptr
-  create_game(const std::string& f,
+  ltl_to_game(const std::string& f,
               const std::vector<std::string>& all_outs,
               synthesis_info& gi)
   {
-    return create_game(parse_formula(f), all_outs, gi);
+    return ltl_to_game(parse_formula(f), all_outs, gi);
   }
 
   void

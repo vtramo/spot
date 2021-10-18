@@ -454,7 +454,7 @@ namespace spot
   /// Unless \a ins and \a outs are specified, only the propositions
   /// actually used in the strategy appear in the aiger circuit. So it
   /// can happen that, for instance, propositions marked as output
-  /// during the call to create_game are absent.
+  /// during the call to ltl_to_game() are absent.
   /// If \a ins and \a outs are used, all properties they list are
   /// guaranteed to appear in the aiger circuit.
   /// @{
