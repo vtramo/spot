@@ -592,6 +592,14 @@ namespace
         {
           res = solve_formula(f, input_aps_, unknown_aps(f, input_aps_));
         }
+      else if (output_aps_.empty() && input_aps_.empty())
+        {
+          for (const std::string& ap: unknown_aps(f, input_aps_, &output_aps_))
+            error_at_line(2, 0, filename, linenum,
+                          "one of --ins or --outs should list '%s'",
+                          ap.c_str());
+          res = solve_formula(f, input_aps_, output_aps_);
+        }
       else
         {
           for (const std::string& ap: unknown_aps(f, input_aps_, &output_aps_))

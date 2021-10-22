@@ -541,4 +541,7 @@ grep "'a' appears both" stderr
 
 ltlsynt --ins=a --outs=c -f 'GFa | FGb | GFc' 2>stderr && :
 test $? -eq 2
-grep "but 'b' is unlisted" stderr
+grep "both.*but 'b' is unlisted" stderr
+ltlsynt -f 'GFa | FGb | GFc' 2>stderr && :
+test $? -eq 2
+grep "one of --ins or --outs" stderr
