@@ -363,26 +363,23 @@ namespace spot
         return ns;
       };
 
-    std::vector<unsigned> to_treat(aut->num_edges());
-    std::transform(aut->edges().begin(), aut->edges().end(),
-                   to_treat.begin(), [&](const auto& e)
-                   { return aut->edge_number(e); });
-
-    std::for_each(to_treat.begin(), to_treat.end(),
-                  [&](unsigned eidx)
-                  {
-                    const auto& e = aut->edge_storage(eidx);
-                    bdd incond = bdd_exist(e.cond, output_bdd);
-                    bdd outcond = bdd_existcomp(e.cond, output_bdd);
-                    assert(((incond&outcond) == e.cond)
-                          && "Precondition violated");
-                    // Modify
-                    // Create new state and trans
-                    unsigned new_dst = get_ps(e.dst, outcond, e.acc);
-                    // redirect
-                    aut->edge_storage(eidx).dst = new_dst;
-                    aut->edge_storage(eidx).cond = incond;
-                  });
+    unsigned ne = aut->edge_vector().size();
+    for (unsigned eidx = 1; eidx < ne; ++eidx)
+      {
+        const auto& e = aut->edge_storage(eidx);
+        if (e.next_succ == eidx) // dead edge
+          continue;
+        bdd incond = bdd_exist(e.cond, output_bdd);
+        bdd outcond = bdd_existcomp(e.cond, output_bdd);
+        assert(((incond&outcond) == e.cond) && "Precondition violated");
+        // Create new state and trans
+        // this may invalidate "e".
+        unsigned new_dst = get_ps(e.dst, outcond, e.acc);
+        // redirect
+        auto& e2 = aut->edge_storage(eidx);
+        e2.dst = new_dst;
+        e2.cond = incond;
+      }
 
     auto* sp_ptr =
         aut->get_or_set_named_prop<std::vector<bool>>("state-player");
