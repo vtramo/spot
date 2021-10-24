@@ -354,7 +354,7 @@ namespace spot
         dst_cond_color_t key{std::make_pair(dst, ocond.id()),
                              color};
         auto [it, inserted] =
-            player_map.try_emplace(key, aut->num_states() + 1);
+            player_map.try_emplace(key, aut->num_states());
         if (!inserted)
           return it->second;
         unsigned ns = aut->new_state();

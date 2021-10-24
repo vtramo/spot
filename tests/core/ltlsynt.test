@@ -421,6 +421,12 @@ ltlsynt --outs=p1 -f "$f" -x"dpa-simul=1" --simpl=sat | grep 'States: 2'
 ltlsynt --outs=p1 -f "$f" -x"dpa-simul=1" --simpl=bisim-sat | grep 'States: 2'
 ltlsynt --outs=p1 -f "$f" -x"dpa-simul=1" --simpl=bwoa-sat | grep 'States: 4'
 
+# The following used to raise an exception because of a bug in
+# split_2step_fast_here().
+for i in 0 1 2 3 4 5; do
+    ltlsynt --ins=a -f 'GFa <-> GFb' --simplify=$i | grep 'States: 1'
+done
+
 cat >exp <<EOF
 REALIZABLE
 aag 34 4 3 2 27
