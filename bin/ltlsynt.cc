@@ -426,8 +426,10 @@ namespace
               unsigned simplify = gi->minimize_lvl;
               bool do_split = 3 <= simplify;
               if (do_split)
-                split_2step_fast_here(strat.strat_like,
-                    spot::get_synthesis_outputs(strat.strat_like));
+                strat.strat_like =
+                    split_2step(strat.strat_like,
+                                spot::get_synthesis_outputs(strat.strat_like),
+                                false);
               minimize_strategy_here(strat.strat_like, simplify);
               if (do_split)
                 strat.strat_like = spot::unsplit_2step(strat.strat_like);
