@@ -66,7 +66,7 @@ namespace spot
 
       state_hasher() = default;
 
-      brick::hash::hash128_t
+      auto
       hash(const product_state& lhs) const
       {
         StateHash hash;
@@ -97,8 +97,7 @@ namespace spot
   public:
 
     ///< \brief Shortcut to ease shared map manipulation
-    using shared_map = brick::hashset::FastConcurrent <product_state,
-                                                       state_hasher>;
+    using shared_map = brq::concurrent_hash_set<product_state, state_hasher>;
     using shared_struct = shared_map;
 
     static shared_struct* make_shared_structure(shared_map m, unsigned i)

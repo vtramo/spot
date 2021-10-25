@@ -64,6 +64,34 @@ namespace spot
     return (key >> 3) * 2654435761U;
   }
 
+  /// \brief Jenkins lookup3 hash function.
+  ///
+  /// https://burtleburtle.net/bob/c/lookup3.c
+  #define _jenkins_rot(x, k) (((x)<<(k)) | ((x)>>(32-(k))))
+  inline size_t
+  lookup3_hash(size_t key)
+  {
+    size_t s1, s2;
+    s1 = s2 = 0xdeadbeef;
+
+    s2  ^= s1;
+    s2  -= _jenkins_rot(s1, 14);
+    key ^= s2;
+    key -= _jenkins_rot(s2, 11);
+    s1  ^= key;
+    s1  -= _jenkins_rot(key, 25);
+    s2  ^= s1;
+    s2  -= _jenkins_rot(s1, 16);
+    key ^= s2;
+    key -= _jenkins_rot(s2, 4);
+    s1  ^= key;
+    s1  -= _jenkins_rot(key, 14);
+    s2  ^= s1;
+    s2  -= _jenkins_rot(s1, 24);
+
+    return s2;
+  }
+
 
   /// Struct for Fowler-Noll-Vo parameters
   template<class T, class Enable = void>

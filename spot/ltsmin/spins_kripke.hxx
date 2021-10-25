@@ -70,7 +70,7 @@ namespace spot
     int hash_value = 0;
     memcpy(unbox_state(out), ref, size * sizeof(int));
     for (unsigned int i = 0; i < state_size_; ++i)
-      hash_value = wang32_hash(hash_value ^ dst[i]);
+      hash_value = lookup3_hash(hash_value ^ dst[i]);
     out[0] = hash_value;
     out[1] = size;
     return out;

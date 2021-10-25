@@ -57,19 +57,17 @@ namespace spot
     /// \brief Describes the structure of a shared state
     struct deadlock_pair
     {
-      //      deadlock_pair() = delete;
-
       State st;                 ///< \brief the effective state
       int* colors;              ///< \brief the colors (one per thread)
-
+      int hash = 0;
       bool operator==(deadlock_pair b) const
       {
         StateEqual eq;
-        return eq(st, b.st);
+        return (hash == b.hash) && eq(st, b.st);
       }
 
-    };
 
+    };
 
     /// \brief The haser for the previous state.
     struct pair_hasher : brq::hash_adaptor<deadlock_pair>
@@ -78,10 +76,7 @@ namespace spot
       hash(const deadlock_pair lhs) const
       {
         StateHash hash;
-        // Not modulo 31 according to brick::hashset specifications.
-        unsigned u = hash(lhs.st);//  % (1<<30);
-        //  uint64_t tmp =
-        // (uint64_t) (brq::hash(hash(lhs.st))  << 32 | brq::hash(hash(lhs.st) ));
+        unsigned u = hash(lhs.st);
         return u;
       }
     };
@@ -98,11 +93,14 @@ namespace spot
     {
       std::atomic<unsigned> unique = 0;
       concurrent_bloom_filter* bloom_filter_ = nullptr;
+      std::atomic<unsigned> limit = 0;
     };
 
     using shared_struct = shared_deadlock;
 
-    static shared_struct* make_shared_structure(shared_map, unsigned tid)
+    static shared_struct* make_shared_structure(shared_map, unsigned tid,
+                                                size_t hs_size,
+                                                size_t filter_size)
     {
       static shared_struct *result =  nullptr;
 
@@ -110,12 +108,12 @@ namespace spot
       // Problem description: make_shared_struct is a singleton.
       // Everything works perfectly but when spawning consecutives
       // instances of this algorithm, shared_deadlock is not reseted
-      // by mc_instanciator... Since we knwo that mc_instanciator first
+      // by mc_instanciator... Since we know that mc_instanciator first
       // work with tid 0, the line below perform the reset.
       if (tid == 0)
         {
           result = new shared_struct{0,
-            new concurrent_bloom_filter((size_t) 10000) } ;
+            new concurrent_bloom_filter((size_t) 100000) } ;
         }
       return result;
     }
@@ -141,7 +139,7 @@ namespace spot
     {
       while (!todo_.empty())
         {
-          sys_.recycle(todo_.back().it, tid_);
+          //sys_.recycle(todo_.back().it, tid_);
           todo_.pop_back();
         }
     }
@@ -200,16 +198,19 @@ namespace spot
         ref[i] = UNKNOWN;
 
       // Try to insert the new state in the shared map.
-      deadlock_pair v  {s, ref};
-      static auto fn_hash = pair_hasher();
-      auto it = map_.insert(v, fn_hash);
+      deadlock_pair v  { s, ref, s[0]};
 
+      static auto fn_hash = pair_hasher();
+
+      StateHash sh;
+      if (auto it = map_.find(v, fn_hash); !it.isnew() &&
+          ss_->bloom_filter_->contains(sh(s)))
+        return false;
+
+
+      auto it = map_.insert(v, fn_hash);
       auto colors = it->colors;
       auto st = it->st;
-
-      // assert(colors);
-      // assert(st);
-      //      assert(it.valid());
 
       bool b = it.isnew();
 
@@ -243,7 +244,7 @@ namespace spot
     {
       StateHash sh;
       ss_->bloom_filter_->insert(sh(todo_.back().s));
-
+      deadlock_pair v  {todo_.back().s, refs_.back()};
 
       // Track maximum dfs size
       dfs_ = todo_.size()  > dfs_ ? todo_.size() : dfs_;
@@ -252,6 +253,8 @@ namespace spot
       // during backtrack
       refs_.back()[tid_] = CLOSED;
       refs_.pop_back();
+      map_.erase(v, pair_hasher());
+
       return true;
     }
 

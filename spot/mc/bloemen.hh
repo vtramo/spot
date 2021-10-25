@@ -72,7 +72,7 @@ namespace spot
 
       uf_element_hasher() = default;
 
-      brick::hash::hash128_t
+      auto
       hash(const uf_element* lhs) const
       {
         StateHash hash;
@@ -90,8 +90,8 @@ namespace spot
     };
 
     ///< \brief Shortcut to ease shared map manipulation
-    using shared_map = brick::hashset::FastConcurrent <uf_element*,
-                                                       uf_element_hasher>;
+    using shared_map = brq::concurrent_hash_set<uf_element*,
+                                                uf_element_hasher>;
 
     iterable_uf(const iterable_uf<State, StateHash, StateEqual>& uf):
       map_(uf.map_), tid_(uf.tid_), size_(std::thread::hardware_concurrency()),

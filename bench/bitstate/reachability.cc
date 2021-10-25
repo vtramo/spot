@@ -98,20 +98,23 @@ static void run_one_reachability_bench(spot::ltsmin_kripkecube_ptr sys,
   auto stats =
     spot::instanciate
     <spot::swarmed_deadlock<State, Iterator, Hash, Equal, std::false_type>,
-     Kripke_ptr, State, Iterator, Hash, Equal>(sys, nullptr, false);
+     Kripke_ptr, State, Iterator, Hash, Equal>(sys, nullptr, false,
+                                               hs_size, bf_size);
   tm.stop("run");
 
   // Print stats
-  std::cout << "#model,nb_threads,%ht-bf,ht_size,bf_size,time,states"
+  std::cout << "#model,nb_threads,%ht-bf,ht_size,bf_size,time,states,throughput"
             << std::endl;
   std::cout << model_name << ','
             << sys->get_threads() << ','
             << repartition << ','
             << hs_size << ","
             << bf_size << ","
-            <<  tm.timer("run").walltime()
+            << tm.timer("run").walltime()
             << ','
             << stats.unique_states
+            << ','
+            << stats.unique_states / tm.timer("run").walltime()
             << "\n";
 }
 
