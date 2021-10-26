@@ -58,7 +58,7 @@ namespace spot
     struct deadlock_pair
     {
       State st;                 ///< \brief the effective state
-      int* colors;              ///< \brief the colors (one per thread)
+      std::atomic<int>* colors;              ///< \brief the colors (one per thread)
       int hash = 0;
       bool operator==(deadlock_pair b) const
       {
@@ -93,6 +93,7 @@ namespace spot
     {
       std::atomic<unsigned> unique = 0;
       concurrent_bloom_filter* bloom_filter_ = nullptr;
+      std::atomic<unsigned> deleted = 0;
       std::atomic<unsigned> limit = 0;
     };
 
@@ -113,7 +114,8 @@ namespace spot
       if (tid == 0)
         {
           result = new shared_struct{0,
-            new concurrent_bloom_filter((size_t) 100000) } ;
+            new concurrent_bloom_filter((size_t) 100000),
+            0, 0} ;
         }
       return result;
     }
@@ -126,7 +128,7 @@ namespace spot
                      std::atomic<bool>& stop):
       sys_(sys), tid_(tid), map_(map), ss_(ss),
       nb_th_(std::thread::hardware_concurrency()),
-      p_(sizeof(int)*std::thread::hardware_concurrency()),
+      p_(sizeof(std::atomic<int>)*std::thread::hardware_concurrency()),
       stop_(stop)
     {
       static_assert(spot::is_a_kripkecube_ptr<decltype(&sys),
@@ -193,9 +195,9 @@ namespace spot
     bool push(State s)
     {
       // Prepare data for a newer allocation
-      int* ref = (int*) p_.allocate();
+      std::atomic<int>* ref = (std::atomic<int>*) p_.allocate();
       for (unsigned i = 0; i < nb_th_; ++i)
-        ref[i] = UNKNOWN;
+        ref[i].store(UNKNOWN, std::memory_order_relaxed);
 
       // Try to insert the new state in the shared map.
       deadlock_pair v  { s, ref, s[0]};
@@ -223,18 +225,20 @@ namespace spot
 
       // The state has been mark dead by another thread
       for (unsigned i = 0; !b && i < nb_th_; ++i)
-        if (colors[i] == static_cast<int>(CLOSED))
+        if (colors[i].load(std::memory_order_relaxed)
+            == static_cast<int>(CLOSED))
           return false;
 
       // The state has already been visited by the current thread
-      if (colors[tid_] == static_cast<int>(OPEN))
+      if (colors[tid_].load(std::memory_order_relaxed)
+          == static_cast<int>(OPEN))
         return false;
 
       // Keep a ptr over the array of colors
       refs_.push_back(colors);
 
       // Mark state as visited.
-      colors[tid_] = OPEN;
+      colors[tid_].store(OPEN, std::memory_order_relaxed);
       ++states_;
 
       return true;
@@ -251,10 +255,18 @@ namespace spot
 
       // Don't avoid pop but modify the status of the state
       // during backtrack
-      refs_.back()[tid_] = CLOSED;
+      refs_.back()[tid_].store(CLOSED, std::memory_order_relaxed);
       refs_.pop_back();
-      map_.erase(v, pair_hasher());
 
+
+      for (unsigned i = 0;  i < nb_th_; ++i)
+        if (v.colors[i].load(std::memory_order_relaxed)
+            == static_cast<int>(OPEN))
+          return true; // FIXME? should we return false?
+
+
+      map_.erase(v, pair_hasher());
+      ss_->deleted.fetch_add(1, std::memory_order_relaxed);
       return true;
     }
 
@@ -343,7 +355,7 @@ namespace spot
     std::atomic<bool>& stop_;              ///< \brief Stop-the-world boolean
     /// \brief Stack that grows according to the todo stack. It avoid multiple
     /// concurent access to the shared map.
-    std::vector<int*> refs_;
+    std::vector<std::atomic<int>*> refs_;
     bool finisher_ = false;
   };
 }
