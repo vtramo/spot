@@ -114,8 +114,10 @@ namespace spot
       if (tid == 0)
         {
           result = new shared_struct{0,
-            new concurrent_bloom_filter((size_t) 100000),
-            0, 0} ;
+            //            new concurrent_bloom_filter((size_t) 100000),
+            new concurrent_bloom_filter((size_t) filter_size),
+            0, hs_size} ;
+            // 0, 1000000} ;
         }
       return result;
     }
@@ -267,6 +269,14 @@ namespace spot
 
       map_.erase(v, pair_hasher());
       ss_->deleted.fetch_add(1, std::memory_order_relaxed);
+
+      auto approx = ss_->unique.load(std::memory_order_relaxed)
+        - ss_->deleted.load(std::memory_order_relaxed);
+
+      if (SPOT_UNLIKELY(approx >= ss_->limit ))
+        stop_ = true;;
+
+
       return true;
     }
 
