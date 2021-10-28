@@ -144,7 +144,7 @@ namespace spot
     {
       while (!todo_.empty())
         {
-          //sys_.recycle(todo_.back().it, tid_);
+          sys_.recycle(todo_.back().it, tid_);
           todo_.pop_back();
         }
     }
@@ -218,7 +218,6 @@ namespace spot
       auto it = map_.insert(v, fn_hash);
       auto colors = it->colors;
       auto st = it->st;
-
       bool b = it.isnew();
 
       // Insertion failed, delete element
