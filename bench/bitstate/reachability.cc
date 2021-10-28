@@ -36,38 +36,11 @@
 #include <thread>
 #include <vector>
 
-struct reachability_model
-{
-  std::string path;
-  std::size_t nb_states;
-};
-
 using Kripke_ptr = spot::ltsmin_kripkecube_ptr;
 using State = spot::cspins_state;
 using Iterator = spot::cspins_iterator;
 using Hash = spot::cspins_state_hash;
 using Equal = spot::cspins_state_equal;
-
-static std::vector<reachability_model> parse_config(std::string path)
-{
-  std::vector<reachability_model> models;
-  std::ifstream config(path);
-  std::string line;
-
-  while (std::getline(config, line))
-  {
-    if (line.empty() || line[0] == '#')
-      continue;
-
-    std::stringstream linestream(line);
-    std::string model_path;
-    std::size_t model_nb_states;
-    linestream >> model_path >> model_nb_states;
-    models.push_back({model_path, model_nb_states});
-  }
-
-  return models;
-}
 
 static spot::ltsmin_kripkecube_ptr load_model(std::string path,
                                               unsigned nb_threads)
@@ -120,37 +93,37 @@ static void run_one_reachability_bench(spot::ltsmin_kripkecube_ptr sys,
 
 int main(int argc, char** argv)
 {
-  if (argc != 3)
+  if (argc != 5)
     {
-      std::cout << "Usage: ./reachability-2021 [CONFIG_PATH] nb_threads\n";
+      std::cout << "Usage: ./reachability-2021 [model] [nbthread]"
+                << "[mem (size)] [bloomfilter repartition]\n";
       return 1;
     }
 
-  auto models = parse_config(argv[1]);
+  std::string model = argv[1];
   unsigned nb_threads = (unsigned) atoi(argv[2]);
+  unsigned mem = (unsigned) atoi(argv[3]);
+  unsigned bf_percentage = (unsigned) atoi(argv[4]);
 
-  for (auto model : models)
+  auto sys = load_model(model, nb_threads);
+  if (!sys)
     {
-      auto sys = load_model(model.path, nb_threads);
-      if (!sys)
-        {
-          std::cerr << "Could not load model: "
-                    << model.path << " (skipping)\n";
-          continue;
-        }
-
-      // XXX: we allow for only 80% memory based on what we should use
-      // to explore the full graph
-      std::size_t allowed_mem = model.nb_states * 0.8f;
-      for (int i = 5; i < 100; i += 5)
-        {
-          std::size_t hash_set_size = allowed_mem * (double) i / 100.;
-          std::size_t bloom_filter_size = allowed_mem - hash_set_size;
-
-          run_one_reachability_bench(sys, hash_set_size,
-                                     bloom_filter_size, model.path, i);
-        }
+      std::cerr << "Could not load model: "  << model << " (skipping)\n";
+      exit(1);
     }
+
+  // FIXME: Here mem is splitted in two parts:
+  //   - the size of the bloom filter
+  //   - the size of the hashmap
+  // This is OK for the Bloom Filter but this could be refined for the
+  // Hashmap. Indeed, the size of the hashmap is an underapproximation
+  // since the real size (in octe) should take in account the size of
+  // each states.
+  std::size_t hash_set_size = mem * (double) (100-bf_percentage) / 100.;
+  std::size_t bloom_filter_size = mem - hash_set_size;
+
+  run_one_reachability_bench(sys, hash_set_size,
+                             bloom_filter_size, model, bf_percentage);
 
   return 0;
 }
