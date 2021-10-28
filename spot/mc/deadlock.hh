@@ -43,7 +43,7 @@ namespace spot
   /// otherwise perform a simple reachability.
   template<typename State, typename SuccIterator,
            typename StateHash, typename StateEqual,
-           typename Deadlock>
+           typename Deadlock, typename Bloomfilter = std::true_type>
   class SPOT_API swarmed_deadlock
   {
     /// \brief Describes the status of a state
@@ -58,15 +58,13 @@ namespace spot
     struct deadlock_pair
     {
       State st;                 ///< \brief the effective state
-      std::atomic<int>* colors;              ///< \brief the colors (one per thread)
+      std::atomic<int>* colors; ///< \brief the colors (one per thread)
       int hash = 0;
       bool operator==(deadlock_pair b) const
       {
         StateEqual eq;
         return (hash == b.hash) && eq(st, b.st);
       }
-
-
     };
 
     /// \brief The haser for the previous state.
@@ -83,6 +81,9 @@ namespace spot
 
     static constexpr bool compute_deadlock =
        std::is_same<std::true_type, Deadlock>::value;
+
+    static constexpr bool use_bloomfilter =
+    std::is_same<std::true_type, Bloomfilter>::value;
 
   public:
 
@@ -114,10 +115,10 @@ namespace spot
       if (tid == 0)
         {
           result = new shared_struct{0,
-            //            new concurrent_bloom_filter((size_t) 100000),
-            new concurrent_bloom_filter((size_t) filter_size),
-            0, hs_size} ;
-            // 0, 1000000} ;
+            use_bloomfilter ?
+                new concurrent_bloom_filter((size_t) filter_size):
+                nullptr,
+            0, hs_size};
         }
       return result;
     }
@@ -206,11 +207,13 @@ namespace spot
 
       static auto fn_hash = pair_hasher();
 
-      StateHash sh;
-      if (auto it = map_.find(v, fn_hash); !it.isnew() &&
-          ss_->bloom_filter_->contains(sh(s)))
-        return false;
-
+      if (use_bloomfilter)
+        {
+          StateHash sh;
+          if (auto it = map_.find(v, fn_hash); !it.isnew() &&
+              ss_->bloom_filter_->contains(sh(s)))
+            return false;
+        }
 
       auto it = map_.insert(v, fn_hash);
       auto colors = it->colors;
@@ -249,8 +252,13 @@ namespace spot
     bool pop()
     {
       StateHash sh;
-      ss_->bloom_filter_->insert(sh(todo_.back().s));
-      deadlock_pair v  {todo_.back().s, refs_.back()};
+      deadlock_pair v;
+
+      if (use_bloomfilter)
+        {
+          ss_->bloom_filter_->insert(sh(todo_.back().s));
+          v =  {todo_.back().s, refs_.back()};
+        }
 
       // Track maximum dfs size
       dfs_ = todo_.size()  > dfs_ ? todo_.size() : dfs_;
@@ -261,21 +269,22 @@ namespace spot
       refs_.pop_back();
 
 
-      for (unsigned i = 0;  i < nb_th_; ++i)
-        if (v.colors[i].load(std::memory_order_relaxed)
-            == static_cast<int>(OPEN))
-          return true; // FIXME? should we return false?
+      if (use_bloomfilter)
+        {
+          for (unsigned i = 0;  i < nb_th_; ++i)
+            if (v.colors[i].load(std::memory_order_relaxed)
+                == static_cast<int>(OPEN))
+              return true; // FIXME? should we return false?
 
-
-      map_.erase(v, pair_hasher());
-      ss_->deleted.fetch_add(1, std::memory_order_relaxed);
+          map_.erase(v, pair_hasher());
+          ss_->deleted.fetch_add(1, std::memory_order_relaxed);
+        }
 
       auto approx = ss_->unique.load(std::memory_order_relaxed)
         - ss_->deleted.load(std::memory_order_relaxed);
 
       if (SPOT_UNLIKELY(approx >= ss_->limit ))
         stop_ = true;;
-
 
       return true;
     }

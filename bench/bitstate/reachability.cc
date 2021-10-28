@@ -68,11 +68,26 @@ static void run_one_reachability_bench(spot::ltsmin_kripkecube_ptr sys,
 {
   spot::timer_map tm;
   tm.start("run");
-  auto stats =
-    spot::instanciate
-    <spot::swarmed_deadlock<State, Iterator, Hash, Equal, std::false_type>,
-     Kripke_ptr, State, Iterator, Hash, Equal>(sys, nullptr, false,
-                                               hs_size, bf_size);
+
+
+  spot::ec_stats stats;
+
+  if (repartition)
+    stats =
+      spot::instanciate
+      <spot::swarmed_deadlock<State, Iterator, Hash, Equal, std::false_type,
+                              std::true_type>,
+       Kripke_ptr, State, Iterator, Hash, Equal>(sys, nullptr, false,
+                                                 hs_size, bf_size);
+  else // do not use bloom filter but restrict size of the Hashmap
+    stats =
+      spot::instanciate
+      <spot::swarmed_deadlock<State, Iterator, Hash, Equal, std::false_type,
+                              std::false_type>,
+       Kripke_ptr, State, Iterator, Hash, Equal>(sys, nullptr, false,
+                                                 hs_size, bf_size);
+
+
   tm.stop("run");
 
   // Print stats
