@@ -50,10 +50,8 @@ namespace spot
     void set(size_t bit)
     {
       // bits_[get_index(bit)] |= get_mask(bit);
-
-      auto tmp = bits_[get_index(bit)].load(std::memory_order_relaxed);
-      bits_[get_index(bit)].store(tmp |= get_mask(bit),
-                                  std::memory_order_relaxed);
+      auto tmp = get_mask(bit);
+      bits_[get_index(bit)].fetch_or(tmp,  std::memory_order_relaxed);
     }
 
     bool test(size_t bit) const
