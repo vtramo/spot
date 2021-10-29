@@ -413,6 +413,7 @@ TESTS_python = \
   python/ltlparse.py \
   python/ltlsimple.py \
   python/mealy.py \
+  python/_mealy.ipynb \
   python/merge.py \
   python/mergedge.py \
   python/minato.py \

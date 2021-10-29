@@ -159,6 +159,9 @@ New in spot 2.9.8.dev (not yet released)
   - print_dot() will display states from player 1 using a diamond
     shape.
 
+  - print_dot() learned to display automata that correspond to Mealy
+    machines specifically.
+
   - print_dot() has a new option "i" to define id=... attributes for
     states (S followed by the state number), edges (E followed by the
     edge number), and SCCs (SCC followed by SCC number).  The option

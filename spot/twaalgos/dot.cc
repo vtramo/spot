@@ -126,6 +126,8 @@ namespace spot
       unsigned max_states_ = -1U; // related to max_states_given_
 
       bool opt_shared_univ_dest_ = true;
+      bool opt_mealy_ = false;
+      bdd opt_mealy_output_;
 
     public:
 
@@ -456,9 +458,8 @@ namespace spot
       }
 
       std::ostream&
-      format_label(std::ostream& os, bdd label) const
+      format_label(std::ostream& os, formula f) const
       {
-        formula f = bdd_to_formula(label, aut_->get_dict());
         if (opt_latex_)
           {
             print_sclatex_psl(os << '$', f) << '$';
@@ -476,6 +477,12 @@ namespace spot
       }
 
       std::ostream&
+      format_label(std::ostream& os, bdd label) const
+      {
+        return format_label(os, bdd_to_formula(label, aut_->get_dict()));
+      }
+
+      std::ostream&
       format_state_label(std::ostream& os, unsigned s) const
       {
         bdd label = bddfalse;
@@ -488,6 +495,67 @@ namespace spot
             && incomplete_ && incomplete_->find(s) != incomplete_->end())
             return os << "...";
         return format_label(os, label);
+      }
+
+      std::ostream&
+      format_mealy(std::ostream& os,
+                   bdd in,
+                   bdd out) const
+      {
+        format_label(os, in);
+        if (opt_html_labels_)
+          os << "</TD><TD>/</TD><TD ALIGN=\"LEFT\" BGCOLOR=\"#ffe5f1\">";
+        else
+          os << " / ";
+        format_label(os, out);
+        return os;
+      }
+
+      std::ostream&
+      format_mealy(std::ostream& os, bdd cond) const
+      {
+        if (opt_html_labels_)
+          os << ("<TABLE BORDER=\"0\"><TR><TD ALIGN=\"RIGHT\""
+                 " BGCOLOR=\"#e9f4fb\">");
+        // Is the label is separable?
+        bdd in = bdd_exist(cond, opt_mealy_output_);
+        bdd out = bdd_existcomp(cond, opt_mealy_output_);
+        if (cond == (in & out))
+          {
+            format_mealy(os, in, out);
+          }
+        else
+          {
+            // Otherwise, present it as a sum of separable labels.
+            std::map<bdd, bdd, bdd_less_than_stable> in_out;
+            bdd sup = bdd_support(cond);
+            for (bdd cond: minterms_of(cond, sup))
+              {
+                bdd in = bdd_exist(cond, opt_mealy_output_);
+                bdd out = bdd_existcomp(cond, opt_mealy_output_);
+                if (auto p = in_out.emplace(in, out); !p.second)
+                  p.first->second |= out;
+              }
+            std::map<bdd, bdd, bdd_less_than_stable> out_in;
+            for (auto [in, out]: in_out)
+              if (auto p = out_in.emplace(out, in); !p.second)
+                p.first->second |= in;
+            bool first = true;
+            for (auto [out, in]: out_in)
+              {
+                if (!first)
+                  {
+                    if (opt_html_labels_)
+                      os << ("</TD></TR><TR><TD ALIGN=\"RIGHT\""
+                             " BGCOLOR=\"#e9f4fb\">");
+                    else
+                      os << '\n';
+                  }
+                format_mealy(os, in, out);
+                first = false;
+              }
+          }
+        return os;
       }
 
       std::string string_dst(int dst, int color_num = -1)
@@ -816,15 +884,28 @@ namespace spot
               }
             os_ << " [" << label_pre_;
             if (!opt_state_labels_ && opt_showlabel_)
-              format_label(os_, t.cond);
+              {
+                if (opt_mealy_)
+                  format_mealy(os_, t.cond);
+                else
+                  format_label(os_, t.cond);
+              }
             if (!mark_states_)
               if (auto a = t.acc)
                 {
                   if (!opt_state_labels_ && opt_showlabel_)
-                    os_ << nl_;
+                    {
+                      if (opt_mealy_ && opt_html_labels_)
+                        os_ << "</TD></TR><TR><TD COLSPAN=\"3\">";
+                      else
+                        os_ << nl_;
+                    }
                   output_mark(a);
                 }
-            os_ << label_post_;
+            if (opt_mealy_ && opt_html_labels_)
+              os_ << "</TD></TR></TABLE>>";
+            else
+              os_ << label_post_;
             if (opt_ordered_edges_ || opt_numbered_edges_)
               {
                 os_ << ", taillabel=\"";
@@ -929,6 +1010,16 @@ namespace spot
                              return p.second >= palette_mod / 2;
                            }) != e;
           }
+        // setup Mealy machine rendering.
+        if (!aut->get_named_prop<std::vector<bool>>("state-player"))
+          if (auto p = aut->get_named_prop<bdd>("synthesis-outputs"))
+            {
+              if (aut->acc().is_t())
+                opt_show_acc_ = false;
+              bdd out = *p;
+              opt_mealy_output_ = out;
+              opt_mealy_ = true;
+            }
         incomplete_ =
           aut->get_named_prop<std::set<unsigned>>("incomplete-states");
         state_player_ =
