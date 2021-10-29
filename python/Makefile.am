@@ -77,10 +77,14 @@ am__depfiles_remade += ./spot/$(DEPDIR)/impl_wrap.Pcxx
 @AMDEP_TRUE@@am__include@ @am__quote@./spot/$(DEPDIR)/impl_wrap.Pcxx@am__quote@ # am--include-marker
 
 ${srcdir}/spot/impl_wrap.cxx: spot/impl.i
+if AMDEP
 	$(SWIG) $(SWIGFLAGS) -I$(srcdir) -I$(top_srcdir) -MF spot/$(DEPDIR)/impl_wrap.TPcxx $(srcdir)/spot/impl.i
+	mv spot/$(DEPDIR)/impl_wrap.TPcxx spot/$(DEPDIR)/impl_wrap.Pcxx
+else
+	$(SWIG) $(SWIGFLAGS) -I$(srcdir) -I$(top_srcdir) $(srcdir)/spot/impl.i
+endif
 ## work around https://github.com/swig/swig/issues/1553
 	$(PERL) -pi -e 's/^#define SWIG_Python_CallFunctor.*/#define SWIG_Python_CallFunctor(functor, obj) PyObject_CallFunctionObjArgs(functor, obj, NULL);/' $@
-	mv spot/$(DEPDIR)/impl_wrap.TPcxx spot/$(DEPDIR)/impl_wrap.Pcxx
 
 spot/impl.py: spot/impl.i
 	$(MAKE) $(AM_MAKEFLAGS) spot/impl_wrap.cxx
@@ -98,8 +102,12 @@ am__depfiles_remade += ./spot/$(DEPDIR)/ltsmin_wrap.Pcxx
 @AMDEP_TRUE@@am__include@ @am__quote@./spot/$(DEPDIR)/ltsmin_wrap.Pcxx@am__quote@ # am--include-marker
 
 ${srcdir}/spot/ltsmin_wrap.cxx: spot/ltsmin.i
+if AMDEP
 	$(SWIG) $(SWIGFLAGS) -I$(srcdir) -I$(top_srcdir) -MF spot/$(DEPDIR)/ltsmin_wrap.TPcxx $(srcdir)/spot/ltsmin.i
 	mv spot/$(DEPDIR)/ltsmin_wrap.TPcxx spot/$(DEPDIR)/ltsmin_wrap.Pcxx
+else
+	$(SWIG) $(SWIGFLAGS) -I$(srcdir) -I$(top_srcdir) $(srcdir)/spot/ltsmin.i
+endif
 
 spot/ltsmin.py: spot/ltsmin.i
 	$(MAKE) $(AM_MAKEFLAGS) spot/ltsmin_wrap.cxx
@@ -117,8 +125,12 @@ am__depfiles_remade += ./spot/$(DEPDIR)/gen_wrap.Pcxx
 @AMDEP_TRUE@@am__include@ @am__quote@./spot/$(DEPDIR)/gen_wrap.Pcxx@am__quote@ # am--include-marker
 
 ${srcdir}/spot/gen_wrap.cxx: spot/gen.i
+if AMDEP
 	$(SWIG) $(SWIGFLAGS) -I$(srcdir) -I$(top_srcdir) -MF spot/$(DEPDIR)/gen_wrap.TPcxx $(srcdir)/spot/gen.i
 	mv spot/$(DEPDIR)/gen_wrap.TPcxx spot/$(DEPDIR)/gen_wrap.Pcxx
+else
+	$(SWIG) $(SWIGFLAGS) -I$(srcdir) -I$(top_srcdir) $(srcdir)/spot/gen.i
+endif
 
 spot/gen.py: spot/gen.i
 	$(MAKE) $(AM_MAKEFLAGS) spot/gen_wrap.cxx
@@ -134,8 +146,12 @@ am__depfiles_remade += ./$(DEPDIR)/buddy_wrap.Pcxx
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/buddy_wrap.Pcxx@am__quote@ # am--include-marker
 
 ${srcdir}/buddy_wrap.cxx: buddy.i
+if AMDEP
 	$(SWIG) $(SWIGFLAGS) $(BUDDY_CPPFLAGS) -MF $(DEPDIR)/buddy_wrap.TPcxx $(srcdir)/buddy.i
 	mv $(DEPDIR)/buddy_wrap.TPcxx $(DEPDIR)/buddy_wrap.Pcxx
+else
+	$(SWIG) $(SWIGFLAGS) $(BUDDY_CPPFLAGS) $(srcdir)/buddy.i
+endif
 
 buddy.py: buddy.i
 	$(MAKE) $(AM_MAKEFLAGS) buddy_wrap.cxx
