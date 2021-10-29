@@ -1956,19 +1956,19 @@ namespace spot
       {
         switch (strat_vec[i].success)
         {
-        case -1:
+        case strategy_like_t::realizability_code::UNREALIZABLE:
           throw std::runtime_error("strategies_to_aig(): Partial strat is "
                                    "not feasible!");
-        case 0:
+        case strategy_like_t::realizability_code::UNKNOWN:
           throw std::runtime_error("strategies_to_aig(): Partial strat has "
                                    "unknown status!");
-        case 1:
+        case strategy_like_t::realizability_code::REALIZABLE_REGULAR:
         {
           strategies.push_back(strat_vec[i].strat_like);
           outs_used.push_back(outs[i]);
           break;
         }
-        case 2:
+        case strategy_like_t::realizability_code::REALIZABLE_DTGBA:
           throw std::runtime_error("strategies_to_aig(): TGBA not "
                                    "yet supported.");
         default:

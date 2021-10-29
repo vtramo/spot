@@ -359,22 +359,27 @@ namespace
 
     for (; sub_f != sub_form.end(); ++sub_f, ++sub_o)
     {
+      spot::strategy_like_t strat
+              {
+                spot::strategy_like_t::realizability_code::UNKNOWN,
+                nullptr,
+                bddfalse
+              };
       // If we want to print a game,
       // we never use the direct approach
-      spot::strategy_like_t strat{0, nullptr, bddfalse};
       if (!want_game)
         strat =
             spot::try_create_direct_strategy(*sub_f, *sub_o, *gi);
 
       switch (strat.success)
       {
-      case -1:
+      case spot::strategy_like_t::realizability_code::UNREALIZABLE:
         {
           std::cout << "UNREALIZABLE" << std::endl;
           safe_tot_time();
           return 1;
         }
-      case 0:
+      case spot::strategy_like_t::realizability_code::UNKNOWN:
         {
           auto arena = spot::ltl_to_game(*sub_f, *sub_o, *gi);
           if (gi->bv)
@@ -400,14 +405,15 @@ namespace
           if (!opt_real)
             {
               spot::strategy_like_t sl;
-              sl.success = 1;
+              sl.success =
+                spot::strategy_like_t::realizability_code::REALIZABLE_REGULAR;
               sl.strat_like = spot::create_strategy(arena, *gi);
               sl.glob_cond = bddfalse;
               strategies.push_back(sl);
             }
           break;
         }
-      case 1:
+      case spot::strategy_like_t::realizability_code::REALIZABLE_REGULAR:
         {
           // the direct approach yielded a strategy
           // which can now be minimized
@@ -439,7 +445,7 @@ namespace
             }
           SPOT_FALLTHROUGH;
         }
-      case 2:
+      case spot::strategy_like_t::realizability_code::REALIZABLE_DTGBA:
         if (!opt_real)
           strategies.push_back(strat);
         break;
@@ -498,8 +504,11 @@ namespace
       }
     else
       {
-        assert(std::all_of(strategies.begin(), strategies.end(),
-                           [](const auto& sl){return sl.success == 1; })
+        assert(std::all_of(
+          strategies.begin(), strategies.end(),
+          [](const auto& sl)
+          {return sl.success ==
+              spot::strategy_like_t::realizability_code::REALIZABLE_REGULAR; })
                && "ltlsynt: Can not handle TGBA as strategy.");
         tot_strat = strategies.front().strat_like;
         for (size_t i = 1; i < strategies.size(); ++i)

@@ -224,11 +224,17 @@ namespace spot
   struct SPOT_API
   strategy_like_t
   {
-    //  -1 : Unrealizable
-    //  0 : Unknown
-    //  1 : Realizable -> regular strat
-    //  2 : Realizable -> strat is DTGBA and a glob_cond // todo
-    int success;
+
+    enum class realizability_code
+    {
+      UNREALIZABLE,
+      UNKNOWN,
+      REALIZABLE_REGULAR,
+      // strat is DTGBA and a glob_cond
+      REALIZABLE_DTGBA
+    };
+
+    realizability_code success;
     twa_graph_ptr strat_like;
     bdd glob_cond;
   };

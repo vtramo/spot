@@ -192,7 +192,7 @@ ltlsynt --ins=a --outs=b,c -f 'GFa <-> (GFb & GFc)' \
 diff out exp
 
 cat >exp <<EOF
-trying to create strategy directly
+trying to create strategy directly for GFa <-> GFb
 tanslating formula done in X seconds
 direct strategy was found.
 direct strat has 1 states and 0 colors
@@ -202,7 +202,7 @@ sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
 diff outx exp
 
 cat >exp <<EOF
-trying to create strategy directly
+trying to create strategy directly for GFa <-> GFb
 tanslating formula done in X seconds
 direct strategy was found.
 direct strat has 1 states and 0 colors
@@ -214,7 +214,7 @@ sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
 diff outx exp
 
 cat >exp <<EOF
-trying to create strategy directly
+trying to create strategy directly for (Fa & Fb & Fc & Fd) <-> GFe
 tanslating formula done in X seconds
 direct strategy was found.
 direct strat has 16 states and 0 colors
@@ -225,7 +225,7 @@ sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
 diff outx exp
 
 cat >exp <<EOF
-trying to create strategy directly
+trying to create strategy directly for G(Fi0 & Fi1 & Fi2) -> G(i1 <-> o0)
 direct strategy might exist but was not found.
 translating formula done in X seconds
 automaton has 2 states and 3 colors
@@ -551,3 +551,86 @@ grep "both.*but 'b' is unlisted" stderr
 ltlsynt -f 'GFa | FGb | GFc' 2>stderr && :
 test $? -eq 2
 grep "one of --ins or --outs" stderr
+
+# Try to find a direct strategy for GFa <-> GFb and a direct strategy for
+# Gc
+cat >exp <<EOF
+trying to create strategy directly for GFa <-> GFb
+tanslating formula done in X seconds
+direct strategy was found.
+direct strat has 1 states and 0 colors
+final strategy has 1 states and 2 edges
+minimization took X seconds
+trying to create strategy directly for Gc
+direct strategy might exist but was not found.
+translating formula done in X seconds
+automaton has 1 states and 1 colors
+LAR construction done in X seconds
+DPA has 1 states, 2 colors
+split inputs and outputs done in X seconds
+automaton has 2 states
+solving game with acceptance: parity max odd 4
+game solved in X seconds
+EOF
+ltlsynt -f '(GFa <-> GFb) && (Gc)' --outs=b,c --verbose 2> out
+sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
+diff outx exp
+
+# Try to find a direct strategy for (GFa <-> GFb) & Gc. THe order should not
+# impact the result
+for f in "(GFa <-> GFb) & Gc" "(GFb <-> GFa) & Gc" \
+         "Gc & (GFa <-> GFb)" "Gc & (GFb <-> GFa)"
+do
+cat >exp <<EOF
+trying to create strategy directly for $f
+tanslating formula done in X seconds
+direct strategy was found.
+direct strat has 1 states and 0 colors
+final strategy has 1 states and 2 edges
+minimization took X seconds
+EOF
+  ltlsynt -f "$f" --outs=b,c --verbose --decompose=0 --verify 2> out
+  sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
+  diff outx exp
+done
+
+# # Ltlsynt should be able to detect that G(a&c) is not input-complete so it is
+# # impossible to find a strategy.
+cat >exp <<EOF
+trying to create strategy directly for (GFb <-> GFa) & G(a & c)
+tanslating formula done in X seconds
+no strategy exists.
+EOF
+ltlsynt -f '(GFb <-> GFa) && G(a&c)' --outs=b,c --verbose\
+                                     --decompose=0 2> out || true
+sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
+diff outx exp
+
+# # Ltlsynt should be able to create a strategy when the last G
+# is input-complete.
+cat >exp <<EOF
+trying to create strategy directly for (GFb <-> GFa) & G((a & c) | (!a & !c))
+tanslating formula done in X seconds
+direct strategy was found.
+direct strat has 1 states and 0 colors
+final strategy has 1 states and 2 edges
+minimization took X seconds
+EOF
+ltlsynt -f '(GFb <-> GFa) && (G((a&c)|(!a&!c)))' --outs=b,c --verbose\
+                                                 --verify --decompose=0 2> out
+sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
+diff outx exp
+
+# Direct strategy for persistence
+
+cat >exp <<EOF
+trying to create strategy directly for Fa <-> FGb
+tanslating formula done in X seconds
+direct strategy was found.
+direct strat has 2 states and 0 colors
+final strategy has 2 states and 3 edges
+minimization took X seconds
+EOF
+ltlsynt -f "Fa <-> FGb" --outs=b,c --verbose --decompose=0 --verify 2> out
+sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
+diff outx exp
