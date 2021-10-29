@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <thread>
 #include <vector>
+#include <queue>
 #include <spot/misc/common.hh>
 #include <spot/kripke/kripke.hh>
 #include <spot/misc/fixpool.hh>
@@ -58,6 +59,8 @@ namespace spot
     struct deadlock_pair
     {
       State st;                 ///< \brief the effective state
+      // FIXME : another idea would be to have 3 integer (one per color)
+      // and just set bits insides (more memory efficient)
       std::atomic<int>* colors; ///< \brief the colors (one per thread)
       int hash = 0;
       bool operator==(deadlock_pair b) const
@@ -195,10 +198,21 @@ namespace spot
       tm_.start("DFS thread " + std::to_string(tid_));
     }
 
+    std::atomic<int>* allocate_colors_or_get_from_store()
+    {
+      if (colors_recycle_store.size() >= 100)
+        {
+          auto tmp = colors_recycle_store.front();
+          colors_recycle_store.pop();
+          return tmp;
+        }
+      return (std::atomic<int>*) p_.allocate();
+    }
+
     bool push(State s)
     {
       // Prepare data for a newer allocation
-      std::atomic<int>* ref = (std::atomic<int>*) p_.allocate();
+      std::atomic<int>* ref = allocate_colors_or_get_from_store();
       for (unsigned i = 0; i < nb_th_; ++i)
         ref[i].store(UNKNOWN, std::memory_order_relaxed);
 
@@ -210,6 +224,7 @@ namespace spot
       if (use_bloomfilter)
         {
           StateHash sh;
+
           if (auto it = map_.find(v, fn_hash); !it.isnew() &&
               ss_->bloom_filter_->contains(sh(s)))
             return false;
@@ -223,7 +238,11 @@ namespace spot
       // Insertion failed, delete element
       // FIXME Should we add a local cache to avoid useless allocations?
       if (!b)
-        p_.deallocate(ref);
+        {
+          // FIXME HERE : also recycle state
+          colors_recycle_store.push(ref);
+          sys_.recycle_state(s, tid_);
+        }
       else //if (it.valid())
         ++(ss_->unique); // count uniqueness
 
@@ -277,6 +296,8 @@ namespace spot
 
           map_.erase(v, pair_hasher());
           ss_->deleted.fetch_add(1, std::memory_order_relaxed);
+          colors_recycle_store.push(v.colors);
+          //sys_.recycle_state(v.st, tid_);
         }
 
       auto approx = ss_->unique.load(std::memory_order_relaxed)
@@ -287,6 +308,7 @@ namespace spot
 
       return true;
     }
+
 
     void finalize()
     {
@@ -375,5 +397,6 @@ namespace spot
     /// concurent access to the shared map.
     std::vector<std::atomic<int>*> refs_;
     bool finisher_ = false;
+    std::queue<std::atomic<int>*> colors_recycle_store;
   };
 }

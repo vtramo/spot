@@ -64,9 +64,22 @@ namespace spot
         ref = cmp;
         size = csize;
         out = (cspins_state) msp_.allocate((size+2)*sizeof(int));
+
+        // FIXME : I don't know how to handle the store for compressed states
       }
     else
-      out = (cspins_state) p_.allocate();
+      {
+        if (store_.size() > 100)
+          {
+            out = store_.front();
+            out[0] = 0;
+            out[1] = 0;
+
+            store_.pop();
+          }
+        else
+          out = (cspins_state) p_.allocate();
+      }
     int hash_value = 0;
     memcpy(unbox_state(out), ref, size * sizeof(int));
     for (unsigned int i = 0; i < state_size_; ++i)
@@ -93,6 +106,12 @@ namespace spot
   unsigned int cspins_state_manager::size() const
   {
     return state_size_;
+  }
+
+
+  void cspins_state_manager::recycle(cspins_state s)
+  {
+    store_.push(s);
   }
 
   cspins_iterator::cspins_iterator(cspins_iterator_param& p)
@@ -299,6 +318,13 @@ namespace spot
                                                      unsigned tid)
   {
     recycle_[tid].push_back(it);
+  }
+
+  void
+  kripkecube<cspins_state, cspins_iterator>::recycle_state(cspins_state s,
+                                                           unsigned tid)
+  {
+    manager_[tid].recycle(s);
   }
 
   const std::vector<std::string>

@@ -19,6 +19,8 @@
 
 #pragma once
 
+#include <queue>
+
 #include <spot/bricks/brick-hash>
 #include <spot/bricks/brick-hashset>
 #include <spot/kripke/kripke.hh>
@@ -83,6 +85,8 @@ namespace spot
     /// \a cmpsize the size of the previous area
     cspins_state alloc_setup(int* dst, int* cmp, size_t cmpsize);
 
+    void recycle(cspins_state s);
+
     /// \brief Helper to decompress a state
     void decompress(cspins_state s, int* uncompressed, unsigned size) const;
 
@@ -99,6 +103,7 @@ namespace spot
     const unsigned int state_size_;
     void (*fn_compress_)(const int*, size_t, int*, size_t&);
     void (*fn_decompress_)(const int*, size_t, int*, size_t);
+    std::queue<cspins_state> store_;
   };
 
   // \brief This structure is used as a parameter during callback when
@@ -218,7 +223,11 @@ namespace spot
     cspins_state initial(unsigned tid);
     std::string to_string(const cspins_state s, unsigned tid = 0) const;
     cspins_iterator* succ(const cspins_state s, unsigned tid);
+
+    // FIXME: rename to recycle iterator
     void recycle(cspins_iterator* it, unsigned tid);
+
+    void recycle_state(cspins_state, unsigned tid);
 
     /// \brief List the atomic propositions used by *this* kripke
     const std::vector<std::string> ap();
