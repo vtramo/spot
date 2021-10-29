@@ -1196,11 +1196,6 @@ namespace spot
       {
         if (!circuit)
           return;
-        auto is_input = [nb_in = circuit->num_inputs()](unsigned val)
-        {
-          return (val & ~1) <= (2 * nb_in);
-        };
-
         const auto& in_names = circuit->input_names();
         const auto& out_names = circuit->output_names();
 
@@ -1212,133 +1207,99 @@ namespace spot
         auto num_gates = circuit->num_gates();
         auto gates = circuit->gates();
 
-        // If a circuit doesn't use an input, we need a special placement
-        bool uses_in = false;
-
         auto add_edge = [](std::ostream &stream, const unsigned src,
                            const unsigned dst) {
           auto src_gate = src & ~1;
-          stream << src_gate;
-          stream << " -> " << dst;
+          stream << "  " << src_gate << " -> " << dst;
           if (src & 1)
             stream << " [arrowhead=dot]";
           stream << '\n';
         };
 
         if (vertical)
-          os_ << "digraph \"\" {\nrankdir = BT;\n";
+          os_ << "digraph \"\" {\n  rankdir = BT\n";
         else
-          os_ << "digraph \"\" {\nrankdir = LR;\n";
+          os_ << "digraph \"\" {\n  rankdir = LR\n";
 
-        os_ << "# latches left\n";
+        os_ << "  {\n    rank = same\n"
+          "    node [shape=box,style=filled,fillcolor=\"#ffe6cc\"]\n";
         for (unsigned i = 0; i < num_latches; ++i)
-        {
-          auto first = circuit->latch_var(i);
-          auto first_m_mod = first & ~1;
-          os_ << "node[shape=box, label=\"L" << i << "_out\"] "
-              << first_m_mod << ";\n";
-        }
-
-        //Predefine all nodes
-
-        os_ << "# input nodes\n";
-        for (unsigned i = 0; i < num_inputs; ++i)
-          os_ << "node [shape=triangle, label=\""
-              << in_names[i] << "\"] "
-              << circuit->input_var(i) << ";\n";
-
-        os_ << "# latch nodes\n";
-        for (unsigned i = 0; i < num_latches; ++i)
-          os_ << "node[shape=box, label=\"L" << i << "\"] L" << i << ";\n";
-
-        os_ << "# gate nodes\n";
-        for (unsigned i = 0; i < num_gates; ++i)
-          if ((gates[i].first != 0) && (gates[i].second != 0))
           {
-            uses_in |= is_input(gates[i].first) | is_input(gates[i].second);
-            auto gate_var = circuit->gate_var(i);
-            os_ << "node [shape=circle, label=\"" << gate_var
-                << "\"] " << gate_var << ";\n";
+            auto first_m_mod = circuit->latch_var(i) & ~1;
+            os_ << "    " << first_m_mod << " [label=\"L" << i << "_out\"]\n";
           }
-
-        os_ << "# and ins\n";
-        for (unsigned i = 0; i < num_gates; ++i)
-          if ((gates[i].first != 0) && (gates[i].second != 0))
+        os_ << "  }\n";
+        if (num_gates)
           {
-            auto gate_var = circuit->gate_var(i);
-            add_edge(os_, gates[i].first, gate_var);
-            add_edge(os_, gates[i].second, gate_var);
+            os_ << "  node [shape=circle,style=solid]\n";
+            for (unsigned i = 0; i < num_gates; ++i)
+              if ((gates[i].first != 0) && (gates[i].second != 0))
+                os_ << "  " << circuit->gate_var(i) << '\n';
           }
-
-        bool has_alone_gate = false;
-
-        os_ << "# Latches\n";
-        for (unsigned i = 0; i < num_latches; ++i)
-        {
-          auto second = latches[i];
-          os_ << "node[shape=box, label=\"L" << i << "_in\"] L" << i << ";\n";
-          if (second <= 1 && !has_alone_gate)
+        bool has_false = false;
+        if (num_latches)
           {
-            os_ << "node[shape=box, label=\"Const\"] 0" << std::endl;
-            has_alone_gate = true;
+            os_ << "  {\n    rank=same\n"
+              "    node [shape=box,style=filled,"
+              "fillcolor=\"#ffe6cc\",label=\"\\N_in\"]\n";
+            for (unsigned i = 0; i < num_latches; ++i)
+              {
+                os_ << "    L" << i << '\n';
+                if (latches[i] <= 1)
+                  has_false = true;
+              }
+            os_ << "  }\n";
           }
-          os_ << (second & ~1) << " -> L" << i;
-          if (i & 1)
-            os_ << "[arrowhead=dot]";
-          os_ << '\n';
-        }
-
-        // Outs can be defined after everything else
-        os_ << "# Outs\n";
         const char* out_pos = vertical ? ":s" : ":w";
+        const char* rotate = vertical ? "" : ",orientation=-90";
+        if (num_outputs)
+          {
+            os_ << "  {\n    rank = sink\n    "
+              "node [shape=invtriangle,style=filled,fillcolor=\"#ffe5f1\""
+                << rotate << "]\n";
+            for (unsigned i = 0; i < num_outputs; ++i)
+              {
+                os_ << "    o" << i << " [label=\"" << out_names[i] << "\"]\n";
+                if (outputs[i] <= 1)
+                  has_false = true;
+              }
+            os_ << "  }\n";
+          }
+        if (num_inputs | has_false)
+          {
+            os_ << "  {\n    rank=source\n"
+              "    node [shape=triangle,style=filled,fillcolor=\"#e9f4fb\""
+                << rotate << "]\n";
+            for (unsigned i = 0; i < num_inputs; ++i)
+              os_ << "    " << circuit->input_var(i)
+                  << " [label=\"" << in_names[i] << "\"]\n";
+            if (has_false)
+              os_ <<
+                "    0 [shape=box,fillcolor=\"#ffe6cc\",label=\"False\"]\n";
+            os_ << "  }\n";
+          }
         for (unsigned i = 0; i < num_outputs; ++i)
-        {
-          os_ << "node [shape=triangle, orientation=180, label=\""
-             << out_names[i] << "\"] o" << i
-             << out_names[i] << ";\n";
-          auto z = outputs[i];
-          uses_in |= is_input(z);
-          if (z <= 1 && !has_alone_gate)
           {
-            os_ << "node[shape=box, label=\"Const\"] 0" << std::endl;
-            has_alone_gate = true;
+            auto z = outputs[i];
+            os_ << "  " << (z & ~1) << " -> o" << i << out_pos;
+            if (z & 1)
+              os_ << " [arrowhead=dot]";
+            os_ << '\n';
           }
-          os_ << (z & ~1) << "->" << 'o' << i << out_names[i] << out_pos;
-          if (outputs[i] & 1)
-            os_ << " [arrowhead=dot]";
-          os_ << '\n';
-        }
-
-        if (has_alone_gate || num_inputs > 0)
-        {
-          os_ << (uses_in ? "{rank = source; " : "{rank = same; ");
-          for (unsigned i = 0; i < num_inputs; ++i)
-            os_ << circuit->input_var(i) << "; ";
-          if (has_alone_gate)
-            os_ << "0; ";
-          os_ << "}\n";
-        }
-        if (num_outputs > 0)
-        {
-          os_ << "{rank = sink; ";
-          for (unsigned i = 0; i < num_outputs; ++i)
-            os_ << 'o' << i << out_names[i] << "; ";
-          os_ << "}\n";
-        }
-        if (num_latches > 0)
-        {
-          os_ << "{rank = same; ";
-          for (unsigned i = 0; i < num_latches; ++i)
-            os_ << 'L' << i << "; ";
-          os_ << "}\n{rank = same; ";
-          for (unsigned i = 0; i < num_latches; ++i)
+        for (unsigned i = 0; i < num_latches; ++i)
           {
-            auto first = circuit->latch_var(i);
-            auto first_m_mod = first & ~1;
-            os_ << first_m_mod << "; ";
+            os_ << "  " << (latches[i] & ~1) << " -> L" << i;
+            if (latches[i] & 1)
+              os_ << " [arrowhead=dot]";
+            os_ << '\n';
           }
-          os_ << "}\n";
-        }
+        for (unsigned i = 0; i < num_gates; ++i)
+          if ((gates[i].first != 0) && (gates[i].second != 0))
+            {
+              auto gate_var = circuit->gate_var(i);
+              add_edge(os_, gates[i].first, gate_var);
+              add_edge(os_, gates[i].second, gate_var);
+            }
         os_ << "}\n";
       }
     };
