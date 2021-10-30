@@ -643,6 +643,7 @@ namespace brq::impl
                     case A::Mismatch: return false;
                 }
                 assert(false);
+                return false;
             };
 
             auto [ c, outcome ]  = _table->find_generic( x, h, match_erase );
