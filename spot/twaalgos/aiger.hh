@@ -352,10 +352,10 @@ namespace spot
     /// \brief Create a circuit from an aag file with restricted syntax.
     ///
     /// \note Additional constraints are:
-    ///       - Gates have to appear in an ordered fashion.
+    ///       - inputs, latches, and gates have to appear in increasing order.
     ///       - Inputs are expected to have variable numbers from 2-2*n_i+1
     ///         with n_i being the number of inputs
-    ///       - Latches can not be named
+    ///       - Latches cannot be named
     static aig_ptr
     parse_aag(const std::string& aig_file,
               bdd_dict_ptr dict = make_bdd_dict());

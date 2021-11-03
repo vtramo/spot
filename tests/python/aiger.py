@@ -3391,9 +3391,9 @@ assert(spot.aiger_circuit("""aag 2 2 0 2 0
 2
 1
 i0 a
-i1 b
+i1 b c
 c
-""").to_str() == 'aag 2 2 0 2 0\n2\n4\n2\n1\ni0 a\ni1 b\no0 o0\no1 o1')
+""").to_str() == 'aag 2 2 0 2 0\n2\n4\n2\n1\ni0 a\ni1 b c\no0 o0\no1 o1')
 
 assert(spot.aiger_circuit("""aag 2 2 0 2 0
 2
@@ -3404,3 +3404,465 @@ o0 x
 o1 y
 c
 """).to_str() == 'aag 2 2 0 2 0\n2\n4\n2\n1\ni0 i0\ni1 i1\no0 x\no1 y')
+
+
+def report_missing_exception():
+    raise RuntimeError("missing exception")
+
+try:
+    spot.aiger_circuit("""aag 2 2 0 2
+0
+""")
+except SyntaxError as e:
+    assert str(e) == "\n<string>:1: invalid header line"
+else:
+    report_missing_exception()
+
+try:
+    spot.aiger_circuit("""aag 2 2 3 2 0
+""")
+except SyntaxError as e:
+    assert str(e) == "\n<string>:1: more variables than indicated by max var"
+else:
+    report_missing_exception()
+
+try:
+    spot.aiger_circuit("""aag 2 2 0 2 0\n""")
+except SyntaxError as e:
+    assert str(e) == "\n<string>:2: expecting input number 2"
+else:
+    report_missing_exception()
+
+try:
+    spot.aiger_circuit("""aag 2 2 0 2 0
+3
+""")
+except SyntaxError as e:
+    assert str(e) == "\n<string>:2: expecting input number 2"
+else:
+    report_missing_exception()
+
+try:
+    spot.aiger_circuit("""aag 2 2 0 2 0
+3 4 5
+""")
+except SyntaxError as e:
+    assert str(e) == "\n<string>:2: invalid format for an input"
+else:
+    report_missing_exception()
+
+try:
+    spot.aiger_circuit("""aag 2 2 0 2 0
+2
+""")
+except SyntaxError as e:
+    assert str(e) == "\n<string>:3: expecting input number 4"
+else:
+    report_missing_exception()
+
+try:
+    spot.aiger_circuit("""aag 4 2 2 0 0
+2
+4
+1
+""")
+except SyntaxError as e:
+    assert str(e) == "\n<string>:4: invalid format for a latch"
+else:
+    report_missing_exception()
+
+try:
+    spot.aiger_circuit("""aag 4 2 2 0 0
+2
+4
+1 1
+""")
+except SyntaxError as e:
+    assert str(e) == "\n<string>:4: expecting latch number 6"
+else:
+    report_missing_exception()
+
+try:
+    spot.aiger_circuit("""aag 4 2 2 0 0
+2
+4
+6 1
+""")
+except SyntaxError as e:
+    assert str(e) == "\n<string>:5: expecting latch number 8"
+else:
+    report_missing_exception()
+
+try:
+    spot.aiger_circuit("""aag 5 2 2 1 0
+2
+4
+6 1
+8 7
+""")
+except SyntaxError as e:
+    assert str(e) == "\n<string>:6: expecting an output"
+else:
+    report_missing_exception()
+
+try:
+    spot.aiger_circuit("""aag 5 2 2 1 0
+2
+4
+6 1
+8 7
+9 9 9
+""")
+except SyntaxError as e:
+    assert str(e) == "\n<string>:6: invalid format for an output"
+else:
+    report_missing_exception()
+
+try:
+    spot.aiger_circuit("""aag 5 2 2 1 0
+2
+4
+6 1
+8 7
+9 9 9
+""")
+except SyntaxError as e:
+    assert str(e) == "\n<string>:6: invalid format for an output"
+else:
+    report_missing_exception()
+
+try:
+    spot.aiger_circuit("""aag 7 2 2 1 2
+2
+4
+6 1
+8 7
+9
+""")
+except SyntaxError as e:
+    assert str(e) == "\n<string>:7: expecting AND gate number 10"
+else:
+    report_missing_exception()
+
+try:
+    spot.aiger_circuit("""aag 7 2 2 1 2
+2
+4
+6 1
+8 7
+9
+10 3 8 9
+""")
+except SyntaxError as e:
+    assert str(e) == "\n<string>:7: invalid format for an AND gate"
+else:
+    report_missing_exception()
+
+try:
+    spot.aiger_circuit("""aag 7 2 2 1 2
+2
+4
+6 1
+8 7
+9
+10 3
+""")
+except SyntaxError as e:
+    assert str(e) == "\n<string>:7: invalid format for an AND gate"
+else:
+    report_missing_exception()
+
+try:
+    spot.aiger_circuit("""aag 7 2 2 1 2
+2
+4
+6 1
+8 7
+9
+10 3 8
+""")
+except SyntaxError as e:
+    assert str(e) == "\n<string>:8: expecting AND gate number 12"
+else:
+    report_missing_exception()
+
+try:
+    spot.aiger_circuit("""aag 7 2 2 1 2
+2
+4
+6 1
+8 7
+9
+10 3 8
+12 8 10
+i0
+""")
+except SyntaxError as e:
+    assert str(e) == "\n<string>:9: could not parse as input name"
+else:
+    report_missing_exception()
+
+try:
+    spot.aiger_circuit("""aag 7 2 2 1 2
+2
+4
+6 1
+8 7
+9
+10 3 8
+12 8 10
+i0 foo
+i3 bar
+""")
+except SyntaxError as e:
+    assert str(e) == "\n<string>:10: value 3 exceeds input count"
+else:
+    report_missing_exception()
+
+try:
+    spot.aiger_circuit("""aag 7 2 2 1 2
+2
+4
+6 1
+8 7
+9
+10 3 8
+12 8 10
+i1 bar
+i0 foo
+""")
+except SyntaxError as e:
+    assert str(e) == "\n<string>:9: expecting name for input 0"
+else:
+    report_missing_exception()
+
+try:
+    spot.aiger_circuit("""aag 7 2 2 1 2
+2
+4
+6 1
+8 7
+9
+10 3 8
+12 8 10
+i0 name with spaces
+i1 name with spaces
+""")
+except SyntaxError as e:
+    assert str(e) == \
+        "\n<string>:10: name 'name with spaces' already used"
+else:
+    report_missing_exception()
+
+try:
+    spot.aiger_circuit("""aag 7 2 2 1 2
+2
+4
+6 1
+8 7
+9
+10 3 8
+12 8 10
+i0 name with spaces
+i1 bar
+o0
+""")
+except SyntaxError as e:
+    assert str(e) == "\n<string>:11: could not parse as output name"
+else:
+    report_missing_exception()
+
+try:
+    spot.aiger_circuit("""aag 7 2 2 2 2
+2
+4
+6 1
+8 7
+9
+10
+10 3 8
+12 8 10
+i0 name with spaces
+i1 bar
+o1 hmm
+o0 foo bar baz
+""")
+except SyntaxError as e:
+    assert str(e) == "\n<string>:12: expecting name for output 0"
+else:
+    report_missing_exception()
+
+try:
+    spot.aiger_circuit("""aag 7 2 2 2 2
+2
+4
+6 1
+8 7
+9
+10
+10 3 8
+12 8 10
+i0 name with spaces
+i1 bar
+o0 hmm
+o2 foo bar baz
+""")
+except SyntaxError as e:
+    assert str(e) == "\n<string>:13: value 2 exceeds output count"
+else:
+    report_missing_exception()
+
+try:
+    spot.aiger_circuit("""aag 7 2 2 2 2
+2
+4
+6 1
+8 7
+9
+10
+10 3 8
+12 8 10
+i0 name with spaces
+i1 bar
+o0 foo
+o1 foo
+""")
+except SyntaxError as e:
+    assert str(e) == "\n<string>:13: name 'foo' already used"
+else:
+    report_missing_exception()
+
+try:
+    spot.aiger_circuit("""aag 7 2 2 2 2
+2
+4
+6 1
+8 7
+9
+10
+10 3 8
+12 8 10
+i0 name with spaces
+i1 bar
+o0 foo
+o1 bar
+""")
+except SyntaxError as e:
+    assert str(e) == "\n<string>:13: name 'bar' already used"
+else:
+    report_missing_exception()
+
+try:
+    spot.aiger_circuit("""aag 7 2 2 2 2
+2
+4
+6 1
+8 7
+9
+10
+10 3 8
+12 8 10
+i0 name with spaces
+i1 bar
+o0 foo
+o1 baz
+this is a bug
+""")
+except SyntaxError as e:
+    assert str(e) == "\n<string>:14: unsupported line type"
+else:
+    report_missing_exception()
+
+try:
+    spot.aiger_circuit("""aag 7 2 2 2 2
+2
+4
+6 1
+8 7
+9
+10
+10 3 8
+12 8 10
+i0 name with spaces
+o0 foo
+o1 baz
+c
+this is not a bug
+""")
+except SyntaxError as e:
+    assert str(e) == \
+        "\n<string>:10: either all or none of the inputs should be named"
+else:
+    report_missing_exception()
+
+try:
+    spot.aiger_circuit("""aag 7 3 2 2 2
+2
+4
+6
+8 1
+10 7
+9
+10
+12 3 8
+14 8 10
+i0 name0
+i1 name1
+o0 foo
+o1 baz
+c
+this is not a bug
+""")
+except SyntaxError as e:
+    assert str(e) == \
+        "\n<string>:11-12: either all or none of the inputs should be named"
+else:
+    report_missing_exception()
+
+try:
+    spot.aiger_circuit("""aag 7 3 2 3 2
+2
+4
+6
+8 1
+10 7
+9
+10
+8
+12 3 8
+14 8 10
+i0 name0
+i1 name1
+o0 foo
+i2 name2
+o1 baz
+c
+this is not a bug
+""")
+except SyntaxError as e:
+    assert str(e) == \
+        "\n<string>:14-16: either all or none of the outputs should be named"
+else:
+    report_missing_exception()
+
+x = spot.aiger_circuit("""aag 7 3 2 3 2
+2
+4
+6
+8 1
+10 7
+9
+10
+8
+12 3 8
+14 8 10
+i0 name0 space
+i1 name1
+o0 foo space
+i2 name2
+o1 baz
+o2 bar
+c
+this is not a bug
+""").to_str()
+assert x == spot.aiger_circuit(x).to_str()

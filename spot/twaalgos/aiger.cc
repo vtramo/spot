@@ -72,14 +72,18 @@ namespace
   parse_aag_impl_(std::istream& iss, const std::string& filename)
   {
 
-    auto error_aig = [fn = filename](int line_src,
-                                     const std::string& msg,
-                                     unsigned line_file)
+    auto error_aig = [filename](const std::string_view& msg,
+                                unsigned line_start = 0,
+                                unsigned line_end = 0)
       {
-        throw parse_error("spot/twaalgos/aiger.cc:" + std::to_string(line_src)
-                          + ": in " + fn + " hit error: " + msg
-                          + " at line " + std::to_string(line_file)
-                          + ".\n");
+        std::ostringstream out;
+        out << filename;
+        if (line_start)
+          out << ':' << line_start;
+        if (line_end && line_end > line_start)
+          out << '-' << line_end;
+        out << ": " << msg;
+        throw parse_error(out.str());
       };
 
     //results
@@ -92,15 +96,21 @@ namespace
     unsigned max_index, nb_inputs, nb_latches, nb_outputs, nb_and;
 
     std::string line;
-    getline(iss, line);
-    unsigned line_number = 1;
+    unsigned line_number = 0;
+    std::unordered_set<std::string> names;
+
+    auto nextline = [&line, &line_number, &iss]() {
+      line.clear();
+      getline(iss, line);
+      ++line_number;
+    };
+
+    nextline();
     if (sscanf(line.c_str(), "aag %u %u %u %u %u", &max_index, &nb_inputs,
                &nb_latches, &nb_outputs, &nb_and) != 5)
-      error_aig(__LINE__, "invalid header", line_number);
-
+      error_aig("invalid header line", line_number);
     if (max_index < nb_inputs + nb_latches + nb_and)
-      error_aig(__LINE__, "More variables than indicated by max var",
-                line_number);
+      error_aig("more variables than indicated by max var", line_number);
 
     latches.reserve(nb_latches);
     outputs.reserve(nb_outputs);
@@ -108,144 +118,163 @@ namespace
 
     for (unsigned i = 0; i < nb_inputs; ++i)
       {
-        if (!iss)
-          error_aig(__LINE__, "missing input", line_number);
-
-        line.clear();
-        getline(iss, line);
-        if ((unsigned)std::stoi(line) != 2*(i+1))
-          error_aig(__LINE__, "invalid input numbering for input nbr "
-                    + std::to_string(i), line_number);
-        ++line_number;
+        nextline();
+        unsigned expected = 2 * (i + 1);
+        unsigned num = 0;
+        int end = 0;
+        const char* buf = line.c_str();
+        if (!line.empty()
+            && (sscanf(buf, "%u %n", &num, &end) != 1 || buf[end]))
+          error_aig("invalid format for an input", line_number);
+        if (num != expected)
+          error_aig("expecting input number " + std::to_string(expected),
+                    line_number);
       }
     for (unsigned i = 0; i < nb_latches; ++i)
       {
-        if (!iss)
-          error_aig(__LINE__, "missing latch", line_number);
-
-        line.clear();
-        getline(iss, line);
-        ++line_number;
-        unsigned latch_var, next_state;
-        if (sscanf(line.c_str(), "%u %u", &latch_var, &next_state) != 2)
-          error_aig(__LINE__, "invalid latch", line_number);
-        if (latch_var != 2*(1 + nb_inputs + i))
-          error_aig(__LINE__, "invalid latch numbering", line_number);
-
+        nextline();
+        unsigned expected = 2 * (1 + nb_inputs + i);
+        unsigned latch_var = 0, next_state;
+        int end = 0;
+        const char* buf = line.c_str();
+        if (!line.empty()
+            && (sscanf(buf, "%u %u %n", &latch_var, &next_state, &end) != 2
+                || buf[end]))
+          error_aig("invalid format for a latch", line_number);
+        if (latch_var != expected)
+          error_aig("expecting latch number " + std::to_string(expected),
+                    line_number);
         latches.push_back(next_state);
       }
     for (unsigned i = 0; i < nb_outputs; ++i)
       {
-        if (!iss)
-          error_aig(__LINE__, "missing output", line_number);
-
-        line.clear();
-        getline(iss, line);
-        ++line_number;
+        nextline();
+        if (line.empty())
+          error_aig("expecting an output", line_number);
         unsigned num_out;
-        if (sscanf(line.c_str(), "%u", &num_out) != 1)
-          error_aig(__LINE__, "invalid output definition", line_number);
+        const char* buf = line.c_str();
+        int end = 0;
+        if (sscanf(buf, "%u %n", &num_out, &end) != 1 || buf[end])
+          error_aig("invalid format for an output", line_number);
         outputs.push_back(num_out);
       }
     for (unsigned i = 0; i < nb_and; ++i)
       {
-        unsigned and_gate, lhs, rhs;
-        if (!iss)
-          error_aig(__LINE__, "missing AND", line_number);
-        line.clear();
-        getline(iss, line);
-        ++line_number;
-        if (sscanf(line.c_str(), "%u %u %u", &and_gate, &lhs, &rhs) != 3)
-          error_aig(__LINE__, "invalid AND", line_number);
-        if (and_gate != 2*(1 + nb_inputs + nb_latches + i))
-          error_aig(__LINE__, "invalid gate numbering. Expected "
-                    + std::to_string((2*(1 + nb_inputs + nb_latches + i)))
-                    + " got " + std::to_string(and_gate), line_number);
+        nextline();
+        unsigned and_gate = 0, lhs, rhs;
+        if (!line.empty())
+          {
+            const char* buf = line.c_str();
+            int end = 0;
+            if (sscanf(buf, "%u %u %u %n", &and_gate, &lhs, &rhs, &end) != 3
+                || buf[end])
+              error_aig("invalid format for an AND gate", line_number);
+          }
+        unsigned expected = 2 * (1 + nb_inputs + nb_latches + i);
+        if (and_gate != expected)
+          error_aig("expecting AND gate number " + std::to_string(expected),
+                    line_number);
         gates.emplace_back(lhs, rhs);
       }
-    line.clear();
-
-    getline(iss, line);
-    ++line_number;
+    nextline();
     bool comment_sec = false;
+    unsigned first_input_line = 0;
+    unsigned last_input_line = 0;
+    unsigned first_output_line = 0;
+    unsigned last_output_line = 0;
     while (iss && !comment_sec)
-    {
-      unsigned pos_var_name;
-      char first_char = line[0];
-      char var_name[256];
-      switch (first_char)
       {
-        // latches names non supported
-        case 'l':
-        {
-          line.clear();
-          getline(iss, line);
-          ++line_number;
-          continue;
-        }
-        case 'i':
-        {
-          if (sscanf(line.c_str(), "i%u %255s", &pos_var_name, var_name) != 2
-              || pos_var_name >= nb_inputs)
-            error_aig(__LINE__, "could not parse input name: "
-                      + line, line_number);
-          auto itn = std::find(input_names.begin(), input_names.end(),
-                               var_name);
-          if (itn != input_names.end())
-            error_aig(__LINE__, std::string("input name ") + var_name
-                                + " appears twice", line_number);
-          input_names.push_back(var_name);
-          line.clear();
-          getline(iss, line);
-          ++line_number;
-          break;
-        }
-      case 'o':
-        {
-          if (sscanf(line.c_str(), "o%u %255s", &pos_var_name, var_name) != 2
-              || pos_var_name >= nb_outputs)
-          error_aig(__LINE__, "could not parse output name: "
-                    + line, line_number);
-          auto itn = std::find(output_names.begin(), output_names.end(),
-                               var_name);
-          if (itn != output_names.end())
-            error_aig(__LINE__, std::string("output name ") + var_name +
-                                " appears twice", line_number);
-          output_names.push_back(var_name);
-          line.clear();
-          getline(iss, line);
-          ++line_number;
-          break;
-        }
-      case 'c':
-        {
-          comment_sec = true;
-          break;
-        }
-      default:
-        {
-          error_aig(__LINE__, "invalid line", line_number);
-        }
+        unsigned pos_var_name;
+        char var_name[256];
+        int end;
+        const char* buf = line.c_str();
+        switch (buf[0])
+          {
+          case 'l':               // latches names non supported
+            {
+              nextline();
+              continue;
+            }
+          case 'i':
+            {
+              if (sscanf(buf, "i%u %255[^\n]%n",
+                         &pos_var_name, var_name, &end) != 2
+                  || !var_name[0] || buf[end])
+                error_aig("could not parse as input name", line_number);
+              unsigned expected = input_names.size();
+              if (pos_var_name >= nb_inputs)
+                error_aig("value " + std::to_string(pos_var_name)
+                          + " exceeds input count", line_number);
+              if (pos_var_name != expected)
+                error_aig("expecting name for input "
+                          + std::to_string(expected), line_number);
+              if (!names.insert(var_name).second)
+                error_aig(std::string("name '") + var_name
+                          + "' already used", line_number);
+              input_names.push_back(var_name);
+              if (!first_input_line)
+                first_input_line = line_number;
+              else
+                last_input_line = line_number;
+              nextline();
+              break;
+            }
+          case 'o':
+            {
+              if (sscanf(buf, "o%u %255[^\n]%n",
+                         &pos_var_name, var_name, &end) != 2
+                  || !var_name[0] || buf[end])
+                error_aig("could not parse as output name", line_number);
+              unsigned expected = output_names.size();
+              if (pos_var_name >= nb_outputs)
+                error_aig("value " + std::to_string(pos_var_name)
+                          + " exceeds output count", line_number);
+              if (pos_var_name != expected)
+                error_aig("expecting name for output "
+                          + std::to_string(expected), line_number);
+              if (!names.insert(var_name).second)
+                error_aig(std::string("name '") + var_name
+                          + "' already used", line_number);
+              output_names.push_back(var_name);
+              if (!first_output_line)
+                first_output_line = line_number;
+              else
+                last_output_line = line_number;
+              nextline();
+              break;
+            }
+          case 'c':
+            {
+              comment_sec = true;
+              break;
+            }
+          default:
+            {
+              error_aig("unsupported line type", line_number);
+            }
+          }
       }
-    }
     if (!input_names.empty())
-    {
-      if (input_names.size() != nb_inputs)
-        error_aig(__LINE__, "Either all or none of the inputs can be named",
-                  0);
-    }
+      {
+        if (input_names.size() != nb_inputs)
+          error_aig("either all or none of the inputs should be named",
+                    first_input_line, last_input_line);
+      }
     else
-      input_names = name_vector(nb_inputs, "i");
+      {
+        input_names = name_vector(nb_inputs, "i");
+      }
     if (!output_names.empty())
-    {
-      if (output_names.size() != nb_outputs)
-      error_aig(__LINE__, "Either all or none of the outputs can be named",
-                0);
-    }
+      {
+        if (output_names.size() != nb_outputs)
+          error_aig("either all or none of the outputs should be named",
+                    first_output_line, last_output_line);
+      }
     else
-      output_names = name_vector(nb_outputs, "o");
-
-    return std::make_tuple(input_names, output_names, latches, outputs, gates);
+      {
+        output_names = name_vector(nb_outputs, "o");
+      }
+    return { input_names, output_names, latches, outputs, gates };
   }
 }
 
