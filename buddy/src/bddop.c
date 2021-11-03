@@ -3814,8 +3814,6 @@ int bdd_is_cube(BDD b)
 {
   if (ISZERO(b))
     return 0;
-  if (ISONE(b))
-    return 0;
 
   while (!ISONE(b))
     {

@@ -151,6 +151,44 @@ void testShortest()
     ERROR("shortest bddtrue failed");
 }
 
+void testIsCube(){
+  cout << "Testing is_cube()\n";
+
+  if (bdd_is_cube(bddfalse) != 0)
+    ERROR("is_cube failed on false");
+  if (bdd_is_cube(bddtrue) != 1)
+    ERROR("is_cube failed on true");
+
+  // Some cubes
+  bdd a = bdd_ithvar(0);
+  bdd b = bdd_ithvar(1);
+  bdd c = bdd_ithvar(2);
+  bdd d = bdd_ithvar(3);
+
+  bdd cube1 = a&!c&d;
+  bdd cube2 = a&c&!d;
+  bdd cube3 = a&b&c&d;
+  bdd cube4 = a&!b&!c&d;
+
+  if (bdd_is_cube(cube1) != 1)
+    ERROR("is_cube failed on cube1");
+  if (bdd_is_cube(cube2) != 1)
+    ERROR("is_cube failed on cube2");
+  if (bdd_is_cube(cube3) != 1)
+    ERROR("is_cube failed on cube3");
+  if (bdd_is_cube(cube4) != 1)
+    ERROR("is_cube failed on cube4");
+
+  // Some non-cubes
+  bdd b1 = cube1 | cube2;
+  bdd b2 = cube3 | cube4;
+
+  if (bdd_is_cube(b1) != 0)
+    ERROR("is_cube failed on b1");
+  if (bdd_is_cube(b2) != 0)
+    ERROR("is_cube failed on b2");
+}
+
 int main(int ac, char** av)
 {
   bdd_init(1000,1000);
@@ -160,6 +198,7 @@ int main(int ac, char** av)
   testSupport();
   testBvecIte();
   testShortest();
+  testIsCube();
 
   bdd_done();
   return 0;
