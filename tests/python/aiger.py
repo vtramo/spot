@@ -3383,6 +3383,24 @@ for (i, e_latch) in zip(ins, exp_latches):
               (aig.circ_state()[4], aig.circ_state()[6]))
     aig.circ_step([i])
 
+# Variable names
 
+assert(spot.aiger_circuit("""aag 2 2 0 2 0
+2
+4
+2
+1
+i0 a
+i1 b
+c
+""").to_str() == 'aag 2 2 0 2 0\n2\n4\n2\n1\ni0 a\ni1 b\no0 o0\no1 o1')
 
-
+assert(spot.aiger_circuit("""aag 2 2 0 2 0
+2
+4
+2
+1
+o0 x
+o1 y
+c
+""").to_str() == 'aag 2 2 0 2 0\n2\n4\n2\n1\ni0 i0\ni1 i1\no0 x\no1 y')

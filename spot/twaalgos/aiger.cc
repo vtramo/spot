@@ -228,14 +228,20 @@ namespace
         }
       }
     }
-    if ((not input_names.empty()) && (input_names.size() != nb_inputs))
-      error_aig(__LINE__, "Either all or none of the inputs can be named",
-                0);
+    if (!input_names.empty())
+    {
+      if (input_names.size() != nb_inputs)
+        error_aig(__LINE__, "Either all or none of the inputs can be named",
+                  0);
+    }
     else
       input_names = name_vector(nb_inputs, "i");
-    if ((not output_names.empty()) && (output_names.size() != nb_outputs))
+    if (!output_names.empty())
+    {
+      if (output_names.size() != nb_outputs)
       error_aig(__LINE__, "Either all or none of the outputs can be named",
                 0);
+    }
     else
       output_names = name_vector(nb_outputs, "o");
 
