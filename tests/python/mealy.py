@@ -43,9 +43,10 @@ spot.set_synthesis_outputs(a, o1&o2)
 
 b = spot.minimize_mealy(a)
 assert(list(spot.get_state_players(b)).count(False) == 2)
-assert(spot.is_mealy_specialization(a, b))
+assert(spot.is_split_mealy_specialization(a, b))
 
-test_auts = [("""HOA: v1
+test_auts = [
+("""HOA: v1
 States: 22
 Start: 0
 AP: 6 "i0" "i1" "i2" "i3" "o0" "o1"
@@ -360,13 +361,6 @@ for (mealy_str, nenv_min) in test_auts:
 
     mealy = spot.automaton(mealy_str)
     mealy.merge_edges()
-    mealy_min_ks = spot.minimize_mealy(mealy, -1, True)
-    mealy_min_us = spot.minimize_mealy(mealy, -1, False)
-
-    n_e = sum([s == 0 for s in spot.get_state_players(mealy_min_ks)])
-    assert(n_e == nenv_min)
-    assert(mealy_min_us.num_states() == nenv_min)
-    assert(spot.is_mealy_specialization(mealy, mealy_min_ks, True))
 
     outs = buddy.bddtrue
     ins = buddy.bddtrue
@@ -378,8 +372,20 @@ for (mealy_str, nenv_min) in test_auts:
             ins = ins & buddy.bdd_ithvar(mealy.register_ap(aap.ap_name()))
         else:
             assert("""Aps must start with either "i" or "o".""")
-    mealy_min_us_s = spot.split_2step(mealy_min_us, outs, False)
-    assert(spot.is_mealy_specialization(mealy, mealy_min_us_s, True))
+
+    spot.set_synthesis_outputs(mealy, outs)
+
+    mealy_min_ks = spot.minimize_mealy(mealy, -1)
+
+    n_e = sum([s == 0 for s in spot.get_state_players(mealy_min_ks)])
+    assert(n_e == nenv_min)
+    assert(spot.is_split_mealy_specialization(mealy, mealy_min_ks))
+
+    # Test un- and resplit
+    tmp = spot.unsplit_2step(mealy_min_ks)
+    mealy_min_rs = spot.split_2step(tmp, spot.get_synthesis_outputs(tmp), False)
+    assert(spot.is_split_mealy_specialization(mealy, mealy_min_rs, True))
+    assert(spot.are_equivalent(mealy_min_ks, mealy_min_rs))
 
 
 # Testing bisimulation (with output assignment)
@@ -498,13 +504,23 @@ State: 16
 --END--""")
 
 # Build an equivalent deterministic monitor
-min_equiv = spot.minimize_mealy_fast(aut, False)
+# ;
+#     ;
+#
+spot.set_synthesis_outputs(aut,
+  buddy.bdd_ithvar(
+    aut.register_ap("u02alarm29control02alarm29control"))\
+  & buddy.bdd_ithvar(
+   aut.register_ap("u02alarm29control0f1d2alarm29turn2on1b"))\
+  & buddy.bdd_ithvar(
+   aut.register_ap("u02alarm29control0f1d2alarm29turn2off1b")))
+min_equiv = spot.reduce_mealy(aut, False)
 assert min_equiv.num_states() == 6
 assert spot.are_equivalent(min_equiv, aut)
 
 # Build an automaton that recognizes a subset of the language of the original
 # automaton
-min_sub = spot.minimize_mealy_fast(aut, True)
+min_sub = spot.reduce_mealy(aut, True)
 assert min_sub.num_states() == 5
 prod = spot.product(spot.complement(aut), min_sub)
 assert spot.generic_emptiness_check(prod)
@@ -531,6 +547,8 @@ State: 3
 --END--
 """)
 
+spot.set_synthesis_outputs(aut, buddy.bdd_ithvar(aut.register_ap("b")))
+
 exp = """HOA: v1
 States: 1
 Start: 0
@@ -544,7 +562,7 @@ State: 0
 --END--"""
 
 # An example that shows that we should not build a tree when we use inclusion.
-res = spot.minimize_mealy_fast(aut, True)
+res = spot.reduce_mealy(aut, True)
 assert res.to_str() == exp
 
 aut = spot.automaton("""
@@ -569,6 +587,8 @@ State: 3
 --END--
 """)
 
+spot.set_synthesis_outputs(aut, buddy.bdd_ithvar(aut.register_ap("b")))
+
 exp = """HOA: v1
 States: 2
 Start: 0
@@ -585,7 +605,7 @@ State: 1
 [0&1] 1
 --END--"""
 
-res = spot.minimize_mealy_fast(aut, True)
+res = spot.reduce_mealy(aut, True)
 assert res.to_str() == exp
 
 

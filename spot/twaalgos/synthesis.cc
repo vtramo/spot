@@ -39,6 +39,7 @@
 
 // Helper function/structures for split_2step
 namespace{
+  using namespace spot;
   // Computes and stores the restriction
   // of each cond to the input domain and the support
   // This is useful as it avoids recomputation
@@ -47,9 +48,9 @@ namespace{
   struct small_cacher_t
   {
     //e to e_in and support
-    std::unordered_map<bdd, std::pair<bdd, bdd>, spot::bdd_hash> cond_hash_;
+    std::unordered_map<bdd, std::pair<bdd, bdd>, bdd_hash> cond_hash_;
 
-    void fill(const spot::const_twa_graph_ptr& aut, bdd output_bdd)
+    void fill(const const_twa_graph_ptr& aut, bdd output_bdd)
     {
       cond_hash_.reserve(aut->num_edges()/5+1);
       // 20% is about lowest number of different edge conditions
@@ -79,28 +80,28 @@ namespace{
   // of the state.
   struct e_info_t
   {
-    e_info_t(const spot::twa_graph::edge_storage_t& e,
+    e_info_t(const twa_graph::edge_storage_t& e,
              const small_cacher_t& sm)
         : dst(e.dst),
           econd(e.cond),
           einsup(sm[e.cond]),
           acc(e.acc)
     {
-      pre_hash = (spot::wang32_hash(dst)
-                 ^ std::hash<spot::acc_cond::mark_t>()(acc))
-                 * spot::fnv<size_t>::prime;
+      pre_hash = (wang32_hash(dst)
+                 ^ std::hash<acc_cond::mark_t>()(acc))
+                 * fnv<size_t>::prime;
     }
 
     inline size_t hash() const
     {
-      return spot::wang32_hash(spot::bdd_hash()(econdout)) ^ pre_hash;
+      return wang32_hash(bdd_hash()(econdout)) ^ pre_hash;
     }
 
     unsigned dst;
     bdd econd;
     mutable bdd econdout;
     std::pair<bdd, bdd> einsup;
-    spot::acc_cond::mark_t acc;
+    acc_cond::mark_t acc;
     size_t pre_hash;
   };
   // We define an order between the edges to avoid creating multiple
@@ -129,6 +130,313 @@ namespace{
              < std::tie(rhs->dst, rhs->acc, r_id);
     }
   }less_info_ptr;
+
+  // Improved apply strat, that reduces the number of edges/states
+  // while keeping the needed edge-properties
+  // Note, this only deals with deterministic strategies
+  // Note, assumes that env starts playing
+  twa_graph_ptr
+  apply_strategy(const twa_graph_ptr& arena,
+                 bool unsplit, bool keep_acc)
+  {
+    const auto& win = get_state_winners(arena);
+    const auto& strat = get_strategy(arena);
+    const auto& sp = get_state_players(arena);
+    auto outs = get_synthesis_outputs(arena);
+
+    if (!win[arena->get_init_state_number()])
+      throw std::runtime_error("Player does not win initial state, strategy "
+                               "is not applicable");
+
+    assert((sp[arena->get_init_state_number()] == false)
+           && "Env needs to have first turn!");
+
+    assert(std::none_of(arena->edges().begin(), arena->edges().end(),
+           [&sp](const auto& e)
+             { bool same_player = sp.at(e.src) == sp.at(e.dst);
+               if (same_player)
+                 std::cerr << e.src << " and " << e.dst << " belong to same "
+                           << "player, arena not alternating!\n";
+               return same_player; }));
+
+    auto strat_split = make_twa_graph(arena->get_dict());
+    strat_split->copy_ap_of(arena);
+    if (keep_acc)
+      strat_split->copy_acceptance_of(arena);
+    else
+      strat_split->acc().set_acceptance(acc_cond::acc_code::t());
+
+    std::stack<unsigned> todo;
+    todo.push(arena->get_init_state_number());
+
+    struct dca{
+      unsigned dst;
+      unsigned condvar;
+      acc_cond::mark_t acc;
+    };
+    struct dca_hash
+    {
+      size_t operator()(const dca& d) const noexcept
+      {
+        return pair_hash()(std::make_pair(d.dst, d.condvar))
+               ^ wang32_hash(d.acc.hash());
+      }
+    };
+    struct dca_equal
+    {
+      bool operator()(const dca& d1, const dca& d2) const noexcept
+      {
+        return std::tie(d1.dst, d1.condvar, d1.acc)
+              == std::tie(d2.dst, d2.condvar, d2.acc);
+      }
+    };
+
+    //env dst + player cond + acc -> p stat
+    std::unordered_map<dca,
+                       unsigned,
+                       dca_hash,
+                       dca_equal> p_map;
+
+    constexpr unsigned unseen_mark = std::numeric_limits<unsigned>::max();
+    std::vector<unsigned> env_map(arena->num_states(), unseen_mark);
+    strat_split->set_init_state(strat_split->new_state());
+    env_map[arena->get_init_state_number()] =
+        strat_split->get_init_state_number();
+
+    // The states in the new graph are qualified local
+    // Get a local environment state
+    auto get_sel = [&](unsigned s)
+      {
+        if (SPOT_UNLIKELY(env_map[s] == unseen_mark))
+          env_map[s] = strat_split->new_state();
+        return env_map[s];
+      };
+
+    // local dst
+    // Check if there exists already a local player state
+    // that has the same dst, cond and (if keep_acc is true) acc
+    auto get_spl = [&](unsigned dst, const bdd& cond, acc_cond::mark_t acc)
+      {
+        dca d{dst, (unsigned) cond.id(), acc};
+        auto it = p_map.find(d);
+        if (it != p_map.end())
+          return it->second;
+        unsigned ns = strat_split->new_state();
+        p_map[d] = ns;
+        strat_split->new_edge(ns, dst, cond, acc);
+        return ns;
+      };
+
+    while (!todo.empty())
+      {
+        unsigned src_env = todo.top();
+        unsigned src_envl = get_sel(src_env);
+        todo.pop();
+        // All env edges
+        for (const auto& e_env : arena->out(src_env))
+          {
+            // Get the corresponding strat
+            const auto& e_strat = arena->edge_storage(strat[e_env.dst]);
+            // Check if already explored
+            if (env_map[e_strat.dst] == unseen_mark)
+              todo.push(e_strat.dst);
+            unsigned dst_envl = get_sel(e_strat.dst);
+            // The new env edge, player is constructed automatically
+            auto used_acc = keep_acc ? e_strat.acc : acc_cond::mark_t({});
+            strat_split->new_edge(src_envl,
+                                  get_spl(dst_envl, e_strat.cond, used_acc),
+                                  e_env.cond, used_acc);
+          }
+      }
+    // All states exists, we can try to further merge them
+    // Specialized merge
+    std::vector<bool> spnew(strat_split->num_states(), false);
+    for (const auto& p : p_map)
+      spnew[p.second] = true;
+
+    // Sorting edges in place
+    auto comp_edge = [](const auto& e1, const auto& e2)
+      {
+        return std::tuple(e1.dst, e1.acc, e1.cond.id())
+              < std::tuple(e2.dst, e2.acc, e2.cond.id());
+      };
+    // todo, replace with sort_edges_of_ in graph
+    auto sort_edges_of =
+        [&, &split_graph = strat_split->get_graph()](unsigned s)
+      {
+        static std::vector<unsigned> edge_nums;
+        edge_nums.clear();
+
+        auto eit = strat_split->out(s);
+        const auto eit_e = eit.end();
+        // 0 Check if it is already sorted
+        if (std::is_sorted(eit.begin(), eit_e, comp_edge))
+          return false; // No change
+        // 1 Get all edges numbers and sort them
+        std::transform(eit.begin(), eit_e, std::back_inserter(edge_nums),
+                       [&](const auto& e)
+                         { return strat_split->edge_number(e); });
+        std::sort(edge_nums.begin(), edge_nums.end(),
+                  [&](unsigned ne1, unsigned ne2)
+                  { return comp_edge(strat_split->edge_storage(ne1),
+                                    strat_split->edge_storage(ne2)); });
+        // 2 Correct the order
+        auto& sd = split_graph.state_storage(s);
+        sd.succ = edge_nums.front();
+        sd.succ_tail = edge_nums.back();
+        const unsigned n_edges_p = edge_nums.size()-1;
+        for (unsigned i = 0; i < n_edges_p; ++i)
+          split_graph.edge_storage(edge_nums[i]).next_succ = edge_nums[i+1];
+        split_graph.edge_storage(edge_nums.back()).next_succ = 0; //terminal
+        // All nicely chained
+        return true;
+      };
+    auto merge_edges_of = [&](unsigned s)
+      {
+        // Call this after sort edges of
+        // Mergeable edges are nicely chained
+        bool changed = false;
+        auto eit = strat_split->out_iteraser(s);
+        unsigned idx_last = strat_split->edge_number(*eit);
+        ++eit;
+        while (eit)
+          {
+            auto& e_last = strat_split->edge_storage(idx_last);
+            if (std::tie(e_last.dst, e_last.acc)
+                == std::tie(eit->dst, eit->acc))
+              {
+                //Same dest and acc -> or condition
+                e_last.cond |= eit->cond;
+                eit.erase();
+                changed = true;
+              }
+            else
+              {
+                idx_last = strat_split->edge_number(*eit);
+                ++eit;
+              }
+          }
+        return changed;
+      };
+    auto merge_able = [&](unsigned s1, unsigned s2)
+      {
+        auto eit1 = strat_split->out(s1);
+        auto eit2 = strat_split->out(s2);
+        // Note: No self-loops here
+        return std::equal(eit1.begin(), eit1.end(),
+                          eit2.begin(), eit2.end(),
+                          [](const auto& e1, const auto& e2)
+                          {
+                            return std::tuple(e1.dst, e1.acc, e1.cond.id())
+                                   == std::tuple(e2.dst, e2.acc, e2.cond.id());
+                          });
+      };
+
+    const unsigned n_sstrat = strat_split->num_states();
+    std::vector<unsigned> remap(n_sstrat, -1u);
+    bool changed_any;
+    std::vector<unsigned> to_check;
+    to_check.reserve(n_sstrat);
+    // First iteration -> all env states are candidates
+    for (unsigned i = 0; i < n_sstrat; ++i)
+      if (!spnew[i])
+        to_check.push_back(i);
+
+    while (true)
+    {
+      changed_any = false;
+      std::for_each(to_check.begin(), to_check.end(),
+                    [&](unsigned s){ sort_edges_of(s); merge_edges_of(s); });
+      // Check if we can merge env states
+      for (unsigned s1 : to_check)
+        for (unsigned s2 = 0; s2 < n_sstrat; ++s2)
+          {
+            if (spnew[s2] || (s1 == s2))
+              continue; // Player state or s1 == s2
+            if ((remap[s2] < s2))
+              continue; //s2 is already remapped
+            if (merge_able(s1, s2))
+              {
+                changed_any = true;
+                if (s1 < s2)
+                  remap[s2] = s1;
+                else
+                  remap[s1] = s2;
+                break;
+              }
+          }
+
+      if (!changed_any)
+        break;
+      // Redirect changed targets and set possibly mergeable states
+      to_check.clear();
+      for (auto& e : strat_split->edges())
+        if (remap[e.dst] != -1u)
+          {
+            e.dst = remap[e.dst];
+            to_check.push_back(e.src);
+            assert(spnew[e.src]);
+          }
+
+      // Now check the player states
+      // We can skip sorting -> only one edge
+      // todo change when multistrat
+      changed_any = false;
+      for (unsigned s1 : to_check)
+        for (unsigned s2 = 0; s2 < n_sstrat; ++s2)
+          {
+            if (!spnew[s2] || (s1 == s2))
+              continue; // Env state or s1 == s2
+            if ((remap[s2] < s2))
+              continue; //s2 is already remapped
+            if (merge_able(s1, s2))
+              {
+                changed_any = true;
+                if (s1 < s2)
+                  remap[s2] = s1;
+                else
+                  remap[s1] = s2;
+                break;
+              }
+          }
+
+      if (!changed_any)
+        break;
+      // Redirect changed targets and set possibly mergeable states
+      to_check.clear();
+      for (auto& e : strat_split->edges())
+        if (remap[e.dst] != -1u)
+          {
+            e.dst = remap[e.dst];
+            to_check.push_back(e.src);
+            assert(!spnew[e.src]);
+          }
+    }
+
+    // Defrag and alternate
+    if (remap[strat_split->get_init_state_number()] != -1u)
+      strat_split->set_init_state(remap[strat_split->get_init_state_number()]);
+    unsigned st = 0;
+    for (auto& s: remap)
+      if (s == -1U)
+        s = st++;
+      else
+        s = -1U;
+
+    strat_split->defrag_states(remap, st);
+
+    alternate_players(strat_split, false, false);
+    // What we do now depends on whether we unsplit or not
+    if (unsplit)
+      {
+        auto final = unsplit_2step(strat_split);
+        set_synthesis_outputs(final, outs);
+        return final;
+      }
+
+    set_synthesis_outputs(strat_split, outs);
+    return strat_split;
+  }
 }
 
 namespace spot
@@ -142,7 +450,7 @@ namespace spot
     split->copy_acceptance_of(aut);
     split->new_states(aut->num_states());
     split->set_init_state(aut->get_init_state_number());
-    split->set_named_prop<bdd>("synthesis-output", new bdd(output_bdd));
+    split->set_named_prop<bdd>("synthesis-outputs", new bdd(output_bdd));
 
     auto [is_unsat, unsat_mark] = aut->acc().unsat_mark();
     if (!is_unsat && complete_env)
@@ -318,87 +626,11 @@ namespace spot
     if (sink_env != -1u)
       owner->at(sink_env) = false;
     split->set_named_prop("state-player", owner);
+    split->set_named_prop("synthesis-outputs",
+                          new bdd(output_bdd));
 
     // Done
     return split;
-  }
-
-  void
-  split_2step_fast_here(const twa_graph_ptr& aut, const bdd& output_bdd)
-  {
-    struct dst_cond_color_t
-    {
-      std::pair<unsigned, int> dst_cond;
-      acc_cond::mark_t color;
-    };
-
-    auto hasher = [](const dst_cond_color_t& dcc) noexcept
-      {
-        return dcc.color.hash() ^ pair_hash()(dcc.dst_cond);
-      };
-    auto equal = [](const dst_cond_color_t& dcc1,
-                    const dst_cond_color_t& dcc2) noexcept
-      {
-        return (dcc1.dst_cond == dcc2.dst_cond)
-               && (dcc1.color == dcc2.color);
-      };
-
-    std::unordered_map<dst_cond_color_t, unsigned,
-                       decltype(hasher),
-                       decltype(equal)> player_map(aut->num_edges(),
-                                                   hasher, equal);
-
-    auto get_ps = [&](unsigned dst, const bdd& ocond,
-                      acc_cond::mark_t color)
-      {
-        dst_cond_color_t key{std::make_pair(dst, ocond.id()),
-                             color};
-        auto [it, inserted] =
-            player_map.try_emplace(key, aut->num_states());
-        if (!inserted)
-          return it->second;
-        unsigned ns = aut->new_state();
-        assert(ns == it->second);
-        aut->new_edge(ns, dst, ocond, color);
-        return ns;
-      };
-
-    unsigned ne = aut->edge_vector().size();
-    for (unsigned eidx = 1; eidx < ne; ++eidx)
-      {
-        const auto& e = aut->edge_storage(eidx);
-        if (e.next_succ == eidx) // dead edge
-          continue;
-        bdd incond = bdd_exist(e.cond, output_bdd);
-        bdd outcond = bdd_existcomp(e.cond, output_bdd);
-        assert(((incond&outcond) == e.cond) && "Precondition violated");
-        // Create new state and trans
-        // this may invalidate "e".
-        unsigned new_dst = get_ps(e.dst, outcond, e.acc);
-        // redirect
-        auto& e2 = aut->edge_storage(eidx);
-        e2.dst = new_dst;
-        e2.cond = incond;
-      }
-
-    auto* sp_ptr =
-        aut->get_or_set_named_prop<std::vector<bool>>("state-player");
-
-    sp_ptr->resize(aut->num_states());
-    std::fill(sp_ptr->begin(), sp_ptr->end(), false);
-    for (auto& eit : player_map)
-      (*sp_ptr)[eit.second] = true;
-    //Done
-  }
-
-  twa_graph_ptr
-  split_2step_fast(const const_twa_graph_ptr& aut, const bdd& output_bdd)
-  {
-    auto aut2 = make_twa_graph(aut, twa::prop_set::all());
-    aut2->copy_acceptance_of(aut);
-    aut2->set_named_prop<bdd>("synthesis-output", new bdd(output_bdd));
-    split_2step_fast_here(aut2, output_bdd);
-    return aut2;
   }
 
   twa_graph_ptr
@@ -451,321 +683,6 @@ namespace spot
     if (bdd* outptr = aut->get_named_prop<bdd>("synthesis-outputs"))
       set_synthesis_outputs(out, *outptr);
     return out;
-  }
-
-  // Improved apply strat, that reduces the number of edges/states
-  // while keeping the needed edge-properties
-  // Note, this only deals with deterministic strategies
-  // Note, assumes that env starts playing
-  spot::twa_graph_ptr
-  apply_strategy(const spot::twa_graph_ptr& arena,
-                 bool unsplit, bool keep_acc)
-  {
-    const auto& win = get_state_winners(arena);
-    const auto& strat = get_strategy(arena);
-    const auto& sp = get_state_players(arena);
-    auto outs = get_synthesis_outputs(arena);
-
-    if (!win[arena->get_init_state_number()])
-      throw std::runtime_error("Player does not win initial state, strategy "
-                               "is not applicable");
-
-    assert((sp[arena->get_init_state_number()] == false)
-           && "Env needs to have first turn!");
-
-    assert(std::none_of(arena->edges().begin(), arena->edges().end(),
-           [&sp](const auto& e)
-             { bool same_player = sp.at(e.src) == sp.at(e.dst);
-               if (same_player)
-                 std::cerr << e.src << " and " << e.dst << " belong to same "
-                           << "player, arena not alternating!\n";
-               return same_player; }));
-
-    auto strat_split = spot::make_twa_graph(arena->get_dict());
-    strat_split->copy_ap_of(arena);
-    if (keep_acc)
-      strat_split->copy_acceptance_of(arena);
-
-    std::stack<unsigned> todo;
-    todo.push(arena->get_init_state_number());
-
-    struct dca{
-      unsigned dst;
-      unsigned condvar;
-      acc_cond::mark_t acc;
-    };
-    struct dca_hash
-    {
-      size_t operator()(const dca& d) const noexcept
-      {
-        return pair_hash()(std::make_pair(d.dst, d.condvar))
-               ^ wang32_hash(d.acc.hash());
-      }
-    };
-    struct dca_equal
-    {
-      bool operator()(const dca& d1, const dca& d2) const noexcept
-      {
-        return std::tie(d1.dst, d1.condvar, d1.acc)
-              == std::tie(d2.dst, d2.condvar, d2.acc);
-      }
-    };
-
-    //env dst + player cond + acc -> p stat
-    std::unordered_map<dca,
-                       unsigned,
-                       dca_hash,
-                       dca_equal> p_map;
-
-    constexpr unsigned unseen_mark = std::numeric_limits<unsigned>::max();
-    std::vector<unsigned> env_map(arena->num_states(), unseen_mark);
-    strat_split->set_init_state(strat_split->new_state());
-    env_map[arena->get_init_state_number()] =
-        strat_split->get_init_state_number();
-
-    // The states in the new graph are qualified local
-    // Get a local environment state
-    auto get_sel = [&](unsigned s)
-      {
-        if (SPOT_UNLIKELY(env_map[s] == unseen_mark))
-          env_map[s] = strat_split->new_state();
-        return env_map[s];
-      };
-
-    // local dst
-    // Check if there exists already a local player state
-    // that has the same dst, cond and (if keep_acc is true) acc
-    auto get_spl = [&](unsigned dst, const bdd& cond, acc_cond::mark_t acc)
-      {
-        dca d{dst, (unsigned) cond.id(), acc};
-        auto it = p_map.find(d);
-        if (it != p_map.end())
-          return it->second;
-        unsigned ns = strat_split->new_state();
-        p_map[d] = ns;
-        strat_split->new_edge(ns, dst, cond, acc);
-        return ns;
-      };
-
-    while (!todo.empty())
-      {
-        unsigned src_env = todo.top();
-        unsigned src_envl = get_sel(src_env);
-        todo.pop();
-        // All env edges
-        for (const auto& e_env : arena->out(src_env))
-          {
-            // Get the corresponding strat
-            const auto& e_strat = arena->edge_storage(strat[e_env.dst]);
-            // Check if already explored
-            if (env_map[e_strat.dst] == unseen_mark)
-              todo.push(e_strat.dst);
-            unsigned dst_envl = get_sel(e_strat.dst);
-            // The new env edge, player is constructed automatically
-            auto used_acc = keep_acc ? e_strat.acc : acc_cond::mark_t({});
-            strat_split->new_edge(src_envl,
-                                  get_spl(dst_envl, e_strat.cond, used_acc),
-                                  e_env.cond, used_acc);
-          }
-      }
-    // All states exists, we can try to further merge them
-    // Specialized merge
-    std::vector<bool> spnew(strat_split->num_states(), false);
-    for (const auto& p : p_map)
-      spnew[p.second] = true;
-
-    // Sorting edges in place
-    auto comp_edge = [](const auto& e1, const auto& e2)
-      {
-        return std::tuple(e1.dst, e1.acc, e1.cond.id())
-              < std::tuple(e2.dst, e2.acc, e2.cond.id());
-      };
-    auto sort_edges_of =
-        [&, &split_graph = strat_split->get_graph()](unsigned s)
-      {
-        static std::vector<unsigned> edge_nums;
-        edge_nums.clear();
-
-        auto eit = strat_split->out(s);
-        const auto eit_e = eit.end();
-        // 0 Check if it is already sorted
-        if (std::is_sorted(eit.begin(), eit_e, comp_edge))
-          return false; // No change
-        // 1 Get all edges numbers and sort them
-        std::transform(eit.begin(), eit_e, std::back_inserter(edge_nums),
-                       [&](const auto& e)
-                         { return strat_split->edge_number(e); });
-        std::sort(edge_nums.begin(), edge_nums.end(),
-                  [&](unsigned ne1, unsigned ne2)
-                  { return comp_edge(strat_split->edge_storage(ne1),
-                                    strat_split->edge_storage(ne2)); });
-        // 2 Correct the order
-        auto& sd = split_graph.state_storage(s);
-        sd.succ = edge_nums.front();
-        sd.succ_tail = edge_nums.back();
-        const unsigned n_edges_p = edge_nums.size()-1;
-        for (unsigned i = 0; i < n_edges_p; ++i)
-          split_graph.edge_storage(edge_nums[i]).next_succ = edge_nums[i+1];
-        split_graph.edge_storage(edge_nums.back()).next_succ = 0; //terminal
-        // All nicely chained
-        return true;
-      };
-    auto merge_edges_of = [&](unsigned s)
-      {
-        // Call this after sort edges of
-        // Mergeable edges are nicely chained
-        bool changed = false;
-        auto eit = strat_split->out_iteraser(s);
-        unsigned idx_last = strat_split->edge_number(*eit);
-        ++eit;
-        while (eit)
-          {
-            auto& e_last = strat_split->edge_storage(idx_last);
-            if (std::tie(e_last.dst, e_last.acc)
-                == std::tie(eit->dst, eit->acc))
-              {
-                //Same dest and acc -> or condition
-                e_last.cond |= eit->cond;
-                eit.erase();
-                changed = true;
-              }
-            else
-              {
-                idx_last = strat_split->edge_number(*eit);
-                ++eit;
-              }
-          }
-        return changed;
-      };
-    auto merge_able = [&](unsigned s1, unsigned s2)
-      {
-        auto eit1 = strat_split->out(s1);
-        auto eit2 = strat_split->out(s2);
-        // Note: No self-loops here
-        return std::equal(eit1.begin(), eit1.end(),
-                          eit2.begin(), eit2.end(),
-                          [](const auto& e1, const auto& e2)
-                          {
-                            return std::tuple(e1.dst, e1.acc, e1.cond.id())
-                                   == std::tuple(e2.dst, e2.acc, e2.cond.id());
-                          });
-      };
-
-    const unsigned n_sstrat = strat_split->num_states();
-    std::vector<unsigned> remap(n_sstrat, -1u);
-    bool changed_any;
-    std::vector<unsigned> to_check;
-    to_check.reserve(n_sstrat);
-    // First iteration -> all env states are candidates
-    for (unsigned i = 0; i < n_sstrat; ++i)
-      if (!spnew[i])
-        to_check.push_back(i);
-
-    while (true)
-    {
-      changed_any = false;
-      std::for_each(to_check.begin(), to_check.end(),
-                    [&](unsigned s){ sort_edges_of(s); merge_edges_of(s); });
-      // Check if we can merge env states
-      for (unsigned s1 : to_check)
-        for (unsigned s2 = 0; s2 < n_sstrat; ++s2)
-          {
-            if (spnew[s2] || (s1 == s2))
-              continue; // Player state or s1 == s2
-            if ((remap[s2] < s2))
-              continue; //s2 is already remapped
-            if (merge_able(s1, s2))
-              {
-                changed_any = true;
-                if (s1 < s2)
-                  remap[s2] = s1;
-                else
-                  remap[s1] = s2;
-                break;
-              }
-          }
-
-      if (!changed_any)
-        break;
-      // Redirect changed targets and set possibly mergeable states
-      to_check.clear();
-      for (auto& e : strat_split->edges())
-        if (remap[e.dst] != -1u)
-          {
-            e.dst = remap[e.dst];
-            to_check.push_back(e.src);
-            assert(spnew[e.src]);
-          }
-
-      // Now check the player states
-      // We can skip sorting -> only one edge
-      // todo change when multistrat
-      changed_any = false;
-      for (unsigned s1 : to_check)
-        for (unsigned s2 = 0; s2 < n_sstrat; ++s2)
-          {
-            if (!spnew[s2] || (s1 == s2))
-              continue; // Env state or s1 == s2
-            if ((remap[s2] < s2))
-              continue; //s2 is already remapped
-            if (merge_able(s1, s2))
-              {
-                changed_any = true;
-                if (s1 < s2)
-                  remap[s2] = s1;
-                else
-                  remap[s1] = s2;
-                break;
-              }
-          }
-
-      if (!changed_any)
-        break;
-      // Redirect changed targets and set possibly mergeable states
-      to_check.clear();
-      for (auto& e : strat_split->edges())
-        if (remap[e.dst] != -1u)
-          {
-            e.dst = remap[e.dst];
-            to_check.push_back(e.src);
-            assert(!spnew[e.src]);
-          }
-    }
-
-    // Defrag and alternate
-    if (remap[strat_split->get_init_state_number()] != -1u)
-      strat_split->set_init_state(remap[strat_split->get_init_state_number()]);
-    unsigned st = 0;
-    for (auto& s: remap)
-      if (s == -1U)
-        s = st++;
-      else
-        s = -1U;
-
-    strat_split->defrag_states(remap, st);
-
-    alternate_players(strat_split, false, false);
-    // What we do now depends on whether we unsplit or not
-    if (unsplit)
-      {
-        auto final = unsplit_2step(strat_split);
-        set_synthesis_outputs(final, outs);
-        return final;
-      }
-    // Keep the splitted version
-    set_state_winners(strat_split, region_t(strat_split->num_states(), true));
-
-    std::vector<unsigned> new_strat(strat_split->num_states(), -1u);
-
-    for (unsigned i = 0; i < strat_split->num_states(); ++i)
-      {
-        if (!sp[i])
-          continue;
-        new_strat[i] = strat_split->edge_number(*strat_split->out(i).begin());
-      }
-    set_strategy(strat_split, std::move(new_strat));
-    set_synthesis_outputs(strat_split, outs);
-    return strat_split;
   }
 
   std::ostream& operator<<(std::ostream& os, synthesis_info::algo s)
@@ -1059,7 +976,7 @@ namespace spot
     } //end switch solver
     // Set the named properties
     assert(dpa->get_named_prop<std::vector<bool>>("state-player")
-           && "DPA has no state-players");
+           && "DPA has no \"state-player\"");
     set_synthesis_outputs(dpa, outs);
     return dpa;
   }
@@ -1087,78 +1004,15 @@ namespace spot
     return ltl_to_game(parse_formula(f), all_outs, gi);
   }
 
-  void
-  minimize_strategy_here(twa_graph_ptr& strat, int min_lvl)
-  {
-    if (!strat->acc().is_t())
-      throw std::runtime_error("minimize_strategy_here(): strategy is expected "
-                               "to accept all runs! Otherwise it does not "
-                               "correspond to a mealy machine and can not be "
-                               "optimized this way.");
-    // 0 -> No minimization
-    // 1 -> Regular monitor/DFA minimization
-    // 2 -> Mealy minimization based on language inclusion
-    //      with output assignement
-    // 3 -> Exact Mealy minimization using SAT
-    // 4 -> Monitor min then exact minimization
-    // 5 -> Mealy minimization based on language inclusion then exact
-    // minimization
-    bdd outs = get_synthesis_outputs(strat);
-
-    switch (min_lvl)
-    {
-      case 0:
-        return;
-      case 1:
-        {
-          minimize_mealy_fast_here(strat, false);
-          break;
-        }
-      case 2:
-        {
-          minimize_mealy_fast_here(strat, true);
-          break;
-        }
-      case 3:
-        {
-          strat = minimize_mealy(strat, -1);
-          break;
-        }
-      case 4:
-        {
-          strat = minimize_mealy(strat, 0);
-          break;
-        }
-      case 5:
-        {
-          strat = minimize_mealy(strat, 1);
-          break;
-        }
-      default:
-          throw std::runtime_error("Unknown minimization option");
-    }
-    set_synthesis_outputs(strat, outs);
-  }
-
   twa_graph_ptr
-  minimize_strategy(const_twa_graph_ptr& strat, int min_lvl)
+  solved_game_to_separated_mealy(twa_graph_ptr arena, synthesis_info& gi)
   {
-    auto strat_dup = spot::make_twa_graph(strat, spot::twa::prop_set::all());
-    set_synthesis_outputs(strat_dup,
-                          get_synthesis_outputs(strat));
-    if (auto sp_ptr = strat->get_named_prop<region_t>("state-player"))
-      set_state_players(strat_dup, *sp_ptr);
-    minimize_strategy_here(strat_dup, min_lvl);
-    return strat_dup;
-  }
-
-  twa_graph_ptr
-  create_strategy(twa_graph_ptr arena, synthesis_info& gi)
-  {
+    assert(arena->get_named_prop<region_t>("state-player")
+           && "Need prop \"state-player\"");
     if (!arena)
       throw std::runtime_error("Arena can not be null");
 
-    spot::stopwatch sw;
+    stopwatch sw;
 
     if (gi.bv)
       sw.start();
@@ -1168,32 +1022,34 @@ namespace spot
 
     // If we use minimizations 0,1 or 2 -> unsplit
     const bool do_unsplit = gi.minimize_lvl < 3;
-    twa_graph_ptr strat_aut = apply_strategy(arena, do_unsplit, false);
+    auto m = apply_strategy(arena, do_unsplit, false);
 
-    strat_aut->prop_universal(true);
+    m->prop_universal(true);
 
-    minimize_strategy_here(strat_aut, gi.minimize_lvl);
+    if ((0 < gi.minimize_lvl) && (gi.minimize_lvl < 3))
+      reduce_mealy_here(m, gi.minimize_lvl == 2);
+    else if (gi.minimize_lvl >= 3)
+      m = minimize_mealy(m, gi.minimize_lvl - 4);
 
-    assert(do_unsplit
-           || strat_aut->get_named_prop<std::vector<bool>>("state-player"));
     if (!do_unsplit)
-      strat_aut = unsplit_2step(strat_aut);
+      m = unsplit_mealy(m);
 
     if (gi.bv)
       {
         gi.bv->strat2aut_time += sw.stop();
-        gi.bv->nb_strat_states += strat_aut->num_states();
-        gi.bv->nb_strat_edges += strat_aut->num_edges();
+        gi.bv->nb_strat_states += m->num_states();
+        gi.bv->nb_strat_edges += m->num_edges();
       }
 
-    return strat_aut;
+    assert(is_separated_mealy(m));
+    return m;
   }
 
   twa_graph_ptr
-  create_strategy(twa_graph_ptr arena)
+  solved_game_to_separated_mealy(twa_graph_ptr arena)
   {
     synthesis_info dummy;
-    return create_strategy(arena, dummy);
+    return solved_game_to_separated_mealy(arena, dummy);
   }
 
 }
@@ -1241,7 +1097,7 @@ namespace spot
     };
   }
 
-  strategy_like_t
+  mealy_like
   try_create_direct_strategy(formula f,
                              const std::vector<std::string>& output_aps,
                              synthesis_info &gi)
@@ -1253,41 +1109,41 @@ namespace spot
       *vs << "trying to create strategy directly for " << f << '\n';
 
     auto ret_sol_maybe = [&vs]()
-    {
-      if (vs)
-        *vs << "direct strategy might exist but was not found.\n";
-      return strategy_like_t{
-                strategy_like_t::realizability_code::UNKNOWN,
-                nullptr,
-                bddfalse};
-    };
+      {
+        if (vs)
+          *vs << "direct strategy might exist but was not found.\n";
+        return mealy_like{
+                  mealy_like::realizability_code::UNKNOWN,
+                  nullptr,
+                  bddfalse};
+      };
     auto ret_sol_none = [&vs]()
       {
         if (vs)
           *vs << "no strategy exists.\n";
-        return strategy_like_t{
-                  strategy_like_t::realizability_code::UNREALIZABLE,
+        return mealy_like{
+                  mealy_like::realizability_code::UNREALIZABLE,
                   nullptr,
                   bddfalse};
       };
 
     auto ret_sol_exists = [&vs](auto strat)
-    {
-      if (vs)
       {
-        *vs << "direct strategy was found.\n"
-            << "direct strat has " << strat->num_states()
-            << " states and " << strat->num_sets() << " colors\n";
-      }
-      return strategy_like_t{
-                strategy_like_t::realizability_code::REALIZABLE_REGULAR,
-                strat,
-                bddfalse};
-    };
+        if (vs)
+          {
+            *vs << "direct strategy was found.\n"
+                << "direct strat has " << strat->num_states()
+                << " states and " << strat->num_sets() << " colors\n";
+          }
+        return mealy_like{
+                  mealy_like::realizability_code::REALIZABLE_REGULAR,
+                  strat,
+                  bddfalse};
+      };
     formula_2_inout_props form2props(output_aps);
 
     auto output_aps_set = std::set<std::string>(output_aps.begin(),
-                                            output_aps.end());
+                                                output_aps.end());
 
     formula f_g = formula::tt(), f_left, f_right;
 

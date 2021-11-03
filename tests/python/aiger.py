@@ -3339,9 +3339,10 @@ for strat_string, (ins_str, outs_str) in strats:
         for ss in [""] + [f"+sub{ii}" for ii in range(3)]:
             for ddx  in ["", "+dc"]:# todo prob here
                 for uud  in ["", "+ud"]:
-                    aig = spot.strategy_to_aig(strat, m+ss+ddx+uud)
+                    aig = spot.mealy_machine_to_aig(strat, m+ss+ddx+uud)
                     strat2_s = aig.as_automaton(True)
-                    if not spot.is_mealy_specialization(strat_s, strat2_s):
+                    if not spot.is_split_mealy_specialization(strat_s,
+                                                              strat2_s):
                         print(f"Mode is {m+ss+ddx+uud}")
                         print(f"""Strat is \n{strat_s.to_str("hoa")}""")
                         print(f"""Aig as aut is \n{strat2_s.to_str("hoa")}""")
@@ -3361,7 +3362,7 @@ for aout in outs_str:
     outs &= buddy.bdd_ithvar(strat.register_ap(aout))
 
 spot.set_synthesis_outputs(strat, outs)
-aig = spot.strategy_to_aig(strat, "isop")
+aig = spot.mealy_machine_to_aig(strat, "isop")
 
 ins = [True, False, False, False, True, True, True, True, True, True]
 exp_latches = [(False, False),

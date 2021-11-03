@@ -36,7 +36,7 @@
 namespace spot
 {
   // Forward for synthesis
-  struct strategy_like_t;
+  struct mealy_like;
 
   class aig;
 
@@ -415,8 +415,8 @@ namespace spot
   };
 
   /// \ingroup synthesis
-  /// \brief Convert a strategy into an aig relying on the transformation
-  ///        described by \a mode.
+  /// \brief Convert a mealy (like) machine into an aig relying on
+  /// the transformation described by \a mode.
   /// \param mode This param has to be of the form
   ///             `ite|isop|both [+dc][+ud][+sub0|+sub1|+sub2]`
   ///             Where `ite` means encoded via if-then-else normal form,
@@ -437,11 +437,18 @@ namespace spot
   /// outs are guaranteed to appear in the aiger circuit.
   ///@{
   SPOT_API aig_ptr
-  strategy_to_aig(const const_twa_graph_ptr& aut, const char* mode);
+  mealy_machine_to_aig(const const_twa_graph_ptr& m, const char* mode);
   SPOT_API aig_ptr
-  strategy_to_aig(const twa_graph_ptr& aut, const char *mode,
-                  const std::vector<std::string>& ins,
-                  const std::vector<std::string>& outs);
+  mealy_machine_to_aig(const twa_graph_ptr& m, const char *mode,
+                       const std::vector<std::string>& ins,
+                       const std::vector<std::string>& outs);
+
+  SPOT_API aig_ptr
+  mealy_machine_to_aig(const mealy_like& m, const char* mode);
+  SPOT_API aig_ptr
+  mealy_machine_to_aig(mealy_like& m, const char *mode,
+                       const std::vector<std::string>& ins,
+                       const std::vector<std::string>& outs);
   ///@}
 
   /// \ingroup synthesis
@@ -459,18 +466,21 @@ namespace spot
   /// guaranteed to appear in the aiger circuit.
   /// @{
   SPOT_API aig_ptr
-  strategies_to_aig(const std::vector<const_twa_graph_ptr>& strat_vec,
-                    const char* mode);
+  mealy_machines_to_aig(const std::vector<const_twa_graph_ptr>& m_vec,
+                        const char* mode);
   SPOT_API aig_ptr
-  strategies_to_aig(const std::vector<twa_graph_ptr>& strat_vec,
-                    const char* mode,
-                    const std::vector<std::string>& ins,
-                    const std::vector<std::vector<std::string>>& outs);
+  mealy_machines_to_aig(const std::vector<mealy_like>& m_vec,
+                        const char* mode);
   SPOT_API aig_ptr
-  strategies_to_aig(const std::vector<strategy_like_t>& strat_vec,
-                    const char* mode,
-                    const std::vector<std::string>& ins,
-                    const std::vector<std::vector<std::string>>& outs);
+  mealy_machines_to_aig(const std::vector<twa_graph_ptr>& m_vec,
+                        const char* mode,
+                        const std::vector<std::string>& ins,
+                        const std::vector<std::vector<std::string>>& outs);
+  SPOT_API aig_ptr
+  mealy_machines_to_aig(const std::vector<mealy_like>& m_vec,
+                        const char* mode,
+                        const std::vector<std::string>& ins,
+                        const std::vector<std::vector<std::string>>& outs);
   /// @}
 
 

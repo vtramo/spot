@@ -34,6 +34,7 @@
 #include <spot/twa/twagraph.hh>
 #include <spot/misc/bddlt.hh>
 #include <spot/misc/minato.hh>
+#include <spot/twaalgos/mealy_machine.hh>
 #include <spot/twaalgos/synthesis.hh>
 
 #define STR(x) #x
@@ -1201,11 +1202,19 @@ namespace spot
       };
 
     std::vector<bdd> outbddvec;
+    outbddvec.reserve(output_names_.size());
     for (auto& ao : output_names_)
       outbddvec.push_back(bdd_ithvar(aut->register_ap(ao)));
     // Also register the ins
     for (auto& ai : input_names_)
       aut->register_ap(ai);
+
+    // Set the named prop
+    set_synthesis_outputs(aut,
+                    std::accumulate(outbddvec.begin(), outbddvec.end(),
+                                    (bdd) bddtrue,
+                                    [](const bdd& b1, const bdd& b2) -> bdd
+                                        {return b1 & b2; }));
 
     std::vector<bdd> outcondbddvec;
     for (auto ov : outputs_)
@@ -1387,8 +1396,6 @@ namespace
           {
             assert(e.cond != bddfalse);
             bdd bout = bdd_exist(e.cond, all_inputs);
-            assert(((bout & bdd_existcomp(e.cond, all_inputs)) == e.cond) &&
-                   "Precondition (in) & (out) == cond violated");
             // low is good, dc is ok, high is bad
             this_outc[astrat.first->edge_number(e)] =
                 bdd_satoneshortest(bout, 0, 1, 5);
@@ -1447,9 +1454,9 @@ namespace
                 const std::vector<std::string>& unused_ins = {},
                 const std::vector<std::string>& unused_outs = {})
   {
-    // The aiger circuit cannot encode the acceptance condition
-    // Test that the acceptance condition is true
-    for (auto&& astrat : strat_vec)
+    // The aiger circuit can currently noly encode separated mealy machines
+
+    for (const auto& astrat : strat_vec)
       if (!astrat.first->acc().is_t())
         {
           std::cerr << "Acc cond must be true not " << astrat.first->acc()
@@ -1457,6 +1464,10 @@ namespace
           throw std::runtime_error("Cannot turn automaton into "
                                    "aiger circuit");
         }
+    // This checks the acc again, but does more and is to
+    // costly for non-debug mode
+    assert(std::all_of(strat_vec.begin(), strat_vec.end(),
+           [](const auto& p){ return is_separated_mealy(p.first); }));
 
     // get the propositions
     std::vector<std::string> input_names;
@@ -1840,56 +1851,40 @@ namespace spot
 {
 
   aig_ptr
-  strategy_to_aig(const const_twa_graph_ptr& aut, const char* mode)
+  mealy_machine_to_aig(const const_twa_graph_ptr& m, const char* mode)
   {
-    if (!aut)
-      throw std::runtime_error("aut cannot be null");
+    if (!m)
+      throw std::runtime_error("mealy_machine_to_aig(): "
+                               "m cannot be null");
 
-    return auts_to_aiger({{aut, get_synthesis_outputs(aut)}}, mode);
+    return auts_to_aiger({{m, get_synthesis_outputs(m)}}, mode);
   }
 
   aig_ptr
-  strategies_to_aig(const std::vector<const_twa_graph_ptr>& strat_vec,
-                  const char *mode)
+  mealy_machine_to_aig(const mealy_like& m, const char* mode)
   {
-    std::for_each(strat_vec.begin()+1, strat_vec.end(),
-                  [usedbdd = strat_vec.at(0)->get_dict()](const auto& s)
-                  {
-                    if (usedbdd != s->get_dict())
-                      throw std::runtime_error("All strategies have to "
-                                               "share a bdd_dict!\n");
-                  });
+    if (m.success != mealy_like::realizability_code::REALIZABLE_REGULAR)
+      throw std::runtime_error("mealy_machine_to_aig(): "
+                               "Can only handle regular mealy machine, TBD");
 
-    std::vector<std::pair<const_twa_graph_ptr, bdd>> new_vec;
-    new_vec.reserve(strat_vec.size());
-
-    bdd all_outputs = bddtrue;
-    for (auto& astrat : strat_vec)
-      {
-        bdd this_outputs = get_synthesis_outputs(astrat);
-        // Check if outs do not overlap
-        if (bdd_and(bdd_not(this_outputs), all_outputs) == bddfalse)
-          throw std::runtime_error("\"outs\" of strategies are not "
-                                   "distinct!.\n");
-        all_outputs &= this_outputs;
-        new_vec.emplace_back(astrat, this_outputs);
-      }
-    return auts_to_aiger(new_vec, mode);
+    return mealy_machine_to_aig(m.mealy_like, mode);
   }
 
   aig_ptr
-  strategy_to_aig(const twa_graph_ptr &aut, const char *mode,
+  mealy_machine_to_aig(const twa_graph_ptr &m, const char *mode,
                   const std::vector<std::string>& ins,
                   const std::vector<std::string>& outs)
   {
-    if (!aut)
-      throw std::runtime_error("aut cannot be null");
+    if (!m)
+      throw std::runtime_error("mealy_machine_to_aig(): "
+                               "m cannot be null");
 
     // Make sure ins and outs are disjoint
     {
       std::vector<std::string> all_ap = ins;
       all_ap.insert(all_ap.end(), outs.begin(), outs.end());
-      check_double_names(all_ap, "Atomic propositions appears in input "
+      check_double_names(all_ap, "mealy_machine_to_aig(): "
+                                 "Atomic propositions appears in input "
                                  "and output propositions; ");
     }
     // Check if there exist outs or ins that are not used by the
@@ -1900,7 +1895,7 @@ namespace spot
     std::vector<std::string> unused_ins;
     {
       std::set<std::string> used_aps;
-      for (const auto& f : aut->ap())
+      for (const auto& f : m->ap())
         used_aps.insert(f.ap_name());
       for (const auto& ao : outs)
         if (!used_aps.count(ao))
@@ -1910,25 +1905,90 @@ namespace spot
           unused_ins.push_back(ai);
     }
     // todo Some additional checks?
-    return auts_to_aiger({{aut, get_synthesis_outputs(aut)}}, mode,
+    return auts_to_aiger({{m, get_synthesis_outputs(m)}}, mode,
                          unused_ins, unused_outs);
+  }
+
+  aig_ptr
+  mealy_machine_to_aig(mealy_like& m, const char *mode,
+                       const std::vector<std::string>& ins,
+                       const std::vector<std::string>& outs)
+  {
+    if (m.success != mealy_like::realizability_code::REALIZABLE_REGULAR)
+      throw std::runtime_error("mealy_machine_to_aig(): "
+                               "Can only handle regular mealy machine, TBD");
+
+    return mealy_machine_to_aig(m.mealy_like, mode, ins, outs);
+  }
+
+  aig_ptr
+  mealy_machines_to_aig(const std::vector<const_twa_graph_ptr>& m_vec,
+                        const char *mode)
+  {
+    std::for_each(m_vec.begin()+1, m_vec.end(),
+                  [usedbdd = m_vec.at(0)->get_dict()](const auto& s)
+                  {
+                    if (usedbdd != s->get_dict())
+                      throw std::runtime_error("mealy_machines_to_aig(): "
+                                               "All machines have to "
+                                               "share a bdd_dict!\n");
+                  });
+
+    std::vector<std::pair<const_twa_graph_ptr, bdd>> new_vec;
+    new_vec.reserve(m_vec.size());
+
+    bdd all_outputs = bddtrue;
+    for (auto& am : m_vec)
+      {
+        bdd this_outputs = get_synthesis_outputs(am);
+        // Check if outs do not overlap
+        if (bdd_and(bdd_not(this_outputs), all_outputs) == bddfalse)
+          throw std::runtime_error("mealy_machines_to_aig(): "
+                                   "\"outs\" of the machines are not "
+                                   "distinct!.\n");
+        all_outputs &= this_outputs;
+        new_vec.emplace_back(am, this_outputs);
+      }
+    return auts_to_aiger(new_vec, mode);
+  }
+
+  aig_ptr
+  mealy_machines_to_aig(const std::vector<mealy_like>& m_vec,
+                        const char *mode)
+  {
+    if (std::any_of(m_vec.cbegin(), m_vec.cend(),
+                 [](const auto& m)
+                 {return m.success !=
+                     mealy_like::realizability_code::REALIZABLE_REGULAR; }))
+      throw std::runtime_error("mealy_machines_to_aig(): "
+                               "Can only handle regular mealy machine for "
+                               "the moment, TBD");
+    auto new_vec = std::vector<const_twa_graph_ptr>();
+    new_vec.reserve(m_vec.size());
+    std::transform(m_vec.cbegin(), m_vec.cend(),
+                   std::back_inserter(new_vec),
+                   [](const auto& m){return m.mealy_like; });
+
+    return mealy_machines_to_aig(new_vec, mode);
   }
 
   // Note: This ignores the named property
   aig_ptr
-  strategies_to_aig(const std::vector<twa_graph_ptr>& strat_vec,
-                    const char *mode,
-                    const std::vector<std::string>& ins,
-                    const std::vector<std::vector<std::string>>& outs)
+  mealy_machines_to_aig(const std::vector<twa_graph_ptr>& m_vec,
+                        const char *mode,
+                        const std::vector<std::string>& ins,
+                        const std::vector<std::vector<std::string>>& outs)
   {
-    if (strat_vec.size() != outs.size())
-      throw std::runtime_error("Expected as many outs as strategies!\n");
+    if (m_vec.size() != outs.size())
+      throw std::runtime_error("mealy_machines_to_aig(): "
+                               "Expected as many outs as strategies!\n");
 
-    std::for_each(strat_vec.begin()+1, strat_vec.end(),
-                  [usedbdd = strat_vec.at(0)->get_dict()](auto&& it)
+    std::for_each(m_vec.begin()+1, m_vec.end(),
+                  [usedbdd = m_vec.at(0)->get_dict()](auto&& it)
                   {
                     if (usedbdd != it->get_dict())
-                      throw std::runtime_error("All strategies have to "
+                      throw std::runtime_error("mealy_machines_to_aig(): "
+                                               "All strategies have to "
                                                "share a bdd_dict!\n");
                   });
 
@@ -1944,17 +2004,17 @@ namespace spot
     }
 
     std::vector<std::pair<const_twa_graph_ptr, bdd>> new_vec;
-    new_vec.reserve(strat_vec.size());
+    new_vec.reserve(m_vec.size());
 
     std::set<std::string> used_aps;
 
-    for (size_t i = 0; i < strat_vec.size(); ++i)
+    for (size_t i = 0; i < m_vec.size(); ++i)
       {
-        for (const auto& f : strat_vec[i]->ap())
+        for (const auto& f : m_vec[i]->ap())
           used_aps.insert(f.ap_name());
         // todo Some additional checks?
-        new_vec.emplace_back(strat_vec[i],
-                             get_synthesis_outputs(strat_vec[i]));
+        new_vec.emplace_back(m_vec[i],
+                             get_synthesis_outputs(m_vec[i]));
       }
 
         // Check if there exist outs or ins that are not used by the
@@ -1975,15 +2035,15 @@ namespace spot
   }
 
   aig_ptr
-  strategies_to_aig(const std::vector<strategy_like_t>& strat_vec,
-                    const char *mode,
-                    const std::vector<std::string>& ins,
-                    const std::vector<std::vector<std::string>>& outs)
+  mealy_machines_to_aig(const std::vector<mealy_like>& strat_vec,
+                        const char* mode,
+                        const std::vector<std::string>& ins,
+                        const std::vector<std::vector<std::string>>& outs)
   {
     // todo extend to TGBA and possibly others
     const unsigned ns = strat_vec.size();
-    std::vector<twa_graph_ptr> strategies;
-    strategies.reserve(ns);
+    std::vector<twa_graph_ptr> m_machines;
+    m_machines.reserve(ns);
     std::vector<std::vector<std::string>> outs_used;
     outs_used.reserve(ns);
 
@@ -1991,27 +2051,28 @@ namespace spot
       {
         switch (strat_vec[i].success)
         {
-        case strategy_like_t::realizability_code::UNREALIZABLE:
-          throw std::runtime_error("strategies_to_aig(): Partial strat is "
-                                   "not feasible!");
-        case strategy_like_t::realizability_code::UNKNOWN:
-          throw std::runtime_error("strategies_to_aig(): Partial strat has "
-                                   "unknown status!");
-        case strategy_like_t::realizability_code::REALIZABLE_REGULAR:
+        case mealy_like::realizability_code::UNREALIZABLE:
+          throw std::runtime_error("mealy_machines_to_aig(): One of the "
+                                   "mealy like machines is not realizable.");
+        case mealy_like::realizability_code::UNKNOWN:
+          throw std::runtime_error("mealy_machines_to_aig(): One of the"
+                                   "mealy like objects has "
+                                   "status \"unkwnown\"");
+        case mealy_like::realizability_code::REALIZABLE_REGULAR:
         {
-          strategies.push_back(strat_vec[i].strat_like);
+          m_machines.push_back(strat_vec[i].mealy_like);
           outs_used.push_back(outs[i]);
           break;
         }
-        case strategy_like_t::realizability_code::REALIZABLE_DTGBA:
-          throw std::runtime_error("strategies_to_aig(): TGBA not "
-                                   "yet supported.");
+        case mealy_like::realizability_code::REALIZABLE_DTGBA:
+          throw std::runtime_error("mealy_machines_to_aig(): TGBA not "
+                                   "yet supported - TBD");
         default:
-          throw std::runtime_error("strategies_to_aig(): Unknown "
+          throw std::runtime_error("mealy_machines_to_aig(): Unknown "
                                    "success identifier.");
         }
       }
-    return strategies_to_aig(strategies, mode, ins, outs_used);
+    return mealy_machines_to_aig(m_machines, mode, ins, outs_used);
   }
 
   std::ostream &
@@ -2073,7 +2134,7 @@ namespace spot
   print_aiger(std::ostream& os, const const_twa_graph_ptr& aut,
               const char* mode)
   {
-    print_aiger(os, strategy_to_aig(aut, mode));
+    print_aiger(os, mealy_machine_to_aig(aut, mode));
     return os;
   }
 }

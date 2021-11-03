@@ -58,29 +58,13 @@ namespace spot
   split_2step(const const_twa_graph_ptr& aut,
               const bdd& output_bdd, bool complete_env);
 
-
   /// \ingroup synthesis
-  /// \brief make each transition a 2-step transition.
+  /// \brief the inverse of split_2step
   ///
-  /// This algorithm is only applicable if all transitions of the
-  /// graph have the form p -- ins & outs --> q.
-  /// That is they are a conjunction of a condition over the input
-  /// propositions ins and a condition over the output propositions outs
-  ///
-  /// \param aut          automaton to be transformed
-  /// \param output_bdd   conjunction of all output AP, all APs not present
-  ///                     are treated as inputs
-  /// @{
-  SPOT_API void
-  split_2step_fast_here(const twa_graph_ptr& aut, const bdd& output_bdd);
-
-  SPOT_API twa_graph_ptr
-  split_2step_fast(const const_twa_graph_ptr& aut, const bdd& output_bdd);
-  /// @}
-
-  /// \ingroup synthesis
-  /// \brief the reverse of split_2step
-  ///
+  /// \pre aut is an alternating arena
+  /// \post All edge conditions in the returned automaton are of the form
+  ///       ins&outs, with ins/outs being a condition over the input/output
+  ///       propositions
   /// \note This function relies on the named property "state-player"
   SPOT_API twa_graph_ptr
   unsplit_2step(const const_twa_graph_ptr& aut);
@@ -174,57 +158,23 @@ namespace spot
   /// @}
 
   /// \ingroup synthesis
-  /// \brief Takes a solved game and restricts the automaton to the
-  ///        winning strategy of the player
-  ///
-  /// \param arena        twa_graph with named properties "state-player",
-  ///                     "strategy" and "state-winner"
-  /// \param unsplit      Whether or not to unsplit the automaton
-  /// \param keep_acc     Whether or not keep the acceptance condition
-  /// \return             the resulting twa_graph
-  SPOT_API spot::twa_graph_ptr
-  apply_strategy(const spot::twa_graph_ptr& arena,
-                 bool unsplit, bool keep_acc);
-
-  /// \ingroup synthesis
-  /// \brief Minimizes a strategy. Strategies are infact
-  /// Mealy machines. So we can use techniques designed for them
-  ///
-  /// \param strat The machine to minimize
-  /// \param min_lvl How to minimize the machine:
-  ///                0: No minimization, 1: Minimizing it like an DFA,
-  ///                means the language is preserved, 2: Inclusion with
-  ///                output assignement, 3: Exact minimization using
-  ///                SAT solving, 4: SAT solving with DFA minimization as
-  ///                preprocessing, 5: SAT solving using inclusion based
-  ///                 minimization with output assignment as preprocessing
-  /// \note min_lvl 1 and 2 work more efficiently on UNSPLIT strategies,
-  ///       whereas min_lvl 3, 4 and 5 mandate a SPLIT strategy
+  /// \brief creates a separated mealy machine from a solved game
+  /// taking into account the options given in \a gi.
+  /// This concerns in particular whether or not the machine is to be reduced
+  /// and how.
   /// @{
-  SPOT_API void
-  minimize_strategy_here(twa_graph_ptr& strat, int min_lvl);
-
   SPOT_API twa_graph_ptr
-  minimize_strategy(const_twa_graph_ptr& strat, int min_lvl);
+  solved_game_to_separated_mealy(twa_graph_ptr arena, synthesis_info& gi);
+  SPOT_API twa_graph_ptr
+  solved_game_to_separated_mealy(twa_graph_ptr arena);
   /// @}
 
   /// \ingroup synthesis
-  /// \brief creates a strategy from a solved game taking into account the
-  ///        options given in \a gi
-  /// @{
-  SPOT_API twa_graph_ptr
-  create_strategy(twa_graph_ptr arena, synthesis_info& gi);
-  SPOT_API twa_graph_ptr
-  create_strategy(twa_graph_ptr arena);
-  /// @}
-
-  /// \ingroup synthesis
-  /// \brief A struct that represents different types of strategy like
+  /// \brief A struct that represents different types of mealy like
   ///        objects
   struct SPOT_API
-  strategy_like_t
+  mealy_like
   {
-
     enum class realizability_code
     {
       UNREALIZABLE,
@@ -235,7 +185,7 @@ namespace spot
     };
 
     realizability_code success;
-    twa_graph_ptr strat_like;
+    twa_graph_ptr mealy_like;
     bdd glob_cond;
   };
 
@@ -272,7 +222,7 @@ namespace spot
   /// \param f The formula to synthesize a strategy for
   /// \param output_aps A vector with the name of all output properties.
   ///                   All APs not named in this vector are treated as inputs
-  SPOT_API strategy_like_t
+  SPOT_API mealy_like
   try_create_direct_strategy(formula f,
                              const std::vector<std::string>& output_aps,
                              synthesis_info& gi);

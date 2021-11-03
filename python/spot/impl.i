@@ -461,6 +461,8 @@ static void handle_any_exception()
 %include <spot/misc/trival.hh>
 
 %implicitconv std::vector<spot::formula>;
+%implicitconv std::vector<spot::twa_graph_ptr>;
+%implicitconv std::vector<spot::const_twa_graph_ptr>;
 %implicitconv spot::formula;
 %implicitconv std::vector<bool>;
 
@@ -670,6 +672,7 @@ def state_is_accepting(self, src) -> "bool":
 %template(scc_info_scc_edges) spot::internal::scc_edges<spot::digraph<spot::twa_graph_state, spot::twa_graph_edge_data> const, spot::internal::keep_all>;
 %template(scc_info_inner_scc_edges) spot::internal::scc_edges<spot::digraph<spot::twa_graph_state, spot::twa_graph_edge_data> const, spot::internal::keep_inner_scc>;
 %template(vector_twa_graph) std::vector<spot::twa_graph_ptr>;
+%template(vector_const_twa_graph) std::vector<spot::const_twa_graph_ptr>;
 %include <spot/twaalgos/strength.hh>
 %include <spot/twaalgos/sccfilter.hh>
 %include <spot/twaalgos/stats.hh>

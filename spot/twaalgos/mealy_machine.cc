@@ -33,6 +33,7 @@
 #include <spot/misc/timer.hh>
 #include <spot/misc/minato.hh>
 #include <spot/twaalgos/game.hh>
+#include <spot/twaalgos/hoa.hh>
 #include <spot/twaalgos/synthesis.hh>
 
 #include <picosat/picosat.h>
@@ -52,11 +53,245 @@
 #  define dotimeprint while (0) std::cerr
 #endif
 
+namespace
+{
+  bool is_deterministic_(const std::vector<bdd>& ins)
+  {
+    const unsigned n_ins = ins.size();
+    for (unsigned idx1 = 0; idx1 < n_ins - 1; ++idx1)
+      for (unsigned idx2 = idx1 + 1; idx2 < n_ins; ++idx2)
+        if (bdd_have_common_assignment(ins[idx1], ins[idx2]))
+          return false;
+    return true;
+  }
+}
 
+
+namespace spot
+{
+
+  bool
+  is_mealy(const const_twa_graph_ptr& m)
+  {
+    if (!m->acc().is_t())
+    {
+      trace << "is_mealy(): Mealy machines must have "
+               "true acceptance condition.\n";
+      return false;
+    }
+
+    if (!m->get_named_prop<bdd>("synthesis-outputs"))
+    {
+      trace << "is_mealy(): \"synthesis-outputs\" not found!\n";
+      return false;
+    }
+
+    return true;
+  }
+
+  bool
+  is_separated_mealy(const const_twa_graph_ptr& m)
+  {
+    if (!is_mealy(m))
+      return false;
+
+    auto outs = get_synthesis_outputs(m);
+
+    for (const auto& e : m->edges())
+      if ((bdd_exist(e.cond, outs) & bdd_existcomp(e.cond, outs)) != e.cond)
+        {
+          trace << "is_separated_mealy_machine(): Edge number "
+                << m->edge_number(e) << " from " << e.src << " to " << e.dst
+                << " with " << e.cond << " is not separated!\n";
+          return false;
+        }
+
+    return true;
+  }
+
+  bool
+  is_split_mealy(const const_twa_graph_ptr& m)
+  {
+    if (!is_mealy(m))
+      return false;
+
+    if (m->get_named_prop<region_t>("state-player") == nullptr)
+      {
+        trace << "is_split_mealy(): Split mealy machine must define the named "
+                 "property \"state-player\"!\n";
+      }
+    auto sp = get_state_players(m);
+
+    if (sp.size() != m->num_states())
+      {
+        trace << "\"state-player\" has not the same size as the "
+                 "automaton!\n";
+        return false;
+      }
+
+    if (sp[m->get_init_state_number()])
+      {
+        trace << "is_split_mealy(): Initial state must be owned by env!\n";
+        return false;
+      }
+
+    auto outs = get_synthesis_outputs(m);
+
+    for (const auto& e : m->edges())
+      {
+        if (sp[e.src] == sp[e.dst])
+          {
+            trace << "is_split_mealy(): Edge number "
+                  << m->edge_number(e) << " from " << e.src << " to " << e.dst
+                  << " is not alternating!\n";
+            return false;
+          }
+        if (sp[e.src] && (bdd_exist(e.cond, outs) != bddtrue))
+          {
+            trace << "is_split_mealy(): Edge number "
+                  << m->edge_number(e) << " from " << e.src << " to " << e.dst
+                  << " depends on inputs, but should be labeled by outputs!\n";
+            return false;
+          }
+        if (!sp[e.src] && (bdd_existcomp(e.cond, outs) != bddtrue))
+          {
+            trace << "is_split_mealy(): Edge number "
+                  << m->edge_number(e) << " from " << e.src << " to " << e.dst
+                  << " depends on outputs, but should be labeled by inputs!\n";
+            return false;
+          }
+      }
+    return true;
+  }
+
+  bool
+  is_input_deterministic_mealy(const const_twa_graph_ptr& m)
+  {
+    if (!is_mealy(m))
+      return false;
+
+    const unsigned N = m->num_states();
+
+    auto sp_ptr = m->get_named_prop<region_t>("state-player");
+    // Unsplit mealy -> sp_ptr == nullptr
+    if (sp_ptr && !is_split_mealy(m))
+      return false;
+
+    auto outs = get_synthesis_outputs(m);
+
+    std::vector<bdd> ins;
+    for (unsigned s = 0; s < N; ++s)
+      {
+        if (sp_ptr && (*sp_ptr)[s])
+          continue;
+        ins.clear();
+        for (const auto& e : m->out(s))
+          ins.push_back(sp_ptr ? e.cond
+                               : bdd_exist(e.cond, outs));
+        if (!is_deterministic_(ins))
+          {
+            trace << "is_input_deterministic_mealy(): State number "
+                  << s << " is not input determinisc!\n";
+            return false;
+          }
+      }
+    return true;
+  }
+
+  void
+  split_separated_mealy_here(const twa_graph_ptr& m)
+  {
+    assert(is_mealy(m));
+
+    auto output_bdd = get_synthesis_outputs(m);
+
+    struct dst_cond_color_t
+    {
+      std::pair<unsigned, int> dst_cond;
+      acc_cond::mark_t color;
+    };
+
+    auto hasher = [](const dst_cond_color_t& dcc) noexcept
+      {
+        return dcc.color.hash() ^ pair_hash()(dcc.dst_cond);
+      };
+    auto equal = [](const dst_cond_color_t& dcc1,
+                    const dst_cond_color_t& dcc2) noexcept
+      {
+        return (dcc1.dst_cond == dcc2.dst_cond)
+               && (dcc1.color == dcc2.color);
+      };
+
+    std::unordered_map<dst_cond_color_t, unsigned,
+                       decltype(hasher),
+                       decltype(equal)> player_map(m->num_edges(),
+                                                   hasher, equal);
+
+    auto get_ps = [&](unsigned dst, const bdd& ocond,
+                      acc_cond::mark_t color)
+      {
+        dst_cond_color_t key{std::make_pair(dst, ocond.id()),
+                             color};
+        auto [it, inserted] =
+            player_map.try_emplace(key, m->num_states());
+        if (!inserted)
+          return it->second;
+        unsigned ns = m->new_state();
+        assert(ns == it->second);
+        m->new_edge(ns, dst, ocond, color);
+        return ns;
+      };
+
+    unsigned ne = m->edge_vector().size();
+    for (unsigned eidx = 1; eidx < ne; ++eidx)
+      {
+        const auto& e = m->edge_storage(eidx);
+        if (e.next_succ == eidx) // dead edge
+          continue;
+        bdd incond = bdd_exist(e.cond, output_bdd);
+        bdd outcond = bdd_existcomp(e.cond, output_bdd);
+        assert(((incond&outcond) == e.cond) && "Precondition violated");
+        // Create new state and trans
+        // this may invalidate "e".
+        unsigned new_dst = get_ps(e.dst, outcond, e.acc);
+        // redirect
+        auto& e2 = m->edge_storage(eidx);
+        e2.dst = new_dst;
+        e2.cond = incond;
+      }
+
+    auto* sp_ptr = m->get_or_set_named_prop<region_t>("state-player");
+
+    sp_ptr->resize(m->num_states());
+    std::fill(sp_ptr->begin(), sp_ptr->end(), false);
+    for (const auto& eit : player_map)
+      (*sp_ptr)[eit.second] = true;
+    //Done
+  }
+
+  twa_graph_ptr
+  split_separated_mealy(const const_twa_graph_ptr& m)
+  {
+    assert(is_mealy((m)));
+    auto m2 = make_twa_graph(m, twa::prop_set::all());
+    m2->copy_acceptance_of(m);
+    set_synthesis_outputs(m2, get_synthesis_outputs(m));
+    split_separated_mealy_here(m2);
+    return m2;
+  }
+
+  twa_graph_ptr
+  unsplit_mealy(const const_twa_graph_ptr& m)
+  {
+    assert(is_split_mealy(m));
+    return unsplit_2step(m);
+  }
+
+}
 
 namespace
 {
-  // Anonymous for minimize_mealy_fast
+  // Anonymous for reduce_mealy
   using namespace spot;
 
   // Used to get the signature of the state.
@@ -478,84 +713,33 @@ namespace
 
 namespace spot
 {
-  twa_graph_ptr minimize_mealy_fast(const const_twa_graph_ptr& mm,
-                                    bool use_inclusion)
+  twa_graph_ptr reduce_mealy(const const_twa_graph_ptr& mm,
+                             bool output_assignment)
   {
-    bool orig_is_split = true;
-    bdd* outsptr = nullptr;
-    bdd outs = bddfalse;
+    assert(is_mealy(mm));
+    if (mm->get_named_prop<std::vector<bool>>("state-player"))
+      throw std::runtime_error("reduce_mealy(): "
+                               "Only works on unsplit machines.\n");
 
-    twa_graph_ptr mmc;
-    if (mm->get_named_prop<std::vector<bool>>("state-player") != nullptr)
-      {
-        outsptr = mm->get_named_prop<bdd>("synthesis-outputs");
-        assert(outsptr && "If the original strat is split, "
-                          "we need \"synthesis-outputs\".");
-        outs = *outsptr;
-        mmc = unsplit_2step(mm);
-      }
-    else
-      {
-        mmc = make_twa_graph(mm, twa::prop_set::all());
-        mmc->copy_ap_of(mm);
-        mmc->copy_acceptance_of(mm);
-        orig_is_split = false;
-      }
+    auto mmc = make_twa_graph(mm, twa::prop_set::all());
+    mmc->copy_ap_of(mm);
+    mmc->copy_acceptance_of(mm);
+    set_synthesis_outputs(mmc, get_synthesis_outputs(mm));
 
-    minimize_mealy_fast_here(mmc, use_inclusion);
+    reduce_mealy_here(mmc, output_assignment);
 
-    // Split if the initial aut was split
-    if (orig_is_split)
-      {
-        mmc = split_2step(mmc, outs, false);
-        bool orig_init_player =
-            mm->get_named_prop<std::vector<bool>>("state-player")
-                ->at(mm->get_init_state_number());
-        alternate_players(mmc, orig_init_player, false);
-      }
-    // Try to set outputs
-    if (outsptr)
-      mmc->set_named_prop("synthesis-outputs", new bdd(outs));
-
+    assert(is_mealy(mmc));
     return mmc;
   }
 
-  void minimize_mealy_fast_here(twa_graph_ptr& mm, bool use_inclusion)
+  void reduce_mealy_here(twa_graph_ptr& mm, bool output_assignment)
   {
-
-    bool orig_is_split = false;
-    bdd* outsptr = nullptr;
-    bdd outs = bddfalse;
-
-    auto sp_ptr = mm->get_named_prop<std::vector<bool>>("state-player");
-
-    bool init_player = sp_ptr ? sp_ptr->at(mm->get_init_state_number())
-                              : false;
+    assert(is_mealy(mm));
 
     // Only consider infinite runs
     mm->purge_dead_states();
 
-    if (mm->get_named_prop<std::vector<bool>>("state-player") != nullptr)
-      {
-        // Check if done
-        if (std::count(sp_ptr->begin(), sp_ptr->end(), false) == 1)
-          return;
-        outsptr = mm->get_named_prop<bdd>("synthesis-outputs");
-        assert(outsptr && "If the original strat is split, "
-                          "we need \"synthesis-outputs\".");
-        outs = *outsptr;
-        init_player =
-            mm->get_named_prop<std::vector<bool>>("state-player")->at(
-                mm->get_init_state_number());
-        mm = unsplit_2step(mm);
-        orig_is_split = true;
-      }
-    else
-      // Check if done
-      if (mm->num_states() == 1)
-        return;
-
-    auto repr = get_repres(mm, use_inclusion);
+    auto repr = get_repres(mm, output_assignment);
     if (repr[0] == -1U)
       return;
 
@@ -567,25 +751,20 @@ namespace spot
     std::vector<bool> done(mm->num_states(), false);
     todo.emplace(init);
     while (!todo.empty())
-    {
-      auto current = todo.top();
-      todo.pop();
-      done[current] = true;
-      for (auto& e : mm->out(current))
       {
-        auto repr_dst = repr[e.dst];
-        e.dst = repr_dst;
-        if (!done[repr_dst])
-          todo.emplace(repr_dst);
+        auto current = todo.top();
+        todo.pop();
+        done[current] = true;
+        for (auto& e : mm->out(current))
+          {
+            auto repr_dst = repr[e.dst];
+            e.dst = repr_dst;
+            if (!done[repr_dst])
+              todo.emplace(repr_dst);
+          }
       }
-    }
     mm->purge_unreachable_states();
-    if (orig_is_split)
-      {
-        mm = split_2step(mm, outs, false);
-        alternate_players(mm, init_player, false);
-        mm->set_named_prop("synthesis-outputs", new bdd(outs));
-      }
+    assert(is_mealy(mm));
   }
 }
 
@@ -639,7 +818,7 @@ namespace
   template <class CONT, class PRED>
   size_t find_first_index_of(const CONT& c, PRED pred)
   {
-    size_t s = c.size();
+    const size_t s = c.size();
     for (unsigned i = 0; i < s; ++i)
       if (pred(c[i]))
         return i;
@@ -874,8 +1053,8 @@ namespace
 
     std::vector<bool> spnew(n_new, true);
     std::fill(spnew.begin(), spnew.begin()+n_env, false);
-    omm->set_named_prop("state-player",
-                        new std::vector<bool>(std::move(spnew)));
+    set_state_players(omm, std::move(spnew));
+    set_synthesis_outputs(omm, get_synthesis_outputs(mm));
 
     // Make sure we have a proper strategy,
     // that is each player state has only one successor
@@ -1217,7 +1396,7 @@ namespace
 #ifdef TRACE
       trace << "We found " << n_group << " groups.\n";
       for (unsigned s = 0; s < n_env; ++s)
-        trace << s << " : " << which_group[s] << '\n';
+        trace << s << " : " << which_group.at(s) << '\n';
 #endif
     return std::make_pair(n_group, which_group);
   }
@@ -1640,7 +1819,7 @@ namespace
     split_mmw->get_graph().chain_edges_();
 #ifdef TRACE
     trace << "Orig split aut\n";
-    print_hoa(std::cerr, split_mmw) << '\n';
+    print_hoa(std::cerr, mmw) << '\n';
     {
       auto ss = make_twa_graph(split_mmw, twa::prop_set::all());
       for (unsigned group = 0; group < red.n_groups; ++group)
@@ -1652,10 +1831,9 @@ namespace
                 bdd_ithvar(ss->register_ap("g"+std::to_string(group)
                                            +"e"+std::to_string(i))));
             }
-          const unsigned ns = ss->num_states();
-          for (unsigned s = 0; s < ns; ++s)
+          for (unsigned s = 0; s < n_env; ++s)
             {
-              if (red.which_group[s] != group)
+              if (red.which_group.at(s) != group)
                 continue;
               for (auto& e : ss->out(s))
                 e.cond =
@@ -1676,8 +1854,8 @@ namespace
           for (const auto& idx_vec : red.bisim_letters[i])
             trace << red.minimal_letters_vec[i][idx_vec.front()].id() << '\n';
           trace << "ids in the edge of the group\n";
-          for (unsigned s = 0; s < split_mmw->num_states(); ++s)
-            if (red.which_group[s] == i)
+          for (unsigned s = 0; s < n_env; ++s)
+            if (red.which_group.at(s) == i)
               for (const auto& e : split_mmw->out(s))
                 trace << e.src << "->" << e.dst << ':' << e.cond.id() << '\n';
         }
@@ -2763,64 +2941,14 @@ namespace
     return gmm2cond;
   }
 
-  void cstr_unsplit(twa_graph_ptr& minmach,
-                    const reduced_alphabet_t& red,
-                    const std::vector<std::pair<unsigned,
-                                                std::vector<bool>>>&
-                        x_in_class,
-                    std::unordered_map<iaj_t, bdd,
-                                       decltype(iaj_hash),
-                                       decltype(iaj_eq)>& used_ziaj_map)
-  {
-    const unsigned n_groups = red.n_groups;
-    // For each minimal letter, create the (input) condition that it represents
-    // This has to be created for each minimal letters
-    // and might be shared between alphabets
-    std::vector<std::vector<bdd>> gmm2cond
-        = comp_represented_cond(red);
-    // Use a new map to reduce the number of edges created
-    // iaj.i: src_class or 0
-    // iaj.a: id of out condition
-    // iaj.j: dst_class
-    std::unordered_map<iaj_t, bdd,
-        decltype(iaj_hash), decltype(iaj_eq)>
-                            edge_map(2*used_ziaj_map.size(), iaj_hash, iaj_eq);
-
-    for (unsigned group = 0; group < n_groups; ++group)
-      {
-        edge_map.clear();
-
-        // Attention the a in used_ziaj corresponds to the index
-        for (const auto& [iaj, outcond] : used_ziaj_map)
-          {
-            if (x_in_class[iaj.i].first != group)
-              continue;
-
-            const bdd& repr_cond = gmm2cond[group].at(iaj.a);
-
-            // Check if there already exists a suitable edge
-            auto [itedge, inserted] =
-              edge_map.try_emplace({iaj.i, (unsigned) outcond.id(), iaj.j},
-                                   repr_cond);
-            if (!inserted)
-              itedge->second |= repr_cond;
-          }
-        // Create the actual edges
-
-        for (const auto& ep : edge_map)
-          minmach->new_edge(ep.first.i, ep.first.j,
-                            ep.second & bdd_from_int((int) ep.first.a));
-      }
-  }
-
-  void cstr_keep_split(twa_graph_ptr& minmach,
-                       const reduced_alphabet_t& red,
-                       const std::vector<std::pair<unsigned,
-                                                   std::vector<bool>>>&
-                         x_in_class,
-                       std::unordered_map<iaj_t, bdd,
-                           decltype(iaj_hash),
-                           decltype(iaj_eq)>& used_ziaj_map)
+  void cstr_split_mealy(twa_graph_ptr& minmach,
+                        const reduced_alphabet_t& red,
+                        const std::vector<std::pair<unsigned,
+                                                    std::vector<bool>>>&
+                          x_in_class,
+                        std::unordered_map<iaj_t, bdd,
+                            decltype(iaj_hash),
+                            decltype(iaj_eq)>& used_ziaj_map)
   {
     const unsigned n_env_states = minmach->num_states();
     // For each minimal letter, create the (input) condition that it represents
@@ -2895,11 +3023,10 @@ namespace
       }
 
     // Set the state-player
-    std::vector<bool> sp(minmach->num_states(), true);
+    auto* sp = new std::vector<bool>(minmach->num_states(), true);
     for (unsigned i = 0; i < n_env_states; ++i)
-      sp[i] = false;
-    minmach->set_named_prop("state-player",
-                            new std::vector<bool>(std::move(sp)));
+      (*sp)[i] = false;
+    minmach->set_named_prop("state-player", sp);
   }
 
   // This function refines the sat constraints in case the
@@ -3185,7 +3312,6 @@ namespace
                         const reduced_alphabet_t& red,
                         const part_sol_t& psol,
                         const unsigned n_env,
-                        bool keep_split,
                         stopwatch& sw)
   {
     const auto& psolv = psol.psol;
@@ -3432,10 +3558,7 @@ namespace
             continue; //retry
           }
 
-        if (keep_split)
-          cstr_keep_split(minmach, red, x_in_class, used_ziaj_map);
-        else
-          cstr_unsplit(minmach, red, x_in_class, used_ziaj_map);
+        cstr_split_mealy(minmach, red, x_in_class, used_ziaj_map);
 
         // todo: What is the impact of chosing one of the possibilities
         minmach->set_init_state(init_class_v.front());
@@ -3447,26 +3570,17 @@ namespace
 namespace spot
 {
   twa_graph_ptr minimize_mealy(const const_twa_graph_ptr& mm,
-                               int premin, bool keep_split)
+                               int premin)
   {
+    assert(is_split_mealy(mm));
+
     stopwatch sw;
     sw.start();
 
     if ((premin < -1) || (premin > 1))
       throw std::runtime_error("premin has to be -1, 0 or 1");
 
-    if (!mm->acc().is_t())
-      throw std::runtime_error("Mealy machine needs true acceptance!\n");
-
     auto orig_spref = get_state_players(mm);
-    if (orig_spref.size() != mm->num_states())
-      throw std::runtime_error("Inconsistent \"state-player\"");
-
-    if (std::any_of(mm->edges().begin(), mm->edges().end(),
-                    [&](const auto& e){return orig_spref[e.src]
-                                              == orig_spref[e.dst]; }))
-      throw std::runtime_error("Arena is not alternating!");
-
 
     // Check if finite traces exist
     // If so, deactivate fast minimization
@@ -3491,10 +3605,18 @@ namespace spot
         if (premin == -1)
           return mm;
         else
-          return minimize_mealy_fast(mm, premin == 1);
+          {
+            // We have a split machine -> unsplit then resplit,
+            // as reduce mealy works on separated
+            auto mms = unsplit_mealy(mm);
+            reduce_mealy_here(mms, premin == 1);
+            split_separated_mealy_here(mms);
+            return mms;
+          }
       };
 
     const_twa_graph_ptr mmw = do_premin();
+    assert(is_split_mealy(mmw));
     dotimeprint << "Done premin " << sw.stop() << '\n';
 
     // 0 -> "Env" next is input props
@@ -3508,6 +3630,7 @@ namespace spot
     // second black : player-states
     unsigned n_env = -1u;
     std::tie(mmw, n_env) = reorganize_mm(mmw, spref);
+    assert(is_split_mealy(mmw));
 #ifdef TRACE
     print_hoa(std::cerr, mmw);
 #endif
@@ -3530,15 +3653,9 @@ namespace spot
 
     auto early_exit = [&]()
       {
-        if (keep_split)
-          return std::const_pointer_cast<twa_graph>(mmw);
-        else
-          {
-            auto mmw_u = unsplit_2step(mmw);
-            // todo correct unsplit to avoid this
-            mmw_u->purge_unreachable_states();
-            return mmw_u;
-          }
+        // Always keep machines split
+        assert(is_split_mealy_specialization(mm, mmw));
+        return std::const_pointer_cast<twa_graph>(mmw);
     };
 
     // If the partial solution has the same number of
@@ -3576,7 +3693,6 @@ namespace spot
         minmachine = try_build_min_machine(mm_pb, mmw,
                                            reduced_alphabet,
                                            partsol, n_env,
-                                           keep_split,
                                            sw);
         dotimeprint << "Done try_build " << n_classes
               << " - " << sw.stop() << '\n';
@@ -3591,35 +3707,32 @@ namespace spot
     // Set state players!
     if (!minmachine)
       return early_exit();
-    // Try to set outputs
-    if (bdd* outptr = mm->get_named_prop<bdd>("synthesis-outputs"))
-      minmachine->set_named_prop("synthesis-outputs", new bdd(*outptr));
+    set_synthesis_outputs(minmachine, get_synthesis_outputs(mm));
     dotimeprint << "Done minimizing - " << minmachine->num_states()
                 << " - " << sw.stop() << '\n';
+
+    assert(is_split_mealy_specialization(mm, minmachine));
     return minmachine;
   }
 }
 
 namespace spot
 {
-  bool is_mealy_specialization(const_twa_graph_ptr left,
-                               const_twa_graph_ptr right,
-                               bool verbose)
+  bool is_split_mealy_specialization(const_twa_graph_ptr left,
+                                     const_twa_graph_ptr right,
+                                     bool verbose)
   {
+    assert(is_split_mealy(left));
+    assert(is_split_mealy(right));
+
     auto& spl = get_state_players(left);
     auto& spr = get_state_players(right);
 
     const unsigned initl = left->get_init_state_number();
     const unsigned initr = right->get_init_state_number();
 
-    if (spl[initl])
-      throw std::runtime_error("left: Mealy machine must have an "
-                               "environment controlled initial state.");
-    if (spr[initr])
-      throw std::runtime_error("right: Mealy machine must have an "
-                               "environment controlled initial state.");
-
 #ifndef NDEBUG
+    // todo
     auto check_out = [](const const_twa_graph_ptr& aut,
                         const auto& sp)
       {

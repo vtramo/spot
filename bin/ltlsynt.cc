@@ -36,6 +36,7 @@
 #include <spot/twaalgos/game.hh>
 #include <spot/twaalgos/hoa.hh>
 #include <spot/twaalgos/minimize.hh>
+#include <spot/twaalgos/mealy_machine.hh>
 #include <spot/twaalgos/product.hh>
 #include <spot/twaalgos/synthesis.hh>
 #include <spot/twaalgos/translate.hh>
@@ -344,7 +345,7 @@ namespace
 
     auto sub_f = sub_form.begin();
     auto sub_o = sub_outs_str.begin();
-    std::vector<spot::strategy_like_t> strategies;
+    std::vector<spot::mealy_like> mealy_machines;
 
     auto print_game = want_game ?
       [](const spot::twa_graph_ptr& game)->void
@@ -359,27 +360,27 @@ namespace
 
     for (; sub_f != sub_form.end(); ++sub_f, ++sub_o)
     {
-      spot::strategy_like_t strat
+      spot::mealy_like m_like
               {
-                spot::strategy_like_t::realizability_code::UNKNOWN,
+                spot::mealy_like::realizability_code::UNKNOWN,
                 nullptr,
                 bddfalse
               };
       // If we want to print a game,
       // we never use the direct approach
       if (!want_game)
-        strat =
+        m_like =
             spot::try_create_direct_strategy(*sub_f, *sub_o, *gi);
 
-      switch (strat.success)
+      switch (m_like.success)
       {
-      case spot::strategy_like_t::realizability_code::UNREALIZABLE:
+      case spot::mealy_like::realizability_code::UNREALIZABLE:
         {
           std::cout << "UNREALIZABLE" << std::endl;
           safe_tot_time();
           return 1;
         }
-      case spot::strategy_like_t::realizability_code::UNKNOWN:
+      case spot::mealy_like::realizability_code::UNKNOWN:
         {
           auto arena = spot::ltl_to_game(*sub_f, *sub_o, *gi);
           if (gi->bv)
@@ -404,55 +405,75 @@ namespace
           // only if we need it
           if (!opt_real)
             {
-              spot::strategy_like_t sl;
-              sl.success =
-                spot::strategy_like_t::realizability_code::REALIZABLE_REGULAR;
-              sl.strat_like = spot::create_strategy(arena, *gi);
-              sl.glob_cond = bddfalse;
-              strategies.push_back(sl);
+              spot::mealy_like ml;
+              ml.success =
+                spot::mealy_like::realizability_code::REALIZABLE_REGULAR;
+              ml.mealy_like =
+                  spot::solved_game_to_separated_mealy(arena, *gi);
+              ml.glob_cond = bddfalse;
+              mealy_machines.push_back(ml);
             }
           break;
         }
-      case spot::strategy_like_t::realizability_code::REALIZABLE_REGULAR:
+      case spot::mealy_like::realizability_code::REALIZABLE_REGULAR:
         {
           // the direct approach yielded a strategy
           // which can now be minimized
           // We minimize only if we need it
-          assert(strat.strat_like && "Expected success but found no strat!");
+          assert(m_like.mealy_like && "Expected success but found no mealy!");
           if (!opt_real)
             {
-              spot::stopwatch sw_min;
-              sw_min.start();
-              unsigned simplify = gi->minimize_lvl;
-              bool do_split = 3 <= simplify;
-              if (do_split)
-                strat.strat_like =
-                    split_2step(strat.strat_like,
-                                spot::get_synthesis_outputs(strat.strat_like),
-                                false);
-              minimize_strategy_here(strat.strat_like, simplify);
-              if (do_split)
-                strat.strat_like = spot::unsplit_2step(strat.strat_like);
-              auto delta = sw_min.stop();
+              spot::stopwatch sw_direct;
+              sw_direct.start();
+
+              if ((0 < gi->minimize_lvl) && (gi->minimize_lvl < 3))
+                // Uses reduction or not,
+                // both work with mealy machines (non-separated)
+                reduce_mealy_here(m_like.mealy_like, gi->minimize_lvl == 2);
+
+              auto delta = sw_direct.stop();
+
+              sw_direct.start();
+              // todo better algo here?
+              m_like.mealy_like =
+                  split_2step(m_like.mealy_like,
+                              spot::get_synthesis_outputs(m_like.mealy_like),
+                              false);
+              if (gi->bv)
+                gi->bv->split_time += sw_direct.stop();
+
+              sw_direct.start();
+              if (gi->minimize_lvl >= 3)
+                {
+                  sw_direct.start();
+                  // actual minimization, works on split mealy
+                  m_like.mealy_like = minimize_mealy(m_like.mealy_like,
+                                                     gi->minimize_lvl - 4);
+                  delta = sw_direct.stop();
+                }
+
+              // Unsplit to have separated mealy
+              m_like.mealy_like = unsplit_mealy(m_like.mealy_like);
+
               if (gi->bv)
                 gi->bv->strat2aut_time += delta;
               if (gi->verbose_stream)
                 *gi->verbose_stream << "final strategy has "
-                                   << strat.strat_like->num_states()
-                                   << " states and "
-                                   << strat.strat_like->num_edges()
-                                   << " edges\n"
-                                   << "minimization took " << delta
-                                   << " seconds\n";
+                                    << m_like.mealy_like->num_states()
+                                    << " states and "
+                                    << m_like.mealy_like->num_edges()
+                                    << " edges\n"
+                                    << "minimization took " << delta
+                                    << " seconds\n";
             }
           SPOT_FALLTHROUGH;
         }
-      case spot::strategy_like_t::realizability_code::REALIZABLE_DTGBA:
+      case spot::mealy_like::realizability_code::REALIZABLE_DTGBA:
         if (!opt_real)
-          strategies.push_back(strat);
+          mealy_machines.push_back(m_like);
         break;
       default:
-        error(2, 0, "unexpected success code during strategy generation "
+        error(2, 0, "unexpected success code during mealy machine generation "
               "(please send bug report)");
       }
     }
@@ -472,8 +493,9 @@ namespace
       }
     // If we reach this line
     // a strategy was found for each subformula
-    assert(strategies.size() == sub_form.size()
-           && "Strategies are missing");
+    assert(mealy_machines.size() == sub_form.size()
+           && "There are subformula for which no mealy like object"
+                "has been created.");
 
     spot::aig_ptr saig = nullptr;
     spot::twa_graph_ptr tot_strat = nullptr;
@@ -485,9 +507,9 @@ namespace
         spot::stopwatch sw2;
         if (gi->bv)
           sw2.start();
-        saig = spot::strategies_to_aig(strategies, opt_print_aiger,
-                                       input_aps,
-                                       sub_outs_str);
+        saig = spot::mealy_machines_to_aig(mealy_machines, opt_print_aiger,
+                                           input_aps,
+                                           sub_outs_str);
         if (gi->bv)
           {
             gi->bv->aig_time = sw2.stop();
@@ -507,14 +529,14 @@ namespace
     else
       {
         assert(std::all_of(
-          strategies.begin(), strategies.end(),
-          [](const auto& sl)
-          {return sl.success ==
-              spot::strategy_like_t::realizability_code::REALIZABLE_REGULAR; })
-               && "ltlsynt: Can not handle TGBA as strategy.");
-        tot_strat = strategies.front().strat_like;
-        for (size_t i = 1; i < strategies.size(); ++i)
-          tot_strat = spot::product(tot_strat, strategies[i].strat_like);
+           mealy_machines.begin(), mealy_machines.end(),
+           [](const auto& ml)
+           {return ml.success ==
+               spot::mealy_like::realizability_code::REALIZABLE_REGULAR; })
+               && "ltlsynt: Cannot handle TGBA as strategy.");
+        tot_strat = mealy_machines.front().mealy_like;
+        for (size_t i = 1; i < mealy_machines.size(); ++i)
+          tot_strat = spot::product(tot_strat, mealy_machines[i].mealy_like);
         printer.print(tot_strat, timer_printer_dummy);
       }
 
