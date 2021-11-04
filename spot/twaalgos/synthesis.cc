@@ -1741,11 +1741,11 @@ namespace // anonymous for subsformula
       if (child.is(op::F))
         {
           // The result can be G(And).
-          auto f2 =
-            formula::G(
-              extract_and(formula::Not(child[0]), outs, false, form2props));
-          // What ?
-          return f2;
+          return
+            extract_and(
+              formula::G(
+                extract_and(formula::Not(child[0]), outs, false, form2props)),
+              outs, false, form2props);
         }
       // ¬(φ→ψ) ≡ φ ∧ ¬ψ
       else if (child.is(op::Implies))

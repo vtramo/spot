@@ -653,3 +653,171 @@ EOF
 ltlsynt -f "Ga <-> Gb" --outs=b --verbose --decompose=0 --verify --aiger 2> out
 sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
 diff outx exp
+
+cat >exp <<EOF
+trying to create strategy directly for (b & (b | y)) -> y
+direct strategy might exist but was not found.
+translating formula done in X seconds
+automaton has 2 states and 1 colors
+LAR construction done in X seconds
+DPA has 2 states, 2 colors
+split inputs and outputs done in X seconds
+automaton has 4 states
+solving game with acceptance: parity max odd 4
+game solved in X seconds
+trying to create strategy directly for (a | x) -> x
+direct strategy might exist but was not found.
+translating formula done in X seconds
+automaton has 2 states and 1 colors
+LAR construction done in X seconds
+DPA has 2 states, 2 colors
+split inputs and outputs done in X seconds
+automaton has 4 states
+solving game with acceptance: parity max odd 4
+game solved in X seconds
+AIG circuit was created in X seconds and has 0 latches and 0 gates
+EOF
+ltlsynt -f '((a|x) & (b | y) & b) => (x & y)' --outs="x,y" --aiger=ite\
+                                              --verify --verbose 2> out
+sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
+diff outx exp
+
+# Here, G!(!x | !y) should be Gx & Gy
+cat >exp <<EOF
+trying to create strategy directly for Gx
+direct strategy might exist but was not found.
+translating formula done in X seconds
+automaton has 1 states and 1 colors
+LAR construction done in X seconds
+DPA has 1 states, 2 colors
+split inputs and outputs done in X seconds
+automaton has 2 states
+solving game with acceptance: parity max odd 4
+game solved in X seconds
+trying to create strategy directly for Gy
+direct strategy might exist but was not found.
+translating formula done in X seconds
+automaton has 1 states and 1 colors
+LAR construction done in X seconds
+DPA has 1 states, 2 colors
+split inputs and outputs done in X seconds
+automaton has 2 states
+solving game with acceptance: parity max odd 4
+game solved in X seconds
+AIG circuit was created in X seconds and has 0 latches and 0 gates
+EOF
+ltlsynt -f 'G!(!x | !y)' --outs="x, y" --aiger=ite --verify --verbose 2> out
+sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
+diff outx exp
+
+# Here, !F(a | b) should be G(!a) & G(!b)
+cat >exp <<EOF
+trying to create strategy directly for G!a
+direct strategy might exist but was not found.
+translating formula done in X seconds
+automaton has 1 states and 1 colors
+LAR construction done in X seconds
+DPA has 1 states, 2 colors
+split inputs and outputs done in X seconds
+automaton has 4 states
+solving game with acceptance: parity max odd 4
+game solved in X seconds
+EOF
+ltlsynt -f '!F(a|b)' --outs=b --decompose=yes --aiger --verbose 2> out || true
+sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
+diff outx exp
+
+# Here, G!(a -> b) should be G(a) & G(!b)
+cat >exp <<EOF
+trying to create strategy directly for Ga
+direct strategy might exist but was not found.
+translating formula done in X seconds
+automaton has 1 states and 1 colors
+LAR construction done in X seconds
+DPA has 1 states, 2 colors
+split inputs and outputs done in X seconds
+automaton has 4 states
+solving game with acceptance: parity max odd 4
+game solved in X seconds
+EOF
+ltlsynt -f 'G!(a -> b)' --outs=b --decompose=yes --aiger\
+                        --verbose 2> out || true
+sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
+diff outx exp
+
+# Here, (a & b) U (b & c) should be (a U (b & c)) & (b U (b & c))
+cat >exp <<EOF
+trying to create strategy directly for (a & b) U (b & c)
+direct strategy might exist but was not found.
+translating formula done in X seconds
+automaton has 2 states and 1 colors
+LAR construction done in X seconds
+DPA has 2 states, 4 colors
+split inputs and outputs done in X seconds
+automaton has 5 states
+solving game with acceptance: parity max odd 6
+game solved in X seconds
+AIG circuit was created in X seconds and has 0 latches and 0 gates
+EOF
+ltlsynt -f '(a & b) U (b & c)' --outs=b,c --decompose=yes --aiger --verbose\
+                               --verify 2> out
+sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
+diff outx exp
+
+# Here, a => (b & c & d) should be
+# (a => b) & (a => c) & (a => d)
+cat >exp <<EOF
+trying to create strategy directly for a -> b
+direct strategy might exist but was not found.
+translating formula done in X seconds
+automaton has 2 states and 1 colors
+LAR construction done in X seconds
+DPA has 2 states, 2 colors
+split inputs and outputs done in X seconds
+automaton has 4 states
+solving game with acceptance: parity max odd 4
+game solved in X seconds
+trying to create strategy directly for a -> c
+direct strategy might exist but was not found.
+translating formula done in X seconds
+automaton has 2 states and 1 colors
+LAR construction done in X seconds
+DPA has 2 states, 2 colors
+split inputs and outputs done in X seconds
+automaton has 4 states
+solving game with acceptance: parity max odd 4
+game solved in X seconds
+trying to create strategy directly for a -> d
+direct strategy might exist but was not found.
+translating formula done in X seconds
+automaton has 2 states and 1 colors
+LAR construction done in X seconds
+DPA has 2 states, 2 colors
+split inputs and outputs done in X seconds
+automaton has 4 states
+solving game with acceptance: parity max odd 4
+game solved in X seconds
+AIG circuit was created in X seconds and has 0 latches and 0 gates
+EOF
+ltlsynt -f 'a => (b & c & d)' --outs=b,c,d, --decompose=yes\
+                              --verbose --aiger 2> out
+sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
+diff outx exp
+
+# Here, !(F(a | b)) should be G!a & G!b
+cat >exp <<EOF
+trying to create strategy directly for G!a
+direct strategy might exist but was not found.
+translating formula done in X seconds
+automaton has 1 states and 1 colors
+LAR construction done in X seconds
+DPA has 1 states, 2 colors
+split inputs and outputs done in X seconds
+automaton has 4 states
+solving game with acceptance: parity max odd 4
+game solved in X seconds
+EOF
+ltlsynt -f '!(F(a | b))' --outs=b, --decompose=yes \
+                         --verbose --aiger 2> out || true
+sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
+diff outx exp
