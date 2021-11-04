@@ -151,6 +151,9 @@ int main()
 
   test1();
 
+  // only global constants (false or true)
+  // can survive after bdd_done().
+  allsatBDD = allsatSumBDD = bddfalse;
   bdd_done();
 
   return err;
