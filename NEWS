@@ -10,36 +10,41 @@ New in spot 2.9.8.dev (not yet released)
 
   Command-line tools:
 
-  - ltlsynt now accepts only one of the --ins or --outs options
-    to be given and will deduce the value of this other one.
+  - ltlsynt has been seriously overhauled, while trying to
+    preserve backward compatibility.  Below is just a summary
+    of the main user-visible changes.  Most of the new options
+    are discussed on https://spot-dev.lrde.epita.fr/ltlsynt.html
 
-  - ltlsynt learned --print-game-hoa to output its internal parity
-    game in the HOA format (with an extension described below).
+    + ltlsynt now accepts only one of the --ins or --outs options to
+      be given and will deduce the value of this other one.
 
-  - ltlsynt --aiger option now takes an optional argument indicating
-    how the bdd and states are to be encoded in the aiger output.
-    The option has to be given in the form
-    ite|isop|both[+ud][+dc][+sub0|sub1|sub2] where the first
-    only obligatory argument decides whether "if-then-else" ("ite")
-    or irreducible-sum-of-products ("isop") is to be used.
-    "both" executes both strategies and retains the smaller circuits.
-    The additional options are for fine-tuning. "ud" also encodes the
-    dual of the conditions and retains the smaller circuits.
-    "dc" computes if for some inputs we do not care whether the
-    output is high or low and try to use this information to compute
-    a smaller circuit. "subX" indicates different strategies to find
-    common subexpressions, with "sub0" indicating no extra computations.
+    + ltlsynt learned --print-game-hoa to output its internal parity
+      game in the HOA format (with an extension described below).
 
-  - ltlsynt --verify checks the computed strategy or aiger circuit
-    against the specification.
+    + ltlsynt --aiger option now takes an optional argument indicating
+      how the bdd and states are to be encoded in the aiger output.
+      The option has to be given in the form
+      ite|isop|both[+ud][+dc][+sub0|sub1|sub2] where the first only
+      obligatory argument decides whether "if-then-else" ("ite") or
+      irreducible-sum-of-products ("isop") is to be used.  "both"
+      executes both strategies and retains the smaller circuits.  The
+      additional options are for fine-tuning. "ud" also encodes the
+      dual of the conditions and retains the smaller circuits.  "dc"
+      computes if for some inputs we do not care whether the output is
+      high or low and try to use this information to compute a smaller
+      circuit. "subX" indicates different strategies to find common
+      subexpressions, with "sub0" indicating no extra computations.
 
-  - ltlsynt --decompose=yes|no determines whether or not the algorithm
-    should try to decompose the formula into subformulas and generate
-    a strategy for each subformula before recombining them into a
-    circuit.
+    + ltlsynt learned --verify to check the computed strategy or aiger
+      circuit against the specification.
 
-  - ltlsynt --simplify=no|bisim|bwoa|sat|bisim-sat|bwoa-sat
-    specifies how to simplify the synthesized controler.
+    + ltlsynt now has a --decompose=yes|no option to specify if
+      the specification should be decomposed into independent
+      sub-specifications, the controller of which can then be glued
+      together to satisfy the input specification.
+
+    + ltlsynt learned --simplify=no|bisim|bwoa|sat|bisim-sat|bwoa-sat
+      to specifies how to simplify the synthesized controler.
 
   - ltl2tgba, autfilt, dstar2tgba, and randaut learned a --buchi
     option, or -b for short.  This outputs Büchi automata without
@@ -63,48 +68,42 @@ New in spot 2.9.8.dev (not yet released)
        ltlcross '{owl-21 ltl2nba}owl-21 ltl2nba -f %f>%O' ...
 
   Library:
+
   - Spot now provides convenient function to create and solve games.
     The functions are located in twaalgos/game.hh.  Additional
-    functions related to the application to reactive synthesis are
-    in twaalgos/synthesis.hh.
+    functions related to the application to reactive synthesis are in
+    twaalgos/synthesis.hh.
 
-  - A new class called aig is introduced to represent
-    and-inverter-graphs, which is useful for synthesis.
+  - A new class called aig represent an and-inverter-graphs, and is
+    currently used during synthesis. (twaalgos/aiger.hh)
 
-  - Historically, Spot labels automata by Boolean formulas over
-    atomic propositions. These Boolean formulas are represented
-    as BDDs using the BuDDy library. Since this implementation is
-    not thread safe, Spot wasn't able, until now, to integrate
-    parallel algorithms. To bypass this limitation, we introduce the
-    cube data structure. This structure aims to replace BDDs
-    everywhere parallelism is required. Contrary to BDDs, this
-    structure is not able to represent complex boolean formulae, but
-    can represent very simple disjunctive form of boolean formulae
-    and can be used in a multithreaded context.
+  - Some new *experimental* classes, called "twacube" and "kripkecube"
+    implement a way to store automata or Kripke structures without
+    using BDDs as labels.  Instead they use a structure called cube,
+    that can only encode a conjunction of litterals.  Avoiding BDDs
+    (or rather, avoiding the BuDDy library) in the API for automata
+    makes it possible to build multithreaded algorithms.
 
-    Since both the BDD-based and the cube-based implementations have
-    benefits and drawbacks, we opted to keep side-by-side the
-    historical implementation and the new one. As a consequence:
-    twacube and kripkecube are the new versions of twa and kripke.
-    We provide conversion back and forth throught the following
-    functions: twacube_to_twa, twa_to_twa, product_to_twa, and
-    kripkecube_to_twa. The equivalence between a twa and a twacube
-    can be checked using are_equivalent.
+    /!\ Currently these classes should be considered as experimental,
+    and their API is very likely to change in a future version.
+
+    Functions like twacube_to_twa(), twa_to_twacube(), can be used
+    to bridge between automata with BDD labels, and automata with
+    cube labels.
 
     In addition to the previous conversion, we implemented various
-    state-of-the-art algorithms: bloemen.16.ppopp, bloemen.16.hvc,
-    evangeslita.12.atva, renault.13.lpar, holzmann.11.ieee. In order
-    to ease the manipulation of these algorithms we introduce a
-    factory mc_instanciator, that provide a nice abstraction for launching,
-    pinning, and stopping threads inside of parallel model-checking
-    algorithms. One should note that for performances and genericity
-    issues, all these algorithms are templated.
+    state-of-the-art multi-threaded emptiness-check algorithms:
+    [bloemen.16.ppopp], [bloemen.16.hvc], [evangeslita.12.atva],
+    [renault.13.lpar], [holzmann.11.ieee] (see doc/spot.bib).
 
-    Finally, since all these algorithms are templated, a refactoring
-    of the ltsmin structure has been done in order to introduce the
-    spins_interface which describes the functions exported by a PINS
-    file. With this refactoring, we can retrieve both a kripke or a
-    kripkecube from a PINS file.
+    The mc_instanciator class provides an abstraction for launching,
+    pinning, and stopping threads inside of parallel model-checking
+    algorithms.
+
+    The class ltsmin_model class, providing support for loading
+    various models that follow ltsmin's PINS interinterface, has
+    been adjusted and can now produce either a kripke instance, or
+    a kripkecube instance.
 
   - The postprocessor::set_type() method can now accept
     options postprocessor::Buchi and postprocessor::GeneralizedBuchi.
@@ -124,7 +123,7 @@ New in spot 2.9.8.dev (not yet released)
 
          postprocessor::set_type(postprocessor::BA)
 
-   by
+    by
 
          postprocessor::set_type(postprocessor::Buchi)
          postprocessor::set_pref(postprocessor::Small
@@ -154,7 +153,7 @@ New in spot 2.9.8.dev (not yet released)
     be simplied to {0}, but the oppose rewriting can be useful as
     well.  (Issue #418.)
 
-  - the parity_game class has been removed, now any twa_graph_ptr that
+  - The parity_game class has been removed, now any twa_graph_ptr that
     has a parity max odd acceptance and a "state-player" property is
     considered to be a parity game.
 
@@ -297,10 +296,10 @@ New in spot 2.9.8.dev (not yet released)
     See https://spot.lrde.epita.fr/ipynb/games.html and
     https://spot.lrde.epita.fr/tut40.html for examples.
 
-  - Bindings for functions related to syntethis and aig-circuits.
+  - Bindings for functions related to synthesis and aig-circuits.
     See https://spot.lrde.epita.fr/ipynb/synthesis.html
 
-  - spot::twa::prop_set was previously abstent from the Python
+  - spot::twa::prop_set was previously absent from the Python
     bindings, making it impossible to call make_twa_graph() for copying
     a twa.  It is now available as spot.twa_prop_set (issue #453).
     Also for convenience, the twa_graph.__copy__() method, called by
