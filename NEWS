@@ -56,6 +56,12 @@ New in spot 2.9.8.dev (not yet released)
 
   - autfilt learned a --kill-states=NUM[,NUM...] option.
 
+  - ltlcross, autcross, ltldo have learned shorthands for
+    the commands of Owl 21.0.  For instance running
+       ltlcross 'owl-21 ltl2nba' ...
+    is equivalent to running
+       ltlcross '{owl-21 ltl2nba}owl-21 ltl2nba -f %f>%O' ...
+
   Library:
   - Spot now provides convenient function to create and solve games.
     The functions are located in twaalgos/game.hh.  Additional

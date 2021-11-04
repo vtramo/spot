@@ -185,24 +185,20 @@ ltlcross --list-shorthands
 #+RESULTS:
 #+begin_example
 If a COMMANDFMT does not use any %-sequence, and starts with one of
-the following words, then the string on the right is appended.
+the following regexes, then the string on the right is appended.
 
-  delag        %f>%O
-  lbt          <%L>%O
-  ltl2ba       -f %s>%O
-  ltl2da       %f>%O
-  ltl2dgra     %f>%O
-  ltl2dpa      %f>%O
-  ltl2dra      %f>%O
-  ltl2ldba     %f>%O
-  ltl2dstar    --output-format=hoa %[MW]L %O
-  ltl2tgba     -H %f>%O
-  ltl3ba       -f %s>%O
-  ltl3dra      -f %s>%O
-  ltl3hoa      -f %f>%O
-  ltl3tela     -f %f>%O
-  modella      %[MWei^]L %O
-  spin         -f %s>%O
+  delag                                    %f>%O
+  lbt                                      <%L>%O
+  ltl2ba                                   -f %s>%O
+  ltl2(da|dgra|dpa|dra|ldba|na|nba|ngba)   %f>%O
+  ltl2dstar                                --output-format=hoa %[MW]L %O
+  ltl2tgba                                 -H %f>%O
+  ltl3(ba|dra|hoa|tela)                    -f %s>%O
+  modella                                  %[MWei^]L %O
+  spin                                     -f %s>%O
+  owl.* ltl2[bdeglnpr]+a\b                 -f %f>%O
+  owl.* ltl2delta2\b                       -f %f
+  owl.* ltl-utilities\b                    -f %f
 
 Any {name} and directory component is skipped for the purpose of
 matching those prefixes.  So for instance

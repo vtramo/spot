@@ -306,26 +306,26 @@ ltldo --list-shorthands
 #+RESULTS:
 #+begin_example
 If a COMMANDFMT does not use any %-sequence, and starts with one of
-the following words, then the string on the right is appended.
+the following regexes, then the string on the right is appended.
 
-  lbt          <%L>%O
-  ltl2ba       -f %s>%O
-  ltl2da       %f>%O
-  ltl2dpa      %f>%O
-  ltl2ldba     %f>%O
-  ltl2dstar    --output-format=hoa %[MW]L %O
-  ltl2tgba     -H %f>%O
-  ltl3ba       -f %s>%O
-  ltl3dra      -f %s>%O
-  ltl3hoa      -f %f>%O
-  modella      %[MWei^]L %O
-  spin         -f %s>%O
+  delag                                    %f>%O
+  lbt                                      <%L>%O
+  ltl2ba                                   -f %s>%O
+  ltl2(da|dgra|dpa|dra|ldba|na|nba|ngba)   %f>%O
+  ltl2dstar                                --output-format=hoa %[MW]L %O
+  ltl2tgba                                 -H %f>%O
+  ltl3(ba|dra|hoa|tela)                    -f %s>%O
+  modella                                  %[MWei^]L %O
+  spin                                     -f %s>%O
+  owl.* ltl2[bdeglnpr]+a\b                 -f %f>%O
+  owl.* ltl2delta2\b                       -f %f
+  owl.* ltl-utilities\b                    -f %f
 
 Any {name} and directory component is skipped for the purpose of
 matching those prefixes.  So for instance
   '{DRA} ~/mytools/ltl2dstar-0.5.2'
-will changed into
-  '{DRA} ~/mytools/ltl2dstar-0.5.2 --output-format=hoa %[MR]L %O'
+will be changed into
+  '{DRA} ~/mytools/ltl2dstar-0.5.2 --output-format=hoa %[MW]L %O'
 #+end_example
 
 Therefore you can type the following to obtain a Dot output (as
@@ -353,9 +353,10 @@ digraph "" {
 The =ltl2ba= argument passed to =ltldo= was interpreted as if you had
 typed ={ltl2ba}ltl2ba -f %s>%O=.
 
-The shorthand is only used if it is the first word of a command
-string that does not use any =%= character.  This makes it possible to
-add options:
+Those shorthand patterns are only tested if the command string does
+not contains any =%= character.  They should always patch a prefix of
+the command, ignoring any leading directory.  This makes it possible
+to add options:
 
 #+BEGIN_SRC sh
 ltldo ltl3ba 'ltl3ba -H2' -f GFa --stats='%T, %s states, %e edges'

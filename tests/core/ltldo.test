@@ -1,6 +1,6 @@
 #!/bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2015-2020 Laboratoire de Recherche et Développement de
+# Copyright (C) 2015-2021 Laboratoire de Recherche et Développement de
 # l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -157,8 +157,15 @@ grep ':.*empty input' stderr
 
 
 ltldo '{name} foo/bar/ltl2baextended' -f GFa 2>stderr && exit 1
+grep % stderr && exit 1
 grep 'ltldo:.*foo/bar/ltl2baextended' stderr
 
+ltldo '{name} foo/bar/owl-21.00 ltl2nba' -f GFa 2>stderr && exit 1
+grep % stderr && exit 1
+grep 'ltldo:.*foo/bar/owl-21.00' stderr
+
+ltldo '{name} foo/bar/owl-21.00 non-existant' -f GFa 2>stderr && exit 1
+grep % stderr
 
 test 2 = `genltl --and-gf=1..4 | ltldo ltl2tgba -n2 | autfilt -c`
 test 3 = `genltl --and-gf=1..2 | ltldo ltl2tgba 'ltl2tgba -s' -n3 | autfilt -c`

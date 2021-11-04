@@ -105,14 +105,15 @@ autcross --list-shorthands
 #+RESULTS:
 #+begin_example
 If a COMMANDFMT does not use any %-sequence, and starts with one of
-the following words, then the string on the right is appended.
+the following regexes, then the string on the right is appended.
 
-  autfilt      %H>%O
-  dstar2tgba   %H>%O
-  ltl2dstar    -B %H %O
-  nba2dpa      <%H>%O
-  nba2ldpa     <%H>%O
-  seminator    %H>%O
+  autfilt                                  %H>%O
+  dra2dpa                                  <%H>%O
+  dstar2tgba                               %H>%O
+  ltl2dstar                                -B %H %O
+  nba2l?dpa                                <%H>%O
+  seminator                                %H>%O
+  owl.* (ngba2ldba|nba(2dpa|2det|sim)|aut2parity|gfg-minimization)\b <%H>%O
 
 Any {name} and directory component is skipped for the purpose of
 matching those prefixes.  So for instance

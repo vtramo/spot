@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2015-2020 Laboratoire de Recherche et Développement
+// Copyright (C) 2015-2021 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -30,6 +30,7 @@
 #ifdef HAVE_SPAWN_H
 #include <spawn.h>
 #endif
+#include <regex>
 
 #include "error.h"
 
@@ -45,49 +46,52 @@
 struct shorthands_t
 {
   const char* prefix;
+  std::regex rprefix;
   const char* suffix;
 };
+#define SHORTHAND(PRE, POST) { PRE, std::regex("^" PRE), POST }
+
 static shorthands_t shorthands_ltl[] = {
-    { "delag", " %f>%O" },
-    { "lbt", " <%L>%O" },
-    { "ltl2ba", " -f %s>%O" },
-    { "ltl2da", " %f>%O" },
-    { "ltl2dgra", " %f>%O" },
-    { "ltl2dpa", " %f>%O" },
-    { "ltl2dra", " %f>%O" },
-    { "ltl2dstar", " --output-format=hoa %[MW]L %O"},
-    { "ltl2ldba", " %f>%O" },
-    { "ltl2na", " %f>%O" },
-    { "ltl2nba", " %f>%O" },
-    { "ltl2ngba", " %f>%O" },
-    { "ltl2tgba", " -H %f>%O" },
-    { "ltl3ba", " -f %s>%O" },
-    { "ltl3dra", " -f %s>%O" },
-    { "ltl3hoa", " -f %f>%O" },
-    { "ltl3tela", " -f %f>%O" },    // ltl3tela is the new name of ltl3hoa
-    { "modella", " %[MWei^]L %O" },
-    { "spin", " -f %s>%O" },
-  };
+  SHORTHAND("delag", " %f>%O"),
+  SHORTHAND("lbt", " <%L>%O"),
+  SHORTHAND("ltl2ba", " -f %s>%O"),
+  SHORTHAND("ltl2(da|dgra|dpa|dra|ldba|na|nba|ngba)", " %f>%O"),
+  SHORTHAND("ltl2dstar", " --output-format=hoa %[MW]L %O"),
+  SHORTHAND("ltl2tgba", " -H %f>%O"),
+  // ltl3tela is the new name of ltl3hoa
+  SHORTHAND("ltl3(ba|dra|hoa|tela)", " -f %s>%O"),
+  SHORTHAND("modella", " %[MWei^]L %O"),
+  SHORTHAND("spin", " -f %s>%O"),
+  // Starting from Owl 21.0, Owl's tools have been grouped as
+  // sub-commands of the Owl binary.  We still want to support
+  // use cases where several version of owl are installed with
+  // different names.
+  SHORTHAND("owl.* ltl2[bdeglnpr]+a\\b", " -f %f>%O"),
+  SHORTHAND("owl.* ltl2delta2\\b", " -f %f"),
+  SHORTHAND("owl.* ltl-utilities\\b", " -f %f"),
+};
 
 static shorthands_t shorthands_autproc[] = {
-    { "autfilt", " %H>%O" },
-    { "dra2dpa", " <%H>%O" },
-    { "dstar2tgba", " %H>%O" },
-    { "ltl2dstar", " -B %H %O" },
-    { "nba2dpa", " <%H>%O" },
-    { "nba2ldpa", " <%H>%O" },
-    { "seminator", " %H>%O" },
-  };
+  SHORTHAND("autfilt", " %H>%O"),
+  SHORTHAND("dra2dpa", " <%H>%O"),
+  SHORTHAND("dstar2tgba", " %H>%O"),
+  SHORTHAND("ltl2dstar", " -B %H %O"),
+  SHORTHAND("nba2l?dpa", " <%H>%O"),
+  SHORTHAND("seminator", " %H>%O"),
+  SHORTHAND("owl.* "
+            "(ngba2ldba|nba(2dpa|2det|sim)|aut2parity|gfg-minimization)\\b",
+            " <%H>%O"),
+};
 
 static void show_shorthands(shorthands_t* begin, shorthands_t* end)
 {
   std::cout
     << ("If a COMMANDFMT does not use any %-sequence, and starts with one of\n"
-        "the following words, then the string on the right is appended.\n\n");
+        "the following regexes, then the string on the right is appended.\n\n");
   while (begin != end)
     {
       std::cout << "  "
-                << std::left << std::setw(12) << begin->prefix
+                << std::left << std::setw(40) << begin->prefix
                 << begin->suffix << '\n';
       ++begin;
     }
@@ -139,8 +143,7 @@ tool_spec::tool_spec(const char* spec, shorthands_t* begin, shorthands_t* end,
       while (begin != end)
         {
           auto& p = *begin++;
-          int n = strlen(p.prefix);
-          if (strncmp(basename, p.prefix, n) == 0)
+          if (std::regex_search(basename, p.rprefix))
             {
               int m = strlen(p.suffix);
               int q = strlen(cmd);
