@@ -634,3 +634,22 @@ EOF
 ltlsynt -f "Fa <-> FGb" --outs=b,c --verbose --decompose=0 --verify 2> out
 sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
 diff outx exp
+
+# Test verbose aiger
+
+cat >exp <<EOF
+trying to create strategy directly for Ga <-> Gb
+direct strategy might exist but was not found.
+translating formula done in X seconds
+automaton has 4 states and 1 colors
+LAR construction done in X seconds
+DPA has 4 states, 4 colors
+split inputs and outputs done in X seconds
+automaton has 9 states
+solving game with acceptance: parity max odd 6
+game solved in X seconds
+AIG circuit was created in X seconds and has 0 latches and 0 gates
+EOF
+ltlsynt -f "Ga <-> Gb" --outs=b --verbose --decompose=0 --verify --aiger 2> out
+sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
+diff outx exp

@@ -496,7 +496,7 @@ namespace
           {
             *gi->verbose_stream << "AIG circuit was created in "
                                << gi->bv->aig_time
-                               << " and has " << saig->num_latches()
+                               << " seconds and has " << saig->num_latches()
                                << " latches and "
                                << saig->num_gates() << " gates\n";
           }
