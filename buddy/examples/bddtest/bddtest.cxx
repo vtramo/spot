@@ -3,6 +3,7 @@
 #include <bddx.h>
 
 static const int varnum = 5;
+static int err = 0;
 
 /**************************************************************************
   Example of allsat print handler.
@@ -47,6 +48,7 @@ void test1_check(bdd x)
 {
   using namespace std ;
   double anum = bdd_satcount(x);
+  bool error = false;
 
   cout << "Checking bdd with " << setw(4) << anum << " assignments: ";
 
@@ -59,15 +61,25 @@ void test1_check(bdd x)
 
   // Now the summed set should be equal to the original set
   if (allsatSumBDD == x)
-    cout << "  Sum-OK. ";
+    {
+      cout << "  Sum-OK. ";
+    }
   else
-    cout << "  Sum-ERROR. ";
+    {
+      cout << "  Sum-ERROR. ";
+      err = 1;
+    }
 
   // The subtracted set should be empty
   if (allsatBDD == bddfalse)
-    cout << "Sub-OK.\n";
+    {
+      cout << "Sub-OK.\n";
+    }
   else
-    cout << "Sub-ERROR.\n";
+    {
+      cout << "Sub-ERROR.\n";
+      err = 1;
+    }
 }
 
 
@@ -141,5 +153,5 @@ int main()
 
   bdd_done();
 
-  return 0;
+  return err;
 }

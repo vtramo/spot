@@ -26,6 +26,7 @@ libbddx_la_SOURCES = \
  reorder.c \
  tree.c
 
+TESTS = bddtest$(EXEEXT)
 check_PROGRAMS = bddtest
 bddtest_SOURCES = bddtest.cxx
 bddtest_CPPFLAGS = -I$(top_builddir)
