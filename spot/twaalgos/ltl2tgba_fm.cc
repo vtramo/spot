@@ -531,7 +531,6 @@ namespace spot
     class ratexp_trad_visitor final
     {
     public:
-      // negated should only be set for constants or atomic properties
       ratexp_trad_visitor(translate_dict& dict, formula to_concat = nullptr)
         : dict_(dict), to_concat_(to_concat)
       {
@@ -720,7 +719,7 @@ namespace spot
                         {
                           if (!tail_computed)
                             {
-                              tail_bdd = recurse(f); // FIXME: inf call!!!
+                              tail_bdd = recurse(f);
                               tail_computed = true;
                             }
                           res |= label & tail_bdd;
@@ -1076,7 +1075,8 @@ namespace spot
         }
     }
 
-    // FIXME: use the new tgba::succ() interface
+    // FIXME: use the new twa_graph_ptr interface
+    // with unsigned instead of state*.
     std::tuple<const_twa_graph_ptr,
                const ratexp_to_dfa::namer*,
                const state*>
