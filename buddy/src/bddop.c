@@ -3739,26 +3739,23 @@ static double bdd_pathcount_rec(BDD r)
    return size;
 }
 
-/*=== DECIDE IF TWO BDDS SHARE AT LEAST ONE ASSIGNMENT ================*/
-
-/*
-NAME    {* bdd\_have\_common\_assignment *}
-SECTION {* info *}
-SHORT   {* Decide if two bdds share an satisfying assignement *}
-PROTO   {* int bdd_have_common_assignment(BDD l, BDD r) *}
-DESCR   {* Returns 1 iff l&r != bddfalse *}
-RETURN  {* 0 or 1 *}
-*/
-int bdd_have_common_assignment(BDD left, BDD right)
+static int bdd_have_common_assignment_(BDD left, BDD right)
 {
-  // If one of them is false -> false
-  if (ISZERO(left) || ISZERO(right))
-    return 0;
-  // If one of them is true and the other is not false
-  // or if they are identical -> true
-  if (ISONE(left) || ISONE(right) || left == right)
-    return 1;
-  // Now both of them are not constant
+#ifndef NDEBUG
+  // arguments can't be constant
+  if (ISCONST(left))
+    return bdd_error(BDD_ILLBDD);
+  if (ISCONST(right))
+    return bdd_error(BDD_ILLBDD);
+#endif
+
+  // Always make "left" the smaller one to improve cache usage
+  if (left > right)
+    {
+      BDD tmp = left;
+      left = right;
+      right = tmp;
+    }
 
   BddCacheData *entry = BddCache_lookup(&misccache, COMMONHASH(left,right));
   /* Check entry->b last, because not_rec() does not initialize it. */
@@ -3777,25 +3774,78 @@ int bdd_have_common_assignment(BDD left, BDD right)
   int vl = LEVEL(left);
   int vr = LEVEL(right);
 
+  // Try avoiding as many recursive calls as possible
   int res;
   if (vl < vr)
-    // left has to "catch up"
-    res = (bdd_have_common_assignment(LOW(left), right)
-           || bdd_have_common_assignment(HIGH(left), right));
+    {
+      // left has to "catch up"
+      // We know that right is not constant
+      BDD l_left = LOW(left);
+      BDD h_left = HIGH(left);
+      res = ISONE(l_left) || (l_left == right)
+            || ISONE(h_left) || (h_left == right)
+            || (!ISZERO(l_left) && bdd_have_common_assignment_(l_left, right))
+            || (!ISZERO(h_left) && bdd_have_common_assignment_(h_left, right));
+    }
   else if (vr < vl)
-    // right has to "catch up"
-    res = (bdd_have_common_assignment(left, LOW(right))
-           || bdd_have_common_assignment(left, HIGH(right)));
+    {
+      // right has to "catch up"
+      // We know that left is not constant
+      BDD l_right = LOW(right);
+      BDD h_right = HIGH(right);
+      res = ISONE(l_right) || (l_right == left)
+            || ISONE(h_right) || (h_right == left)
+            || (!ISZERO(l_right) && bdd_have_common_assignment_(left,
+                                                                l_right))
+            || (!ISZERO(h_right) && bdd_have_common_assignment_(left,
+                                                                h_right));
+    }
   else
-    // They evolve jointly
-    res = (bdd_have_common_assignment(LOW(left), LOW(right))
-           || bdd_have_common_assignment(HIGH(left), HIGH(right)));
+    {
+      // They evolve jointly
+      BDD l_left = LOW(left);
+      BDD h_left = HIGH(left);
+      BDD l_right = LOW(right);
+      BDD h_right = HIGH(right);
+
+      res = ((!ISZERO(l_left) && !ISZERO(l_right))
+            && (ISONE(l_left) || ISONE(l_right) || l_left == l_right
+                || bdd_have_common_assignment_(l_left, l_right)))
+            || ((!ISZERO(h_left) && !ISZERO(h_right))
+                && (ISONE(h_left) || ISONE(h_right) || h_left == h_right
+                    || bdd_have_common_assignment_(h_left, h_right)));
+    }
 
   entry->i.a = left;
   entry->i.c = CACHEID_COMMON;
   entry->i.b = right;
   entry->i.res = res;
   return res;
+}
+
+/*=== DECIDE IF TWO BDDS SHARE AT LEAST ONE ASSIGNMENT ================*/
+
+/*
+NAME    {* bdd\_have\_common\_assignment *}
+SECTION {* info *}
+SHORT   {* Decide if two bdds share an satisfying assignement *}
+PROTO   {* int bdd_have_common_assignment(BDD l, BDD r) *}
+DESCR   {* Returns 1 iff l&r != bddfalse *}
+RETURN  {* 0 or 1 *}
+*/
+int bdd_have_common_assignment(BDD left, BDD right)
+{
+  // If one of them is false -> false
+  if (ISZERO(left) || ISZERO(right))
+    return 0;
+
+  // If one of them is true and the other is not false
+  // or if they are identical -> true
+  if (ISONE(left) || ISONE(right) || left == right)
+    return 1;
+  // Now both of them are not constant
+
+  return bdd_have_common_assignment_(left, right);
 }
 
 /*=== DECIDE IF A BDD is a cube ================*/

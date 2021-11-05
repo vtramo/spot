@@ -189,6 +189,57 @@ void testIsCube(){
     ERROR("is_cube failed on b2");
 }
 
+void testHaveCommon()
+{
+  cout << "Testing have_common_assignment()\n";
+
+  if (bdd_have_common_assignment(bddtrue, bddtrue) != 1)
+    ERROR(" have_common_assignment on true, true");
+  if (bdd_have_common_assignment(bddfalse, bddtrue) != 0)
+    ERROR(" have_common_assignment on false, true");
+  if (bdd_have_common_assignment(bddtrue, bddfalse) != 0)
+    ERROR(" have_common_assignment on true, false");
+  if (bdd_have_common_assignment(bddfalse, bddfalse) != 0)
+    ERROR(" have_common_assignment on false, false");
+
+
+  // Some cubes
+  bdd a = bdd_ithvar(0);
+  bdd b = bdd_ithvar(1);
+  bdd c = bdd_ithvar(2);
+  bdd d = bdd_ithvar(3);
+
+  bdd ca[5];
+  ca[0] = a&c;
+  ca[1] = a&!c;
+  ca[2] = c&d;
+  ca[3] = a&b&c&!d;
+  ca[4] = !a&!d;
+
+  // Some tests
+  for (unsigned i1 = 0; i1 < 5; i1++)
+    {
+      for (unsigned j1 = i1; j1 < 5; j1++)
+        {
+          if (bdd_have_common_assignment(ca[i1], ca[j1])
+              != ((ca[i1] & ca[j1]) != bddfalse))
+            ERROR("bdd_have_common_assignment(): failed on cube");
+          for (unsigned i2 = 0; i2 < 5; i2++)
+            {
+              for (unsigned j2 = i2; j2 < 5; j2++)
+                {
+                  bdd b1 = ca[i1]|ca[j1];
+                  bdd b2 = ca[i2]|ca[j2];
+                  if (bdd_have_common_assignment(b1, b2)
+                      != ((b1 & b2) != bddfalse))
+                    ERROR("bdd_have_common_assignment(): failed on "
+                          "disjunction of cubes");
+                }
+            }
+        }
+    }
+}
+
 int main(int ac, char** av)
 {
   bdd_init(1000,1000);
@@ -199,6 +250,7 @@ int main(int ac, char** av)
   testBvecIte();
   testShortest();
   testIsCube();
+  testHaveCommon();
 
   bdd_done();
   return 0;
