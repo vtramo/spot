@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2009-2015, 2018-2019 Laboratoire de Recherche et
+// Copyright (C) 2009-2015, 2018-2019, 2021 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 // Copyright (C) 2003, 2004 Laboratoire d'Informatique de Paris 6
 // (LIP6), département Systèmes Répartis Coopératifs (SRC), Université
@@ -42,7 +42,7 @@ namespace spot
         {
           os_ << "digraph G {\n";
           rec(f);
-          os_ << "  subgraph atoms {\n     rank=sink;\n"
+          os_ << "  subgraph atoms {\n     rank=sink\n"
               << sinks_->str() << "  }\n}\n";
         }
 
@@ -61,9 +61,23 @@ namespace spot
         op o = f.kind();
         std::string str = (o == op::ap) ? f.ap_name() : f.kindstr();
 
+        if (o == op::Star || o == op::FStar)
+          {
+            unsigned min = f.min();
+            unsigned max = f.max();
+            if (min != 0 || max != formula::unbounded())
+              {
+                str += "\n" + std::to_string(min);
+                if (max != min)
+                  str += "..";
+                if (max != formula::unbounded())
+                  str += std::to_string(max);
+              }
+          }
+
         if (o == op::ap || f.is_constant())
-          *sinks_ << "    " << src << " [label=\""
-                  << str << "\", shape=box];\n";
+          *sinks_ << "    " << src
+                  << " [label=\"" << str << "\", shape=box];\n";
         else
           os_ << "  " << src << " [label=\"" << str << "\"];\n";
 
