@@ -445,6 +445,7 @@ TESTS_python = \
   python/setxor.py \
   python/simplacc.py \
   python/simstate.py \
+  python/sonf.py \
   python/split.py \
   python/streett_totgba.py \
   python/streett_totgba2.py \

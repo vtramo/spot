@@ -94,6 +94,7 @@
 #include <spot/tl/nenoform.hh>
 #include <spot/tl/print.hh>
 #include <spot/tl/simplify.hh>
+#include <spot/tl/sonf.hh>
 #include <spot/tl/unabbrev.hh>
 #include <spot/tl/randomltl.hh>
 #include <spot/tl/length.hh>
@@ -517,6 +518,7 @@ namespace std {
   %template(vectorbdd) vector<bdd>;
   %template(aliasvector) vector<pair<string, bdd>>;
   %template(vectorstring) vector<string>;
+  %template(pair_formula_vectorstring) pair<spot::formula, vector<string>>;
   %template(atomic_prop_set) set<spot::formula>;
   %template(relabeling_map) map<spot::formula, spot::formula>;
 }
@@ -577,6 +579,7 @@ namespace std {
 %include <spot/tl/contain.hh>
 %include <spot/tl/dot.hh>
 %include <spot/tl/nenoform.hh>
+%include <spot/tl/sonf.hh>
 %include <spot/tl/print.hh>
 %include <spot/tl/simplify.hh>
 %include <spot/tl/unabbrev.hh>

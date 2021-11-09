@@ -44,6 +44,7 @@ tl_HEADERS =					\
   remove_x.hh					\
   simplify.hh					\
   snf.hh					\
+  sonf.hh					\
   unabbrev.hh
 
 noinst_LTLIBRARIES = libtl.la
@@ -68,4 +69,5 @@ libtl_la_SOURCES =				\
   remove_x.cc					\
   simplify.cc					\
   snf.cc					\
+  sonf.cc					\
   unabbrev.cc
