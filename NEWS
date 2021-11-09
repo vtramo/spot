@@ -11,6 +11,10 @@ New in spot 2.10.4.dev  (net yet released)
 
   Library:
 
+  - The new function suffix_operator_normal_form() implements
+    transformation of formulas to Suffix Operator Normal Form,
+    described in [cimatti.06.fmcad].
+
   - "original-classes" is a new named property similar to
     "original-states".  It maps an each state to an unsigned integer
     such that if two classes are in the same class, they are expected
