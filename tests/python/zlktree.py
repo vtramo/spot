@@ -134,3 +134,18 @@ a = spot.translate('true')
 a.set_acceptance(spot.acc_cond('f'))
 b = spot.zielonka_tree_transform(a)
 assert a.equivalent_to(b)
+
+a = spot.automaton("""HOA: v1 name: "^ G F p0 G F p1" States: 5 Start:
+2 AP: 2 "a" "b" acc-name: Rabin 2 Acceptance: 4 (Fin(0) & Inf(1)) |
+(Fin(2) & Inf(3)) properties: trans-labels explicit-labels state-acc
+complete properties: deterministic --BODY-- State: 0 {0} [!0&!1] 0
+[0&!1] 4 [!0&1] 3 [0&1] 2 State: 1 {2} [!0&!1] 1 [0&!1] 4 [!0&1] 3
+[0&1] 2 State: 2 {0 2} [!0&!1] 2 [0&!1] 4 [!0&1] 3 [0&1] 2 State: 3 {1
+2} [!0&!1] 1 [0&!1] 4 [!0&1] 3 [0&1] 2 State: 4 {0 3} [!0&!1] 0 [0&!1]
+4 [!0&1] 3 [0&1] 2 --END--""")
+b = spot.acd_transform_sbacc(a, True)
+assert str(b.acc()) == '(3, Fin(0) & (Inf(1) | Fin(2)))'
+assert a.equivalent_to(b)
+b = spot.acd_transform_sbacc(a, False)
+assert str(b.acc()) == '(2, Fin(0) & Inf(1))'
+assert a.equivalent_to(b)

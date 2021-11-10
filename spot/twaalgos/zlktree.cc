@@ -1107,7 +1107,9 @@ namespace spot
           {
             src_prio = si.is_trivial(src_scc) ?
               scc_max_lvl : theacd.node_level(branch);
-            if (!scc_max_lvl_can_be_omitted || src_prio != scc_max_lvl)
+            if (colored
+                || !scc_max_lvl_can_be_omitted
+                || src_prio != scc_max_lvl)
               max_color = std::max(max_color, src_prio);
           }
         for (auto& i: a->out(s.first))
@@ -1141,7 +1143,7 @@ namespace spot
               }
             else
               {
-                if (!sbacc)
+                if constexpr (!sbacc)
                   max_color = std::max(max_color, prio);
                 res->new_edge(src, dst, i.cond, {prio});
               }
