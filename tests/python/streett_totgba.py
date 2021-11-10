@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2017, 2018 Laboratoire de Recherche et Développement de
+# Copyright (C) 2017, 2018, 2021 Laboratoire de Recherche et Développement de
 # l'EPITA.
 #
 # This file is part of Spot, a model checking library.
@@ -46,12 +46,6 @@ def test_aut(aut):
     slftgba = tgba(slike)
     del os.environ["SPOT_STREETT_CONV_MIN"]
     assert sltgba.equivalent_to(slftgba)
-
-# Those automata are generated with ltl2dstar, which is NOT part of spot,
-# using the following command:
-# genltl --eh-patterns --dac-patterns --hkrss-patterns --sb-patterns |\
-# ltldo "ltl2dstar --automata=streett --output-format=hoa\
-#       --ltl2nba=spin:ltl2tgba@-s %L ->%O" -F- --name=%f -H"
 
 
 if shutil.which('ltl2dstar') is None:
