@@ -18,6 +18,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import spot
+import buddy
 
 # CPython use reference counting, so that automata are destructed
 # when we expect them to be.   However other implementations like
@@ -43,9 +44,9 @@ def equiv(a, b):
 
 def do_split(f, out_list):
     aut = spot.translate(f)
-    outputs = spot.buddy.bddtrue
+    outputs = buddy.bddtrue
     for a in out_list:
-        outputs &= spot.buddy.bdd_ithvar(aut.get_dict().varnum(spot.formula(a)))
+        outputs &= buddy.bdd_ithvar(aut.register_ap(a))
     s = spot.split_2step(aut, outputs, False)
     return aut, s
 
