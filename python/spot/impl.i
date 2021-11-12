@@ -408,6 +408,37 @@ namespace swig
     $result = SWIG_FromCharPtr($1->c_str());
 }
 
+// For some reason, Swig can convert [aut1,aut2,...]  into
+// std::vector<spot::twa_graph_ptr>, but not into
+// std::vector<spot::const_twa_graph_ptr>.  Let's fix that by using
+// the Swig machinery that successfully converts to
+// std::vector<spot::twa_graph_ptr>, and then converting this into
+// std::vector<spot::const_twa_graph_ptr> manually.
+
+%typemap(in) std::vector<spot::const_twa_graph_ptr>& {
+  void *tmp;
+  int res = SWIG_ConvertPtr($input, &tmp, $descriptor(std::vector<spot::twa_graph_ptr>*),
+                            SWIG_POINTER_IMPLICIT_CONV);
+  if (!SWIG_IsOK(res) || !tmp)
+    %argument_fail(res, "std::vector<spot::const_twa_graph_ptr>", $symname, $argnum);
+
+  std::vector<spot::twa_graph_ptr>* temp;
+  temp = reinterpret_cast<std::vector<spot::twa_graph_ptr>*>(tmp);
+  $1 = new std::vector<spot::const_twa_graph_ptr>(temp->begin(),
+                                                  temp->end());
+  if (SWIG_IsNewObj(res)) delete temp;
+}
+%typemap(freearg) std::vector<spot::const_twa_graph_ptr>& {
+  delete $1;
+}
+
+%typemap(typecheck, precedence=2000) std::vector<spot::const_twa_graph_ptr>& {
+    $1 = SWIG_CheckState(SWIG_ConvertPtr($input, nullptr,
+					 $descriptor(std::vector<spot::twa_graph_ptr>*),
+                                         SWIG_POINTER_IMPLICIT_CONV));
+}
+
+
 %{
 // This function is called whenever an exception has been caught.
 // Doing all the conversion in a separate function (rather than
@@ -462,7 +493,6 @@ static void handle_any_exception()
 
 %implicitconv std::vector<spot::formula>;
 %implicitconv std::vector<spot::twa_graph_ptr>;
-%implicitconv std::vector<spot::const_twa_graph_ptr>;
 %implicitconv spot::formula;
 %implicitconv std::vector<bool>;
 
@@ -672,7 +702,6 @@ def state_is_accepting(self, src) -> "bool":
 %template(scc_info_scc_edges) spot::internal::scc_edges<spot::digraph<spot::twa_graph_state, spot::twa_graph_edge_data> const, spot::internal::keep_all>;
 %template(scc_info_inner_scc_edges) spot::internal::scc_edges<spot::digraph<spot::twa_graph_state, spot::twa_graph_edge_data> const, spot::internal::keep_inner_scc>;
 %template(vector_twa_graph) std::vector<spot::twa_graph_ptr>;
-%template(vector_const_twa_graph) std::vector<spot::const_twa_graph_ptr>;
 %include <spot/twaalgos/strength.hh>
 %include <spot/twaalgos/sccfilter.hh>
 %include <spot/twaalgos/stats.hh>

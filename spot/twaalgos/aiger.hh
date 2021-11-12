@@ -472,7 +472,7 @@ namespace spot
   mealy_machines_to_aig(const std::vector<mealy_like>& m_vec,
                         const char* mode);
   SPOT_API aig_ptr
-  mealy_machines_to_aig(const std::vector<twa_graph_ptr>& m_vec,
+  mealy_machines_to_aig(const std::vector<const_twa_graph_ptr>& m_vec,
                         const char* mode,
                         const std::vector<std::string>& ins,
                         const std::vector<std::vector<std::string>>& outs);
@@ -482,7 +482,6 @@ namespace spot
                         const std::vector<std::string>& ins,
                         const std::vector<std::vector<std::string>>& outs);
   /// @}
-
 
   /// \ingroup twa_io
   /// \brief Print the aig to stream in AIGER format

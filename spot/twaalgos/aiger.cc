@@ -640,7 +640,7 @@ namespace spot
 
   unsigned aig::cube2var_(const bdd& b, const int use_split_off)
   {
-    assert(bdd_is_cube(b) && "bdd is not a cube!");
+    assert(bdd_is_cube(b) && "bdd is not a cube");
     static std::vector<bdd> parts_;
     static std::vector<unsigned> prod_vars_;
     static std::vector<unsigned> prod_parts_;
@@ -729,7 +729,7 @@ namespace spot
     if (method == 1 || method == 2)
       used_m.push_back(1);
     assert(used_m.size()
-           && "Can not convert the given method. "
+           && "Cannot convert the given method. "
               "Only 0,1 and 2 are currently supported");
 
     const auto negate = use_dual ? std::vector<bool>{false}
@@ -766,7 +766,7 @@ namespace spot
                 {
                   cond_vars.push_back(enc_1(cpart, m));
                   if (num_gates() >= ngates_min)
-                    break; // Can not be optimal
+                    break; // Cannot be optimal
                 }
               // Compute the and if there is still hope
               unsigned this_res = -1u;
@@ -967,7 +967,7 @@ namespace spot
                                                     it2.first.first.id(),
                                                     it2.first.second.id()); });
         if (itm == occur_map.cend())
-          throw std::runtime_error("Empty occurence map!");
+          throw std::runtime_error("Empty occurence map");
         return *itm;
       };
 
@@ -1134,7 +1134,7 @@ namespace spot
         if (it != var2bdd.end())
         {
           assert(bdd2var.at(var2bdd.at(v).id()) == v
-                 && "Inconsistent bdd!\n");
+                 && "Inconsistent bdd.");
           return it->second;
         }
         //get the vars of the input to the gates
@@ -1170,7 +1170,7 @@ namespace spot
       {
         if (not (var2bdd.count(v)))
           throw std::runtime_error("variable " + std::to_string(v)
-                                   + " has no bdd associated!\n");
+                                   + " has no bdd associated.");
       };
     std::for_each(circ.next_latches_.begin(), circ.next_latches_.end(),
                   check);
@@ -1342,7 +1342,7 @@ namespace spot
     assert(inputs.size() == num_inputs()
            && "Input length does not match");
     assert(state_.size() == max_var_ + 2
-           && "State vector does not have the correct size.\n"
+           && "State vector does not have the correct size. "
               "Forgot to initialize?");
     // Set the inputs
     for (unsigned i = 0; i < num_inputs(); ++i)
@@ -1855,7 +1855,7 @@ namespace spot
   {
     if (!m)
       throw std::runtime_error("mealy_machine_to_aig(): "
-                               "m cannot be null");
+                               "m cannot be null.");
 
     return auts_to_aiger({{m, get_synthesis_outputs(m)}}, mode);
   }
@@ -1865,7 +1865,7 @@ namespace spot
   {
     if (m.success != mealy_like::realizability_code::REALIZABLE_REGULAR)
       throw std::runtime_error("mealy_machine_to_aig(): "
-                               "Can only handle regular mealy machine, TBD");
+                               "Can only handle regular mealy machine, yet.");
 
     return mealy_machine_to_aig(m.mealy_like, mode);
   }
@@ -1916,7 +1916,7 @@ namespace spot
   {
     if (m.success != mealy_like::realizability_code::REALIZABLE_REGULAR)
       throw std::runtime_error("mealy_machine_to_aig(): "
-                               "Can only handle regular mealy machine, TBD");
+                               "Can only handle regular mealy machine, yet.");
 
     return mealy_machine_to_aig(m.mealy_like, mode, ins, outs);
   }
@@ -1931,7 +1931,7 @@ namespace spot
                     if (usedbdd != s->get_dict())
                       throw std::runtime_error("mealy_machines_to_aig(): "
                                                "All machines have to "
-                                               "share a bdd_dict!\n");
+                                               "share a bdd_dict.");
                   });
 
     std::vector<std::pair<const_twa_graph_ptr, bdd>> new_vec;
@@ -1945,7 +1945,7 @@ namespace spot
         if (bdd_and(bdd_not(this_outputs), all_outputs) == bddfalse)
           throw std::runtime_error("mealy_machines_to_aig(): "
                                    "\"outs\" of the machines are not "
-                                   "distinct!.\n");
+                                   "distinct.");
         all_outputs &= this_outputs;
         new_vec.emplace_back(am, this_outputs);
       }
@@ -1962,7 +1962,7 @@ namespace spot
                      mealy_like::realizability_code::REALIZABLE_REGULAR; }))
       throw std::runtime_error("mealy_machines_to_aig(): "
                                "Can only handle regular mealy machine for "
-                               "the moment, TBD");
+                               "the moment.");
     auto new_vec = std::vector<const_twa_graph_ptr>();
     new_vec.reserve(m_vec.size());
     std::transform(m_vec.cbegin(), m_vec.cend(),
@@ -1974,14 +1974,17 @@ namespace spot
 
   // Note: This ignores the named property
   aig_ptr
-  mealy_machines_to_aig(const std::vector<twa_graph_ptr>& m_vec,
+  mealy_machines_to_aig(const std::vector<const_twa_graph_ptr>& m_vec,
                         const char *mode,
                         const std::vector<std::string>& ins,
                         const std::vector<std::vector<std::string>>& outs)
   {
+    if (m_vec.empty())
+      throw std::runtime_error("mealy_machines_to_aig(): No strategy given.");
+
     if (m_vec.size() != outs.size())
       throw std::runtime_error("mealy_machines_to_aig(): "
-                               "Expected as many outs as strategies!\n");
+                               "Expecting as many outs as strategies.");
 
     std::for_each(m_vec.begin()+1, m_vec.end(),
                   [usedbdd = m_vec.at(0)->get_dict()](auto&& it)
@@ -1989,7 +1992,7 @@ namespace spot
                     if (usedbdd != it->get_dict())
                       throw std::runtime_error("mealy_machines_to_aig(): "
                                                "All strategies have to "
-                                               "share a bdd_dict!\n");
+                                               "share a bdd_dict.");
                   });
 
     {
@@ -2042,7 +2045,7 @@ namespace spot
   {
     // todo extend to TGBA and possibly others
     const unsigned ns = strat_vec.size();
-    std::vector<twa_graph_ptr> m_machines;
+    std::vector<const_twa_graph_ptr> m_machines;
     m_machines.reserve(ns);
     std::vector<std::vector<std::string>> outs_used;
     outs_used.reserve(ns);
