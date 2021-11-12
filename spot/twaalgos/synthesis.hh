@@ -44,16 +44,16 @@ namespace spot
   /// (p,a) may be non-deterministic.
   /// This function is used to transform an automaton into a turn-based game in
   /// the context of LTL reactive synthesis.
+  /// The player of inputs (aka environment) plays first.
   ///
   /// \param aut          automaton to be transformed
   /// \param output_bdd   conjunction of all output AP, all APs not present
   ///                     are treated as inputs
   /// \param complete_env Whether the automaton should be complete for the
-  ///                     environment, i.e. the player of I
+  ///                     environment, i.e. the player of inputs
   /// \note This function also computes the state players
   /// \note If the automaton is to be completed for both env and player
   ///       then egdes between the sinks will be added
-  /// (assuming that the environnement/player of I) plays first
   SPOT_API twa_graph_ptr
   split_2step(const const_twa_graph_ptr& aut,
               const bdd& output_bdd, bool complete_env);
@@ -172,8 +172,7 @@ namespace spot
   /// \ingroup synthesis
   /// \brief A struct that represents different types of mealy like
   ///        objects
-  struct SPOT_API
-  mealy_like
+  struct SPOT_API mealy_like
   {
     enum class realizability_code
     {

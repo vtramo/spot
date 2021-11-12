@@ -938,9 +938,9 @@ namespace
     {
 #ifndef NDEBUG
       if (i >= dim_)
-        throw std::runtime_error("i exceeds dim!");
+        throw std::runtime_error("i exceeds dim");
       if (j >= dim_)
-        throw std::runtime_error("j exceeds dim!");
+        throw std::runtime_error("j exceeds dim");
 #endif
       return idx_(i, j);
     }
@@ -1068,7 +1068,7 @@ namespace
                return false;
            }
          return true;
-       }() && "Player states have multiple edges!");
+       }() && "Player states have multiple edges.");
 
 #ifdef TRACE
     trace << "State reorganize mapping\n";
@@ -2029,13 +2029,13 @@ namespace
       auto [it, inserted] = sxi_map_.try_emplace(xi, next_var_);
       if (inserted)
         inc_var();
-      assert((!frozen_xi_ || !inserted) && "Created lit when frozen!");
+      assert((!frozen_xi_ || !inserted) && "Created lit when frozen.");
       return it->second;
     }
 
     int sxi2lit(xi_t xi) const
     {
-      assert(sxi_map_.count(xi) && "Can not create lit when const!");
+      assert(sxi_map_.count(xi) && "Cannot create lit when const.");
       return sxi_map_.at(xi);
     }
 
@@ -2059,11 +2059,11 @@ namespace
 
     int ziaj2lit(iaj_t iaj)
     {
-      assert(iaj.i < n_classes_ && "Exceeds source class!");
-      assert(iaj.a < n_sigma_red_ && "Exceeds max letter idx!");
-      assert(iaj.j < n_classes_&& "Exceeds dest class!");
+      assert(iaj.i < n_classes_ && "Exceeds source class.");
+      assert(iaj.a < n_sigma_red_ && "Exceeds max letter idx.");
+      assert(iaj.j < n_classes_&& "Exceeds dest class.");
       auto [it, inserted] = ziaj_map_.try_emplace(iaj, next_var_);
-      assert((!frozen_iaj_ || !inserted) && "Created lit when frozen!");
+      assert((!frozen_iaj_ || !inserted) && "Created lit when frozen.");
       if (inserted)
         inc_var();
       return it->second;
@@ -2071,7 +2071,7 @@ namespace
 
     int ziaj2lit(iaj_t iaj) const
     {
-      assert(ziaj_map_.count(iaj) && "Can not create lit when const!");
+      assert(ziaj_map_.count(iaj) && "Cannot create lit when const.");
       return ziaj_map_.at(iaj);
     }
     int get_iaj(iaj_t iai) const // Gets the literal or zero of not defined
@@ -3403,7 +3403,7 @@ namespace
               // partial solution
               x_in_class[i].second[psolv[i]] = true;
             unsigned first_x = find_first_index_of(x_in_class[i].second);
-            assert(first_x != n_env && "No state in class!");
+            assert(first_x != n_env && "No state in class.");
             x_in_class[i].first = red.which_group[first_x];
           }
     #ifdef TRACE

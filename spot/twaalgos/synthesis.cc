@@ -454,7 +454,7 @@ namespace spot
 
     auto [is_unsat, unsat_mark] = aut->acc().unsat_mark();
     if (!is_unsat && complete_env)
-      throw std::runtime_error("split_2step(): Can not complete arena for "
+      throw std::runtime_error("split_2step(): Cannot complete arena for "
                                "env as there is no unsat mark.");
 
     bdd input_bdd = bddtrue;

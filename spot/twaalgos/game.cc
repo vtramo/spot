@@ -827,7 +827,7 @@ namespace spot
     auto um = arena->acc().unsat_mark();
     if (!um.first && complete0)
       throw std::runtime_error
-        ("alternate_players(): Can not complete monitor!");
+        ("alternate_players(): Cannot complete monitor.");
 
     unsigned sink_env = 0;
     unsigned sink_con = 0;
@@ -857,8 +857,8 @@ namespace spot
             else if ((*owner)[e.dst] == osrc)
               {
                 delete owner;
-                throw
-                  std::runtime_error("alternate_players(): odd cycle detected");
+                throw std::runtime_error
+                  ("alternate_players(): Odd cycle detected.");
               }
           }
         if (complete0 && !(*owner)[src] && missing != bddfalse)
