@@ -36,11 +36,17 @@ doc:
 
 # We use SVGO only if it is available.
 SVGO = if ! (svgo -v >/dev/null); then :; else svgo --disable=removeViewBox
+SVGOID = $(SVGO) --disable=cleanupIDs
 SVGOEND = ; fi
 
 dist-hook: svgo
+## We need to preserve the IDs in aout-dot4.svg
 svgo:
+	chmod u+w $(distdir)/userdoc
+	mv $(distdir)/userdoc/oaut-dot4.svg $(distdir)/userdoc/oaut-dot4.tmp
 	$(SVGO) -f $(distdir)/userdoc $(SVGOEND)
+	mv $(distdir)/userdoc/oaut-dot4.tmp $(distdir)/userdoc/oaut-dot4.svg
+	$(SVGOID) -i $(distdir)/userdoc/oaut-dot4.svg $(SVGOEND)
 
 
 stamp: $(srcdir)/Doxyfile.in $(top_srcdir)/configure.ac
