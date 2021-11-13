@@ -1,4 +1,4 @@
-New in spot 2.9.8.dev (not yet released)
+New in spot 2.10  (2021-11-13)
 
   Build:
 
@@ -16,7 +16,7 @@ New in spot 2.9.8.dev (not yet released)
     are discussed on https://spot-dev.lrde.epita.fr/ltlsynt.html
 
     + ltlsynt now accepts only one of the --ins or --outs options to
-      be given and will deduce the value of this other one.
+      be given and will deduce the value of the other one.
 
     + ltlsynt learned --print-game-hoa to output its internal parity
       game in the HOA format (with an extension described below).
@@ -40,8 +40,9 @@ New in spot 2.9.8.dev (not yet released)
 
     + ltlsynt now has a --decompose=yes|no option to specify if
       the specification should be decomposed into independent
-      sub-specifications, the controller of which can then be glued
+      sub-specifications, the controllers of which can then be glued
       together to satisfy the input specification.
+      (cf. [finkbeiner.21.nfm] in doc/spot.bib)
 
     + ltlsynt learned --simplify=no|bisim|bwoa|sat|bisim-sat|bwoa-sat
       to specifies how to simplify the synthesized controler.
@@ -69,10 +70,9 @@ New in spot 2.9.8.dev (not yet released)
 
   Library:
 
-  - Spot now provides convenient function to create and solve games.
-    The functions are located in twaalgos/game.hh.  Additional
-    functions related to the application to reactive synthesis are in
-    twaalgos/synthesis.hh.
+  - Spot now provides convenient functions to create and solve games.
+    (twaalgos/game.hh) and some additional functions for reactive
+    synthesis (twaalgos/synthesis.hh, twaalgos/mealy_machine.hh).
 
   - A new class called aig represent an and-inverter-graphs, and is
     currently used during synthesis. (twaalgos/aiger.hh)
@@ -154,8 +154,7 @@ New in spot 2.9.8.dev (not yet released)
     well.  (Issue #418.)
 
   - The parity_game class has been removed, now any twa_graph_ptr that
-    has a parity max odd acceptance and a "state-player" property is
-    considered to be a parity game.
+    has a "state-player" property is considered to be a game.
 
   - the "state-player" property is output by the HOA printer, and read
     back by the automaton parser, which means that games can be saved
@@ -244,7 +243,7 @@ New in spot 2.9.8.dev (not yet released)
     "dba-simul", "dpa-simul", and "det-simul" at once.
 
   - tgba_powerset() now takes an extra optional argument to specify a
-    list of accepting sinks states if some arex known.  Doing so can
+    list of accepting sinks states if some are known.  Doing so can
     cut the size of the powerset automaton by 2^|sinks| in favorable
     cases.
 
@@ -255,14 +254,16 @@ New in spot 2.9.8.dev (not yet released)
     outgoing edge of some state.  It can be used together with
     purge_dead_states() to remove selected states.
 
-  - Add reduce_direct_sim(), reduce_direct_cosim() and reduce_iterated()
-    (and their state based acceptance version, reduce_direct_sim_sba(),
-    reduce_direct_cosim_sba() and reduce_iterated_sba()), a new reduction
-    based simulation using a matrix-based implementation. This new version
-    should be faster than the signature-based BDD implementation in most
-    cases. By default, the old one is used. This behavior can be changed by
-    setting SPOT_SIMULATION_REDUCTION environment variable or using the
-    "-x simul-method=..." option (see spot-x(7)).
+  - The new functions reduce_direct_sim(), reduce_direct_cosim() and
+    reduce_iterated() (and their state based acceptance version,
+    reduce_direct_sim_sba(), reduce_direct_cosim_sba() and
+    reduce_iterated_sba()), are matrix-based implementation of
+    simulation-based reductions.   This new version is faster
+    than the signature-based BDD implementation in most cases,
+    however there are some cases it does not capture yet.. By
+    default, the old one is used. This behavior can be changed by
+    setting SPOT_SIMULATION_REDUCTION environment variable or using
+    the "-x simul-method=..." option (see spot-x(7)).
 
   - The automaton parser will now recognize lines of the form
       #line 10 "filename"
@@ -270,11 +271,11 @@ New in spot 2.9.8.dev (not yet released)
     that error messages should be emitted as if the next automaton
     was read from "filename" starting on line 10.  (Issue #232)
 
-  - The automaton parser for HOA will now be faster at parsing files
-    where a label is used multiple times (i.e., most automata): it
-    uses a hash table to avoid reconstructing BDDs corresponding to
-    label that have already been parsed.  This trick was already used
-    in the never claim parser.
+  - The automaton parser for HOA is now faster at parsing files where
+    a label is used multiple times (i.e., most automata): it uses a
+    hash table to avoid reconstructing BDDs corresponding to label
+    that have already been parsed.  This trick was already used in the
+    never claim parser.
 
   - spot::twa_graph::merge_states() will now sort the vector of edges
     before attempting to detect mergeable states.  When merging states
