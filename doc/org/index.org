@@ -24,7 +24,7 @@ checking.  It has the following notable features:
   emptiness checks, simulation-based reductions, minimization of
   weak-DBA, removal of useless SCCs, acceptance-condition
   transformations, determinization, [[file:satmin.org][SAT-based minimization of
-  deterministic automata]], [[https://spot.lrde.epita.fr/ipynb/][Alternating Cycle Decomposition]], etc.
+  deterministic automata]], [[https://spot.lrde.epita.fr/ipynb/zlktree.html][Alternating Cycle Decomposition]], etc.
 - Support for [[file:tut40.org][Safety]] and [[https://spot-dev.lrde.epita.fr/ipynb/games.html][parity games]].
 - Applications to [[file:ltlsynt.org][reactive synthesis]] and [[https://spot.lrde.epita.fr/ipynb/atva16-fig2b.html][model checking]].
 - In addition to the C++ interface, most of its algorithms are usable
