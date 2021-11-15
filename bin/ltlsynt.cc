@@ -71,12 +71,12 @@ static const argp_option options[] =
     { nullptr, 0, nullptr, 0, "Fine tuning:", 10 },
     { "algo", OPT_ALGO, "sd|ds|ps|lar|lar.old", 0,
       "choose the algorithm for synthesis:"
-      " \"sd\": translate to tgba, split, then determinize (default);"
+      " \"sd\": translate to tgba, split, then determinize;"
       " \"ds\": translate to tgba, determinize, then split;"
       " \"ps\": translate to dpa, then split;"
       " \"lar\": translate to a deterministic automaton with arbitrary"
       " acceptance condition, then use LAR to turn to parity,"
-      " then split;"
+      " then split (default);"
       " \"lar.old\": old version of LAR, for benchmarking.\n", 0 },
     { "decompose", OPT_DECOMPOSE, "yes|no", 0,
       "whether to decompose the specification as multiple output-disjoint "
