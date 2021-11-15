@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2016-2017, 2019 Laboratoire de Recherche et
+// Copyright (C) 2016-2017, 2019, 2021 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -61,8 +61,25 @@ import spot
 import spot.aux
 import sys
 import subprocess
+import os.path
+import re
 
 def load(filename):
+  # Compile promela model with Spins by end, even if it would be done in model.load,
+  # so we can capture the output of the compilation regardless of the Jupyter version.
+  # (Older Jupyter version to not send the output to the notebook, and newer versions
+  # do it asynchronously in a way that make testing quite hard.)
+  if filename.endswith('.pm') or filename.endswith('.pml') or filename.endswith('.prom'):
+    dst = os.path.basename(filename) + '.spins'
+    if not os.path.exists(dst) or (os.path.getmtime(dst) < os.path.getmtime(filename)):
+      p = subprocess.run(['spins', filename], stdout=subprocess.PIPE,
+                         stderr=subprocess.STDOUT,
+                         universal_newlines=True)
+      if p.stdout: print(re.sub('^\s*\[\.*\s*\]\n', '', p.stdout,
+                                flags=re.MULTILINE), file=sys.stderr)
+      if p.stderr: print(p.stderr, file=sys.stderr)
+      p.check_returncode()
+      filename = dst
   return model.load(filename)
 
 @spot._extend(model)
@@ -155,17 +172,13 @@ try:
                    t.flush()
 
                    try:
-                       p = subprocess.Popen(['divine', 'compile',
+                       p = subprocess.run(['divine', 'compile',
                                              '--ltsmin', t.name],
-                                            stdout=subprocess.PIPE,
-                                            stderr=subprocess.STDOUT,
+                                            capture_output=True,
                                             universal_newlines=True)
-                       out = p.communicate()
-                       if out[0]:
-                          print(out[0], file=sys.stderr)
-                       ret = p.wait()
-                       if ret:
-                          raise subprocess.CalledProcessError(ret, 'divine')
+                       if p.stdout: print(p.stdout)
+                       if p.stderr: print(p.stderr, file=sys.stderr)
+                       p.check_returncode()
                        self.shell.user_ns[line] = load(t.name + '2C')
                    finally:
                        spot.aux.rm_f(t.name + '.cpp')
@@ -182,19 +195,8 @@ try:
                with tempfile.NamedTemporaryFile(dir='.', suffix='.pml') as t:
                    t.write(cell.encode('utf-8'))
                    t.flush()
-
                    try:
-                       p = subprocess.Popen(['spins', t.name],
-                                            stdout=subprocess.PIPE,
-                                            stderr=subprocess.STDOUT,
-                                            universal_newlines=True)
-                       out = p.communicate()
-                       if out[0]:
-                          print(out[0], file=sys.stderr)
-                       ret = p.wait()
-                       if ret:
-                          raise subprocess.CalledProcessError(ret, 'spins')
-                       self.shell.user_ns[line] = load(t.name + '.spins')
+                       self.shell.user_ns[line] = load(t.name)
                    finally:
                        spot.aux.rm_f(t.name + '.spins.c')
                        spot.aux.rm_f(t.name + '.spins')
