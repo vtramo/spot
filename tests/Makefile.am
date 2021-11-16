@@ -478,26 +478,21 @@ EXTRA_DIST = \
 check_PROGRAMS += ltsmin/modelcheck
 check_PROGRAMS += ltsmin/testconvert
 ltsmin_modelcheck_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) \
-	$(BUDDY_CPPFLAGS) \-I$(top_builddir)/lib -I$(top_srcdir)/lib
+	$(BUDDY_CPPFLAGS) -I$(top_builddir)/lib -I$(top_srcdir)/lib
 ltsmin_modelcheck_CXXFLAGS = $(CXXFLAGS) -pthread
 ltsmin_modelcheck_SOURCES = ltsmin/modelcheck.cc
-ltsmin_modelcheck_LDADD =  \
+ltsmin_modelcheck_LDADD =			\
   $(top_builddir)/bin/libcommon.a		\
   $(top_builddir)/lib/libgnu.la			\
-  $(top_builddir)/spot/libspot.la              \
-  $(top_builddir)/spot/ltsmin/libspotltsmin.la
+  $(top_builddir)/spot/libspot.la		\
+  $(top_builddir)/spot/ltsmin/libspotltsmin.la	\
+  $(top_builddir)/buddy/src/libbddx.la
 
 ltsmin_testconvert_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) \
-	$(BUDDY_CPPFLAGS) \-I$(top_builddir)/lib -I$(top_srcdir)/lib
+	$(BUDDY_CPPFLAGS) -I$(top_builddir)/lib -I$(top_srcdir)/lib
 ltsmin_testconvert_CXXFLAGS = $(CXXFLAGS) -pthread
 ltsmin_testconvert_SOURCES = ltsmin/testconvert.cc
-ltsmin_testconvert_LDADD =  \
-  $(top_builddir)/bin/libcommon.a		\
-  $(top_builddir)/lib/libgnu.la			\
-  $(top_builddir)/spot/libspot.la       \
-  $(top_builddir)/buddy/src/libbddx.la  \
-  $(top_builddir)/spot/ltsmin/libspotltsmin.la
-
+ltsmin_testconvert_LDADD = $(ltsmin_modelcheck_LDADD)
 
 check_SCRIPTS += ltsmin/defs
 
