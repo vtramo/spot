@@ -79,7 +79,7 @@ be able to find everything by default, and you should be able to
 compile =hello.cc= and then execute =hello= with
 
 #+BEGIN_SRC sh
-g++ -std=c++14 hello.cc -lspot -o hello
+g++ -std=c++17 hello.cc -lspot -o hello
 ./hello
 #+END_SRC
 
@@ -102,11 +102,11 @@ This means that all spot headers have been installed in
 
 Usually, these directories are searched by default, so
 #+BEGIN_SRC sh
-g++ -std=c++14 hello.cc -lspot -o hello
+g++ -std=c++17 hello.cc -lspot -o hello
 #+END_SRC
 should still work.  But if that is not the case, add
 #+BEGIN_SRC sh
-g++ -std=c++14 -I/usr/local/include hello.cc -L/usr/local/lib -lspot -o hello
+g++ -std=c++17 -I/usr/local/include hello.cc -L/usr/local/lib -lspot -o hello
 #+END_SRC
 
 If running =./hello= fails with a message about not finding =libspot.so=,
@@ -132,7 +132,7 @@ libraries in =$HOME/usr/lib=.
 
 You would compile =hello.cc= with
 #+BEGIN_SRC sh
-g++ -std=c++14 -I$HOME/usr/include hello.cc -L$HOME/usr/lib -lspot -o hello
+g++ -std=c++17 -I$HOME/usr/include hello.cc -L$HOME/usr/lib -lspot -o hello
 #+END_SRC
 and execute with
 #+BEGIN_SRC sh
@@ -185,7 +185,7 @@ There are at least two traps with this scenario:
 
 So compiling against a non-installed Spot would look like this:
 #+BEGIN_SRC sh
-/dir/spot-X.Y/libtool link g++ -std=c++14 -I/dir/spot-X.Y -I/dir/spot-X.Y/buddy/src hello.cc /dir/spot-X.Y/spot/libspot.la -o hello
+/dir/spot-X.Y/libtool link g++ -std=c++17 -I/dir/spot-X.Y -I/dir/spot-X.Y/buddy/src hello.cc /dir/spot-X.Y/spot/libspot.la -o hello
 #+END_SRC
 
 Using =libtool link g++= instead of =g++= will cause =libtool= to
