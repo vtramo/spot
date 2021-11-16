@@ -22,8 +22,19 @@
 
 AUTOMAKE_OPTIONS = subdir-objects
 
+# __STDC_FORMAT_MACROS is used to avoid an issue with some version of
+# <inttypes.h> and <cinttypes>.  Some version of inttypes.h do not
+# define macros such as PRIx64 in C++ unless __STDC_FORMAT_MACROS is
+# defined.  Including <cintypes> will force the definition of
+# __STDC_FORMAT_MACROS before including <inttypes.h>, but if the later
+# had already been included before (for instance via the inclusion of
+# <Python.h>), it is too late and the PRIx64 will not be defined.
+# This issue has been observed on the CentOS6-based build system used
+# by conda-forge; it seems to be fixed in more recent distributions,
+# where <inttypes.h> define PRIx64 and friends unconditionally.
 AM_CPPFLAGS = -I$(PYTHONINC) -I$(top_builddir) -I$(top_srcdir) \
-	      $(BUDDY_CPPFLAGS) -lpthread -DSWIG_TYPE_TABLE=spot
+	      $(BUDDY_CPPFLAGS) -lpthread -DSWIG_TYPE_TABLE=spot \
+	      -D__STDC_FORMAT_MACROS
 
 SWIGFLAGS = -c++ -python -py3 -O -MD
 
