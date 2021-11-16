@@ -33,6 +33,7 @@
 #include <spot/misc/common.hh>
 
 #include <cstddef>
+#include <cinttypes>
 #include <utility> // pair
 #include <tuple> // tie
 
