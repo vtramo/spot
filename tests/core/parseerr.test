@@ -1,6 +1,6 @@
 #! /bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2009-2016, 2020 Laboratoire
+# Copyright (C) 2009-2016, 2020, 2021 Laboratoire
 # de Recherche et Développement de l'Epita (LRDE).
 # Copyright (C) 2003, 2004 Laboratoire d'Informatique de Paris 6 (LIP6),
 # département Systèmes Répartis Coopératifs (SRC), Université Pierre
@@ -34,9 +34,11 @@ cat >input <<EOF
 /2/3/4/5 a + b /6/7/8/
 a - b
 {a[*9999999999]}
+{a ##[1:255] b}
 EOF
 
-run 1 ../ltl2text input | sed 's/[$]undefined/invalid token/g' > output
+run 1 ../ltl2text input |
+  sed 's/[$]undefined/invalid token/g;s/ap([^"]*\("[^"]*"\))/\1/g' > output
 
 sed 's/$$//' >expected<<\EOF
 >>> $
@@ -67,12 +69,17 @@ syntax error, unexpected invalid token
       ^^^
 ignoring trailing garbage
 
-ap(@3 #0 "a")
+"a"
 >>> {a[*9999999999]}
         ^^^^^^^^^^
 value too large ignored
 
-Closure(@6 #0 [Star(@5 #0 0.. [ap(@4 #0 "a")])])
+Closure(@6 #0 [Star(@5 #0 0.. ["a"])])
+>>> {a ##[1:255] b}
+            ^^^
+255 exceeds maximum supported repetition (254)
+
+Closure(@12 #0 [Concat(@11 #0 ["a", Star(@9 #0 0..253 [tt(@1 #0)]), "b"])])
 EOF
 
 diff output expected
@@ -105,5 +112,6 @@ a & (, a & 0
 {a[=8..1];b}, {a[=1..8];b}
 {a[->8..1];b}, {a[->1..8];b}
 {a[->..0];b}, {a[->0..1];b}
+{a[->2..300];b}, {a[->2..254];b}
 EOF
 run 0 ../equals -E recover.txt

@@ -1,6 +1,6 @@
 /* -*- coding: utf-8 -*-
 
-** Copyright (C) 2009-2019 Laboratoire de Recherche et Développement
+** Copyright (C) 2009-2019, 2021 Laboratoire de Recherche et Développement
 ** de l'Epita (LRDE).
 ** Copyright (C) 2003-2006 Laboratoire d'Informatique de Paris 6
 ** (LIP6), département Systèmes Répartis Coopératifs (SRC), Université
@@ -279,6 +279,7 @@ using namespace spot;
 %type <ltl> subformula atomprop booleanatom sere lbtformula boolformula
 %type <ltl> bracedsere parenthesedsubformula
 %type <minmax> starargs fstarargs equalargs sqbracketargs gotoargs delayargs
+%type <num> sqbkt_num
 
 %destructor { delete $$; } <str>
 %destructor { $$->destroy(); } <ltl>
@@ -377,30 +378,47 @@ OP_SQBKT_SEP_opt: %empty
 error_opt: %empty
          | error
 
+sqbkt_num: OP_SQBKT_NUM
+         {
+           if ($1 >= fnode::unbounded())
+             {
+               auto max = fnode::unbounded() - 1;
+               std::ostringstream s;
+               s << $1 << " exceeds maximum supported repetition ("
+                 << max << ")";
+               error_list.emplace_back(@1, s.str());
+               $$ = max;
+             }
+           else
+             {
+               $$ = $1;
+             }
+         }
+
 /* for [*i..j] and [=i..j] */
-sqbracketargs: OP_SQBKT_NUM OP_SQBKT_SEP OP_SQBKT_NUM OP_SQBKT_CLOSE
+sqbracketargs: sqbkt_num OP_SQBKT_SEP sqbkt_num OP_SQBKT_CLOSE
               { $$.min = $1; $$.max = $3; }
-	     | OP_SQBKT_NUM OP_SQBKT_SEP_unbounded OP_SQBKT_CLOSE
+	     | sqbkt_num OP_SQBKT_SEP_unbounded OP_SQBKT_CLOSE
               { $$.min = $1; $$.max = fnode::unbounded(); }
-	     | OP_SQBKT_SEP OP_SQBKT_NUM OP_SQBKT_CLOSE
+	     | OP_SQBKT_SEP sqbkt_num OP_SQBKT_CLOSE
               { $$.min = 0U; $$.max = $2; }
 	     | OP_SQBKT_SEP_opt OP_SQBKT_CLOSE
               { $$.min = 0U; $$.max = fnode::unbounded(); }
-	     | OP_SQBKT_NUM OP_SQBKT_CLOSE
+	     | sqbkt_num OP_SQBKT_CLOSE
               { $$.min = $$.max = $1; }
 
 /* [->i..j] has default values that are different than [*] and [=]. */
-gotoargs: OP_GOTO_OPEN OP_SQBKT_NUM OP_SQBKT_SEP OP_SQBKT_NUM OP_SQBKT_CLOSE
+gotoargs: OP_GOTO_OPEN sqbkt_num OP_SQBKT_SEP sqbkt_num OP_SQBKT_CLOSE
            { $$.min = $2; $$.max = $4; }
-	  | OP_GOTO_OPEN OP_SQBKT_NUM OP_SQBKT_SEP_unbounded OP_SQBKT_CLOSE
+	  | OP_GOTO_OPEN sqbkt_num OP_SQBKT_SEP_unbounded OP_SQBKT_CLOSE
            { $$.min = $2; $$.max = fnode::unbounded(); }
-	  | OP_GOTO_OPEN OP_SQBKT_SEP OP_SQBKT_NUM OP_SQBKT_CLOSE
+	  | OP_GOTO_OPEN OP_SQBKT_SEP sqbkt_num OP_SQBKT_CLOSE
            { $$.min = 1U; $$.max = $3; }
 	  | OP_GOTO_OPEN OP_SQBKT_SEP_unbounded OP_SQBKT_CLOSE
            { $$.min = 1U; $$.max = fnode::unbounded(); }
 	  | OP_GOTO_OPEN OP_SQBKT_CLOSE
            { $$.min = $$.max = 1U; }
-	  | OP_GOTO_OPEN OP_SQBKT_NUM OP_SQBKT_CLOSE
+	  | OP_GOTO_OPEN sqbkt_num OP_SQBKT_CLOSE
            { $$.min = $$.max = $2; }
 	  | OP_GOTO_OPEN error OP_SQBKT_CLOSE
            { error_list.emplace_back(@$, "treating this goto block as [->]");
@@ -885,36 +903,36 @@ subformula: booleanatom
 	      { $$ = fnode::unop(op::F, $2); }
 	    | OP_F error
 	      { missing_right_op($$, @1, "sometimes operator"); }
-	    | OP_FREP OP_SQBKT_NUM OP_SQBKT_CLOSE subformula %prec OP_FREP
+	    | OP_FREP sqbkt_num OP_SQBKT_CLOSE subformula %prec OP_FREP
               { $$ = fnode::nested_unop_range(op::X, op::Or, $2, $2, $4);
                 error_list.emplace_back(@1 + @3,
                                         "F[n:m] expects two parameters");
               }
-	    | OP_FREP OP_SQBKT_NUM OP_SQBKT_STRONG_CLOSE subformula
+	    | OP_FREP sqbkt_num OP_SQBKT_STRONG_CLOSE subformula
               %prec OP_FREP
               { $$ = fnode::nested_unop_range(op::strong_X, op::Or, $2, $2, $4);
                 error_list.emplace_back(@1 + @3,
                                         "F[n:m!] expects two parameters");
               }
-	    | OP_FREP OP_SQBKT_NUM OP_SQBKT_SEP OP_SQBKT_NUM OP_SQBKT_CLOSE
+	    | OP_FREP sqbkt_num OP_SQBKT_SEP sqbkt_num OP_SQBKT_CLOSE
               subformula %prec OP_FREP
               { $$ = fnode::nested_unop_range(op::X, op::Or, $2, $4, $6); }
-	    | OP_FREP OP_SQBKT_NUM OP_SQBKT_SEP OP_SQBKT_NUM
+	    | OP_FREP sqbkt_num OP_SQBKT_SEP sqbkt_num
               OP_SQBKT_STRONG_CLOSE subformula %prec OP_FREP
               { $$ = fnode::nested_unop_range(op::strong_X,
                                               op::Or, $2, $4, $6); }
-	    | OP_FREP OP_SQBKT_NUM OP_SQBKT_SEP_unbounded OP_SQBKT_CLOSE
+	    | OP_FREP sqbkt_num OP_SQBKT_SEP_unbounded OP_SQBKT_CLOSE
               subformula %prec OP_FREP
             { $$ = fnode::nested_unop_range(op::X, op::Or, $2,
                                             fnode::unbounded(), $5); }
-	    | OP_FREP OP_SQBKT_NUM OP_SQBKT_SEP_unbounded OP_SQBKT_STRONG_CLOSE
+	    | OP_FREP sqbkt_num OP_SQBKT_SEP_unbounded OP_SQBKT_STRONG_CLOSE
               subformula %prec OP_FREP
             { $$ = fnode::nested_unop_range(op::strong_X, op::Or, $2,
                                             fnode::unbounded(), $5); }
-	    | OP_FREP OP_SQBKT_NUM OP_SQBKT_SEP OP_SQBKT_NUM OP_SQBKT_CLOSE
+	    | OP_FREP sqbkt_num OP_SQBKT_SEP sqbkt_num OP_SQBKT_CLOSE
               error
 	      { missing_right_op($$, @1 + @5, "F[.] operator"); }
-	    | OP_FREP OP_SQBKT_NUM OP_SQBKT_SEP OP_SQBKT_NUM
+	    | OP_FREP sqbkt_num OP_SQBKT_SEP sqbkt_num
               OP_SQBKT_STRONG_CLOSE error
 	      { missing_right_op($$, @1 + @5, "F[.!] operator"); }
             | OP_FREP error_opt END_OF_INPUT
@@ -932,37 +950,37 @@ subformula: booleanatom
 	      { $$ = fnode::unop(op::G, $2); }
 	    | OP_G error
 	      { missing_right_op($$, @1, "always operator"); }
-	    | OP_GREP OP_SQBKT_NUM OP_SQBKT_SEP OP_SQBKT_NUM OP_SQBKT_CLOSE
+	    | OP_GREP sqbkt_num OP_SQBKT_SEP sqbkt_num OP_SQBKT_CLOSE
               subformula %prec OP_GREP
               { $$ = fnode::nested_unop_range(op::X, op::And, $2, $4, $6); }
-	    | OP_GREP OP_SQBKT_NUM OP_SQBKT_SEP OP_SQBKT_NUM
+	    | OP_GREP sqbkt_num OP_SQBKT_SEP sqbkt_num
               OP_SQBKT_STRONG_CLOSE subformula %prec OP_GREP
               { $$ = fnode::nested_unop_range(op::strong_X, op::And,
                                               $2, $4, $6); }
-	    | OP_GREP OP_SQBKT_NUM OP_SQBKT_SEP_unbounded OP_SQBKT_CLOSE
+	    | OP_GREP sqbkt_num OP_SQBKT_SEP_unbounded OP_SQBKT_CLOSE
               subformula %prec OP_GREP
             { $$ = fnode::nested_unop_range(op::X, op::And, $2,
                                             fnode::unbounded(), $5); }
-	    | OP_GREP OP_SQBKT_NUM OP_SQBKT_SEP_unbounded OP_SQBKT_STRONG_CLOSE
+	    | OP_GREP sqbkt_num OP_SQBKT_SEP_unbounded OP_SQBKT_STRONG_CLOSE
               subformula %prec OP_GREP
             { $$ = fnode::nested_unop_range(op::strong_X, op::And, $2,
                                             fnode::unbounded(), $5); }
-	    | OP_GREP OP_SQBKT_NUM OP_SQBKT_CLOSE subformula %prec OP_GREP
+	    | OP_GREP sqbkt_num OP_SQBKT_CLOSE subformula %prec OP_GREP
               { $$ = fnode::nested_unop_range(op::X, op::And, $2, $2, $4);
                 error_list.emplace_back(@1 + @3,
                                         "G[n:m] expects two parameters");
               }
-	    | OP_GREP OP_SQBKT_NUM OP_SQBKT_STRONG_CLOSE subformula
+	    | OP_GREP sqbkt_num OP_SQBKT_STRONG_CLOSE subformula
               %prec OP_GREP
               { $$ = fnode::nested_unop_range(op::strong_X, op::And,
                                               $2, $2, $4);
                 error_list.emplace_back(@1 + @3,
                                         "G[n:m!] expects two parameters");
               }
-	    | OP_GREP OP_SQBKT_NUM OP_SQBKT_SEP OP_SQBKT_NUM OP_SQBKT_CLOSE
+	    | OP_GREP sqbkt_num OP_SQBKT_SEP sqbkt_num OP_SQBKT_CLOSE
               error
 	      { missing_right_op($$, @1 + @5, "G[.] operator"); }
-	    | OP_GREP OP_SQBKT_NUM OP_SQBKT_SEP OP_SQBKT_NUM
+	    | OP_GREP sqbkt_num OP_SQBKT_SEP sqbkt_num
               OP_SQBKT_STRONG_CLOSE error
 	      { missing_right_op($$, @1 + @5, "G[.!] operator"); }
             | OP_GREP error_opt END_OF_INPUT
@@ -984,16 +1002,16 @@ subformula: booleanatom
 	      { $$ = fnode::unop(op::strong_X, $2); }
 	    | OP_STRONG_X error
 	      { missing_right_op($$, @1, "strong next operator"); }
-	    | OP_XREP OP_SQBKT_NUM OP_SQBKT_CLOSE subformula %prec OP_XREP
+	    | OP_XREP sqbkt_num OP_SQBKT_CLOSE subformula %prec OP_XREP
               { $$ = fnode::nested_unop_range(op::X, op::Or, $2, $2, $4); }
-	    | OP_XREP OP_SQBKT_NUM OP_SQBKT_CLOSE error
+	    | OP_XREP sqbkt_num OP_SQBKT_CLOSE error
 	      { missing_right_op($$, @1 + @3, "X[.] operator"); }
             | OP_XREP error OP_SQBKT_CLOSE subformula %prec OP_XREP
               { error_list.emplace_back(@$, "treating this X[.] as a simple X");
                 $$ = fnode::unop(op::X, $4); }
 	    | OP_XREP OP_SQBKT_STRONG_CLOSE subformula %prec OP_XREP
               { $$ = fnode::unop(op::strong_X, $3); }
-	    | OP_XREP OP_SQBKT_NUM OP_SQBKT_STRONG_CLOSE subformula
+	    | OP_XREP sqbkt_num OP_SQBKT_STRONG_CLOSE subformula
               %prec OP_XREP
               { $$ = fnode::nested_unop_range(op::strong_X,
                                               op::Or, $2, $2, $4); }
