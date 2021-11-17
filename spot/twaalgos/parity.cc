@@ -29,6 +29,10 @@
 #include <functional>
 #include <queue>
 
+#include <spot/twaalgos/isdet.hh>
+#include <spot/twaalgos/iscolored.hh>
+#include <spot/misc/bddlt.hh>
+
 namespace spot
 {
   namespace
@@ -629,5 +633,352 @@ namespace spot
         }
 
     return aut;
+  }
+
+  SPOT_API twa_graph_ptr
+  path_refinement (const const_twa_graph_ptr& aut,
+                    const std::vector<unsigned>& equiv_class,
+                    unsigned s1,
+                    unsigned s2,
+                    bool pretty_print)
+  {
+    assert(aut->acc().is_parity() && is_deterministic(aut));
+    assert(is_colored(aut));
+    assert(equiv_class[s1] == equiv_class[s2]);
+
+
+    twa_graph_ptr pr = make_twa_graph(aut->get_dict());
+    pr->copy_ap_of(aut);
+    // TODO acceptance ?
+
+    unsigned lambda = equiv_class[s1];
+
+    unsigned ns = aut->num_states();
+    unsigned nc = aut->acc().num_sets();
+
+
+    std::vector<std::string> *names = nullptr;
+
+    if (pretty_print)
+      {
+        names = new std::vector<std::string>(ns*nc);
+        pr->set_named_prop("state-names", names);
+      }
+
+    typedef std::pair<unsigned, unsigned> state_name;
+    std::map<state_name, unsigned> state_name_to_id;
+
+    // The states are identified by two componment: the orignal state and the
+    // smallest priority seen so far.
+    auto get_or_create_state = [&](unsigned state, unsigned priority)
+    {
+      state_name name = {state, priority};
+      auto pos = state_name_to_id.find(name);
+
+      if (pos == state_name_to_id.end())
+        {
+          unsigned q = pr->new_state();
+          state_name_to_id.insert({name, q});
+
+          if (names)
+            (*names)[q] = std::to_string(state)
+                            + std::string("#")
+                            + std::to_string(priority);
+
+          return q;
+        }
+      else
+        {
+          return pos->second;
+        }
+    };
+
+    std::vector<bool> seen(ns*nc, false);
+    std::vector<state_name> todo;
+    todo.reserve(ns*nc);
+
+    {
+      unsigned acc1 = aut->state_acc_sets(s1).max_set() - 1;
+      todo.push_back({s1, acc1});
+      seen[get_or_create_state(s1, acc1)] = true;
+
+      unsigned acc2 = aut->state_acc_sets(s2).max_set() - 1;
+      todo.push_back({s2, acc2});
+      seen[get_or_create_state(s2, acc2)] = true;
+    }
+
+    while (!todo.empty())
+      {
+        auto [state, k] = todo.back();
+        todo.pop_back();
+
+        unsigned src = get_or_create_state(state, k);
+
+        for (const auto& e : aut->out(state))
+          {
+            if (equiv_class[e.dst] == lambda && e.dst != s1 && e.dst != s2)
+              continue;
+
+            if (equiv_class[e.src] == lambda)
+              {
+                acc_cond::mark_t m = {};
+                m.set(k);
+
+                //FIXME if min take min_set ????
+                // If there is no set, state_acc_sets return 0 - 1, which
+                // overflow to max unsigned and thus is ignored in the min
+                // TODO FIX when both have no sets.
+                unsigned min_priority = std::min(aut->state_acc_sets(e.src).max_set() - 1,
+                    aut->state_acc_sets(e.dst).max_set() - 1);
+                unsigned dst = get_or_create_state(e.dst, min_priority);
+
+                pr->new_edge(src, dst, e.cond, m);
+
+                if (!seen[dst])
+                  {
+                    seen[dst] = true;
+                    todo.push_back({e.dst, min_priority});
+                  }
+              }
+            else
+              {
+                //FIXME if min take min_set ????
+                unsigned min_priority = std::min(k, aut->state_acc_sets(e.dst).max_set() - 1);
+                unsigned dst = get_or_create_state(e.dst, min_priority);
+
+                pr->new_edge(src, dst, e.cond, {});
+
+                if (!seen[dst])
+                  {
+                    seen[dst] = true;
+                    todo.push_back({e.dst, min_priority});
+                  }
+              }
+
+          }
+      }
+
+    
+    pr->merge_edges();
+
+
+    pr->prop_state_acc(true);
+    pr->prop_universal(true);
+
+    return pr;
+  }
+
+
+  SPOT_API bool
+  moore_equivalence(const const_twa_graph_ptr& det_a, unsigned s1, unsigned s2)
+  {
+    assert(is_deterministic(det_a));
+
+    typedef std::set<unsigned> hash_set;
+    typedef std::list<hash_set*> partition_t;
+    partition_t cur_run;
+    partition_t next_run;
+
+    // FIXME ???
+    hash_set *final = new hash_set();
+    hash_set *non_final = new hash_set();
+    for (unsigned i = 0; i < det_a->num_states(); ++i)
+      non_final->insert(i);
+
+    // The list of equivalent states.
+    partition_t done;
+
+    std::vector<unsigned> state_set_map(det_a->num_states(), -1U);
+
+    // Size of det_a
+    unsigned size = final->size() + non_final->size();
+    // Use bdd variables to number sets.  set_num is the first variable
+    // available.
+    unsigned set_num =
+      det_a->get_dict()->register_anonymous_variables(size, det_a);
+
+    std::set<int> free_var;
+    for (unsigned i = set_num; i < set_num + size; ++i)
+      free_var.insert(i);
+    std::map<int, int> used_var;
+
+    hash_set* final_copy;
+
+    if (!final->empty())
+    {
+      unsigned s = final->size();
+      used_var[set_num] = s;
+      free_var.erase(set_num);
+      if (s > 1)
+        cur_run.emplace_back(final);
+      else
+        done.emplace_back(final);
+      for (auto i: *final)
+        state_set_map[i] = set_num;
+
+      final_copy = new hash_set(*final);
+    }
+    else
+    {
+      final_copy = final;
+    }
+
+    if (!non_final->empty())
+    {
+      unsigned s = non_final->size();
+      unsigned num = set_num + 1;
+      used_var[num] = s;
+      free_var.erase(num);
+      if (s > 1)
+        cur_run.emplace_back(non_final);
+      else
+        done.emplace_back(non_final);
+      for (auto i: *non_final)
+        state_set_map[i] = num;
+    }
+    else
+    {
+      delete non_final;
+    }
+
+    // A bdd_states_map is a list of formulae (in a BDD form)
+    // associated with a destination set of states.
+    typedef std::map<bdd, hash_set*, bdd_less_than> bdd_states_map;
+
+    bool did_split = true;
+
+    /* NEW*/
+    unsigned n_acc = det_a->num_sets();
+    unsigned acc_vars = det_a->get_dict()
+      ->register_anonymous_variables(n_acc, det_a);
+
+    while (did_split)
+    {
+      did_split = false;
+      while (!cur_run.empty())
+      {
+        // Get a set to process.
+        hash_set* cur = cur_run.front();
+        cur_run.pop_front();
+
+        bdd_states_map bdd_map;
+        for (unsigned src: *cur)
+        {
+          bdd f = bddfalse;
+          for (auto si: det_a->out(src))
+          {
+            unsigned i = state_set_map[si.dst];
+            if ((int)i < 0)
+              // The destination state is not in our
+              // partition.  This can happen if the initial
+              // FINAL and NON_FINAL supplied to the algorithm
+              // do not cover the whole automaton (because we
+              // want to ignore some useless states).  Simply
+              // ignore these states here.
+              continue;
+
+            /* NEW */
+            bdd tmp = (bdd_ithvar(i) & si.cond);
+            for (unsigned m : si.acc.sets())
+              tmp &= bdd_ithvar(acc_vars + m);
+            f |= tmp; // TODO ajouter acc ici
+            
+          }
+
+          // Have we already seen this formula ?
+          bdd_states_map::iterator bsi = bdd_map.find(f);
+          if (bsi == bdd_map.end())
+          {
+            // No, create a new set.
+            hash_set* new_set = new hash_set;
+            new_set->insert(src);
+            bdd_map[f] = new_set;
+          }
+          else
+          {
+            // Yes, add the current state to the set.
+            bsi->second->insert(src);
+          }
+        }
+
+        auto bsi = bdd_map.begin();
+        if (bdd_map.size() == 1)
+        {
+          // The set was not split.
+          next_run.emplace_back(bsi->second);
+        }
+        else
+        {
+          did_split = true;
+          for (; bsi != bdd_map.end(); ++bsi)
+          {
+            hash_set* set = bsi->second;
+            // Free the number associated to these states.
+            unsigned num = state_set_map[*set->begin()];
+            assert(used_var.find(num) != used_var.end());
+            unsigned left = (used_var[num] -= set->size());
+            // Make sure LEFT does not become negative (hence bigger
+            // than SIZE when read as unsigned)
+            assert(left < size);
+            if (left == 0)
+            {
+              used_var.erase(num);
+              free_var.insert(num);
+            }
+            // Pick a free number
+            assert(!free_var.empty());
+            num = *free_var.begin();
+            free_var.erase(free_var.begin());
+            used_var[num] = set->size();
+            for (unsigned s: *set)
+              state_set_map[s] = num;
+            // Trivial sets can't be split any further.
+            if (set->size() == 1)
+            {
+              done.emplace_back(set);
+            }
+            else
+            {
+              next_run.emplace_back(set);
+            }
+          }
+        }
+        delete cur;
+      }
+      std::swap(cur_run, next_run);
+    }
+
+    done.splice(done.end(), cur_run);
+
+    bool has_found_s1 = false;
+    bool has_found_s2 = false;
+
+    for (hash_set *equiv_class : done)
+      {
+        has_found_s1 = false;
+        has_found_s2 = false;
+
+        for (unsigned s : *equiv_class)
+          {
+            if (s == s1)
+              {
+                has_found_s1 = true;
+                if (has_found_s2)
+                  break;
+              }
+            else if (s == s2)
+              {
+                has_found_s2 = true;
+                if (has_found_s1)
+                  break;
+              }
+          }
+      }
+
+    //FIXME leaky leak
+    //delete final;
+    //delete non_final;
+
+    return has_found_s1 && has_found_s2;
   }
 }

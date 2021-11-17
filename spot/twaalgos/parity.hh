@@ -22,6 +22,8 @@
 #include <spot/misc/common.hh>
 #include <spot/twa/fwd.hh>
 
+#include <vector>
+
 namespace spot
 {
   /// \addtogroup parity_algorithms Algorithms for parity acceptance
@@ -156,4 +158,15 @@ namespace spot
   SPOT_API twa_graph_ptr
   reduce_parity_here(twa_graph_ptr aut, bool colored = false);
   /// @}
+
+  SPOT_API twa_graph_ptr
+  path_refinement (const const_twa_graph_ptr& aut,
+                    const std::vector<unsigned>& equiv_class,
+                    unsigned s1,
+                    unsigned s2,
+                    bool pretty_print=false);
+
+  // The edges must be sorted !
+  SPOT_API bool
+  moore_equivalence(const const_twa_graph_ptr& aut, unsigned s1, unsigned s2);
 }
