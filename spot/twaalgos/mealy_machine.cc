@@ -3725,13 +3725,12 @@ namespace spot
     assert(is_split_mealy(left));
     assert(is_split_mealy(right));
 
-    auto& spl = get_state_players(left);
-    auto& spr = get_state_players(right);
-
     const unsigned initl = left->get_init_state_number();
     const unsigned initr = right->get_init_state_number();
 
+    auto& spr = get_state_players(right);
 #ifndef NDEBUG
+    auto& spl = get_state_players(left);
     // todo
     auto check_out = [](const const_twa_graph_ptr& aut,
                         const auto& sp)

@@ -150,6 +150,7 @@ namespace{
 
     assert((sp[arena->get_init_state_number()] == false)
            && "Env needs to have first turn!");
+    (void)sp;
 
     assert(std::none_of(arena->edges().begin(), arena->edges().end(),
            [&sp](const auto& e)
