@@ -54,7 +54,7 @@ AC_ARG_ENABLE([c++20],
               [enable_20=$enableval], [enable_20=no])
 
 AC_ARG_ENABLE([doxygen],
-              [AS_HELP_STRING([--enable-doxygen]),
+              [AS_HELP_STRING([--enable-doxygen],
   [enable generation of Doxygen documentation (requires Doxygen)])],
   [enable_doxygen=$enableval], [enable_doxygen=no])
 AM_CONDITIONAL([ENABLE_DOXYGEN], [test "x${enable_doxygen:-no}" = xyes])
@@ -184,6 +184,9 @@ adl_NDEBUG
 adl_ENABLE_GLIBCXX_DEBUG
 
 spot_INTEL
+AC_ARG_ENABLE([warnings],
+              [AS_HELP_STRING([--enable-warnings],
+                              [enable a lot of compiler warnings])])
 if test x$enable_warnings = xyes; then
   CF_GXX_WARNINGS
 fi
