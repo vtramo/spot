@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2018-2020 Laboratoire de Recherche et Développement de
+# Copyright (C) 2018-2021 Laboratoire de Recherche et Développement de
 # l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -243,5 +243,38 @@ try:
 except RuntimeError as e:
     assert "solve_parity_game(): arena must have max-odd acceptance condition" \
         in str(e)
+else:
+    report_missing_exception()
+
+
+try:
+    spot.formula_Star(spot.formula("a"), 10, 333)
+except OverflowError as e:
+    assert "333" in str(e)
+    assert "254" in str(e)
+else:
+    report_missing_exception()
+
+try:
+    spot.formula_FStar(spot.formula("a"), 333, 400)
+except OverflowError as e:
+    assert "333" in str(e)
+    assert "254" in str(e)
+else:
+    report_missing_exception()
+
+try:
+    spot.formula_nested_unop_range(spot.op_F, spot.op_Or, 333, 400,
+                                   spot.formula("a"))
+except OverflowError as e:
+    assert "333" in str(e)
+    assert "254" in str(e)
+else:
+    report_missing_exception()
+
+try:
+    spot.formula_FStar(spot.formula("a"), 50, 40)
+except OverflowError as e:
+    assert "reversed" in str(e)
 else:
     report_missing_exception()

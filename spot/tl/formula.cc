@@ -21,6 +21,7 @@
 #include <spot/misc/common.hh>
 #include <spot/tl/formula.hh>
 #include <iostream>
+#include <sstream>
 #include <map>
 #include <set>
 #include <tuple>
@@ -39,6 +40,23 @@ namespace spot
   namespace
   {
     typedef std::vector<const fnode*> vec;
+
+    [[noreturn]] static void
+    report_repetition_overflow(unsigned val)
+    {
+      std::ostringstream s;
+      s << val << " exceeds maximum supported repetition ("
+        << (fnode::unbounded()-1) << ')';
+      throw std::overflow_error(s.str());
+    }
+
+    [[noreturn]] static void
+    report_swapped_minmax(unsigned min, unsigned max)
+    {
+      std::ostringstream s;
+      s << "range " << min << ".." << max << " looks reversed (min>max)";
+      throw std::overflow_error(s.str());
+    }
 
     // Compare two formulas, by looking at their operators and
     // children.  This does not use id for the top-level operator,
@@ -565,13 +583,25 @@ namespace spot
                       min2 = max2 = 1;
                     }
                   if (min2 == unbounded())
-                    min = unbounded();
+                    {
+                      min = unbounded();
+                    }
                   else if (min != unbounded())
-                    min += min2;
+                    {
+                      min += min2;
+                      if (SPOT_UNLIKELY(min >= unbounded()))
+                        break;
+                    }
                   if (max2 == unbounded())
-                    max = unbounded();
+                    {
+                      max = unbounded();
+                    }
                   else if (max != unbounded())
-                    max += max2;
+                    {
+                      max += max2;
+                      if (SPOT_UNLIKELY(max >= unbounded()))
+                        break;
+                    }
                   (*i)->destroy();
                   i = v.erase(i);
                   changed = true;
@@ -614,9 +644,17 @@ namespace spot
   }
 
   const fnode*
-  fnode::bunop(op o, const fnode* child, uint8_t min, uint8_t max)
+  fnode::bunop(op o, const fnode* child, unsigned min, unsigned max)
   {
-    assert(min <= max);
+    if (SPOT_UNLIKELY(min >= unbounded()))
+      report_repetition_overflow(min);
+    // We are testing strict ">", because unbounded() is a legitimate
+    // input for max.  We just cannot tell if it was really intented
+    // as "unbounded".
+    if (SPOT_UNLIKELY(max > unbounded()))
+      report_repetition_overflow(max);
+    if (SPOT_UNLIKELY(min > max))
+      report_swapped_minmax(min, max);
 
     const fnode* neutral = nullptr;
     switch (o)
@@ -701,17 +739,26 @@ namespace spot
         const fnode* exp = child->nth(0);
         if (j == unbounded())
           {
-            min *= i;
-            max = unbounded();
+            // cannot simplify if the bound overflows
+            if ((min * i) < unbounded())
+              {
+                min *= i;
+                max = unbounded();
 
-            // Exp[*min..max]
-            exp->clone();
-            child->destroy();
-            child = exp;
+                // Exp[*min..max]
+                exp->clone();
+                child->destroy();
+                child = exp;
+              }
           }
         else
           {
-            if (i * (min + 1) <= (j * min) + 1)
+            if ((i * (min + 1) <= (j * min) + 1)
+                // cannot simplify if the bound overflows
+                && (min < unbounded()
+                    && (max == unbounded()
+                        || j == unbounded()
+                        || max * j < unbounded())))
               {
                 min *= i;
                 if (max != unbounded())
@@ -1576,7 +1623,7 @@ namespace spot
           is_.syntactic_si = syntactic_si;
           if (op_ == op::Fusion)
             is_.accepting_eword = false;
-          // A concatenation is an siSERE if looks like
+          // A concatenation is an siSERE if it looks like
           //    r;b*  or  b*;r
           // where b is Boolean and r is siSERE.  generalized to n-ary
           // concatenation, it means all arguments should be of the
@@ -1674,9 +1721,16 @@ namespace spot
   fnode::nested_unop_range(op uo, op bo, unsigned min, unsigned max,
                            const fnode* f)
   {
-    const fnode* res = f;
     if (max < min)
       std::swap(min, max);
+    if (SPOT_UNLIKELY(min >= unbounded()))
+      report_repetition_overflow(min);
+    // We are testing strict ">", because unbounded() is a legitimate
+    // input for max.  We just cannot tell if it was really intented
+    // as "unbounded".
+    if (SPOT_UNLIKELY(max > unbounded()))
+      report_repetition_overflow(max);
+    const fnode* res = f;
     if (max != unbounded())
       for (unsigned i = min; i < max; ++i)
         {
@@ -1772,7 +1826,7 @@ namespace spot
     return cnt == 0;
   }
 
-  formula formula::sugar_goto(const formula& b, uint8_t min, uint8_t max)
+  formula formula::sugar_goto(const formula& b, unsigned min, unsigned max)
   {
     if (!b.is_boolean())
       throw
@@ -1781,7 +1835,7 @@ namespace spot
     return Star(Concat({Star(Not(b)), b}), min, max);
   }
 
-  formula formula::sugar_equal(const formula& b, uint8_t min, uint8_t max)
+  formula formula::sugar_equal(const formula& b, unsigned min, unsigned max)
   {
     if (!b.is_boolean())
       throw

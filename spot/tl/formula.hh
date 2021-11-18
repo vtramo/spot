@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2015-2020 Laboratoire de Recherche et Développement
+// Copyright (C) 2015-2021 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -170,7 +170,7 @@ namespace spot
       static const fnode* multop(op o, std::vector<const fnode*> l);
       /// \see formula::bunop
       static const fnode* bunop(op o, const fnode* f,
-          uint8_t min, uint8_t max = unbounded());
+          unsigned min, unsigned max = unbounded());
 
       /// \see formula::nested_unop_range
       static const fnode* nested_unop_range(op uo, op bo, unsigned min,
@@ -1188,16 +1188,16 @@ namespace spot
     /// \pre \a o should be op::Star or op::FStar.
     /// @{
     static formula bunop(op o, const formula& f,
-        uint8_t min = 0U,
-        uint8_t max = unbounded())
+        unsigned min = 0U,
+        unsigned max = unbounded())
     {
       return formula(fnode::bunop(o, f.ptr_->clone(), min, max));
     }
 
 #ifndef SWIG
     static formula bunop(op o, formula&& f,
-        uint8_t min = 0U,
-        uint8_t max = unbounded())
+        unsigned min = 0U,
+        unsigned max = unbounded())
     {
       return formula(fnode::bunop(o, f.to_node_(), min, max));
     }
@@ -1207,22 +1207,22 @@ namespace spot
 #if SWIG
 #define SPOT_DEF_BUNOP(Name)                                \
     static formula Name(const formula& f,                   \
-        uint8_t min = 0U,                                   \
-        uint8_t max = unbounded())                          \
+        unsigned min = 0U,                                  \
+        unsigned max = unbounded())                         \
     {                                                       \
       return bunop(op::Name, f, min, max);                  \
     }
 #else // !SWIG
 #define SPOT_DEF_BUNOP(Name)                                \
     static formula Name(const formula& f,                   \
-        uint8_t min = 0U,                                   \
-        uint8_t max = unbounded())                          \
+        unsigned min = 0U,                                  \
+        unsigned max = unbounded())                         \
     {                                                       \
       return bunop(op::Name, f, min, max);                  \
     }                                                       \
     static formula Name(formula&& f,                        \
-        uint8_t min = 0U,                                   \
-        uint8_t max = unbounded())                          \
+        unsigned min = 0U,                                  \
+        unsigned max = unbounded())                         \
     {                                                       \
       return bunop(op::Name, std::move(f), min, max);       \
     }
@@ -1264,14 +1264,14 @@ namespace spot
     /// The operator does not exist: it is handled as syntactic sugar
     /// by the parser and the printer.  This function is used by the
     /// parser to create the equivalent SERE.
-    static formula sugar_goto(const formula& b, uint8_t min, uint8_t max);
+    static formula sugar_goto(const formula& b, unsigned min, unsigned max);
 
     /// Create the SERE b[=min..max]
     ///
     /// The operator does not exist: it is handled as syntactic sugar
     /// by the parser and the printer.  This function is used by the
     /// parser to create the equivalent SERE.
-    static formula sugar_equal(const formula& b, uint8_t min, uint8_t max);
+    static formula sugar_equal(const formula& b, unsigned min, unsigned max);
 
     /// Create the SERE a ##[n:m] b
     ///

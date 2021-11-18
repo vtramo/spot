@@ -460,13 +460,17 @@ static void handle_any_exception()
   {
     SWIG_Error(SWIG_ValueError, e.what());
   }
-  catch (const std::runtime_error& e)
+  catch (const std::overflow_error& e)
   {
-    SWIG_Error(SWIG_RuntimeError, e.what());
+    SWIG_Error(SWIG_OverflowError, e.what());
   }
   catch (const std::out_of_range& e)
   {
     SWIG_Error(SWIG_IndexError, e.what());
+  }
+  catch (const std::runtime_error& e)
+  {
+    SWIG_Error(SWIG_RuntimeError, e.what());
   }
 }
 %}

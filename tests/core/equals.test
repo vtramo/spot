@@ -1,6 +1,6 @@
 #! /bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2009, 2010, 2011, 2012, 2014, 2015 Laboratoire de Recherche et
+# Copyright (C) 2009-2012, 2014-2015, 2021 Laboratoire de Recherche et
 # Développement de l'Epita (LRDE).
 # Copyright (C) 2003, 2004 Laboratoire d'Informatique de Paris 6 (LIP6),
 # département Systèmes Répartis Coopératifs (SRC), Université Pierre
@@ -142,6 +142,7 @@ G({1}<>->1), 1
 {z;a*;b*;*;c;d;*;b*;e;a*;*;b*}, {z;[*];c;d;[*];e;[*]}
 {((a;b)|[*0]);[*];c}!, {[*];c}!
 {a;a;a*;a;b;b[*];c[*2:3];c[*4:5]}, {a[*3..];b[+];c[*6..8]}
+{a;a[*200];a[*..60];a;b[*..100][*..2]}, {a[*201];a[*1..61];b[*..200]}
 
 {a[*0]}, {[*0]}
 {a[*..]}, {a[*]}
