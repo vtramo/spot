@@ -1,6 +1,6 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2017, 2018 Laboratoire de Recherche et Développement de l'Epita
-# (LRDE).
+# Copyright (C) 2017-2018, 2021 Laboratoire de Recherche et
+# Développement de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
 #
@@ -45,6 +45,7 @@ State: 2
 --END--""")
 
 s = spot.sbacc(aut)
+s.copy_state_names_from(aut)
 h = s.to_str('hoa')
 
 assert h == """HOA: v1
@@ -54,9 +55,9 @@ AP: 2 "a" "b"
 Acceptance: 2 Inf(0) | Inf(1)
 properties: trans-labels explicit-labels state-acc deterministic
 --BODY--
-State: 0
+State: 0 "0"
 [0] 1
-State: 1 {1}
+State: 1 "2" {1}
 [t] 1
 --END--"""
 
@@ -79,6 +80,7 @@ State: 2
 --END--""")
 
 d = spot.degeneralize(aut)
+d.copy_state_names_from(aut)
 h = d.to_str('hoa')
 
 assert h == """HOA: v1
@@ -89,8 +91,8 @@ acc-name: Buchi
 Acceptance: 1 Inf(0)
 properties: trans-labels explicit-labels state-acc deterministic
 --BODY--
-State: 0
+State: 0 "0#0"
 [0] 1
-State: 1 {0}
+State: 1 "2#0" {0}
 [t] 1
 --END--"""

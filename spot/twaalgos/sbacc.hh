@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2015 Laboratoire de Recherche et Développement
+// Copyright (C) 2015, 2021 Laboratoire de Recherche et Développement
 // de l'Epita.
 //
 // This file is part of Spot, a model checking library.
@@ -23,8 +23,31 @@
 
 namespace spot
 {
+  /// \ingroup twa_algorithms
   /// \brief Transform an automaton to use state-based acceptance
   ///
-  /// This is independent on the acceptance condition used.
+  /// This transformation is independent on the acceptance condition
+  /// used.  The implementation supports alternating automata.
+  ///
+  /// It works by creating an automaton whose states correspond to
+  /// pairs (s,colors) for each edge entering state s with colors.  In
+  /// other words, we are pushing colors from the edges to their
+  /// outgoing states.  The implementation is also able to pull colors
+  /// on incoming states in cases where that helps.
+  ///
+  /// When called on automata that are already known to have
+  /// state-based acceptance, this function returns the input
+  /// unmodified, not a copy.
+  ///
+  /// Trues states (any state with an accepting self-loop labeled by
+  /// true) are merged in the process.
+  ///
+  /// The output will have a named property called "original-states"
+  /// that is a vector indexed by the produced states, and giving the
+  /// corresponding state in the input automaton.  If the input
+  /// automaton also had an "original-states" property, the two
+  /// vectors will be composed, so the `original-states[s]` in the
+  /// output will contains the value of `original-states[y] if state s
+  /// was created from state y.
   SPOT_API twa_graph_ptr sbacc(twa_graph_ptr aut);
 }

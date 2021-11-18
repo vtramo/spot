@@ -64,6 +64,10 @@ namespace spot
           {
             common_in[d] &= e.acc;
             common_out[e.src] &= e.acc;
+            // Any state with an accepting edge labeled by true is a
+            // "true state".  We will merge all true states, and
+            // ignore other outgoing edges.  See issue #276 for an
+            // example.
             if (e.src == e.dst && e.cond == bddtrue
                 && old->acc().accepting(e.acc))
               {
@@ -89,6 +93,9 @@ namespace spot
     std::map<pair_t, unsigned> s2n;
 
     std::vector<std::pair<pair_t, unsigned>> todo;
+    auto* origin = new std::vector<unsigned>;
+    origin->reserve(ns);
+    res->set_named_prop("original-states", origin);
 
     auto new_state =
       [&](unsigned state, acc_cond::mark_t m) -> unsigned
@@ -107,6 +114,8 @@ namespace spot
         if (p.second)                // This is a new state
           {
             unsigned s = res->new_state();
+            assert(origin->size() == s);
+            origin->push_back(state);
             p.first->second = s;
             if (ts)
               {
@@ -174,6 +183,12 @@ namespace spot
           }
       }
     res->merge_edges();
+
+    // Compose original-states with the any previously existing one.
+    if (auto old_orig_states =
+        old->get_named_prop<std::vector<unsigned>>("original-states"))
+      for (auto& s: *origin)
+        s = (*old_orig_states)[s];
 
     // If the automaton was marked as not complete or not universal,
     // and we have ignored some unreachable state, then it is possible
