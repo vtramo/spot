@@ -32,6 +32,7 @@
 #include <spot/twaalgos/isdet.hh>
 #include <spot/twaalgos/iscolored.hh>
 #include <spot/misc/bddlt.hh>
+#include <spot/twaalgos/hoa.hh>
 
 namespace spot
 {
@@ -1049,6 +1050,7 @@ namespace spot
 
       vectu_it begin() { return begin_; }
       vectu_it end()   { return end_; }
+      unsigned size()  { return end_ - begin_; }
 
     private:
       vectu_it begin_;
@@ -1100,10 +1102,73 @@ namespace spot
     std::vector<unsigned> classes_states_;
   };
 
+  std::ostream& operator<<(std::ostream& os, EquivalenceClassList& eq_class)
+  {
+    for (auto c : eq_class)
+    {
+      os << "Class\n";
+      for (unsigned s : c)
+        os << s << ' ';
+      os << '\n';
+    }
+    return os;
+  }
+
   SPOT_API EquivalenceClassList
-  find_path_refinement_equivalence(const const_twa_graph_ptr& aut, const std::vector<unsigned>& class_of_state);
+  find_path_refinement_equivalence(const const_twa_graph_ptr& aut,
+                                  const std::vector<unsigned>& class_of)
+  {
+    unsigned ns = aut->num_states();
 
+    EquivalenceClassList original(class_of);
+    EquivalenceClassList path_refined(ns);
 
+    std::vector<bool> done(ns, false);
+
+    for (auto c : original)
+      {
+        if (c.size() == 1)
+          continue;
+
+        auto states_of_class = c.begin();
+
+        unsigned representative = *states_of_class;
+        ++states_of_class;
+        path_refined.add_class();
+        path_refined.add_state_to_cur_class(representative);
+        done[representative] = true;
+
+        for (; states_of_class != c.end(); ++states_of_class)
+          {
+            std::cerr << "check " << representative << *states_of_class << '\n';
+            //FIXME 0 and 1 are pr_equiv but not detect
+            unsigned s1_max, s2_max;
+            const_twa_graph_ptr pr_aut = build_path_refiment_automaton(aut, class_of, representative, *states_of_class, s1_max, s2_max, true);
+            
+            std::cerr << s1_max << ' ' << s2_max << '\n';
+            print_hoa(std::cerr, pr_aut);
+
+            bool are_pr_equivalent = moore_equivalence(pr_aut, s1_max, s2_max);
+
+            if (are_pr_equivalent)
+              {
+                path_refined.add_state_to_cur_class(*states_of_class);
+                done[*states_of_class] = true;
+              }
+          }
+      }
+
+    for (unsigned s = 0; s < ns; ++s)
+      {
+        if (!done[s])
+          {
+            path_refined.add_class();
+            path_refined.add_state_to_cur_class(s);
+          }
+      }
+
+    return path_refined;
+  }
 
   template <typename Fun>
   twa_graph_ptr template_merger(const const_twa_graph_ptr& aut,
@@ -1128,14 +1193,12 @@ namespace spot
       }
 
     for (const auto& e : aut->edges())
-      res->new_edge(redirect[e.src], redirect[e.src], e.cond, e.acc);
+      res->new_edge(redirect[e.src], redirect[e.dst], e.cond, e.acc);
 
     res->set_init_state(redirect[aut->get_init_state_number()]);
 
     return res;
   }
-
-
 
   SPOT_API twa_graph_ptr
   reduce_path_refiment(const const_twa_graph_ptr& aut, std::vector<unsigned> class_of)
@@ -1143,6 +1206,8 @@ namespace spot
     typedef EquivalenceClassList::EquivalenceClass EquivalenceClass;
 
     EquivalenceClassList eq_class = find_path_refinement_equivalence(aut, class_of);
+
+    std::cerr << eq_class << '\n';
 
     auto select_max_priority_state = 
         [&aut](EquivalenceClass c)
