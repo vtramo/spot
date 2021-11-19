@@ -1,6 +1,47 @@
-New in spot 2.10.0.dev  (not released yet)
+New in spot 2.10.1  (2021-11-19)
 
-  - Python 3.5 is now required.
+  Build:
+
+  - Python 3.5 or later is now required (unless Python bindings are
+    disabled).  Python 3.5 reached end-of-life one year ago, so we
+    believe support for older versions of Python will not be missed.
+
+  Library:
+
+  - The sbacc() function now defines the "original-states" property,
+    allowing to map an output state back to its input.
+
+  Bugs fixed:
+
+  - Ranged repetition operators from LTL/PSL, like [*a..b],
+    [->a..b] or even F[a..b] used to store and handle a and b
+    as 8-bit values without overflow checks.  So for instance
+       {a[*260];b} was silently interpreted as {a[*4];b}
+    This version still restricts those bounds to 8 bits, but now
+    diagnose overflow checks while parsing and constructing formulas.
+    Also the so called "trivial simplification rules" will not be
+    applied in case they would lead to an overflow.  For instance
+       {a;[*150];[*50];b} is rewritten to {a;[*200];b}
+    but
+       {a;[*150];[*150];b} is untouched.
+
+  - Fix a compilation error on system with glibc older than 2.18,
+    where <inttypes.h> does not define some C99 macro by default when
+    compiled in C++ mode.  (Such old libraries are used when compiling
+    packages for conda-forge, which use CentOS 6 as building environment.)
+
+  - Fix a link error of tests/ltsmin/modelcheck not finding BDD functions
+    on some systems (observed on CentOS 6 again).
+
+  - Fix spurious test-suite failures under newer Jupyter
+    installations.  IPykernel 6.0 now captures stdout/stderr from
+    subprocesses and displays them in the notebook.  The spot.ltsmin
+    code that loads modules compiled with SpinS had to be rewritten to
+    capture and display the output of SpinS, so that our test-cases
+    can be reproduced regardless of the IPykernel version.  This fix
+    was easier to do in Python 3.5.
+
+  - Fix sevaral minor documentation errors.
 
 New in spot 2.10  (2021-11-13)
 
