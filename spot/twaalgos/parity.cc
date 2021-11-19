@@ -652,6 +652,7 @@ namespace spot
 
     twa_graph_ptr pr = make_twa_graph(aut->get_dict());
     pr->copy_ap_of(aut);
+    pr->copy_acceptance_of(aut);
     // TODO acceptance ?
 
     unsigned lambda = equiv_class[s1];
@@ -671,9 +672,6 @@ namespace spot
     typedef std::pair<unsigned, unsigned> state_name;
     std::map<state_name, unsigned> state_name_to_id;
 
-    int s1_max_priority = -1;
-    int s2_max_priority = -1;
-
     // The states are identified by two componment: the orignal state and the
     // smallest priority seen so far.
     auto get_or_create_state = [&](unsigned state, unsigned priority)
@@ -685,11 +683,7 @@ namespace spot
         {
           unsigned q = pr->new_state();
           state_name_to_id.insert({name, q});
-
-          if (state == s1 && (int)s1_max_priority < (int)priority)
-            s1_max_priority = priority;
-          else if (state == s2 && (int)s2_max_priority < (int)priority)
-            s2_max_priority = priority;
+          std::cerr << "create " << state << ' ' << priority << " at " << q << '\n';
 
           if (names)
             (*names)[q] = std::to_string(state)
@@ -709,14 +703,31 @@ namespace spot
     todo.reserve(ns*nc);
 
     {
-      unsigned acc1 = aut->state_acc_sets(s1).max_set() - 1;
+      unsigned acc1 = 1; //aut->state_acc_sets(s1).max_set() - 1;
       todo.push_back({s1, acc1});
       seen[get_or_create_state(s1, acc1)] = true;
 
-      unsigned acc2 = aut->state_acc_sets(s2).max_set() - 1;
+      unsigned acc2 = 1; //aut->state_acc_sets(s2).max_set() - 1;
       todo.push_back({s2, acc2});
       seen[get_or_create_state(s2, acc2)] = true;
     }
+
+
+    /*
+     *
+    for (unsigned priority = 0;  priority < nc; ++priority)
+    {
+      todo.push_back({s1, priority});
+      seen[get_or_create_state(s1, priority)] = true;
+
+      todo.push_back({s2, priority});
+      seen[get_or_create_state(s2, priority)] = true;
+
+      // FIXME prendre toutes les valeurs posible de acc ?
+    }
+    */
+
+
 
     while (!todo.empty())
       {
@@ -769,8 +780,8 @@ namespace spot
           }
       }
 
-    res_s1_max = get_or_create_state(s1, s1_max_priority);
-    res_s2_max = get_or_create_state(s2, s2_max_priority);
+    res_s1_max = get_or_create_state(s1, 1);
+    res_s2_max = get_or_create_state(s2, 1);
     
     pr->merge_edges();
 
@@ -976,13 +987,13 @@ namespace spot
               {
                 has_found_s1 = true;
                 if (has_found_s2)
-                  break;
+                  return true;
               }
             else if (s == s2)
               {
                 has_found_s2 = true;
                 if (has_found_s1)
-                  break;
+                  return true;
               }
           }
       }
@@ -991,7 +1002,7 @@ namespace spot
     //delete final;
     //delete non_final;
 
-    return has_found_s1 && has_found_s2;
+    return false;
   }
 
 
@@ -1140,14 +1151,9 @@ namespace spot
 
         for (; states_of_class != c.end(); ++states_of_class)
           {
-            std::cerr << "check " << representative << *states_of_class << '\n';
-            //FIXME 0 and 1 are pr_equiv but not detect
             unsigned s1_max, s2_max;
             const_twa_graph_ptr pr_aut = build_path_refiment_automaton(aut, class_of, representative, *states_of_class, s1_max, s2_max, true);
             
-            std::cerr << s1_max << ' ' << s2_max << '\n';
-            print_hoa(std::cerr, pr_aut);
-
             bool are_pr_equivalent = moore_equivalence(pr_aut, s1_max, s2_max);
 
             if (are_pr_equivalent)
