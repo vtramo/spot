@@ -21,7 +21,7 @@
 # This file tests various error conditions on the twa API
 
 import spot
-from buddy import bddtrue
+from buddy import bddtrue, bddfalse
 
 aut = spot.make_twa_graph(spot.make_bdd_dict())
 
@@ -113,3 +113,14 @@ aut.release_iter(it)
 aut.purge_dead_states()
 i = aut.get_init_state()
 assert aut.state_is_accepting(i) == False
+
+aut = spot.translate('FGa')
+# Kill the edge between state 0 and 1
+assert aut.edge_storage(2).src == 0
+assert aut.edge_storage(2).dst == 1
+aut.edge_data(2).cond = bddfalse
+assert aut.num_edges() == 3
+assert aut.num_states() == 2
+aut.purge_dead_states()
+assert aut.num_edges() == 1
+assert aut.num_states() == 1

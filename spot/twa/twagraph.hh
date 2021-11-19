@@ -611,7 +611,8 @@ namespace spot
     /// Dead states are all the states that cannot be part of
     /// an infinite run of the automaton.  This includes
     /// states without successors, unreachable states, and states
-    /// that only have dead successors.
+    /// that only have dead successors.  Transition labeled
+    /// by bddfalse are also removed.
     ///
     /// This function runs in linear time on non-alternating automata,
     /// but its current implementation can be quadratic when removing

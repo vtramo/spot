@@ -618,7 +618,7 @@ namespace spot
             auto& t = g_.edge_storage(tid);
             todo.back().second = t.next_succ;
             unsigned dst = t.dst;
-            if (useful[dst] != 1)
+            if (useful[dst] != 1 && t.cond != bddfalse)
               {
                 todo.emplace_back(dst, g_.state_storage(dst).succ);
                 useful[dst] = 1;
@@ -674,9 +674,12 @@ namespace spot
               }
             unsigned dst = *begin++;
             if (begin == end)
+              // that was the last destination, update the stack for
+              // the next edge.
               {
-                if (tid != 0)
+                do
                   tid = g_.edge_storage(tid).next_succ;
+                while (tid && g_.edge_storage(tid).cond == bddfalse);
                 if (tid != 0)
                   beginend(g_.edge_storage(tid).dst, begin, end);
               }
@@ -684,6 +687,8 @@ namespace spot
               {
                 auto& ss = g_.state_storage(dst);
                 unsigned succ = ss.succ;
+                while (succ && g_.edge_storage(succ).cond == bddfalse)
+                  succ = g_.edge_storage(succ).next_succ;
                 if (succ == 0U)
                   continue;
                 useful[dst] = 1;

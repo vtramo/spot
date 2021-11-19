@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2016, 2017 Laboratoire de Recherche et Développement de
+# Copyright (C) 2016, 2017, 2021 Laboratoire de Recherche et Développement de
 # l'EPITA.
 #
 # This file is part of Spot, a model checking library.
@@ -207,3 +207,10 @@ State: 2
 
 desalt = spot.remove_univ_otf(aut)
 assert(desalt.to_str('hoa') == out)
+
+assert aut.num_states() == 3
+assert aut.num_edges() == 3
+aut.edge_storage(3).cond = buddy.bddfalse
+aut.purge_dead_states()
+assert aut.num_states() == 1
+assert aut.num_edges() == 0
