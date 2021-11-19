@@ -636,10 +636,12 @@ namespace spot
   }
 
   SPOT_API twa_graph_ptr
-  path_refinement (const const_twa_graph_ptr& aut,
+  build_path_refiment_automaton (const const_twa_graph_ptr& aut,
                     const std::vector<unsigned>& equiv_class,
                     unsigned s1,
                     unsigned s2,
+                    unsigned& res_s1_max,
+                    unsigned& res_s2_max,
                     bool pretty_print)
   {
     assert(aut->acc().is_parity() && is_deterministic(aut));
@@ -668,6 +670,9 @@ namespace spot
     typedef std::pair<unsigned, unsigned> state_name;
     std::map<state_name, unsigned> state_name_to_id;
 
+    int s1_max_priority = -1;
+    int s2_max_priority = -1;
+
     // The states are identified by two componment: the orignal state and the
     // smallest priority seen so far.
     auto get_or_create_state = [&](unsigned state, unsigned priority)
@@ -679,6 +684,11 @@ namespace spot
         {
           unsigned q = pr->new_state();
           state_name_to_id.insert({name, q});
+
+          if (state == s1 && (int)s1_max_priority < (int)priority)
+            s1_max_priority = priority;
+          else if (state == s2 && (int)s2_max_priority < (int)priority)
+            s2_max_priority = priority;
 
           if (names)
             (*names)[q] = std::to_string(state)
@@ -758,9 +768,10 @@ namespace spot
           }
       }
 
+    res_s1_max = get_or_create_state(s1, s1_max_priority);
+    res_s2_max = get_or_create_state(s2, s2_max_priority);
     
     pr->merge_edges();
-
 
     pr->prop_state_acc(true);
     pr->prop_universal(true);
@@ -980,5 +991,170 @@ namespace spot
     //delete non_final;
 
     return has_found_s1 && has_found_s2;
+  }
+
+
+  class EquivalenceClassList
+  {
+    typedef std::vector<unsigned>::iterator vectu_it;
+    typedef std::vector<vectu_it>::iterator vectit_it;
+
+  public:
+    EquivalenceClassList(unsigned ns)
+    {
+      classes_bound_.reserve(ns);
+      classes_states_.reserve(ns);
+    }
+
+    EquivalenceClassList(const std::vector<unsigned> class_of)
+      : classes_states_(class_of.size())
+    {
+      classes_bound_.reserve(class_of.size());
+
+      std::iota(classes_states_.begin(), classes_states_.end(), 0);
+      std::sort(classes_states_.begin(), classes_states_.end(), [&class_of](unsigned s1, unsigned s2)
+          {
+            return class_of[s1] < class_of[s2];
+          });
+
+      unsigned last = class_of[classes_states_[0]];
+
+      auto it = classes_states_.begin();
+      classes_bound_.push_back(it);
+
+      for (; it != classes_states_.end(); ++it)
+        if (last != class_of[*it])
+          classes_bound_.push_back(it);
+
+    }
+
+    void add_class()
+    {
+      classes_bound_.push_back(classes_states_.end());
+    }
+
+    void add_state_to_cur_class(unsigned s)
+    {
+      classes_states_.push_back(s);
+    }
+
+    class EquivalenceClass
+    {
+    public:
+      EquivalenceClass(vectu_it begin, vectu_it end)
+        : begin_(begin)
+        , end_(end)
+      {
+      }
+
+      vectu_it begin() { return begin_; }
+      vectu_it end()   { return end_; }
+
+    private:
+      vectu_it begin_;
+      vectu_it end_;
+    };
+
+    class Iterator
+    {
+    public:
+      Iterator(EquivalenceClassList* l, vectit_it starting_pos)
+        : cur_class_(starting_pos)
+        , l_(l)
+      {
+      }
+
+      void operator++()
+      {
+        ++cur_class_;
+      }
+
+      bool operator!=(const Iterator& other) const
+      {
+        return cur_class_ != other.cur_class_;
+      }
+
+      EquivalenceClass operator*()
+      {
+        vectu_it end;
+        vectit_it next = cur_class_ + 1;
+
+        if (next != l_->classes_bound_.end())
+          end = *next;
+        else
+          end = l_->classes_states_.end();
+
+        return EquivalenceClass(*cur_class_, end);
+      }
+
+    private:
+      vectit_it cur_class_;
+      EquivalenceClassList *l_;
+    };
+
+    Iterator begin() { return Iterator(this, classes_bound_.begin()); }
+    Iterator end()   { return Iterator(this, classes_bound_.end()); }
+
+  private:
+    std::vector<vectu_it> classes_bound_;
+    std::vector<unsigned> classes_states_;
+  };
+
+  SPOT_API EquivalenceClassList
+  find_path_refinement_equivalence(const const_twa_graph_ptr& aut, const std::vector<unsigned>& class_of_state);
+
+
+
+  template <typename Fun>
+  twa_graph_ptr template_merger(const const_twa_graph_ptr& aut,
+                                EquivalenceClassList& eq_class,
+                                Fun selector)
+  {
+    twa_graph_ptr res = make_twa_graph(aut->get_dict());
+    res->copy_ap_of(aut);
+    res->copy_acceptance_of(aut);
+
+    std::vector<unsigned> redirect(aut->num_states());
+
+    for (auto c : eq_class)
+      {
+        // TODO verifier le voc, pas sur que r_m est le candidat
+        unsigned candidate = selector(c);
+
+        redirect[candidate] = res->new_state();
+
+        for (unsigned s : c)
+          redirect[s] = redirect[candidate];
+      }
+
+    for (const auto& e : aut->edges())
+      res->new_edge(redirect[e.src], redirect[e.src], e.cond, e.acc);
+
+    res->set_init_state(redirect[aut->get_init_state_number()]);
+
+    return res;
+  }
+
+
+
+  SPOT_API twa_graph_ptr
+  reduce_path_refiment(const const_twa_graph_ptr& aut, std::vector<unsigned> class_of)
+  {
+    typedef EquivalenceClassList::EquivalenceClass EquivalenceClass;
+
+    EquivalenceClassList eq_class = find_path_refinement_equivalence(aut, class_of);
+
+    auto select_max_priority_state = 
+        [&aut](EquivalenceClass c)
+        {
+          return *std::max_element(c.begin(), c.end(),
+              [&aut](unsigned s1, unsigned s2)
+              {
+                return aut->state_acc_sets(s1).max_set()
+                        < aut->state_acc_sets(s2).max_set();
+              });
+        };
+
+    return template_merger(aut, eq_class, select_max_priority_state);
   }
 }

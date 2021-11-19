@@ -160,13 +160,24 @@ namespace spot
   /// @}
 
   SPOT_API twa_graph_ptr
-  path_refinement (const const_twa_graph_ptr& aut,
-                    const std::vector<unsigned>& equiv_class,
-                    unsigned s1,
-                    unsigned s2,
-                    bool pretty_print=false);
+  build_path_refiment_automaton (const const_twa_graph_ptr& aut,
+                      const std::vector<unsigned>& equiv_class,
+                      unsigned s1,
+                      unsigned s2,
+                      unsigned& res_s1_max,
+                      unsigned& res_s2_max,
+                      bool pretty_print=false);
 
-  // The edges must be sorted !
   SPOT_API bool
   moore_equivalence(const const_twa_graph_ptr& aut, unsigned s1, unsigned s2);
+
+  /*
+  class EquivalentClassList;
+
+  SPOT_API EquivalentClassList
+  find_path_refinement_equivalence(const const_twa_graph_ptr& aut, const std::vector<unsigned>& class_of_state);
+
+  */
+  SPOT_API twa_graph_ptr
+  reduce_path_refiment(const const_twa_graph_ptr& aut, std::vector<unsigned> class_of);
 }
