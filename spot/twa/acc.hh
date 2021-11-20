@@ -1670,6 +1670,7 @@ namespace spot
 #ifndef SWIG
       rs_pair() = default;
       rs_pair(const rs_pair&) = default;
+      rs_pair& operator=(const rs_pair&) = default;
 #endif
 
       rs_pair(acc_cond::mark_t fin, acc_cond::mark_t inf) noexcept:

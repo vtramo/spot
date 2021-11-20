@@ -70,8 +70,7 @@ namespace spot
 
     virtual size_t hash() const override
     {
-      return
-        reinterpret_cast<const char*>(this) - static_cast<const char*>(nullptr);
+      return reinterpret_cast<size_t>(this);
     }
 
     virtual twa_graph_state*

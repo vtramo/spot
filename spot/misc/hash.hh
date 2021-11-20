@@ -48,8 +48,7 @@ namespace spot
 
     size_t operator()(const T* p) const noexcept
     {
-      return knuth32_hash(reinterpret_cast<const char*>(p)
-                          - static_cast<const char*>(nullptr));
+      return knuth32_hash(reinterpret_cast<size_t>(p));
     }
   };
 

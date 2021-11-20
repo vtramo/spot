@@ -105,7 +105,7 @@ namespace spot
     taa_tgba::state_set::const_iterator it = s_->begin();
     while (it != s_->end())
     {
-      res ^= reinterpret_cast<const char*>(*it++) - static_cast<char*>(nullptr);
+      res ^= reinterpret_cast<size_t>(*it++);
       res = wang32_hash(res);
     }
     return res;
