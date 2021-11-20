@@ -702,32 +702,15 @@ namespace spot
     std::vector<state_name> todo;
     todo.reserve(ns*nc);
 
-    {
-      unsigned acc1 = 1; //aut->state_acc_sets(s1).max_set() - 1;
-      todo.push_back({s1, acc1});
-      seen[get_or_create_state(s1, acc1)] = true;
+    unsigned max_acc = aut->state_acc_sets(s1).max_set() - 1;
 
-      unsigned acc2 = 1; //aut->state_acc_sets(s2).max_set() - 1;
-      todo.push_back({s2, acc2});
-      seen[get_or_create_state(s2, acc2)] = true;
-    }
+    todo.push_back({s1, max_acc});
+    seen[get_or_create_state(s1, max_acc)] = true;
+    res_s1_max = get_or_create_state(s1, max_acc);
 
-
-    /*
-     *
-    for (unsigned priority = 0;  priority < nc; ++priority)
-    {
-      todo.push_back({s1, priority});
-      seen[get_or_create_state(s1, priority)] = true;
-
-      todo.push_back({s2, priority});
-      seen[get_or_create_state(s2, priority)] = true;
-
-      // FIXME prendre toutes les valeurs posible de acc ?
-    }
-    */
-
-
+    todo.push_back({s2, max_acc});
+    seen[get_or_create_state(s2, max_acc)] = true;
+    res_s2_max = get_or_create_state(s2, max_acc);
 
     while (!todo.empty())
       {
@@ -779,9 +762,6 @@ namespace spot
 
           }
       }
-
-    res_s1_max = get_or_create_state(s1, 1);
-    res_s2_max = get_or_create_state(s2, 1);
     
     pr->merge_edges();
 
@@ -825,6 +805,7 @@ namespace spot
       free_var.insert(i);
     std::map<int, int> used_var;
 
+    /*
     hash_set* final_copy;
 
     if (!final->empty())
@@ -845,6 +826,7 @@ namespace spot
     {
       final_copy = final;
     }
+    */
 
     if (!non_final->empty())
     {
@@ -1113,6 +1095,7 @@ namespace spot
     std::vector<unsigned> classes_states_;
   };
 
+  std::ostream& operator<<(std::ostream& os, EquivalenceClassList& eq_class);
   std::ostream& operator<<(std::ostream& os, EquivalenceClassList& eq_class)
   {
     for (auto c : eq_class)
@@ -1125,7 +1108,11 @@ namespace spot
     return os;
   }
 
-  SPOT_API EquivalenceClassList
+  EquivalenceClassList
+  find_path_refinement_equivalence(const const_twa_graph_ptr& aut,
+                                  const std::vector<unsigned>& class_of);
+
+  EquivalenceClassList
   find_path_refinement_equivalence(const const_twa_graph_ptr& aut,
                                   const std::vector<unsigned>& class_of)
   {
@@ -1212,8 +1199,6 @@ namespace spot
     typedef EquivalenceClassList::EquivalenceClass EquivalenceClass;
 
     EquivalenceClassList eq_class = find_path_refinement_equivalence(aut, class_of);
-
-    std::cerr << eq_class << '\n';
 
     auto select_max_priority_state = 
         [&aut](EquivalenceClass c)
