@@ -148,7 +148,12 @@ CHECK_ATOMIC
 AX_CHECK_BUDDY
 
 AC_CHECK_HEADERS([sys/times.h valgrind/memcheck.h spawn.h])
-AC_CHECK_FUNCS([times kill alarm sigaction])
+AC_CHECK_FUNCS([times kill alarm sigaction sched_getcpu])
+
+oLIBS=$LIBS
+LIBS="$LIBS -lpthread"
+AC_CHECK_FUNCS([pthread_setaffinity_np])
+LIBS=$oLIBS
 
 LT_CONFIG_LTDL_DIR([ltdl])
 LT_INIT([win32-dll])

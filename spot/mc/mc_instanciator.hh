@@ -19,6 +19,8 @@
 
 #pragma once
 
+#include <spot/misc/common.hh>
+#include <spot/misc/_config.h>
 #include <string>
 #include <thread>
 #include <vector>
@@ -31,7 +33,6 @@
 #include <spot/mc/cndfs.hh>
 #include <spot/mc/bloemen.hh>
 #include <spot/mc/bloemen_ec.hh>
-#include <spot/misc/common.hh>
 #include <spot/misc/timer.hh>
 
 namespace spot
@@ -115,7 +116,7 @@ namespace spot
       {
         threads[i] = std::thread ([&swarmed, &iomutex, i, &barrier]
         {
-#if defined(unix) || defined(__unix__) || defined(__unix)
+#ifdef SPOT_HAVE_SCHED_GETCPU
             {
               std::lock_guard<std::mutex> iolock(iomutex);
               std::cout << "Thread #" << i
@@ -129,8 +130,8 @@ namespace spot
             swarmed[i]->run();
          });
 
-#if defined(unix) || defined(__unix__) || defined(__unix)
-        //  Pins threads to a dedicated core.
+#ifdef SPOT_PTHREAD_SETAFFINITY_NP
+        //  Pin threads to a dedicated core.
         cpu_set_t cpuset;
         CPU_ZERO(&cpuset);
         CPU_SET(i, &cpuset);
