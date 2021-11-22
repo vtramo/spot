@@ -1006,8 +1006,10 @@ namespace spot
   }
 
   twa_graph_ptr
-  solved_game_to_separated_mealy(twa_graph_ptr arena, synthesis_info& gi)
+  solved_game_to_mealy(twa_graph_ptr arena, synthesis_info& gi)
   {
+    // This currently always produces either separated or split mealy machines
+    // if this changes, change also the other functions accordingly
     assert(arena->get_named_prop<region_t>("state-player")
            && "Need prop \"state-player\"");
     if (!arena)
@@ -1032,9 +1034,6 @@ namespace spot
     else if (gi.minimize_lvl >= 3)
       m = minimize_mealy(m, gi.minimize_lvl - 4);
 
-    if (!do_unsplit)
-      m = unsplit_mealy(m);
-
     if (gi.bv)
       {
         gi.bv->strat2aut_time += sw.stop();
@@ -1042,6 +1041,24 @@ namespace spot
         gi.bv->nb_strat_edges += m->num_edges();
       }
 
+    assert(is_mealy(m));
+    return m;
+  }
+
+  twa_graph_ptr
+  solved_game_to_mealy(twa_graph_ptr arena)
+  {
+    synthesis_info dummy;
+    return solved_game_to_mealy(arena, dummy);
+  }
+
+  twa_graph_ptr
+  solved_game_to_separated_mealy(twa_graph_ptr arena, synthesis_info& gi)
+  {
+    auto m = solved_game_to_mealy(arena, gi);
+
+    if (m->get_named_prop<region_t>("state-player"))
+      m = unsplit_mealy(m);
     assert(is_separated_mealy(m));
     return m;
   }
@@ -1051,6 +1068,27 @@ namespace spot
   {
     synthesis_info dummy;
     return solved_game_to_separated_mealy(arena, dummy);
+  }
+
+  twa_graph_ptr
+  solved_game_to_split_mealy(twa_graph_ptr arena, synthesis_info& gi)
+  {
+    auto m = solved_game_to_mealy(arena, gi);
+
+    if (!m->get_named_prop<region_t>("state-player"))
+      {
+        assert(is_separated_mealy(m));
+        split_separated_mealy_here(m);
+      }
+    assert(is_split_mealy(m));
+    return m;
+  }
+
+  twa_graph_ptr
+  solved_game_to_split_mealy(twa_graph_ptr arena)
+  {
+    synthesis_info dummy;
+    return solved_game_to_split_mealy(arena, dummy);
   }
 
 }
