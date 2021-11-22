@@ -1379,7 +1379,8 @@ namespace
   using namespace spot;
 
   // We have to decide which actual output to use:
-  // Heuristic : Use the assignment having the least highs
+  // Heuristic : Use the assignment having the smallest cost
+  // according to satoneshortest
   static std::vector<std::vector<bdd>>
   choose_outc(const std::vector<std::pair<const_twa_graph_ptr, bdd>>&
                   strat_vec,
@@ -1387,18 +1388,44 @@ namespace
   {
     std::vector<std::vector<bdd>> used_outc;
 
-    for (auto&& astrat : strat_vec)
+    for (const auto& astrat : strat_vec)
       {
         used_outc.emplace_back(astrat.first->num_edges()+1);
         auto& this_outc = used_outc.back();
 
-        for (auto&& e: astrat.first->edges())
+        // Check if split or separated
+        if (auto sp_ptr =
+              astrat.first->get_named_prop<region_t>("state-player"))
           {
-            assert(e.cond != bddfalse);
-            bdd bout = bdd_exist(e.cond, all_inputs);
-            // low is good, dc is ok, high is bad
-            this_outc[astrat.first->edge_number(e)] =
-                bdd_satoneshortest(bout, 0, 1, 5);
+            // Split -> We only need outs for env edges
+            auto sp = *sp_ptr;
+            const unsigned N = astrat.first->num_states();
+            for (unsigned s = 0; s < N; ++s)
+              {
+                if (sp[s])
+                  continue; //Player state -> nothing to do
+                for (const auto& e : astrat.first->out(s))
+                  {
+                    assert(e.cond != bddfalse);
+                    bdd bout = astrat.first->out(e.dst).begin()->cond;
+                    assert(bout != bddfalse);
+                    // low is good, dc is ok, high is bad
+                    this_outc[astrat.first->edge_number(e)] =
+                        bdd_satoneshortest(bout, 0, 1, 5);
+                  }
+              }
+          }
+        else
+          {
+            // separated
+            for (const auto& e: astrat.first->edges())
+              {
+                assert(e.cond != bddfalse);
+                bdd bout = bdd_exist(e.cond, all_inputs);
+                // low is good, dc is ok, high is bad
+                this_outc[astrat.first->edge_number(e)] =
+                    bdd_satoneshortest(bout, 0, 1, 5);
+              }
           }
       }
     //Done
@@ -1409,6 +1436,7 @@ namespace
   state_to_vec(std::vector<unsigned>& v, unsigned s,
                unsigned offset)
   {
+    assert(s != -1u && "-1u is not a valid sstate");
     v.clear();
     unsigned i = offset;
     while (s > 0)
@@ -1466,8 +1494,10 @@ namespace
         }
     // This checks the acc again, but does more and is to
     // costly for non-debug mode
+    // We can also handle split machines
     assert(std::all_of(strat_vec.begin(), strat_vec.end(),
-           [](const auto& p){ return is_separated_mealy(p.first); }));
+           [](const auto& p){ return is_separated_mealy(p.first)
+                                     || is_split_mealy(p.first); }));
 
     // get the propositions
     std::vector<std::string> input_names;
@@ -1558,30 +1588,48 @@ namespace
     unsigned n_latches = 0;
     for (const auto& astrat : strat_vec)
       {
-        state_numbers.emplace_back();
-        state_numbers.back().reserve(astrat.first->num_states());
+        const unsigned N = astrat.first->num_states();
+        state_numbers.emplace_back(N, -1u);
+        auto& sn = state_numbers.back();
         unsigned max_index = 0;
         // Check if named
+        auto sp_ptr = astrat.first->get_named_prop<region_t>("state-player");
         if (const auto* s_names =
                 astrat.first->
                   get_named_prop<std::vector<std::string>>("state-names"))
           {
-            std::transform(s_names->cbegin(), s_names->cend(),
-                           std::back_inserter(state_numbers.back()),
-                           [&max_index](const auto& sn)
-                           {
-                             unsigned su = std::stoul(sn);
-                             max_index = std::max(max_index, su);
-                             return su;
-                           });
+            for (unsigned n = 0; n < N; ++n)
+              {
+                if (sp_ptr && (*sp_ptr)[n])
+                  continue;
+                // Remains -1u
+                unsigned su = std::stoul((*s_names)[n]);
+                max_index = std::max(max_index, su);
+                sn[n] = su;
+              }
             ++max_index;
           }
         else
           {
-            max_index = astrat.first->num_states();
-            state_numbers.back().resize(astrat.first->num_states());
-            std::iota(state_numbers.back().begin(),
-                      state_numbers.back().end(), 0);
+            if (sp_ptr)
+              {
+                auto sp = *sp_ptr;
+                // Split
+                unsigned n_next = 0;
+                // Player -1u
+                // Env: Succesively numbered according to appearance
+                for (unsigned n = 0; n < N; ++n)
+                  if (!sp[n])
+                    sn[n] = n_next++;
+                max_index = n_next;
+              }
+            else
+              {
+                std::iota(state_numbers.back().begin(),
+                          state_numbers.back().end(), 0);
+                max_index = N;
+              }
+
             // Ensure 0 <-> init state
             std::swap(state_numbers.back()[0],
                       state_numbers.back()[astrat.first->
@@ -1621,6 +1669,8 @@ namespace
         auto&& [astrat, aouts] = strat_vec[i];
         const auto& sn = state_numbers.at(i);
 
+        auto sp_ptr = astrat->get_named_prop<region_t>("state-player");
+
         auto latchoff = latch_offset[i];
 #ifndef NDEBUG
         auto latchoff_next = latch_offset.at(i+1);
@@ -1628,6 +1678,8 @@ namespace
         auto alog2n = log2n[i];
         auto state2bdd = [&](auto s)
           {
+            assert((!sp_ptr || !(*sp_ptr)[s])
+                    && "Only env states need to be encoded.");
             auto s2 = sn[s];
             bdd b = bddtrue;
             for (unsigned j = 0; j < alog2n; ++j)
@@ -1654,13 +1706,19 @@ namespace
 
         for (unsigned s = 0; s < astrat->num_states(); ++s)
           {
+            // Player state -> continue
+            if (sp_ptr && (*sp_ptr)[s])
+              continue;
             // Convert src state to bdd
             bdd src_bdd = state2bdd(s);
 
             for (const auto& e : astrat->out(s))
               {
                 // High latches of dst
-                state_to_vec(next_state_vec, sn[e.dst], latchoff);
+                state_to_vec(next_state_vec,
+                             sp_ptr ? sn[astrat->out(e.dst).begin()->dst]
+                                    : sn[e.dst],
+                             latchoff);
 
                 // Get high outs depending on cond
                 output_to_vec(out_vec, out_dc_vec,

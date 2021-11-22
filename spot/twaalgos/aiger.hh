@@ -452,9 +452,9 @@ namespace spot
   ///@}
 
   /// \ingroup synthesis
-  /// \brief Convert multiple strategies into an aig relying on
+  /// \brief Convert multiple mealy machines into an aig relying on
   ///        the transformation described by mode.
-  /// \note The states of each strategy are represented by a block of latches
+  /// \note The states of each machine are represented by a block of latches
   ///       not affected by the others. For this to work in a general setting,
   ///       the outputs must be disjoint.
   ///
