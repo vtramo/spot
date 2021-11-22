@@ -158,15 +158,25 @@ namespace spot
   /// @}
 
   /// \ingroup synthesis
-  /// \brief creates a separated mealy machine from a solved game
+  /// \brief creates a mealy machine from a solved game \a arena
   /// taking into account the options given in \a gi.
   /// This concerns in particular whether or not the machine is to be reduced
   /// and how.
+  /// solved_game_to_mealy can return any type of mealy machine. In fact it
+  /// will return the type that necessitates no additional operations
   /// @{
+  SPOT_API twa_graph_ptr
+  solved_game_to_mealy(twa_graph_ptr arena, synthesis_info& gi);
+  SPOT_API twa_graph_ptr
+  solved_game_to_mealy(twa_graph_ptr arena);
   SPOT_API twa_graph_ptr
   solved_game_to_separated_mealy(twa_graph_ptr arena, synthesis_info& gi);
   SPOT_API twa_graph_ptr
   solved_game_to_separated_mealy(twa_graph_ptr arena);
+  SPOT_API twa_graph_ptr
+  solved_game_to_split_mealy(twa_graph_ptr arena, synthesis_info& gi);
+  SPOT_API twa_graph_ptr
+  solved_game_to_split_mealy(twa_graph_ptr arena);
   /// @}
 
   /// \ingroup synthesis
