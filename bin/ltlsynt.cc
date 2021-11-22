@@ -408,8 +408,14 @@ namespace
               spot::mealy_like ml;
               ml.success =
                 spot::mealy_like::realizability_code::REALIZABLE_REGULAR;
-              ml.mealy_like =
-                  spot::solved_game_to_separated_mealy(arena, *gi);
+              if (opt_print_aiger)
+                // we do not care about the type,
+                // machine to aiger can handle it
+                ml.mealy_like =
+                    spot::solved_game_to_mealy(arena, *gi);
+              else
+                ml.mealy_like =
+                    spot::solved_game_to_separated_mealy(arena, *gi);
               ml.glob_cond = bddfalse;
               mealy_machines.push_back(ml);
             }
@@ -452,8 +458,11 @@ namespace
                   delta = sw_direct.stop();
                 }
 
-              // Unsplit to have separated mealy
-              m_like.mealy_like = unsplit_mealy(m_like.mealy_like);
+              // If our goal is to have an aiger,
+              // we can use split or separated machines
+              if (!opt_print_aiger)
+                // Unsplit to have separated mealy
+                m_like.mealy_like = unsplit_mealy(m_like.mealy_like);
 
               if (gi->bv)
                 gi->bv->strat2aut_time += delta;
