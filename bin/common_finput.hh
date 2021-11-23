@@ -51,6 +51,8 @@ int parse_opt_finput(int key, char* arg, struct argp_state* state);
 
 spot::parsed_formula parse_formula(const std::string& s);
 
+spot::formula parse_formula_arg(const std::string& input);
+
 
 class job_processor
 {

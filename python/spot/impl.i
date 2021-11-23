@@ -122,6 +122,7 @@
 #include <spot/twaalgos/forq_contains.hh>
 #include <spot/twaalgos/gtec/gtec.hh>
 #include <spot/twaalgos/genem.hh>
+#include <spot/twaalgos/given.hh>
 #include <spot/twaalgos/lbtt.hh>
 #include <spot/twaalgos/ltl2taa.hh>
 #include <spot/twaalgos/ltl2tgba_fm.hh>
@@ -703,6 +704,7 @@ def state_is_accepting(self, src) -> "bool":
 %include <spot/twaalgos/forq_contains.hh>
 %include <spot/twaalgos/gtec/gtec.hh>
 %include <spot/twaalgos/genem.hh>
+%include <spot/twaalgos/given.hh>
 %include <spot/twaalgos/lbtt.hh>
 %include <spot/twaalgos/ltl2taa.hh>
 %include <spot/twaalgos/ltl2tgba_fm.hh>

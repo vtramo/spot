@@ -28,6 +28,7 @@ twaalgos_HEADERS = \
   aiger.hh \
   alternation.hh \
   are_isomorphic.hh \
+  given.hh \
   bfssteps.hh \
   canonicalize.hh \
   cleanacc.hh \
@@ -104,6 +105,7 @@ libtwaalgos_la_SOURCES = \
   aiger.cc \
   alternation.cc \
   are_isomorphic.cc \
+  given.cc \
   bfssteps.cc \
   canonicalize.cc \
   cleanacc.cc \

@@ -55,6 +55,7 @@
 #include <spot/twaalgos/dtwasat.hh>
 #include <spot/twaalgos/dualize.hh>
 #include <spot/twaalgos/gtec/gtec.hh>
+#include <spot/twaalgos/given.hh>
 #include <spot/twaalgos/hoa.hh>
 #include <spot/twaalgos/iscolored.hh>
 #include <spot/twaalgos/isdet.hh>
@@ -74,6 +75,7 @@
 #include <spot/twaalgos/stutter.hh>
 #include <spot/twaalgos/sum.hh>
 #include <spot/twaalgos/totgba.hh>
+#include <spot/twaalgos/translate.hh>
 
 static const char argp_program_doc[] = "\
 Convert, transform, and filter omega-automata.\v\
@@ -106,6 +108,8 @@ enum {
   OPT_EXCLUSIVE_AP,
   OPT_GENERALIZED_RABIN,
   OPT_GENERALIZED_STREETT,
+  OPT_GIVEN_AUTOMATON,
+  OPT_GIVEN_FORMULA,
   OPT_HAS_EXIST_BRANCHING,
   OPT_HAS_UNIV_BRANCHING,
   OPT_HIGHLIGHT_NONDET,
@@ -396,6 +400,12 @@ static const argp_option options[] =
       "Convert an automaton with \"alive\" and \"!alive\" propositions "
       "into a Büchi automaton interpretable as a finite automaton.  "
       "States with a outgoing \"!alive\" edge are marked as accepting.", 0 },
+    { "given-automaton", OPT_GIVEN_AUTOMATON, "FILENAME", 0,
+      "simplify input automata assuming they are only used in the context "
+      "where the property expressed by automton FILENAME hold", 0 },
+    { "given-formula", OPT_GIVEN_FORMULA, "FORMULA", 0,
+      "simplify input automata assuming they are only used in a context where "
+      "FORMULA holds", 0 },
     { nullptr, 0, nullptr, 0, "Decorations (for -d and -H1.1 output):", 9 },
     { "highlight-accepting-run", OPT_HIGHLIGHT_ACCEPTING_RUN, "NUM",
       OPTION_ARG_OPTIONAL, "highlight one accepting run using color NUM", 0},
@@ -622,6 +632,7 @@ static struct opt_t
   std::unique_ptr<spot::isomorphism_checker>
                          isomorphism_checker = nullptr;
   std::unique_ptr<unique_aut_t> uniq = nullptr;
+  std::vector<spot::twa_graph_ptr> given_automata;
   spot::exclusive_ap excl_ap;
   spot::remove_ap rem_ap;
   std::vector<spot::twa_graph_ptr> acc_words;
@@ -924,6 +935,15 @@ parse_opt(int key, char* arg, struct argp_state*)
         opt_gsa = GSA_UNIQUE_FIN;
       opt_gra = GRA_NO;
       break;
+    case OPT_GIVEN_AUTOMATON:
+      opt->given_automata.push_back(read_automaton(arg, opt->dict));
+      break;
+    case OPT_GIVEN_FORMULA:
+      {
+        spot::translator t(opt->dict);
+        opt->given_automata.push_back(t.run(parse_formula_arg(arg)));
+        break;
+      }
     case OPT_HAS_EXIST_BRANCHING:
       opt_has_exist_branching = true;
       break;
@@ -1573,6 +1593,9 @@ namespace
 
       if (!opt->rem_ap.empty())
         aut = opt->rem_ap.strip(aut);
+
+      for (spot::const_twa_graph_ptr knowledge: opt->given_automata)
+        aut = spot::given_here(aut, knowledge);
 
       // opt_simplify_exclusive_ap is handled only after
       // post-processing.

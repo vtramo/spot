@@ -95,6 +95,15 @@ parse_formula(const std::string& s)
       (s, spot::default_environment::instance(), false, lenient);
 }
 
+spot::formula
+parse_formula_arg(const std::string& input)
+{
+  spot::parsed_formula pf = parse_formula(input);
+  if (pf.format_errors(std::cerr))
+    error(2, 0, "parse error when parsing an argument");
+  return pf.f;
+}
+
 job_processor::~job_processor()
 {
   if (real_filename)
