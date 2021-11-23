@@ -64,7 +64,7 @@ installations.
 
 We build Debian packages for amd64 and i386, for both releases and the
 development versions.  Packages for releases are built for Debian
-Buster (a.k.a. Debian stable) while packages for development are built
+Bullseye (a.k.a. Debian stable) while packages for development are built
 for Sid (a.k.a. Debian unstable).
 
 Here is how to install the stable packages:
