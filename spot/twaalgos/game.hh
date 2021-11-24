@@ -199,4 +199,11 @@ namespace spot
   /// \brief Get the winner of all states
   SPOT_API
   const region_t& get_state_winners(const_twa_graph_ptr arena);
+
+  // Helper
+  // c = -1 -> uncolor
+  SPOT_API
+  void color_state(twa_graph_ptr m, unsigned s, int c);
+  SPOT_API
+  void color_edge(twa_graph_ptr m, unsigned e, int c);
 }

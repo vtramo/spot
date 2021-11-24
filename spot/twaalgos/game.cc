@@ -1181,4 +1181,30 @@ namespace spot
 
     return (*winners)[game->get_init_state_number()];
   }
+
+  void color_state(twa_graph_ptr m, unsigned s, int c)
+  {
+    const auto ns = m->num_states();
+    if (s >= ns)
+      throw std::runtime_error("color_state(): State does not exist");
+
+    auto* hl_states = m->get_or_set_named_prop<std::map<unsigned, unsigned>>
+      ("highlight-states");
+
+    if (c < 0)
+      hl_states->erase(s);
+    else
+      (*hl_states)[s] = (unsigned) c;
+  }
+
+  void color_edge(twa_graph_ptr m, unsigned e, int c)
+  {
+    auto* hl_edges = m->get_or_set_named_prop<std::map<unsigned, unsigned>>
+      ("highlight-edges");
+
+    if (c < 0)
+      hl_edges->erase(e);
+    else
+      (*hl_edges)[e] = (unsigned) c;
+  }
 }
