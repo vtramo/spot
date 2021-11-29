@@ -155,3 +155,84 @@ except RuntimeError as e:
   assert "invalid state number" in str(e)
 else:
   report_missing_exception()
+
+a = spot.automaton(
+'''
+HOA: v1
+States: 4
+Start: 0
+AP: 2 "p1" "p2"
+acc-name: parity min even 3
+Acceptance: 3 Inf(0) | (Fin(1) & Inf(2))
+properties: trans-labels explicit-labels state-acc colored
+--BODY--
+State: 0 {0}
+[!0&!1] 0
+[0&!1] 2
+[0&1] 1
+State: 1 {0}
+[!0&!1] 1
+[0&1] 0
+[0&!1] 3
+State: 2 {0}
+[0&!1] 2
+[!0&!1] 0
+[0&1] 3
+State: 3 {1}
+[0&1] 3
+[0&!1] 2
+[!0&!1] 1
+--END--
+''')
+assert spot.reduce_path_refiment(a, [0, 0, 1, 2]).to_str('hoa') == '''HOA: v1
+States: 3
+Start: 0
+AP: 2 "p1" "p2"
+acc-name: parity min even 3
+Acceptance: 3 Inf(0) | (Fin(1) & Inf(2))
+properties: trans-labels explicit-labels state-acc colored
+properties: deterministic
+--BODY--
+State: 0 {0}
+[!0&!1 | 0&1] 0
+[0&!1] 1
+State: 1 {0}
+[!0&!1] 0
+[0&!1] 1
+[0&1] 2
+State: 2 {1}
+[!0&!1] 0
+[0&!1] 1
+[0&1] 2
+--END--'''
+
+
+a_hoa = '''HOA: v1
+States: 4
+Start: 0
+AP: 2 "p1" "p2"
+acc-name: parity max even 3
+Acceptance: 3 Inf(2) | (Fin(1) & Inf(0))
+properties: trans-labels explicit-labels state-acc colored
+properties: deterministic
+--BODY--
+State: 0 {0}
+[!0&!1] 0
+[0&1] 1
+[0&!1] 2
+State: 1 {0}
+[0&1] 0
+[!0&!1] 1
+[0&!1] 3
+State: 2 {0}
+[!0&!1] 0
+[0&!1] 2
+[0&1] 3
+State: 3 {1}
+[!0&!1] 1
+[0&!1] 2
+[0&1] 3
+--END--'''
+
+a = spot.automaton(a_hoa)
+assert spot.reduce_path_refiment(a, [0, 0, 1, 2]).to_str('hoa') == a_hoa

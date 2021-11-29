@@ -159,6 +159,7 @@ namespace spot
   reduce_parity_here(twa_graph_ptr aut, bool colored = false);
   /// @}
 
+  /*
   SPOT_API twa_graph_ptr
   build_path_refiment_automaton (const const_twa_graph_ptr& aut,
                       const std::vector<unsigned>& equiv_class,
@@ -168,16 +169,22 @@ namespace spot
                       unsigned& res_s2_max,
                       bool pretty_print=false);
 
+                      */
+  /*
   SPOT_API bool
   moore_equivalence(const const_twa_graph_ptr& aut, unsigned s1, unsigned s2);
 
-  /*
   class EquivalentClassList;
 
   SPOT_API EquivalentClassList
-  find_path_refinement_equivalence(const const_twa_graph_ptr& aut, const std::vector<unsigned>& class_of_state);
+  find_path_refinement_equivalence(const const_twa_graph_ptr& aut,
+                      const std::vector<unsigned>& class_of_state);
 
   */
   SPOT_API twa_graph_ptr
-  reduce_path_refiment(const const_twa_graph_ptr& aut, std::vector<unsigned> class_of);
+  reduce_path_refiment(const const_twa_graph_ptr& aut,
+                        const std::vector<unsigned>& class_of);
+
+  SPOT_API std::vector<unsigned>&
+  get_orig_states(const const_twa_graph_ptr& a);
 }
