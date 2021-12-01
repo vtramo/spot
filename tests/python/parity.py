@@ -236,3 +236,36 @@ State: 3 {1}
 
 a = spot.automaton(a_hoa)
 assert spot.reduce_path_refiment(a, [0, 0, 1, 2]).to_str('hoa') == a_hoa
+
+a_hoa = '''HOA: v1
+States: 5
+Start: 0
+AP: 4 "p_0" "p_1" "p_2" "acc"
+acc-name: parity min even 2
+Acceptance: 2 Inf(0) | Fin(1)
+properties: trans-labels explicit-labels state-acc deterministic
+--BODY--
+State: 0
+[0&1&!2&!3] 0
+[0&1&!2&3] 1
+[0&1&2&!3] 2
+State: 1 {1}
+[0&1&!2&!3] 0
+[0&1&!2&3] 1
+[0&1&2&!3] 2
+State: 2 {1}
+[0&1&2&!3] 2
+[0&1&!2&!3] 3
+[0&1&!2&3] 4
+State: 3
+[0&1&2&!3] 2
+[0&1&!2&!3] 3
+[0&1&!2&3] 4
+State: 4 {0}
+[0&1&!2&!3] 0
+[0&1&!2&3] 1
+[0&1&2&!3] 2
+--END--'''
+
+a = spot.automaton(a_hoa)
+assert spot.reduce_path_refiment(a, [0, 0, 0, 0]).to_str('hoa') == a_hoa

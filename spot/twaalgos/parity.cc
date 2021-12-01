@@ -655,7 +655,8 @@ namespace spot
 
     twa_graph_ptr pr = make_twa_graph(aut->get_dict());
     pr->copy_ap_of(aut);
-    pr->copy_acceptance_of(aut);
+    // Don't care about the acceptance we juste need to reserve n+1 colors.
+    pr->set_acceptance(aut->num_sets() + 1, acc_cond::acc_code::t());
     // TODO acceptance ?
 
     unsigned lambda = equiv_class[s1];
@@ -700,28 +701,34 @@ namespace spot
         }
     };
 
+    auto get_acc = [&](unsigned s)
+    {
+      if constexpr(is_min_parity)
+        {
+          unsigned c = aut->state_acc_sets(s).min_set();
+          return c ? c - 1 : aut->num_sets();
+        }
+      else
+        {
+          unsigned c = aut->state_acc_sets(s).max_set();
+          return c;
+        }
+    };
 
     std::vector<bool> seen(ns*nc, false);
     std::vector<state_name> todo;
     todo.reserve(ns*nc);
 
-    unsigned k = is_min_parity ? aut->state_acc_sets(s1).max_set()
-                                // TODO expliquer on fait -1 pour que pas de
-                                // mark = max_unsingned => ce n'est pas un min
-                               : aut->state_acc_sets(s1).min_set() - 1;
+    // TODO expliquer
+    unsigned k = is_min_parity ? aut->num_sets() : 0;
 
     todo.push_back({s1, k});
-    seen[get_or_create_state(s1, k)] = true;
     res_s1_max = get_or_create_state(s1, k);
-
-    k = is_min_parity ? aut->state_acc_sets(s2).max_set()
-                                // TODO expliquer on fait -1 pour que pas de
-                                // mark = max_unsingned => ce n'est pas un min
-                               : aut->state_acc_sets(s2).min_set() - 1;
+    seen[res_s1_max] = true;
 
     todo.push_back({s2, k});
-    seen[get_or_create_state(s2, k)] = true;
     res_s2_max = get_or_create_state(s2, k);
+    seen[res_s2_max] = true;
 
     while (!todo.empty())
       {
@@ -732,9 +739,6 @@ namespace spot
 
         for (const auto& e : aut->out(state))
           {
-            if (equiv_class[e.dst] == lambda && e.dst != s1 && e.dst != s2)
-              continue;
-
             if (equiv_class[e.src] == lambda)
               {
                 acc_cond::mark_t m = {};
@@ -746,11 +750,9 @@ namespace spot
                 // TODO FIX when both have no sets.
                 unsigned priority;
                 if constexpr(is_min_parity)
-                  priority = std::min(aut->state_acc_sets(e.src).max_set(),
-                                      aut->state_acc_sets(e.dst).max_set());
+                  priority = std::min(get_acc(e.src), get_acc(e.dst));
                 else
-                  priority = std::max(aut->state_acc_sets(e.src).min_set() - 1,
-                                      aut->state_acc_sets(e.dst).min_set() - 1);
+                  priority = std::max(get_acc(e.src), get_acc(e.dst));
 
                 unsigned dst = get_or_create_state(e.dst, priority);
 
@@ -767,10 +769,9 @@ namespace spot
                 //FIXME if min take min_set ????
                 unsigned priority;
                 if constexpr(is_min_parity)
-                  priority = std::min(k, aut->state_acc_sets(e.dst).max_set());
+                  priority = std::min(k, get_acc(e.dst));
                 else
-                  priority = std::max(k,
-                                      aut->state_acc_sets(e.dst).min_set() - 1);
+                  priority = std::max(k, get_acc(e.dst));
 
                 unsigned dst = get_or_create_state(e.dst, priority);
 
@@ -976,13 +977,10 @@ namespace spot
 
     done.splice(done.end(), cur_run);
 
-    bool has_found_s1 = false;
-    bool has_found_s2 = false;
-
     for (hash_set *equiv_class : done)
       {
-        has_found_s1 = false;
-        has_found_s2 = false;
+        bool has_found_s1 = false;
+        bool has_found_s2 = false;
 
         for (unsigned s : *equiv_class)
           {
@@ -1147,7 +1145,9 @@ namespace spot
     std::vector<bool> done(ns, false);
 
     bool max, odd;
-    assert(aut->acc().is_parity(max, odd));
+    if (!aut->acc().is_parity(max, odd))
+      throw std::runtime_error("find_path_refinement_equivalence(): "
+          "can only be applied to parity automata.");
 
     for (auto c : original)
       {
@@ -1174,7 +1174,7 @@ namespace spot
                                                             *states_of_class,
                                                             s1_max,
                                                             s2_max,
-                                                            true);
+                                                            false);
             else
               pr_aut = build_path_refiment_automaton<true>(aut,
                                                             class_of,
@@ -1182,7 +1182,7 @@ namespace spot
                                                             *states_of_class,
                                                             s1_max,
                                                             s2_max,
-                                                            true);
+                                                            false);
 
             bool are_pr_equivalent = moore_equivalence(pr_aut, s1_max, s2_max);
 
