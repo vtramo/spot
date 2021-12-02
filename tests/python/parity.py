@@ -268,4 +268,4 @@ State: 4 {0}
 --END--'''
 
 a = spot.automaton(a_hoa)
-assert spot.reduce_path_refiment(a, [0, 0, 0, 0]).to_str('hoa') == a_hoa
+assert spot.reduce_path_refiment(a, [0, 0, 0, 0, 0]).to_str('hoa') == a_hoa

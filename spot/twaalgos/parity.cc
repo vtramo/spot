@@ -715,7 +715,8 @@ namespace spot
         }
     };
 
-    std::vector<bool> seen(ns*nc, false);
+    // toutes les couleurs + 1 (pas de courleur
+    std::vector<bool> seen(ns*(nc+1), false);
     std::vector<state_name> todo;
     todo.reserve(ns*nc);
 
