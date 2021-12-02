@@ -1,6 +1,6 @@
 /* -*- coding: utf-8 -*-
-** Copyright (C) 2010-2015, 2017-2019, Laboratoire de Recherche et
-** Développement de l'Epita (LRDE).
+** Copyright (C) 2010-2015, 2017-2019, 2021, Laboratoire de Recherche
+** et Développement de l'Epita (LRDE).
 ** Copyright (C) 2003, 2004 Laboratoire d'Informatique de Paris 6
 ** (LIP6), département Systèmes Répartis Coopératifs (SRC), Université
 ** Pierre et Marie Curie.
@@ -35,6 +35,7 @@
 
 #include <spot/parsetl/parsedecl.hh>
 #include "spot/priv/trim.hh"
+#include "spot/tl/formula.hh"
 
 #define YY_USER_ACTION \
   yylloc->columns(yyleng);
@@ -221,7 +222,11 @@ eol2        (\n\r)+|(\r\n)+
 "first_match"                   BEGIN(0); return token::OP_FIRST_MATCH;
 
   /* SVA operators */
-"##"[0-9]+                      {
+"##"[0-9]{1,2}                  {
+                                  yylval->num = strtoul(yytext + 2, 0, 10);
+                                  return token::OP_DELAY_N;
+                                }
+"##"[0-9]{3,}                   {
 				  errno = 0;
 				  unsigned long n = strtoul(yytext + 2, 0, 10);
                                   yylval->num = n;
@@ -231,6 +236,17 @@ eol2        (\n\r)+|(\r\n)+
 				        spot::one_parse_error(*yylloc,
 					  "value too large ignored"));
                                       yylval->num = 1;
+                                    }
+                                  if (yylval->num >= spot::fnode::unbounded())
+                                    {
+                                      auto max = spot::fnode::unbounded() - 1;
+                                      std::ostringstream s;
+                                      s << yylval->num
+                                        << (" exceeds maximum supported "
+                                            "repetition (")
+                                        << max << ")";
+                                      error_list.emplace_back(*yylloc, s.str());
+                                      yylval->num = max;
                                     }
                                   return token::OP_DELAY_N;
                                 }

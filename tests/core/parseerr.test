@@ -35,6 +35,7 @@ cat >input <<EOF
 a - b
 {a[*9999999999]}
 {a ##[1:255] b}
+{a ##255 b}
 EOF
 
 run 1 ../ltl2text input |
@@ -80,6 +81,11 @@ Closure(@6 #0 [Star(@5 #0 0.. ["a"])])
 255 exceeds maximum supported repetition (254)
 
 Closure(@12 #0 [Concat(@11 #0 ["a", Star(@9 #0 0..253 [tt(@1 #0)]), "b"])])
+>>> {a ##255 b}
+       ^^^^^
+255 exceeds maximum supported repetition (254)
+
+Closure(@17 #0 [Concat(@16 #0 ["a", Star(@15 #0 253..253 [tt(@1 #0)]), "b"])])
 EOF
 
 diff output expected
