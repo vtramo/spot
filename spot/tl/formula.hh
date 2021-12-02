@@ -1557,7 +1557,7 @@ namespace spot
 
     /// \brief Whether the formula is an atomic proposition or its
     /// negation.
-    bool is_literal()
+    bool is_literal() const
     {
       return (is(op::ap) ||
           // If f is in nenoform, Not can only occur in front of
