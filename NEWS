@@ -1,4 +1,4 @@
-New in spot 2.10.1.dev  (not yet released)
+New in spot 2.10.2  (2021-12-03)
 
   Bugs fixed:
 
@@ -10,6 +10,8 @@ New in spot 2.10.1.dev  (not yet released)
 
   - Using ##300 in a SERE will report that the repeatition exceeds the
     allowed value using a parse error, not as an exception.
+
+  - spot::formula::is_literal() should be const.
 
 New in spot 2.10.1  (2021-11-19)
 
