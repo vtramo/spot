@@ -222,8 +222,13 @@ eol2        (\n\r)+|(\r\n)+
 "first_match"                   BEGIN(0); return token::OP_FIRST_MATCH;
 
   /* SVA operators */
-"##"[0-9]{1,2}                  {
-                                  yylval->num = strtoul(yytext + 2, 0, 10);
+"##"[0-9]                       {
+                                  yylval->num = yytext[2] - '0';
+                                  return token::OP_DELAY_N;
+                                }
+"##"[0-9][0-9]                  {
+                                  yylval->num =
+                                    yytext[2] * 10 + yytext[3] - '0' * 11;
                                   return token::OP_DELAY_N;
                                 }
 "##"[0-9]{3,}                   {
