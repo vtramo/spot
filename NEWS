@@ -9,6 +9,11 @@ New in spot 2.10.4.dev  (net yet released)
   - autfilt has a new --to-finite option, illustrated on
     https://spot.lrde.epita.fr/tut12.html
 
+  - ltlfilt has a new --sonf option to produce a formula's Suffix
+    Operator Normal Form, described in [cimatti.06.fmcad].  The
+    associated option --sonf-aps allows listing the newly introduced
+    atomic propositions.
+
   Library:
 
   - The new function suffix_operator_normal_form() implements
