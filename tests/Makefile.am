@@ -198,7 +198,8 @@ TESTS_tl = \
   core/stutter-ltl.test \
   core/hierarchy.test \
   core/mempool.test \
-  core/format.test
+  core/format.test \
+  core/sonf.test
 
 TESTS_graph = \
   core/graph.test \

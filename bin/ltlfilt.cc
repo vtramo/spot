@@ -38,6 +38,7 @@
 #include <spot/misc/hash.hh>
 #include <spot/misc/timer.hh>
 #include <spot/tl/simplify.hh>
+#include <spot/tl/sonf.hh>
 #include <spot/tl/length.hh>
 #include <spot/tl/relabel.hh>
 #include <spot/tl/unabbrev.hh>
@@ -100,6 +101,8 @@ enum {
   OPT_SIZE_MAX,
   OPT_SIZE_MIN,
   OPT_SKIP_ERRORS,
+  OPT_SONF,
+  OPT_SONF_APS,
   OPT_STUTTER_INSENSITIVE,
   OPT_SUSPENDABLE,
   OPT_SYNTACTIC_GUARANTEE,
@@ -127,6 +130,11 @@ static const argp_option options[] =
     { "negate", OPT_NEGATE, nullptr, 0, "negate each formula", 0 },
     { "nnf", OPT_NNF, nullptr, 0,
       "rewrite formulas in negative normal form", 0 },
+    { "sonf", OPT_SONF, "PREFIX", OPTION_ARG_OPTIONAL,
+      "rewrite formulas in suffix operator normal form", 0 },
+    { "sonf-aps", OPT_SONF_APS, "FILENAME", OPTION_ARG_OPTIONAL,
+      "when used with --sonf, output the newly introduced atomic "
+      "propositions", 0 },
     { "relabel", OPT_RELABEL, "abc|pnn", OPTION_ARG_OPTIONAL,
       "relabel all atomic propositions, alphabetically unless " \
       "specified otherwise", 0 },
@@ -316,6 +324,7 @@ static range opt_nth = { 0, std::numeric_limits<int>::max() };
 static int opt_max_count = -1;
 static long int match_count = 0;
 static const char* from_ltlf = nullptr;
+static const char* sonf = nullptr;
 
 
 // We want all these variables to be destroyed when we exit main, to
@@ -327,6 +336,7 @@ static struct opt_t
   spot::bdd_dict_ptr dict = spot::make_bdd_dict();
   spot::exclusive_ap excl_ap;
   std::unique_ptr<output_file> output_define = nullptr;
+  std::unique_ptr<output_file> output_sonf = nullptr;
   spot::formula implied_by = nullptr;
   spot::formula imply = nullptr;
   spot::formula equivalent_to = nullptr;
@@ -459,6 +469,12 @@ parse_opt(int key, char* arg, struct argp_state*)
       break;
     case OPT_NNF:
       nnf = true;
+      break;
+    case OPT_SONF:
+      sonf = arg ? arg : "sonf_";
+      break;
+    case OPT_SONF_APS:
+      opt->output_sonf.reset(new output_file(arg ? arg : "-"));
       break;
     case OPT_OBLIGATION:
       obligation = true;
@@ -649,6 +665,25 @@ namespace
 
       if (nnf)
         f = simpl.negative_normal_form(f);
+
+      if (sonf != nullptr)
+        {
+          std::vector<std::string> new_aps;
+          std::tie(f, new_aps) = suffix_operator_normal_form(f, sonf);
+
+          if (opt->output_sonf
+              && output_format != count_output
+              && output_format != quiet_output)
+            {
+              for (size_t i = 0; i < new_aps.size(); ++i)
+                {
+                  if (i > 0)
+                    opt->output_sonf->ostream() << ' ';
+                  opt->output_sonf->ostream() << new_aps[i];
+                }
+              opt->output_sonf->ostream() << '\n';
+            }
+        }
 
       switch (relabeling)
         {
