@@ -316,6 +316,7 @@ namespace spot
     COPY_PROP(std::vector<bool>, "state-winner");
     COPY_PROP(std::vector<unsigned>, "strategy");
     COPY_PROP(bdd, "synthesis-outputs");
+    COPY_PROP(std::vector<int>, "weights");
   }
 
 }

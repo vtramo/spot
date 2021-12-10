@@ -33,6 +33,7 @@
 #include <spot/twaalgos/sccinfo.hh>
 #include <spot/kripke/fairkripke.hh>
 #include <spot/twaalgos/hoa.hh>
+#include <spot/twaalgos/weights.hh>
 #include <cstdlib>
 #include <cstring>
 #include <algorithm>
@@ -75,6 +76,7 @@ namespace spot
       std::vector<std::string>* sn_ = nullptr;
       std::map<unsigned, unsigned>* highlight_edges_ = nullptr;
       std::map<unsigned, unsigned>* highlight_states_ = nullptr;
+      std::vector<int>* weights_ = nullptr;
       bool highlight_states_show_num_ = false;
       std::vector<std::pair<unsigned, unsigned>>* sprod_ = nullptr;
       std::vector<unsigned>* orig_ = nullptr;
@@ -910,6 +912,8 @@ namespace spot
                 else
                   format_label(os_, t.cond);
               }
+            if (weights_)
+              os_ << " : " <<  get_weight(aut_, t);
             if (!mark_states_)
               if (auto a = t.acc)
                 {
@@ -1046,6 +1050,8 @@ namespace spot
                     }
               }
           }
+        weights_ =
+          aut_->get_named_prop<std::vector<int>>("weights");
         highlight_edges_ =
           aut->get_named_prop<std::map<unsigned, unsigned>>("highlight-edges");
         highlight_states_ =

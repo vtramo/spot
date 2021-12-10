@@ -44,6 +44,7 @@
 #include "spot/priv/accmap.hh"
 #include <spot/tl/parse.hh>
 #include <spot/twaalgos/alternation.hh>
+#include <spot/twaalgos/weights.hh>
 
 using namespace std::string_literals;
 
@@ -276,6 +277,7 @@ extern "C" int strverscmp(const char *s1, const char *s2);
 %type <mark> acc-sig acc-sets trans-acc_opt state-acc_opt
              dstar_accsigs dstar_state_accsig
 %type <str> string_opt
+%type <b> weight_opt
 
 /**** NEVERCLAIM tokens ****/
 
@@ -1577,6 +1579,28 @@ trans-acc_opt: %empty
 		   }
 	       }
 
+weight_opt: %empty
+            {
+              $$ = 0;
+            }
+          | '<' '-' INT '>'
+            {
+              $$=-$3;
+            }
+          | '<' INT '>'
+            {
+              $$=$2;
+            }
+          | '<' '+' INT '>'
+            {
+              $$=$3;
+            }
+          | '<' error '>'
+            {
+              error(@$, "Weight is not readably.");
+              $$ = 0;
+            }
+
 /* block of labeled-edges, with occasional (incorrect) unlabeled edge */
 labeled-edges: %empty
                | some-labeled-edges
@@ -1601,20 +1625,23 @@ incorrectly-unlabeled-edge: checked-state-num trans-acc_opt
 							 $2 | res.acc_state);
 				}
 			    }
-labeled-edge: trans-label checked-state-num trans-acc_opt
+labeled-edge: trans-label checked-state-num weight_opt trans-acc_opt
 	      {
 		if (res.cur_label != bddfalse ||
                     // As a hack to allow states to be accepting
                     // even if they do not have transitions, we
                     // do not ignore false-labeled self-loops if they
                     // have some colors)
-                    ($2 == res.cur_state && !!($3 | res.acc_state)))
+                    ($2 == res.cur_state && !!($4 | res.acc_state)))
 		  {
 		    if (res.opts.want_kripke)
 		      res.h->ks->new_edge(res.cur_state, $2);
 		    else
-		      res.h->aut->new_edge(res.cur_state, $2,
-					   res.cur_label, $3 | res.acc_state);
+                      {
+                        unsigned edge = res.h->aut->new_edge(res.cur_state, $2,
+                                             res.cur_label, $4 | res.acc_state);
+                        set_weight(res.h->aut, edge, $3);
+                      }
 		  }
 	      }
 	    | trans-label state-conj-checked trans-acc_opt
@@ -1648,7 +1675,7 @@ state-conj-checked: state-conj-2
 unlabeled-edges: unlabeled-edge
                | unlabeled-edges unlabeled-edge
                | unlabeled-edges incorrectly-labeled-edge
-unlabeled-edge: checked-state-num trans-acc_opt
+unlabeled-edge: checked-state-num weight_opt trans-acc_opt
 		{
 		  bdd cond;
 		  if (res.has_state_label)
@@ -1675,9 +1702,13 @@ unlabeled-edge: checked-state-num trans-acc_opt
 		      if (res.opts.want_kripke)
 			res.h->ks->new_edge(res.cur_state, $1);
 		      else
-			res.h->aut->new_edge(res.cur_state, $1,
-					     cond, $2 | res.acc_state);
-		    }
+                        {
+                          unsigned edge =
+                            res.h->aut->new_edge(res.cur_state, $1,
+                                                 cond, $3 | res.acc_state);
+                          set_weight(res.h->aut, edge, $2);
+                        }
+                    }
 		}
 	      | state-conj-checked trans-acc_opt
 		{

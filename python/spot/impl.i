@@ -168,6 +168,7 @@
 #include <spot/twaalgos/are_isomorphic.hh>
 #include <spot/twaalgos/toparity.hh>
 #include <spot/twaalgos/zlktree.hh>
+#include <spot/twaalgos/weights.hh>
 
 #include <spot/parseaut/public.hh>
 
@@ -739,6 +740,7 @@ def state_is_accepting(self, src) -> "bool":
 %include <spot/twaalgos/are_isomorphic.hh>
 %include <spot/twaalgos/toparity.hh>
 %include <spot/twaalgos/zlktree.hh>
+%include <spot/twaalgos/weights.hh>
 
 %pythonprepend spot::twa::dtwa_complement %{
   from warnings import warn

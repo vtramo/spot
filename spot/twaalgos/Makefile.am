@@ -98,6 +98,7 @@ twaalgos_HEADERS = \
   totgba.hh \
   toweak.hh \
   translate.hh \
+  weights.hh \
   word.hh \
   zlktree.hh
 
@@ -171,6 +172,7 @@ libtwaalgos_la_SOURCES = \
   totgba.cc \
   toweak.cc \
   translate.cc \
+  weights.cc \
   word.cc \
   zlktree.cc
 

@@ -31,6 +31,7 @@
 #include <spot/twa/formula2bdd.hh>
 #include <spot/tl/formula.hh>
 #include <spot/kripke/fairkripke.hh>
+#include <spot/twaalgos/weights.hh>
 
 using namespace std::string_literals;
 
@@ -524,6 +525,13 @@ namespace spot
           }
       };
 
+    auto print_weight = [&os, &aut](auto& t)
+      {
+        if (auto weights = aut->get_named_prop
+                <std::vector<int>>("weights"))
+          os << " <" << get_weight(aut, t) << '>';
+      };
+
     unsigned num_states = aut->num_states();
     unsigned init = aut->get_init_state_number();
 
@@ -886,6 +894,7 @@ namespace spot
               {
                 os << '[' << md.sup[t.cond] << "] ";
                 print_dst(t.dst);
+                print_weight(t);
                 if (this_acc == Hoa_Acceptance_Transitions)
                   md.emit_acc(os, t.acc);
                 os << nl;
@@ -897,6 +906,7 @@ namespace spot
             for (auto& t: aut->out(i))
               {
                 print_dst(t.dst);
+                print_weight(t);
                 if (this_acc == Hoa_Acceptance_Transitions)
                   {
                     md.emit_acc(os, t.acc);
