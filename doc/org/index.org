@@ -69,10 +69,10 @@ with]] Spot, you should distribute the source code of that tool as well.
 
 =spot-announce@lrde.epita.fr= is an extremely low-traffic and
 read-only mailing list for release announcements.  If you want to stay
-informed about future releases of Spot, we invite you to [[https://lists.lrde.epita.fr/listinfo/spot-announce][subscribe]].
+informed about future releases of Spot, we invite you to [[https://lists.lrde.epita.fr/postorius/lists/spot-announce.lrde.epita.fr/][subscribe]].
 
 [[mailto:spot@lrde.epita.fr][=spot@lrde.epita.fr=]] is a list for general discussions and questions
-about Spot. [[https://lists.lrde.epita.fr/listinfo/spot][Subscribe here]] if you want to join, but feel free to send
+about Spot. [[https://lists.lrde.epita.fr/postorius/lists/spot.lrde.epita.fr/][Subscribe here]] if you want to join, but feel free to send
 in any question (in English) or bug report without subscribing.
 
 * Citing
