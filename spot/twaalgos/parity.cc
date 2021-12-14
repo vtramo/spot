@@ -806,7 +806,6 @@ namespace spot
     partition_t next_run;
 
     // FIXME ???
-    hash_set *final = new hash_set();
     hash_set *non_final = new hash_set();
     for (unsigned i = 0; i < det_a->num_states(); ++i)
       non_final->insert(i);
@@ -817,7 +816,7 @@ namespace spot
     std::vector<unsigned> state_set_map(det_a->num_states(), -1U);
 
     // Size of det_a
-    unsigned size = final->size() + non_final->size();
+    unsigned size = non_final->size();
     // Use bdd variables to number sets.  set_num is the first variable
     // available.
     unsigned set_num =
@@ -828,46 +827,61 @@ namespace spot
       free_var.insert(i);
     std::map<int, int> used_var;
 
-    /*
-    hash_set* final_copy;
 
-    if (!final->empty())
-    {
-      unsigned s = final->size();
-      used_var[set_num] = s;
-      free_var.erase(set_num);
-      if (s > 1)
-        cur_run.emplace_back(final);
-      else
-        done.emplace_back(final);
-      for (auto i: *final)
-        state_set_map[i] = set_num;
 
-      final_copy = new hash_set(*final);
-    }
-    else
-    {
-      final_copy = final;
-    }
-    */
+    hash_set *set_of_s1_s2 = nullptr;
 
-    if (!non_final->empty())
     {
-      unsigned s = non_final->size();
-      unsigned num = set_num + 1;
-      used_var[num] = s;
-      free_var.erase(num);
-      if (s > 1)
-        cur_run.emplace_back(non_final);
-      else
-        done.emplace_back(non_final);
-      for (auto i: *non_final)
-        state_set_map[i] = num;
+      std::vector<hash_set *> states_with_same_color(set_num + 1);
+      for (unsigned i = 0; i < set_num + 1; ++i)
+        states_with_same_color[i] = new hash_set();
+
+      for (unsigned s = 0; s < size; ++s)
+      {
+        hash_set *set_of_s =
+          states_with_same_color[det_a->state_acc_sets(s).min_set()];
+
+        set_of_s->insert(s);
+
+        if (s == s1 || s == s2)
+        {
+          if (set_of_s1_s2)
+          {
+            // We already saw either s1 or s2, we need to check if there are in
+            // the same set. If not there are not moore equivalent.
+            // TODO add cleanup;
+            if (set_of_s != set_of_s1_s2)
+              return false;
+          }
+          else
+          {
+            set_of_s1_s2 = set_of_s;
+          }
+        }
+      }
+
+      for (unsigned i = 0; i < set_num + 1; ++i)
+      {
+        unsigned s = states_with_same_color[i]->size();
+        if (s == 0)
+        {
+          delete states_with_same_color[i];
+          continue;
+        }
+
+        unsigned num = set_num + 1 + i;
+        used_var[num] = s;
+        free_var.erase(num);
+        if (s > 1)
+          cur_run.emplace_back(states_with_same_color[i]);
+        else
+          done.emplace_back(states_with_same_color[i]);
+        for (auto i: *states_with_same_color[i])
+          state_set_map[i] = num;
+      }
     }
-    else
-    {
-      delete non_final;
-    }
+
+
 
     // A bdd_states_map is a list of formulae (in a BDD form)
     // associated with a destination set of states.
@@ -875,16 +889,13 @@ namespace spot
 
     bool did_split = true;
 
-    /* NEW*/
-    unsigned n_acc = det_a->num_sets();
-    unsigned acc_vars = det_a->get_dict()
-      ->register_anonymous_variables(n_acc, det_a);
-
     while (did_split)
     {
       did_split = false;
       while (!cur_run.empty())
       {
+        set_of_s1_s2 = nullptr;
+
         // Get a set to process.
         hash_set* cur = cur_run.front();
         cur_run.pop_front();
@@ -907,9 +918,9 @@ namespace spot
 
             /* NEW */
             bdd tmp = (bdd_ithvar(i) & si.cond);
-            for (unsigned m : si.acc.sets())
-              tmp &= bdd_ithvar(acc_vars + m);
-            f |= tmp; // TODO ajouter acc ici
+            //for (unsigned m : si.acc.sets())
+            //  tmp &= bdd_ithvar(acc_vars + m);
+            f |= tmp;
 
           }
 
@@ -926,6 +937,21 @@ namespace spot
           {
             // Yes, add the current state to the set.
             bsi->second->insert(src);
+          }
+
+          if (src == s1 || src == s2)
+          {
+            if (set_of_s1_s2)
+            {
+              // When we split the set, we check if s1 and s2 ends up in the
+              // same set. If not there not moore equivalent/
+              if (bdd_map[f] != set_of_s1_s2)
+                return false;
+            }
+            else
+            {
+              set_of_s1_s2 = bdd_map[f];
+            }
           }
         }
 
@@ -976,6 +1002,9 @@ namespace spot
       std::swap(cur_run, next_run);
     }
 
+    return true;
+
+    /*
     done.splice(done.end(), cur_run);
 
     for (hash_set *equiv_class : done)
@@ -1005,6 +1034,7 @@ namespace spot
     //delete non_final;
 
     return false;
+    */
   }
 
 
@@ -1269,6 +1299,8 @@ namespace spot
                         < aut->state_acc_sets(s2).max_set();
               });
         };
+
+    // TODO rajouter les proprites qui sont conserves
 
     return template_merger(aut, eq_class, select_max_priority_state);
   }
