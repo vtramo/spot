@@ -22,8 +22,35 @@
 
 set -e
 
-ltl2tgba 'p | (!p & G(Fq & F!q & Fa))' >out.hoa
-test '3 3' = "`autfilt out.hoa --stats='%s %a'`"
-test '2 3' = "`autfilt --given-formula='F(Gq|G!q)' out.hoa --stats='%s %a'`"
-test '2 0' = \
-     "`autfilt --given-formula='F(Gq|G!q)' out.hoa --small --stats='%s %a'`"
+ltl2tgba 'p | (!p & G(Fq & F!q & Fa))' >in
+test '3 3' = "`autfilt in --stats='%s %a'`"
+for i in restrict all; do
+    test '2 3' = \
+         "`autfilt --given-f='F(Gq|G!q)' --given-s=$i in --stats='%s %a'`"
+done
+res=`autfilt --given-f='F(Gq|G!q)' --given-s=rest in --small --stats='%s %a'`
+test '2 0' = "$res"
+
+ltl2tgba 'p | (!p & G(Fq & F!q & Fa))' >in
+while read opt exp; do
+    res=`autfilt --given-f=Gp in --given-s=$opt --stats='%s %e %a'`
+    test "$res" = "$exp"
+done <<EOF
+restrict 2 2 3
+relax 3 7 3
+all 2 2 3
+EOF
+
+while read opt exp; do
+    res=`autfilt --given-f=Gp in --given-s=$opt --small --stats='%s %e %x'`
+    test "$res" = "$exp"
+done <<EOF
+restrict 1 1 1
+relax 1 1 0
+all 1 1 0
+EOF
+
+for opt in restrict relax all; do
+    res=`ltl2tgba GFp | autfilt --given-s=$opt --given-f='G!p' --stats=%s%e%x`
+    test "$res" = 100
+done

@@ -110,6 +110,7 @@ enum {
   OPT_GENERALIZED_STREETT,
   OPT_GIVEN_AUTOMATON,
   OPT_GIVEN_FORMULA,
+  OPT_GIVEN_STRAT,
   OPT_HAS_EXIST_BRANCHING,
   OPT_HAS_UNIV_BRANCHING,
   OPT_HIGHLIGHT_NONDET,
@@ -406,6 +407,11 @@ static const argp_option options[] =
     { "given-formula", OPT_GIVEN_FORMULA, "FORMULA", 0,
       "simplify input automata assuming they are only used in a context where "
       "FORMULA holds", 0 },
+    { "given-strategy", OPT_GIVEN_STRAT, "restrict|relax|all", 0,
+      "strategy to use to simplify input automata based on given knowledge: "
+      "(restrict) restrict edge labels to their useful subset, (relax) relax "
+      "labels using impossible assignments if that reduce their support, "
+      "(all) do both [the default].", 0 },
     { nullptr, 0, nullptr, 0, "Decorations (for -d and -H1.1 output):", 9 },
     { "highlight-accepting-run", OPT_HIGHLIGHT_ACCEPTING_RUN, "NUM",
       OPTION_ARG_OPTIONAL, "highlight one accepting run using color NUM", 0},
@@ -507,6 +513,16 @@ static bool const aliases_types[] =
   true, true, true, true,
 };
 ARGMATCH_VERIFY(aliases_args, aliases_types);
+
+static char const *const given_args[] =
+{
+  "restrict", "relax", "all", nullptr
+};
+static spot::given_strategy const given_types[] =
+{
+  spot::GIVEN_RESTRICT, spot::GIVEN_RELAX, spot::GIVEN_ALL
+};
+ARGMATCH_VERIFY(given_args, given_types);
 
 enum acc_type {
   ACC_Any = 0,
@@ -654,6 +670,7 @@ static bool opt_is_weak = false;
 static bool opt_is_inherently_weak = false;
 static bool opt_is_very_weak = false;
 static bool opt_is_stutter_invariant = false;
+static spot::given_strategy opt_given_strat = spot::given_strategy::GIVEN_ALL;
 static bool opt_invert = false;
 static range opt_states = { 0, std::numeric_limits<int>::max() };
 static range opt_edges = { 0, std::numeric_limits<int>::max() };
@@ -942,6 +959,12 @@ parse_opt(int key, char* arg, struct argp_state*)
       {
         spot::translator t(opt->dict);
         opt->given_automata.push_back(t.run(parse_formula_arg(arg)));
+        break;
+      }
+    case OPT_GIVEN_STRAT:
+      {
+        opt_given_strat = XARGMATCH("--given-strategy", arg,
+                                    given_args, given_types);
         break;
       }
     case OPT_HAS_EXIST_BRANCHING:
@@ -1595,7 +1618,7 @@ namespace
         aut = opt->rem_ap.strip(aut);
 
       for (spot::const_twa_graph_ptr knowledge: opt->given_automata)
-        aut = spot::given_here(aut, knowledge);
+        aut = spot::given_here(aut, knowledge, opt_given_strat);
 
       // opt_simplify_exclusive_ap is handled only after
       // post-processing.

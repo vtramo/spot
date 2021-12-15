@@ -27,7 +27,7 @@ namespace spot
 {
   twa_graph_ptr given_here(twa_graph_ptr& aut,
                            const_twa_graph_ptr& fact,
-                           given_strategy)
+                           given_strategy strat)
   {
     bdd aut_ap = aut->ap_vars();
     auto prod = product(aut, fact);
@@ -39,31 +39,90 @@ namespace spot
     scc_info si(prod, scc_info_options::TRACK_SUCCS);
     unsigned prod_ns = prod->num_states();
 
-    std::vector<bdd> edge_constraint(aut->edge_vector().size(),
-                                     bddfalse);
-    for (unsigned ps = 0; ps < prod_ns; ++ps)
-      if (si.is_useful_state(ps))
-        {
-          unsigned aut_src = ps_pair[ps].first;
-          for (auto& prod_edge: prod->out(ps))
-            if (si.is_useful_state(prod_edge.dst))
+    // if aut is incompatible with knowledge, simply return
+    // the false automaton.
+    if (!si.is_useful_state(prod->get_init_state_number()))
+      {
+        aut->set_init_state(aut->new_state());
+        aut->purge_dead_states();
+        aut->remove_unused_ap();
+        aut->prop_state_acc(true);
+        aut->prop_terminal(true);
+        aut->prop_universal(true);
+        aut->prop_complete(false);
+        aut->prop_stutter_invariant(true);
+        return aut;
+      }
+
+    if (strat & GIVEN_RESTRICT)
+      {
+        std::vector<bdd> edge_constraint(aut->edge_vector().size(),
+                                         bddfalse);
+        for (unsigned ps = 0; ps < prod_ns; ++ps)
+          if (si.is_useful_state(ps))
+            {
+              unsigned aut_src = ps_pair[ps].first;
+              for (auto& prod_edge: prod->out(ps))
+                if (si.is_useful_state(prod_edge.dst))
+                  {
+                    unsigned aut_dst = ps_pair[prod_edge.dst].first;
+                    for (auto& aut_edge: aut->out(aut_src))
+                      if (aut_edge.dst == aut_dst
+                          && bdd_implies(prod_edge.cond, aut_edge.cond))
+                        edge_constraint[aut->edge_number(aut_edge)]
+                          |= bdd_existcomp(prod_edge.cond, aut_ap);
+                  }
+            }
+        for (auto& e: aut->edges())
+          e.cond &= edge_constraint[aut->edge_number(e)];
+      }
+    if (strat & GIVEN_RELAX)
+      {
+        // Keep track of conditions that an edge is never synchronized
+        // with.
+        std::vector<bdd> edge_freedom(aut->edge_vector().size(),
+                                      bddtrue);
+        for (unsigned ps = 0; ps < prod_ns; ++ps)
+          {
+            auto [aut_src, fact_src] = ps_pair[ps];
+            for (auto& aut_edge: aut->out(aut_src))
               {
-                unsigned aut_dst = ps_pair[prod_edge.dst].first;
-                for (auto& aut_edge: aut->out(aut_src))
-                  if (aut_edge.dst == aut_dst
-                      && bdd_implies(prod_edge.cond, aut_edge.cond))
-                    edge_constraint[aut->edge_number(aut_edge)]
-                      |= bdd_existcomp(prod_edge.cond, aut_ap);
+                unsigned aut_edge_num = aut->edge_number(aut_edge);
+                bdd c = edge_freedom[aut_edge_num];
+                for (auto& fact_edge: fact->out(fact_src))
+                  {
+                    if (c == bddfalse)
+                      break;
+                    c -= bdd_existcomp(fact_edge.cond, aut_ap);
+                  }
+                edge_freedom[aut_edge_num] = c;
               }
-        }
-    for (auto& e: aut->edges())
-      e.cond &= edge_constraint[aut->edge_number(e)];
+          }
+        // Add edge_freedom only if it reduces the number of atomic
+        // propositions.  Ideally we could select any assignment between
+        // e.cond and max_cond.
+        for (auto& e: aut->edges())
+          {
+            if (e.cond == bddfalse)
+              continue;
+            bdd freedom = edge_freedom[aut->edge_number(e)];
+            bdd max_cond = e.cond | freedom;
+            if (max_cond == e.cond)
+              continue;
+            bdd sup_orig = bdd_support(e.cond);
+            bdd sup_new = bdd_support(max_cond);
+            if (max_cond != e.cond
+                && sup_orig != sup_new
+                && bdd_implies(sup_orig, sup_new))
+              e.cond = max_cond;
+          }
+      }
 
     aut->prop_keep({
         true,  // sbacc
         false, // inweak/weak/terminal
         false, // det/semidet/unambig
-        true,  // improve det/semidet/unambig
+        !(strat & GIVEN_RELAX), // improve det/semidet/unambig
         false, // complete
         false, // stutter
       });
