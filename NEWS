@@ -1,6 +1,10 @@
 New in spot 2.10.2.dev  (not yet released)
 
-  Nothing yet.
+  Bugs fixed:
+
+  - On automata where the absence of color is not rejecting
+    (e.g. co-Büchi) and where the initial state was in a rejecting
+    SCC, sbacc() could output a superflous state.  (Issue #492)
 
 New in spot 2.10.2  (2021-12-03)
 
