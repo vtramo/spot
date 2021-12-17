@@ -6,6 +6,11 @@ New in spot 2.10.2.dev  (not yet released)
     (e.g. co-Büchi) and where the initial state was in a rejecting
     SCC, sbacc() could output a superflous state.  (Issue #492)
 
+  - Compared to 2.9.8, complement() (and many functions using it) was
+    slower and produced larger outputs on some automata with more than
+    32 states due to an optimization of the determinization being
+    unintentionally disabled.
+
 New in spot 2.10.2  (2021-12-03)
 
   Bugs fixed:
