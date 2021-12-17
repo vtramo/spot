@@ -1,5 +1,23 @@
 New in spot 2.10.2.dev  (not yet released)
 
+  Library:
+
+  - "original-classes" is a new named property similar to
+    "original-states".  It maps an each state to an unsigned integer
+    such that if two classes are in the same class, they are expected
+    to recognize the same language.  The "original-states" should be
+    prefered property when that integer correspond to some actual
+    state.
+
+  - tgba_determinize() learned to fill the "original-classes" property.
+    States of the determinized automaton that correspond to the same
+    subset of states of the original automaton belong to the same
+    class.  Filling this property is only done on demand has it inccurs
+    on small overhead.
+
+  - sbacc() learned to take the "original-classes" property into
+    account and preserve it.
+
   Bugs fixed:
 
   - On automata where the absence of color is not rejecting

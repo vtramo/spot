@@ -983,6 +983,15 @@ static void* ptr_for_bdddict(PyObject* obj)
       <std::vector<std::pair<unsigned, unsigned>>>("product-states");
   }
 
+  std::vector<unsigned>* get_original_states()
+  {
+    return self->get_named_prop<std::vector<unsigned>>("original-states");
+  }
+
+  std::vector<unsigned>* get_original_classes()
+  {
+    return self->get_named_prop<std::vector<unsigned>>("original-classes");
+  }
 
   twa* highlight_state(unsigned state, unsigned color)
   {

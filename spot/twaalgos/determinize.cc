@@ -548,6 +548,35 @@ namespace spot
       return res;
     }
 
+    std::vector<unsigned>*
+    classify(const power_set& states,
+             const std::vector<unsigned>* original_class)
+    {
+      unsigned sz = states.size();
+      auto classes = new std::vector<unsigned>(sz);
+      std::vector<std::set<unsigned>> state_sets(sz);
+      for (const auto& p: states)
+        {
+          // Get the set of original stats of this
+          std::set<unsigned> s;
+          for (auto& n: p.first.nodes_)
+            {
+              unsigned st = n.first;
+              if (original_class)
+                st = (*original_class)[st];
+              s.insert(st);
+            }
+          state_sets[p.second] = std::move(s);
+        }
+      std::map<std::set<unsigned>, unsigned> seensets;
+      for (unsigned s = 0; s < sz; ++s)
+        {
+          auto p = seensets.emplace(state_sets[s], s);
+          (*classes)[s] = p.first->second;
+        }
+      return classes;
+    }
+
     class safra_support
     {
       const std::vector<bdd>& state_supports;
@@ -812,7 +841,8 @@ namespace spot
                    bool pretty_print, bool use_scc,
                    bool use_simulation, bool use_stutter,
                    const output_aborter* aborter,
-                   int trans_pruning)
+                   int trans_pruning,
+                   bool want_classes)
   {
     if (!a->is_existential())
       throw std::runtime_error
@@ -996,6 +1026,27 @@ namespace spot
 
     if (pretty_print)
       res->set_named_prop("state-names", print_debug(aut, seen));
+
+    if (want_classes)
+      {
+        auto* ptr =
+          aut->get_named_prop<std::vector<unsigned>>("original-states");
+        if (ptr && ptr->size() != aut->num_states())
+          throw std::runtime_error("tgba_determinize(): "
+                                   "input's \"original-states\" property "
+                                   "has unexpected size");
+        if (!ptr)
+          {
+            ptr =
+              aut->get_named_prop<std::vector<unsigned>>("original-classes");
+            if (ptr && ptr->size() != aut->num_states())
+              throw std::runtime_error("tgba_determinize(): "
+                                       "input's \"original-classes\" property "
+                                       "has unexpected size");
+          }
+        res->set_named_prop("original-classes", classify(seen, ptr));
+      }
+
     return res;
   }
 }

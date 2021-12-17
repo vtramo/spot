@@ -49,5 +49,10 @@ namespace spot
   /// vectors will be composed, so the `original-states[s]` in the
   /// output will contains the value of `original-states[y] if state s
   /// was created from state y.
+  ///
+  /// If the input has a property named "original-classes", then the
+  /// above "original-state" property is replaced by an
+  /// "original-classes" property such that
+  /// original-classes[s] is the class of the original state of s.
   SPOT_API twa_graph_ptr sbacc(twa_graph_ptr aut);
 }

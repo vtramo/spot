@@ -908,32 +908,22 @@ namespace spot
           }
         std::swap(*hs, hs2);
       }
-    if (auto os = get_named_prop<std::vector<unsigned>>("original-states"))
-      {
-        unsigned size = os->size();
-        for (unsigned s = 0; s < size; ++s)
-          {
-            unsigned dst = newst[s];
-            if (dst == s || dst == -1U)
-              continue;
-            assert(dst < s);
-            (*os)[dst] = (*os)[s];
-          }
-        os->resize(used_states);
-      }
-    if (auto dl = get_named_prop<std::vector<unsigned>>("degen-levels"))
-      {
-        unsigned size = dl->size();
-        for (unsigned s = 0; s < size; ++s)
-          {
-            unsigned dst = newst[s];
-            if (dst == s || dst == -1U)
-              continue;
-            assert(dst < s);
-            (*dl)[dst] = (*dl)[s];
-          }
-        dl->resize(used_states);
-      }
+    for (const char* prop: {"original-classes",
+                            "original-states",
+                            "degen-levels"})
+      if (auto os = get_named_prop<std::vector<unsigned>>(prop))
+        {
+          unsigned size = os->size();
+          for (unsigned s = 0; s < size; ++s)
+            {
+              unsigned dst = newst[s];
+              if (dst == s || dst == -1U)
+                continue;
+              assert(dst < s);
+              (*os)[dst] = (*os)[s];
+            }
+          os->resize(used_states);
+        }
     if (auto ss = get_named_prop<std::vector<unsigned>>("simulated-states"))
       {
         for (auto& s : *ss)

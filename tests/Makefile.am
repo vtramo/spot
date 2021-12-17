@@ -397,6 +397,7 @@ TESTS_python = \
   python/complement_semidet.py \
   python/declenv.py \
   python/decompose_scc.py \
+  python/det.py \
   python/dualize.py \
   python/ecfalse.py \
   python/except.py \

@@ -303,6 +303,7 @@ namespace spot
     COPY_PROP(hlmap, "highlight-edges");
     COPY_PROP(hlmap, "highlight-states");
     COPY_PROP(std::set<unsigned>, "incomplete-states");
+    COPY_PROP(std::vector<unsigned>, "original-classes");
     COPY_PROP(std::vector<unsigned>, "original-clauses");
     COPY_PROP(std::vector<unsigned>, "original-states");
     COPY_PROP(spot::product_states, "product-states");

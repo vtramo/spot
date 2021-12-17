@@ -95,7 +95,6 @@ namespace spot
     std::vector<std::pair<pair_t, unsigned>> todo;
     auto* origin = new std::vector<unsigned>;
     origin->reserve(ns);
-    res->set_named_prop("original-states", origin);
 
     auto new_state =
       [&](unsigned state, acc_cond::mark_t m) -> unsigned
@@ -186,11 +185,27 @@ namespace spot
       }
     res->merge_edges();
 
-    // Compose original-states with the any previously existing one.
-    if (auto old_orig_states =
-        old->get_named_prop<std::vector<unsigned>>("original-states"))
-      for (auto& s: *origin)
-        s = (*old_orig_states)[s];
+    // if we had some origin-classes, compose them, and output that
+    // instead of original-states.
+    if (auto old_orig_classes =
+        old->get_named_prop<std::vector<unsigned>>("original-classes"))
+      {
+        for (auto& s: *origin)
+          s = (*old_orig_classes)[s];
+
+        res->set_named_prop("original-classes", origin);
+      }
+    else
+      {
+        // Otherwise, define original-states, and compose it with any
+        // previously existing one.
+        if (auto old_orig_states =
+            old->get_named_prop<std::vector<unsigned>>("original-states"))
+          for (auto& s: *origin)
+            s = (*old_orig_states)[s];
+
+        res->set_named_prop("original-states", origin);
+      }
 
     // If the automaton was marked as not complete or not universal,
     // and we have ignored some unreachable state, then it is possible

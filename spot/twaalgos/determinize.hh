@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2015-2016, 2019-2020 Laboratoire de Recherche et
+// Copyright (C) 2015-2016, 2019-2021 Laboratoire de Recherche et
 // Développement de l'Epita.
 //
 // This file is part of Spot, a model checking library.
@@ -81,6 +81,14 @@ namespace spot
   /// \param trans_pruning when  \a use_simulation is true, \a trans_pruning
   ///                is passed to the simulation-based reduction to limit
   ///                the effect of transition pruning.
+  ///
+  /// \param want_classes If set, define a "original-class" named property
+  ///                as a vector of unsigned.  If two states are associated
+  ///                to the same integer, it means they use the same subset
+  ///                of original states as support, so they recognize the
+  ///                same language.  If the input define an "original-state"
+  ///                property (or else an "original-class" property), it is
+  ///                taken into account while computing the above support.
   SPOT_API twa_graph_ptr
   tgba_determinize(const const_twa_graph_ptr& aut,
                    bool pretty_print = false,
@@ -88,5 +96,6 @@ namespace spot
                    bool use_simulation = true,
                    bool use_stutter = true,
                    const output_aborter* aborter = nullptr,
-                   int trans_pruning = -1);
+                   int trans_pruning = -1,
+                   bool want_classes = false);
 }
