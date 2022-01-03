@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2013, 2014, 2015, 2016, 2017 Laboratoire de Recherche et
+// Copyright (C) 2013, 2014, 2015, 2016, 2017, 2022 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -117,6 +117,12 @@ namespace spot
   /// tool that produce Büchi automata in the form of a neverclaim,
   /// but is not understood by this parser, please report it to
   /// spot@lrde.epita.fr.
+  ///
+  /// The parser for HOA recognize a few extensions.  It maps the
+  /// `controlled-AP:` header \cite perez.19.hoa to the
+  /// `synthesis-output` property of Spot.  It also maps
+  /// `spot.highlight.edges:`, `spot.highlight.states:`, and
+  /// `spot.state-player:` to the associated automata properties.
   class SPOT_API automaton_stream_parser final
   {
     spot::location last_loc;

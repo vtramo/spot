@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2014-2021 Laboratoire de Recherche et
+// Copyright (C) 2014-2022 Laboratoire de Recherche et
 // Developpement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -624,6 +624,22 @@ namespace spot
             ++n;
             if (newline && n < num_states && (n % 30 == 0))
               os << "\n                  ";
+          }
+        os << nl;
+      }
+    if (auto synout = aut->get_named_prop<bdd>("synthesis-outputs"))
+      {
+        bdd vars = bdd_support(*synout);
+        os << "controllable-AP:";
+        while (vars != bddtrue)
+          {
+            int v = bdd_var(vars);
+            vars = bdd_high(vars);
+            if (auto p = md.ap.find(v); p != md.ap.end())
+              os << ' ' << p->second;
+            else
+              throw std::runtime_error("print_hoa(): synthesis-outputs has "
+                                       "unregistered proposition");
           }
         os << nl;
       }

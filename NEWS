@@ -18,6 +18,10 @@ New in spot 2.10.2.dev  (not yet released)
   - sbacc() learned to take the "original-classes" property into
     account and preserve it.
 
+  - The HOA parser and printer learned to map the synthesis-outputs
+    property of Spot to the controllable-AP header for the Extended
+    HOA format used in SyntComp.   https://arxiv.org/abs/1912.05793
+
   Bugs fixed:
 
   - On automata where the absence of color is not rejecting

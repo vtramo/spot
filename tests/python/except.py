@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2018-2021 Laboratoire de Recherche et Développement de
+# Copyright (C) 2018-2022 Laboratoire de Recherche et Développement de
 # l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -278,3 +278,14 @@ except OverflowError as e:
     assert "reversed" in str(e)
 else:
     report_missing_exception()
+
+
+a = spot.translate("a")
+b = spot.translate("b")
+spot.set_synthesis_outputs(a, b.ap_vars())
+try:
+    a.to_str()
+except RuntimeError as e:
+    se = str(e)
+    assert "synthesis-outputs" in se
+    assert "unregistered proposition" in se

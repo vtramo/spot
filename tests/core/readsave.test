@@ -1,6 +1,6 @@
 #!/bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2009, 2010, 2012, 2014-2021 Laboratoire de
+# Copyright (C) 2009, 2010, 2012, 2014-2022 Laboratoire de
 # Recherche et Développement de l'Epita (LRDE).
 # Copyright (C) 2003, 2004 Laboratoire d'Informatique de Paris 6 (LIP6),
 # département Systèmes Répartis Coopératifs (SRC), Université Pierre
@@ -34,6 +34,7 @@ AP: 3 "a" "b" "F\\G"
 acc-name: generalized-Buchi 2
 Acceptance: 2 Inf(0)&Inf(1)
 properties: trans-labels explicit-labels state-acc deterministic
+controllable-AP: 0 2
 --BODY--
 State: 0 {0 1}
 [0&!1] 1
@@ -66,6 +67,7 @@ AP: 2 "a" "b"
 acc-name: Buchi
 Acceptance: 1 Inf(0)
 properties: trans-labels explicit-labels trans-acc
+controllable-AP: /* empty */
 --BODY--
 State: 0
 [0&1] 1 {0}
@@ -86,6 +88,7 @@ AP: 2 "a" "b"
 acc-name: Buchi
 Acceptance: 1 Inf(0)
 properties: trans-labels explicit-labels trans-acc
+controllable-AP:
 --BODY--
 State: 0
 [!1] 1

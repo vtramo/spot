@@ -1,5 +1,5 @@
 /* -*- coding: utf-8 -*-
-** Copyright (C) 2014-2021 Laboratoire de Recherche et Développement
+** Copyright (C) 2014-2022 Laboratoire de Recherche et Développement
 ** de l'Epita (LRDE).
 **
 ** This file is part of Spot, a model checking library.
@@ -97,6 +97,10 @@ extern "C" int strverscmp(const char *s1, const char *s2);
       named_tgba_t* namer = nullptr;
       spot::acc_mapper_int* acc_mapper = nullptr;
       std::vector<int> ap;
+      std::vector<int> controllable_ap;
+      bool has_controllable_ap = false;
+      std::vector<spot::location> controllable_ap_loc;
+      spot::location controllable_aps_loc;
       std::vector<bdd> guards;
       std::vector<bdd>::const_iterator cur_guard;
       // If "Alias: ..." occurs before "AP: ..." in the HOA format we
@@ -233,6 +237,7 @@ extern "C" int strverscmp(const char *s1, const char *s2);
 %token ALIAS "Alias:"
 %token ACCEPTANCE "Acceptance:"
 %token ACCNAME "acc-name:"
+%token CONTROLLABLE_AP "controllable-AP:"
 %token TOOL "tool:"
 %token NAME "name:"
 %token PROPERTIES "properties:"
@@ -403,6 +408,37 @@ header: format-version header-items
                     "atomic proposition used in Alias without AP declaration");
               for (auto& p: res.alias)
                 p.second = bddtrue;
+            }
+          if (res.has_controllable_ap)
+            {
+              if (!res.ignore_more_ap && !res.controllable_ap.empty())
+                {
+                  error(res.controllable_aps_loc,
+                        "controllable-AP without AP declaration");
+                }
+              else
+                {
+                  bdd cont = bddtrue;
+                  unsigned n = res.controllable_ap.size();
+                  unsigned maxap = res.ap.size();
+                  for (unsigned i = 0; i < n; ++i)
+                    {
+                      unsigned c = res.controllable_ap[i];
+                      if (c >= maxap)
+                        {
+                          error(res.controllable_ap_loc[i],
+                                "controllable AP number is larger than"
+                                " the number of APs...");
+                          error(res.ap_loc, "... declared here.");
+                        }
+                      else
+                        {
+                          cont &= bdd_ithvar(res.ap[c]);
+                        }
+                    }
+                  res.aut_or_ks->set_named_prop("synthesis-outputs",
+                                                new bdd(cont));
+                }
             }
 	  // Process properties.
 	  {
@@ -683,6 +719,13 @@ version: IDENTIFIER
 
 format-version: "HOA:" { res.h->loc = @1; } version
 
+controllable-aps: %empty
+     | controllable-aps INT
+     {
+       res.controllable_ap.push_back($2);
+       res.controllable_ap_loc.push_back(@2);
+     }
+
 aps: "AP:" INT
      {
        if (res.ignore_more_ap)
@@ -766,6 +809,11 @@ header-item: "States:" INT
 	       res.start.emplace_back(@$, std::vector<unsigned>{$2});
 	     }
            | aps
+           | "controllable-AP:" controllable-aps
+             {
+               res.controllable_aps_loc = @1;
+               res.has_controllable_ap = true;
+             }
            | "Alias:" ANAME { res.in_alias=true; } label-expr
              {
                res.in_alias = false;

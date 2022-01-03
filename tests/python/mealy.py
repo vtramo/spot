@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2021 Laboratoire de Recherche et Développement de
+# Copyright (C) 2021, 2022 Laboratoire de Recherche et Développement de
 # l'EPITA.
 #
 # This file is part of Spot, a model checking library.
@@ -556,6 +556,7 @@ AP: 2 "a" "b"
 acc-name: all
 Acceptance: 0 t
 properties: trans-labels explicit-labels state-acc deterministic
+controllable-AP: 1
 --BODY--
 State: 0
 [0&1] 0
@@ -596,6 +597,7 @@ AP: 2 "a" "b"
 acc-name: all
 Acceptance: 0 t
 properties: trans-labels explicit-labels state-acc deterministic
+controllable-AP: 1
 --BODY--
 State: 0
 [!0&!1] 1
@@ -607,5 +609,3 @@ State: 1
 
 res = spot.reduce_mealy(aut, True)
 assert res.to_str() == exp
-
-

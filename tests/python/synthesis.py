@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2021 Laboratoire de Recherche et Développement
+# Copyright (C) 2021, 2022 Laboratoire de Recherche et Développement
 # de l'Epita
 #
 # This file is part of Spot, a model checking library.
@@ -38,6 +38,7 @@ Acceptance: 6 Inf(5) | (Fin(4) & (Inf(3) | (Fin(2) & (Inf(1) | Fin(0)))))
 properties: trans-labels explicit-labels state-acc colored complete
 properties: deterministic
 spot-state-player: 0 1 1
+controllable-AP:
 --BODY--
 State: 0 {1}
 [!0] 1
