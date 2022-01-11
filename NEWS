@@ -33,6 +33,9 @@ New in spot 2.10.2.dev  (not yet released)
     32 states due to an optimization of the determinization being
     unintentionally disabled.
 
+  - Work around GraphViz bug #2179 by avoiding unnecessary empty
+    lines in the acceptance conditions shown in dot.
+
 New in spot 2.10.2  (2021-12-03)
 
   Bugs fixed:
