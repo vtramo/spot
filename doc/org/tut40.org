@@ -25,7 +25,8 @@ $(s',c',a',d')$ leaving $s'$ with a condition $c'$ that covers $c$,
 some colors $a'\supseteq a$ that covers the colors of $a$ other
 transition, and reaching a destination state $d'$ that simulates $d$.
 
-In the following automaton, for instance, XXX
+In the following automaton, for instance, state 5 simulates state 1,
+and state 4 simulates state 0.
 
 #+NAME: tut40in
 #+BEGIN_SRC hoa
