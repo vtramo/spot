@@ -28,6 +28,7 @@ tl_HEADERS =					\
   contain.hh					\
   declenv.hh					\
   defaultenv.hh					\
+  derive.hh					\
   dot.hh					\
   environment.hh				\
   exclusive.hh					\
@@ -53,6 +54,7 @@ libtl_la_SOURCES =				\
   contain.cc					\
   declenv.cc					\
   defaultenv.cc					\
+  derive.cc					\
   dot.cc					\
   exclusive.cc					\
   formula.cc					\
