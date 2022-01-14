@@ -14,6 +14,9 @@ New in spot 2.10.2.dev  (not yet released)
   - Work around GraphViz bug #2179 by avoiding unnecessary empty
     lines in the acceptance conditions shown in dot.
 
+  - Fix a case where generic_accepting_run() incorrectly returns a
+    cycle around a rejecting self-loop.
+
 New in spot 2.10.2  (2021-12-03)
 
   Bugs fixed:
