@@ -86,6 +86,7 @@
 
 #include <spot/tl/apcollect.hh>
 #include <spot/tl/contain.hh>
+#include <spot/tl/derive.hh>
 #include <spot/tl/dot.hh>
 #include <spot/tl/nenoform.hh>
 #include <spot/tl/print.hh>
@@ -631,6 +632,7 @@ namespace std {
 
 %include <spot/tl/apcollect.hh>
 %include <spot/tl/contain.hh>
+%include <spot/tl/derive.hh>
 %include <spot/tl/dot.hh>
 %include <spot/tl/nenoform.hh>
 %include <spot/tl/sonf.hh>
