@@ -1,4 +1,4 @@
-New in spot 2.10.2.dev  (not yet released)
+New in spot 2.10.3.dev  (not yet released)
 
   Library:
 
@@ -22,22 +22,32 @@ New in spot 2.10.2.dev  (not yet released)
     property of Spot to the controllable-AP header for the Extended
     HOA format used in SyntComp.   https://arxiv.org/abs/1912.05793
 
+New in spot 2.10.3  (2022-01-15)
+
   Bugs fixed:
 
   - On automata where the absence of color is not rejecting
     (e.g. co-Büchi) and where the initial state was in a rejecting
-    SCC, sbacc() could output a superflous state.  (Issue #492)
+    SCC, sbacc() could output a superfluous state.  (Issue #492)
 
   - Compared to 2.9.8, complement() (and many functions using it) was
     slower and produced larger outputs on some automata with more than
     32 states due to an optimization of the determinization being
     unintentionally disabled.
 
+  - The split_2step() function used to create a synthesis game could
+    complain that it was unable to complement a monitor (Issue #495).
+
   - Work around GraphViz bug #2179 by avoiding unnecessary empty
     lines in the acceptance conditions shown in dot.
 
   - Fix a case where generic_accepting_run() incorrectly returns a
     cycle around a rejecting self-loop.
+
+  - Mealy machines resulting from SAT-based minimization could differ
+    on architectures with different hash tables implementations.
+
+  - org-mode moved to GNU ELPA (Issue #496).
 
 New in spot 2.10.2  (2021-12-03)
 
