@@ -630,12 +630,14 @@ acc-name: generalized-Buchi 2
 Acceptance: 2 Inf(0)&Inf(1)
 properties: trans-labels explicit-labels trans-acc complete
 properties: deterministic
+Alias: @a 0
+Alias: @b.c 1&2
 --BODY--
 State: 0
-[!0&!1 | !0&!2] 0
-[0&!1 | 0&!2] 0 {0}
-[!0&1&2] 0 {1}
-[0&1&2] 0 {0 1}
+[!@a&!@b.c] 0
+[@a&!@b.c] 0 {0}
+[@b.c&!@a] 0 {1}
+[@b.c&@a] 0 {0 1}
 --END--
 HOA: v1
 name: "GFa & GF(b & c)"
@@ -646,12 +648,14 @@ acc-name: generalized-Buchi 2
 Acceptance: 2 Inf(0)&Inf(1)
 properties: trans-labels explicit-labels trans-acc complete
 properties: deterministic
+Alias: @b.c 1&2
+Alias: @a 0
 --BODY--
 State: 0
-[!0&!1 | !0&!2] 0
-[0&!1 | 0&!2] 0 {0}
-[!0&1&2] 0 {1}
-[0&1&2] 0 {0 1}
+[!@a&!@b.c] 0
+[@a&!@b.c] 0 {0}
+[!@a&@b.c] 0 {1}
+[@a&@b.c] 0 {0 1}
 --END--
 HOA: v1
 States: 2

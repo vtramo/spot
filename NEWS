@@ -22,6 +22,14 @@ New in spot 2.10.3.dev  (not yet released)
     property of Spot to the controllable-AP header for the Extended
     HOA format used in SyntComp.   https://arxiv.org/abs/1912.05793
 
+  - "aliases" is a new named property that is filled by the HOA parser
+    using the list of aliases declared in the HOA file, and then used
+    by the HOA printer on a best-effort basis.  Aliases can be used to
+    make HOA files more compact or more readable.  But another
+    possible application is to use aliases to name letters of a 2^AP
+    alphabet, in applications where using atomic propositions is
+    inconvenient.
+
 New in spot 2.10.3  (2022-01-15)
 
   Bugs fixed:

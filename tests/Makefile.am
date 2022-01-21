@@ -1,5 +1,5 @@
 ## -*- coding: utf-8 -*-
-## Copyright (C) 2009-2021 Laboratoire de Recherche et Développement
+## Copyright (C) 2009-2022 Laboratoire de Recherche et Développement
 ## de l'Epita (LRDE).
 ## Copyright (C) 2003-2006 Laboratoire d'Informatique de Paris 6
 ## (LIP6), département Systèmes Répartis Coopératifs (SRC), Université
@@ -388,6 +388,7 @@ TESTS_python = \
   python/_aux.ipynb \
   python/accparse2.py \
   python/alarm.py \
+  python/aliases.py \
   python/aiger.py \
   python/alternating.py \
   python/bdddict.py \

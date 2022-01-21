@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2009-2021 Laboratoire de Recherche et Développement
+// Copyright (C) 2009-2022 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 // Copyright (C) 2003-2006 Laboratoire d'Informatique de Paris 6
 // (LIP6), département Systèmes Répartis Coopératifs (SRC), Université
@@ -515,6 +515,7 @@ namespace std {
   %template(vectoracccode) vector<spot::acc_cond::acc_code>;
   %template(vectorbool) vector<bool>;
   %template(vectorbdd) vector<bdd>;
+  %template(aliasvector) vector<pair<string, bdd>>;
   %template(vectorstring) vector<string>;
   %template(atomic_prop_set) set<spot::formula>;
   %template(relabeling_map) map<spot::formula, spot::formula>;

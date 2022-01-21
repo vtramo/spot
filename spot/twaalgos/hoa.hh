@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2014, 2015 Laboratoire de Recherche et Développement
+// Copyright (C) 2014, 2015, 2022 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -22,6 +22,9 @@
 #include <iosfwd>
 #include <spot/misc/common.hh>
 #include <spot/twa/fwd.hh>
+#include <vector>
+#include <utility>
+#include <bddx.h>
 
 namespace spot
 {
@@ -41,4 +44,22 @@ namespace spot
   print_hoa(std::ostream& os,
             const const_twa_ptr& g,
             const char* opt = nullptr);
+
+  /// \ingroup twa_io
+  /// \brief Obtain aliases used in the HOA format.
+  ///
+  /// Aliases are stored as a vector of pairs (name, bdd).
+  /// The bdd is expected to use only variable registered by \a g.
+  SPOT_API std::vector<std::pair<std::string, bdd>>*
+  get_aliases(const const_twa_ptr& g);
+
+  /// \ingroup twa_io
+  /// \brief Define all aliases used in the HOA format.
+  ///
+  /// Aliases are stored as a vector of pairs (name, bdd).
+  /// The bdd is expected to use only variable registered by \a g.
+  ///
+  /// Pass an empty vector to remove existing aliases.
+  SPOT_API void
+  set_aliases(twa_ptr& g, std::vector<std::pair<std::string, bdd>> aliases);
 }

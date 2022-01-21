@@ -120,6 +120,7 @@ extern "C" int strverscmp(const char *s1, const char *s2);
       std::vector<std::pair<spot::location,
                             std::vector<unsigned>>> start; // Initial states;
       std::unordered_map<std::string, bdd> alias;
+      std::vector<std::string> alias_order;
       struct prop_info
       {
 	spot::location loc;
@@ -823,6 +824,10 @@ header-item: "States:" INT
 		   o << "ignoring redefinition of alias @" << *$2;
 		   error(@$, o.str());
 		 }
+               else
+                 {
+                   res.alias_order.emplace_back(*$2);
+                 }
 	       delete $2;
 	       bdd_delref($4);
 	     }
@@ -2714,6 +2719,15 @@ namespace spot
       r.aut_or_ks->set_named_prop("highlight-states", r.highlight_states);
     if (r.state_player)
       r.aut_or_ks->set_named_prop("state-player", r.state_player);
+    if (!r.alias_order.empty())
+      {
+        auto* p = new std::vector<std::pair<std::string, bdd>>();
+        p->reserve(r.alias_order.size());
+        auto end = r.alias_order.rend();
+        for (auto i = r.alias_order.rbegin(); i != end; ++i)
+          p->emplace_back(*r.alias.find(*i));
+        r.aut_or_ks->set_named_prop("aliases", p);
+      }
     fix_acceptance(r);
     fix_initial_state(r);
     fix_properties(r);

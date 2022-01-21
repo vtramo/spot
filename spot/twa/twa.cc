@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2011, 2014-2019, 2021 Laboratoire de Recherche et
+// Copyright (C) 2011, 2014-2019, 2021, 2022 Laboratoire de Recherche et
 // Developpement de l'EPITA (LRDE).
 // Copyright (C) 2003, 2004, 2005 Laboratoire d'Informatique de Paris 6 (LIP6),
 // département Systèmes Répartis Coopératifs (SRC), Université Pierre
@@ -297,6 +297,8 @@ namespace spot
     if (auto* prop = a->get_named_prop<type>(name)) \
       set_named_prop(name, new type(*prop));
     COPY_PROP(std::string, "accepted-word");
+    typedef std::vector<std::pair<std::string, bdd>> aliasvect;
+    COPY_PROP(aliasvect, "aliases");
     COPY_PROP(std::string, "automaton-name");
     COPY_PROP(std::vector<unsigned>, "degen-levels");
     typedef std::map<unsigned, unsigned> hlmap;
