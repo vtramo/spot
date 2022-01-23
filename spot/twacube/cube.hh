@@ -60,21 +60,26 @@ namespace spot
   /// useless. Then, the 35 bits represents false value and the
   /// rest is useless.
   ///
-  /// Note that useless bits are only to perform some action efficiently,
+  /// \note Useless bits are only to perform some action efficiently,
   /// i.e. only by ignoring them. The manipulation of cubes must be done
   /// using the cubeset class
+  /// \note True is naturally represented by all bits (true and false)
+  /// being unset. False has no natural unique representation.
+  /// As soon as true and false are set for the same var, the cube is false.
+  /// To avoid this ambiguity, we consider a cube to be false when the first
+  /// bit is set for true and false
   using cube = unsigned*;
 
   class SPOT_API cubeset final
   {
     // \brief The total number of variables stored
-    size_t size_;
+    const unsigned size_;
 
     /// \brief The number of unsigned needed by the cube (for each part)
-    size_t uint_size_;
+    const unsigned uint_size_;
 
     /// \brief The number of bits for an unsigned int
-    size_t nb_bits_;
+    const unsigned nb_bits_;
 
   public:
     // Some default/deleted constructor/destructors
@@ -88,24 +93,38 @@ namespace spot
     cube alloc() const;
 
     /// \brief Set the variable at position \a x to true.
+    /// \pre cube is valid (asserted)
+    /// \post cube is valid (asserted)
     void set_true_var(cube c, unsigned int x) const;
 
     /// \brief Set the variable at position \a x to false.
+    /// \pre cube is valid (asserted)
+    /// \post cube is valid (asserted)
     void set_false_var(cube c, unsigned int x) const;
 
     /// \brief Check if the variable at position \a x is true.
+    /// \pre cube is valid (asserted)
     bool is_true_var(cube c, unsigned int x) const;
 
     /// \brief Check if the variable at position \a x is false.
+    /// \pre cube is valid (asserted)
     bool is_false_var(cube c, unsigned int x) const;
 
-    /// \brief return true if two cube intersect, i.e synchronisables.
+    /// \brief Checks if a cube corresponds to False
+    bool is_false(cube c) const;
+
+    /// \brief return true if two cubes intersect, i.e synchronisables.
     bool intersect(const cube lhs, const cube rhs) const;
 
-    /// \brief return a cube resulting from the intersection of the  two cubes
+    /// \brief return a cube resulting from the intersection of the two cubes
     cube intersection(const cube lhs, const cube rhs) const;
 
-    /// \brief Check wether \a lhs is valid, is there is not variable
+    /// \brief from the intersection is two cubes.
+    /// Return the new cube and whether or not the intersection is non-empty
+    std::pair<cube, bool>
+    intersection_check(const cube lhs, const cube rhs) const;
+
+    /// \brief Check whether \a lhs is valid, is there is not variable
     /// that is true and false at the same time.
     bool is_valid(const cube lhs) const;
 

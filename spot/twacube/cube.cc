@@ -26,12 +26,17 @@
 namespace spot
 {
   cubeset::cubeset(int aps)
+    : size_(aps)
+    , uint_size_(size_/(sizeof(unsigned int) * CHAR_BIT)
+                 + 1*((size_%(sizeof(unsigned int) * CHAR_BIT)) != 0))
+    , nb_bits_(sizeof(unsigned int) * CHAR_BIT)
   {
-    size_ = aps;
-    nb_bits_ = sizeof(unsigned int) * CHAR_BIT;
-    uint_size_ = 1;
-    while ((aps = aps -  nb_bits_)>0)
-      ++uint_size_;
+//    size_ = aps;
+//    nb_bits_ = sizeof(unsigned int) * CHAR_BIT;
+//    uint_size_ = 1;
+//    while ((aps = aps -  nb_bits_)>0)
+//      ++uint_size_;
+//    assert(uint_size_ == size_/nb_bits_ + 1*((size_%nb_bits_) != 0));
   }
 
   cube cubeset::alloc() const
@@ -41,6 +46,8 @@ namespace spot
 
   void cubeset::set_true_var(cube c, unsigned int x) const
   {
+    assert(is_valid(c)
+           && "cubeset::set_true_var(): Received invalid cube.\n");
     unsigned int i = x/nb_bits_;
     unsigned r = x-i*nb_bits_;
     *(c+i) |= 1 << r;
@@ -49,6 +56,8 @@ namespace spot
 
   void cubeset::set_false_var(cube c, unsigned int x) const
   {
+    assert(is_valid(c)
+           && "cubeset::set_false_var(): Received invalid cube.\n");
     unsigned int i = x/nb_bits_;
     unsigned r = x-i*nb_bits_;
     *(c+uint_size_+i) |= 1 << r;
@@ -57,21 +66,27 @@ namespace spot
 
   bool cubeset::is_true_var(cube c, unsigned int x) const
   {
+    assert(is_valid(c)
+           && "cubeset::is_true_var(): Received invalid cube.\n");
     unsigned int i = x/nb_bits_;
     unsigned r = x-i*nb_bits_;
-    assert((x-i*nb_bits_) == (x%nb_bits_) && "blob");
     bool true_var = (*(c+i) >> r) & 1;
-    bool false_var = (*(c+i+uint_size_) >> r) & 1;
-    return true_var && !false_var;
+    return true_var;
   }
 
   bool cubeset::is_false_var(cube c, unsigned int x) const
   {
-    unsigned int i = x/nb_bits_;
-    assert((x-i*nb_bits_) == (x%nb_bits_) && "blob");
-    bool true_var = (*(c+i) >> x%nb_bits_) & 1;
-    bool false_var = (*(c+i+uint_size_) >> x%nb_bits_) & 1;
-    return !true_var && false_var;
+    assert(is_valid(c)
+           && "cubeset::is_false_var(): Received invalid cube.\n");
+    unsigned i = x/nb_bits_;
+    unsigned r = x-i*nb_bits_;
+    bool false_var = (*(c+i+uint_size_) >> r) & 1;
+    return false_var;
+  }
+
+  bool cubeset::is_false(cube c) const
+  {
+    return *c & *(c + uint_size_) & 1;
   }
 
   bool cubeset::intersect(const cube lhs, const cube rhs) const
@@ -85,18 +100,32 @@ namespace spot
         false_elt = *(lhs+i+uint_size_) | *(rhs+i+uint_size_);
         incompatible |=  (true_elt & false_elt);
       }
+
     return !incompatible;
   }
 
-  cube cubeset::intersection(const cube lhs, const cube rhs) const
+  std::pair<cube, bool>
+  cubeset::intersection_check(const cube lhs, const cube rhs) const
   {
-    auto* res = new unsigned int[2*uint_size_];
+    auto* res = alloc();
     for (unsigned int i = 0; i < uint_size_; ++i)
       {
         res[i] = *(lhs+i) | *(rhs+i);
         res[i+uint_size_] = *(lhs+i+uint_size_) | *(rhs+i+uint_size_);
+        if (res[i] & res[i+uint_size_])
+          {
+            // If incompatible, the actual values are no longer of interest
+            // but make sure to be false
+            *res = 1;
+            *(res + uint_size_) = 1;
+          }
       }
-    return res;
+    return std::make_pair(res, true);
+  }
+
+  cube cubeset::intersection(const cube lhs, const cube rhs) const
+  {
+    return intersection_check(lhs, rhs).first;
   }
 
   bool cubeset::is_valid(const cube lhs) const
