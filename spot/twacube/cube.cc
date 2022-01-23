@@ -41,29 +41,36 @@ namespace spot
 
   void cubeset::set_true_var(cube c, unsigned int x) const
   {
-    *(c+x/nb_bits_) |= 1 << (x%nb_bits_);
-    *(c+uint_size_+x/nb_bits_) &= ~(1 << (x%nb_bits_));
+    unsigned int i = x/nb_bits_;
+    unsigned r = x-i*nb_bits_;
+    *(c+i) |= 1 << r;
+    *(c+uint_size_+i) &= ~(1 << r);
   }
 
   void cubeset::set_false_var(cube c, unsigned int x) const
   {
-    *(c+uint_size_+x/nb_bits_) |= 1 << (x%nb_bits_);
-    *(c+x/nb_bits_) &= ~(1 << (x%nb_bits_));
+    unsigned int i = x/nb_bits_;
+    unsigned r = x-i*nb_bits_;
+    *(c+uint_size_+i) |= 1 << r;
+    *(c+i) &= ~(1 << r);
   }
 
   bool cubeset::is_true_var(cube c, unsigned int x) const
   {
     unsigned int i = x/nb_bits_;
-    bool true_var = (*(c+i) >> x) & 1;
-    bool false_var = (*(c+i+uint_size_) >> x) & 1;
+    unsigned r = x-i*nb_bits_;
+    assert((x-i*nb_bits_) == (x%nb_bits_) && "blob");
+    bool true_var = (*(c+i) >> r) & 1;
+    bool false_var = (*(c+i+uint_size_) >> r) & 1;
     return true_var && !false_var;
   }
 
   bool cubeset::is_false_var(cube c, unsigned int x) const
   {
     unsigned int i = x/nb_bits_;
-    bool true_var = (*(c+i) >> x) & 1;
-    bool false_var = (*(c+i+uint_size_) >> x) & 1;
+    assert((x-i*nb_bits_) == (x%nb_bits_) && "blob");
+    bool true_var = (*(c+i) >> x%nb_bits_) & 1;
+    bool false_var = (*(c+i+uint_size_) >> x%nb_bits_) & 1;
     return !true_var && false_var;
   }
 
