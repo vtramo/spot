@@ -188,7 +188,6 @@ int main()
   // Additional is_true/is_false tests
   const unsigned NN = 101;
   auto ncset = spot::cubeset(NN);
-  std::cout << "add test" << std::endl;
   for (unsigned idx = 0; idx < NN; ++idx)
     {
       auto nc = ncset.alloc();

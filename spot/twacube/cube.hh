@@ -86,8 +86,8 @@ namespace spot
     {
       static_assert((UI == 1) || (UI == -1u),
                     "set_true_var_ needs template to be 1 or -1u");
-      assert(is_valid(c)
-             && "cubeset::set_true_var(): Received invalid cube.\n");
+      SPOT_ASSERT(is_valid(c)
+                  && "cubeset::set_true_var(): Received invalid cube.\n");
       if constexpr (UI == -1u)
         {
           unsigned i = x/nb_bits_;
@@ -109,8 +109,8 @@ namespace spot
     {
       static_assert((UI == 1) || (UI == -1u),
                     "set_false_var_ needs template to be 1 or -1u");
-      assert(is_valid(c)
-             && "cubeset::set_false_var(): Received invalid cube.\n");
+      SPOT_ASSERT(is_valid(c)
+                  && "cubeset::set_false_var(): Received invalid cube.\n");
       if constexpr (UI == -1u)
         {
           unsigned i = x/nb_bits_;
@@ -130,8 +130,8 @@ namespace spot
     {
       static_assert((UI == 1) || (UI == -1u),
                     "is_true_var_ needs template to be 1 or -1u");
-      assert(is_valid(c)
-             && "cubeset::is_true_var(): Received invalid cube.\n");
+      SPOT_ASSERT(is_valid(c)
+                  && "cubeset::is_true_var(): Received invalid cube.\n");
       if constexpr (UI == -1u)
         {
           unsigned i = x/nb_bits_;
@@ -147,8 +147,8 @@ namespace spot
   {
     static_assert((UI == 1) || (UI == -1u),
                   "is_false_var_ needs template to be 1 or -1u");
-    assert(is_valid(c)
-           && "cubeset::is_false_var(): Received invalid cube.\n");
+    SPOT_ASSERT(is_valid(c)
+                && "cubeset::is_false_var(): Received invalid cube.\n");
     if constexpr (UI == -1u)
       {
         unsigned i = x/nb_bits_;
@@ -266,8 +266,8 @@ namespace spot
     /// \post cube is valid (asserted)
     void set_true_var(cube c, unsigned int x) const
     {
-      assert(x < size_
-             && "cubeset::set_true_var(): index out of bounds");
+      SPOT_ASSERT(x < size_
+                  && "cubeset::set_true_var(): index out of bounds");
       switch (uint_size_)
       {
       case 1:
@@ -282,8 +282,8 @@ namespace spot
     /// \post cube is valid (asserted)
     void set_false_var(cube c, unsigned int x) const
     {
-      assert(x < size_
-      && "cubeset::set_false_var(): index out of bounds");
+      SPOT_ASSERT(x < size_
+                  && "cubeset::set_false_var(): index out of bounds");
       switch (uint_size_)
       {
       case 1:
@@ -297,8 +297,8 @@ namespace spot
     /// \pre cube is valid (asserted)
     bool is_true_var(cube c, unsigned int x) const
     {
-      assert(x < size_
-             && "cubeset::is_true_var(): index out of bounds");
+      SPOT_ASSERT(x < size_
+                  && "cubeset::is_true_var(): index out of bounds");
       switch (uint_size_)
       {
       case 1:
@@ -312,8 +312,8 @@ namespace spot
     /// \pre cube is valid (asserted)
     bool is_false_var(cube c, unsigned int x) const
     {
-      assert(x < size_
-             && "cubeset::is_false_var(): index out of bounds");
+      SPOT_ASSERT(x < size_
+                  && "cubeset::is_false_var(): index out of bounds");
       switch (uint_size_)
       {
       case 1:
@@ -377,7 +377,7 @@ namespace spot
     /// that is true and false at the same time.
     bool is_valid(const cube lhs) const
     {
-      switch(uint_size_)
+      switch (uint_size_)
       {
       case 1:
         return is_valid_<1>(lhs);
