@@ -104,6 +104,152 @@ namespace spot
         }
     }
 
+    template<unsigned UI>
+    void set_false_var_(cube c, unsigned int x) const
+    {
+      static_assert((UI == 1) || (UI == -1u),
+                    "set_false_var_ needs template to be 1 or -1u");
+      assert(is_valid(c)
+             && "cubeset::set_false_var(): Received invalid cube.\n");
+      if constexpr (UI == -1u)
+        {
+          unsigned i = x/nb_bits_;
+          unsigned r = x-i*nb_bits_;
+          *(c+uint_size_+i) |= 1 << r;
+          *(c+i) &= ~(1 << r);
+        }
+      else
+        {
+          *(c+uint_size_) |= 1 << x;
+          *c &= ~(1 << x);
+        }
+    }
+
+  template<unsigned UI>
+  bool is_true_var_(cube c, unsigned int x) const
+    {
+      static_assert((UI == 1) || (UI == -1u),
+                    "is_true_var_ needs template to be 1 or -1u");
+      assert(is_valid(c)
+             && "cubeset::is_true_var(): Received invalid cube.\n");
+      if constexpr (UI == -1u)
+        {
+          unsigned i = x/nb_bits_;
+          unsigned r = x-i*nb_bits_;
+          bool true_var = (*(c+i) >> r) & 1;
+          return true_var;
+        }
+      else
+        return (*c >> x) & 1;
+    }
+  template<unsigned UI>
+  bool is_false_var_(cube c, unsigned int x) const
+  {
+    static_assert((UI == 1) || (UI == -1u),
+                  "is_false_var_ needs template to be 1 or -1u");
+    assert(is_valid(c)
+           && "cubeset::is_false_var(): Received invalid cube.\n");
+    if constexpr (UI == -1u)
+      {
+        unsigned i = x/nb_bits_;
+        unsigned r = x-i*nb_bits_;
+        bool false_var = (*(c+uint_size_+i) >> r) & 1;
+        return false_var;
+      }
+    else
+      return (*(c+uint_size_) >> x) & 1;
+  }
+
+  // todo: make it a function in a private header?
+  template<unsigned UI, bool dummy = false>
+  bool intersect_(const cube lhs, const cube rhs) const
+  {
+    unsigned true_elt;
+    unsigned false_elt;
+    for (unsigned int i = 0; i < UI; ++i)
+      {
+        true_elt = *(lhs+i) | *(rhs+i);
+        false_elt = *(lhs+i+uint_size_) | *(rhs+i+uint_size_);
+        if (true_elt & false_elt)
+          return false;
+      }
+
+    return true;
+  }
+
+  bool intersect_dyn_(const cube lhs, const cube rhs) const
+  {
+    unsigned true_elt;
+    unsigned false_elt;
+    for (unsigned int i = 0; i < uint_size_; ++i)
+    {
+      true_elt = *(lhs+i) | *(rhs+i);
+      false_elt = *(lhs+i+uint_size_) | *(rhs+i+uint_size_);
+      if (true_elt & false_elt)
+        return false;
+    }
+
+    return true;
+  }
+
+  template<unsigned UI>
+  std::pair<cube, bool>
+  intersection_check_(const cube lhs, const cube rhs) const
+  {
+    auto* res = alloc();
+    for (unsigned i = 0; i < UI; ++i)
+      {
+        res[i] = *(lhs+i) | *(rhs+i);
+        res[i+uint_size_] = *(lhs+i+uint_size_) | *(rhs+i+uint_size_);
+        if (res[i] & res[i+uint_size_])
+          {
+            // If incompatible, the actual values are no longer of interest
+            // but make sure to be false
+            *res = 1;
+            *(res + uint_size_) = 1;
+            return std::make_pair(res, false);
+          }
+      }
+    return std::make_pair(res, true);
+  }
+
+  std::pair<cube, bool>
+  intersection_check_dyn_(const cube lhs, const cube rhs) const
+  {
+    auto* res = alloc();
+    for (unsigned i = 0; i < uint_size_; ++i)
+    {
+      res[i] = *(lhs+i) | *(rhs+i);
+      res[i+uint_size_] = *(lhs+i+uint_size_) | *(rhs+i+uint_size_);
+      if (res[i] & res[i+uint_size_])
+      {
+        // If incompatible, the actual values are no longer of interest
+        // but make sure to be false
+        *res = 1;
+        *(res + uint_size_) = 1;
+        return std::make_pair(res, false);
+      }
+    }
+    return std::make_pair(res, true);
+  }
+
+  template<unsigned UI>
+  bool is_valid_(const cube lhs) const
+  {
+    for (unsigned i = 0; i < UI; ++i)
+      if (*(lhs+i) & *(lhs+i+uint_size_))
+        return false;
+    return true;
+  }
+
+  bool is_valid_dyn_(const cube lhs) const
+  {
+    for (unsigned i = 0; i < uint_size_; ++i)
+      if (*(lhs+i) & *(lhs+i+uint_size_))
+        return false;
+    return true;
+  }
+
   public:
     // Some default/deleted constructor/destructors
     cubeset() = delete;
@@ -134,36 +280,136 @@ namespace spot
     /// \brief Set the variable at position \a x to false.
     /// \pre cube is valid (asserted)
     /// \post cube is valid (asserted)
-    void set_false_var(cube c, unsigned int x) const;
+    void set_false_var(cube c, unsigned int x) const
+    {
+      assert(x < size_
+      && "cubeset::set_false_var(): index out of bounds");
+      switch (uint_size_)
+      {
+      case 1:
+        return set_false_var_<1>(c, x);
+      default:
+        return set_false_var_<-1u>(c, x);
+      }
+    }
 
     /// \brief Check if the variable at position \a x is true.
     /// \pre cube is valid (asserted)
-    bool is_true_var(cube c, unsigned int x) const;
+    bool is_true_var(cube c, unsigned int x) const
+    {
+      assert(x < size_
+             && "cubeset::is_true_var(): index out of bounds");
+      switch (uint_size_)
+      {
+      case 1:
+        return is_true_var_<1>(c, x);
+      default:
+        return is_true_var_<-1u>(c, x);
+      }
+    }
 
     /// \brief Check if the variable at position \a x is false.
     /// \pre cube is valid (asserted)
-    bool is_false_var(cube c, unsigned int x) const;
+    bool is_false_var(cube c, unsigned int x) const
+    {
+      assert(x < size_
+             && "cubeset::is_false_var(): index out of bounds");
+      switch (uint_size_)
+      {
+      case 1:
+        return is_false_var_<1>(c, x);
+      default:
+        return is_false_var_<-1u>(c, x);
+      }
+    }
 
     /// \brief Checks if a cube corresponds to False
-    bool is_false(cube c) const;
+    bool is_false(cube c) const
+    {
+      return *c & *(c + uint_size_) & 1;
+    }
 
     /// \brief return true if two cubes intersect, i.e synchronisables.
-    bool intersect(const cube lhs, const cube rhs) const;
+    bool intersect(const cube lhs, const cube rhs) const
+    {
+      switch(uint_size_)
+      {
+      case 1:
+        return intersect_<1>(lhs, rhs);
+      case 2:
+        return intersect_<2>(lhs, rhs);
+      case 3:
+        return intersect_<3>(lhs, rhs);
+      case 4:
+        return intersect_<4>(lhs, rhs);
+      default:
+        return intersect_dyn_(lhs, rhs);
+      }
+    }
 
     /// \brief return a cube resulting from the intersection of the two cubes
-    cube intersection(const cube lhs, const cube rhs) const;
+    cube intersection(const cube lhs, const cube rhs) const
+    {
+      return intersection_check(lhs, rhs).first;
+    }
 
     /// \brief from the intersection is two cubes.
     /// Return the new cube and whether or not the intersection is non-empty
     std::pair<cube, bool>
-    intersection_check(const cube lhs, const cube rhs) const;
+    intersection_check(const cube lhs, const cube rhs) const
+    {
+      switch(uint_size_)
+      {
+      case 1:
+        return intersection_check_<1>(lhs, rhs);
+      case 2:
+        return intersection_check_<2>(lhs, rhs);
+      case 3:
+        return intersection_check_<3>(lhs, rhs);
+      case 4:
+        return intersection_check_<4>(lhs, rhs);
+      default:
+        return intersection_check_dyn_(lhs, rhs);
+      }
+    }
 
     /// \brief Check whether \a lhs is valid, is there is not variable
     /// that is true and false at the same time.
-    bool is_valid(const cube lhs) const;
+    bool is_valid(const cube lhs) const
+    {
+      switch(uint_size_)
+      {
+      case 1:
+        return is_valid_<1>(lhs);
+      case 2:
+        return is_valid_<2>(lhs);
+      case 3:
+        return is_valid_<3>(lhs);
+      case 4:
+        return is_valid_<4>(lhs);
+      default:
+        return is_valid_dyn_(lhs);
+      }
+    }
+
+    /// \brief Verify that a cube does not correspond to False.
+    /// If it is false, put in cannoncical form
+    bool make_valid(cube lhs) const
+    {
+      if (!is_valid(lhs))
+        {
+          *(lhs) = 1;
+          *(lhs+uint_size_) = 1;
+          return false;
+        }
+      return true;
+    }
 
     /// \brief Return the size of each cube.
-    size_t size() const;
+    size_t size() const
+    {
+      return size_;
+    }
 
     /// \brief Release a cube.
     void release(cube lhs) const;
