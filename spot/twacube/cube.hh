@@ -251,6 +251,10 @@ namespace spot
   }
 
   public:
+    size_t size() const {return size_; }
+    size_t uint_size() const {return uint_size_; }
+    size_t nb_bits_() const {return nb_bits_; }
+
     // Some default/deleted constructor/destructors
     cubeset() = delete;
     ~cubeset() = default;

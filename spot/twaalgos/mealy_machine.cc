@@ -36,6 +36,8 @@
 #include <spot/twaalgos/hoa.hh>
 #include <spot/twaalgos/synthesis.hh>
 
+#include <spot/twacube/cube.hh>
+
 #include <picosat/picosat.h>
 
 
@@ -1104,6 +1106,11 @@ namespace
             mm_t->new_edge(dst_env, s, e_env.cond);
           }
       }
+
+    // Check which conditions are actually cubes
+    // How many outputs?
+    const unsigned n_ap_outs = bdd_nodecount(get_synthesis_outputs(mm));
+    auto cube_set_out = cubeset(n_ap_outs);
 
     // Utility function
     auto get_cond = [&mm](unsigned s)->const bdd&
