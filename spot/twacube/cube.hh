@@ -81,6 +81,29 @@ namespace spot
     /// \brief The number of bits for an unsigned int
     const unsigned nb_bits_;
 
+    template<unsigned UI>
+    void set_true_var_(cube c, unsigned int x) const
+    {
+      static_assert((UI == 1) || (UI == -1u),
+                    "set_true_var_ needs template to be 1 or -1u");
+      assert(is_valid(c)
+             && "cubeset::set_true_var(): Received invalid cube.\n");
+      if constexpr (UI == -1u)
+        {
+          unsigned i = x/nb_bits_;
+          unsigned r = x-i*nb_bits_;
+          unsigned b = 1 << r;
+          *(c+i) |= b;
+          *(c+uint_size_+i) &= ~b;
+        }
+      else
+        {
+          unsigned b = 1 << x;
+          *(c) |= b;
+          *(c+uint_size_) &= ~b;
+        }
+    }
+
   public:
     // Some default/deleted constructor/destructors
     cubeset() = delete;
@@ -95,7 +118,18 @@ namespace spot
     /// \brief Set the variable at position \a x to true.
     /// \pre cube is valid (asserted)
     /// \post cube is valid (asserted)
-    void set_true_var(cube c, unsigned int x) const;
+    void set_true_var(cube c, unsigned int x) const
+    {
+      assert(x < size_
+             && "cubeset::set_true_var(): index out of bounds");
+      switch (uint_size_)
+      {
+      case 1:
+        return set_true_var_<1>(c, x);
+      default:
+        return set_true_var_<-1u>(c, x);
+      }
+    }
 
     /// \brief Set the variable at position \a x to false.
     /// \pre cube is valid (asserted)

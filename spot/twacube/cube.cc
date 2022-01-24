@@ -31,12 +31,6 @@ namespace spot
                  + 1*((size_%(sizeof(unsigned int) * CHAR_BIT)) != 0))
     , nb_bits_(sizeof(unsigned int) * CHAR_BIT)
   {
-//    size_ = aps;
-//    nb_bits_ = sizeof(unsigned int) * CHAR_BIT;
-//    uint_size_ = 1;
-//    while ((aps = aps -  nb_bits_)>0)
-//      ++uint_size_;
-//    assert(uint_size_ == size_/nb_bits_ + 1*((size_%nb_bits_) != 0));
   }
 
   cube cubeset::alloc() const
@@ -44,15 +38,15 @@ namespace spot
     return new unsigned int[2*uint_size_]();
   }
 
-  void cubeset::set_true_var(cube c, unsigned int x) const
-  {
-    assert(is_valid(c)
-           && "cubeset::set_true_var(): Received invalid cube.\n");
-    unsigned int i = x/nb_bits_;
-    unsigned r = x-i*nb_bits_;
-    *(c+i) |= 1 << r;
-    *(c+uint_size_+i) &= ~(1 << r);
-  }
+//  void cubeset::set_true_var(cube c, unsigned int x) const
+//  {
+//    assert(is_valid(c)
+//           && "cubeset::set_true_var(): Received invalid cube.\n");
+//    unsigned int i = x/nb_bits_;
+//    unsigned r = x-i*nb_bits_;
+//    *(c+i) |= 1 << r;
+//    *(c+uint_size_+i) &= ~(1 << r);
+//  }
 
   void cubeset::set_false_var(cube c, unsigned int x) const
   {
