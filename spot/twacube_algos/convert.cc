@@ -46,6 +46,17 @@ namespace spot
     return cube;
   }
 
+  cube try_satone_to_cube(bdd one, cubeset& cubeset,
+                          std::unordered_map<int, int>& binder)
+  {
+    assert(one != bddfalse && "try_satone_cube(): Input is False");
+    if (bdd_is_cube(one))
+      return satone_to_cube(one, cubeset, binder);
+    else
+      return nullptr;
+  }
+
+
   bdd cube_to_bdd(spot::cube cube, const cubeset& cubeset,
                   std::unordered_map<int, int>& reverse_binder)
   {

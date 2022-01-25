@@ -32,8 +32,14 @@ namespace spot
   /// \brief Transform one truth assignment represented as a BDD
   /// into a \a cube cube passed in parameter. The parameter
   /// \a binder map bdd indexes to cube indexes.
+  /// \pre \one corresponds to a cube
   SPOT_API spot::cube satone_to_cube(bdd one, cubeset& cubeset,
                                      std::unordered_map<int, int>& binder);
+
+  /// \brief Like satone_to_cube, however if \one is not a cube
+  /// the nullptr is returned
+  SPOT_API spot::cube try_satone_to_cube(bdd one, cubeset& cubeset,
+                                         std::unordered_map<int, int>& binder);
 
   /// \brief Transform a \a cube cube into bdd using the map
   /// that bind cube indexes to bdd indexes.
