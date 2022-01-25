@@ -27,6 +27,8 @@
 #include <vector>
 #include <sstream>
 #include <string>
+#include <variant>
+#include <cassert>
 
 #include <spot/misc/bddlt.hh>
 #include <spot/misc/hash.hh>
@@ -37,6 +39,7 @@
 #include <spot/twaalgos/synthesis.hh>
 
 #include <spot/twacube/cube.hh>
+#include <spot/twacube_algos/convert.hh>
 
 #include <picosat/picosat.h>
 
@@ -274,7 +277,7 @@ namespace spot
   twa_graph_ptr
   split_separated_mealy(const const_twa_graph_ptr& m)
   {
-    assert(is_mealy((m)));
+    assert(is_mealy(m));
     auto m2 = make_twa_graph(m, twa::prop_set::all());
     m2->copy_acceptance_of(m);
     set_synthesis_outputs(m2, get_synthesis_outputs(m));
@@ -1086,6 +1089,45 @@ namespace
   {
     const unsigned n_tot = mm->num_states();
 
+    // Everything related to cubes
+    // todo avoid the excessive alloc()
+    auto get_binder = [](bdd b)
+      {
+        // todo get_binder in convert?
+        const unsigned n_ap = bdd_nodecount(b);
+        auto binder = std::unordered_map<int,int>(n_ap);
+
+        int n = 0;
+        while(b != bddtrue)
+          {
+            binder[bdd_var(b)] = n++;
+            if (bdd_high(b) == bddfalse)
+              b = bdd_low(b);
+            else
+              b = bdd_high(b);
+          }
+        return binder;
+      };
+
+    // output cubeset
+    const unsigned n_ap_outs = bdd_nodecount(get_synthesis_outputs(mm));
+    auto cube_set_out = cubeset(n_ap_outs);
+    auto binder_out = get_binder(get_synthesis_outputs(mm));
+    // input cubeset
+    const bdd in_ap = bdd_exist(mm->ap_vars(),
+                                get_synthesis_outputs(mm));
+    const unsigned n_ap_in = bdd_nodecount(get_synthesis_outputs(mm));
+    auto cube_set_in = cubeset(n_ap_in);
+    auto binder_in = get_binder(in_ap);
+
+    // We want a vector for cubes of env edges
+    // and one for the transposed graph
+    auto cond_env_vec
+        = std::vector<cube>(mm->edge_vector().size(), nullptr);
+    auto cond_env_vec_t = std::vector<cube>();
+
+
+
     // Final result
     square_matrix<bool, true> inc_env(n_env, false);
 
@@ -1097,20 +1139,35 @@ namespace
     auto mm_t = make_twa_graph(mm->get_dict());
     mm_t->copy_ap_of(mm);
     mm_t->new_states(n_env);
+    {
+      cond_env_vec_t.push_back(nullptr);
+      auto envcond2cube = std::unordered_map<int, cube>(cond_env_vec.size()/2);
+      for (unsigned s = 0; s < n_env; ++s)
+        {
+          for (const auto& e_env : mm->out(s))
+            {
+              unsigned dst_env = mm->out(e_env.dst).begin()->dst;
+              auto ne_t = mm_t->new_edge(dst_env, s, e_env.cond);
+              //Check if it can be converted to c
+              auto ne = mm->edge_number(e_env);
+              auto it = envcond2cube.find(e_env.cond.id());
+              if (it == envcond2cube.end())
+                {
+                  bool inserted;
+                  std::tie(it, inserted)
+                      = envcond2cube.emplace(e_env.cond.id(),
+                                             try_satone_to_cube(e_env.cond,
+                                                                cube_set_in,
+                                                                binder_in));
+                  assert(inserted && "Not found and not inserted?");
+                }
+              cond_env_vec[ne] = it->second;
+              cond_env_vec_t.push_back(it->second);
+              assert(cond_env_vec_t.size() == ne_t+1);
+            }
+        }
+    }
 
-    for (unsigned s = 0; s < n_env; ++s)
-      {
-        for (const auto& e_env : mm->out(s))
-          {
-            unsigned dst_env = mm->out(e_env.dst).begin()->dst;
-            mm_t->new_edge(dst_env, s, e_env.cond);
-          }
-      }
-
-    // Check which conditions are actually cubes
-    // How many outputs?
-    const unsigned n_ap_outs = bdd_nodecount(get_synthesis_outputs(mm));
-    auto cube_set_out = cubeset(n_ap_outs);
 
     // Utility function
     auto get_cond = [&mm](unsigned s)->const bdd&
@@ -1123,19 +1180,25 @@ namespace
     // We want the matrix for faster checks later on,
     // but it is beneficial to first compute the
     // compatibility between the conditions as there might be fewer
-    std::unordered_map<std::pair<unsigned, unsigned>, bool, pair_hash>
-        cond_comp;
     // Associated condition and id of each player state
-    std::vector<std::pair<bdd, unsigned>> ps2c;
+    // The condition can be either a cube or a bdd
+    // State -> "internal" bdd id
+    std::vector<unsigned> ps2c;
     ps2c.reserve(n_tot - n_env);
-    std::unordered_map<unsigned, unsigned> all_out_cond;
+    // bdd id -> "internal" bdd id and possibly cube
+    std::unordered_map<int,
+                       std::pair<unsigned, cube>> all_out_cond;
     for (unsigned s1 = n_env; s1 < n_tot; ++s1)
       {
         const bdd &c1 = get_cond(s1);
-        const unsigned c1id = (unsigned)c1.id();
+        // todo perfect forward
         const auto& [it, inserted] =
-            all_out_cond.try_emplace(c1id, all_out_cond.size());
-        ps2c.emplace_back(c1, it->second);
+            all_out_cond.try_emplace(c1.id(),
+                                     std::make_pair(all_out_cond.size(),
+                                      try_satone_to_cube(c1, cube_set_out,
+                                                         binder_out)));
+
+        ps2c.emplace_back(it->second.first);
 #ifdef TRACE
         if (inserted)
           trace << "Register oc " << it->first << ", " << it->second
@@ -1145,32 +1208,40 @@ namespace
     // Are two player condition ids states incompatible
     square_matrix<bool, true> inc_player(all_out_cond.size(), false);
     // Compute. First is id of bdd
-    for (const auto& p1 : all_out_cond)
-      for (const auto& p2 : all_out_cond)
-        {
-          if (p1.second > p2.second)
-            continue;
-          inc_player.set(p1.second, p2.second,
-                         !bdd_have_common_assignment(
-                             bdd_from_int((int) p1.first),
-                             bdd_from_int((int) p2.first)));
-          assert(inc_player.get(p1.second, p2.second)
-                 == ((bdd_from_int((int) p1.first)
-                     & bdd_from_int((int) p2.first)) == bddfalse));
-        }
+    for (const auto& [c1id, val1] : all_out_cond)
+      {
+        const auto &[c1idx, c1c] = val1;
+        for (const auto &[c2id, val2] : all_out_cond)
+          {
+            const auto &[c2idx, c2c] = val2;
+            if (c1idx > c2idx)
+              continue;
+            // todo: dedicated algo for inter bdd, cube
+            auto inter =
+                (c1c && c2c) ? cube_set_out.intersect(c1c, c2c)
+                             : bdd_have_common_assignment(bdd_from_int(c1id),
+                                                          bdd_from_int(c2id));
+            inc_player.set(c1idx, c2idx, !inter);
+
+            assert(inc_player.get(c1idx, c2idx) ==
+                   ((bdd_from_int(c1id) & bdd_from_int(c2id)) ==
+                    bddfalse));
+          }
+      }
     auto is_p_incomp = [&](unsigned s1, unsigned s2)
       {
-        return inc_player.get(ps2c[s1].second, ps2c[s2].second);
+        return inc_player.get(ps2c[s1], ps2c[s2]);
       };
 
     dotimeprint << "Done computing player incomp " << sw.stop() << '\n';
 
-#ifdef TRACE
-    trace << "player cond id incomp\n";
-    for (const auto& elem : all_out_cond)
-      trace << elem.second << " - " << bdd_from_int((int) elem.first) << '\n';
-    inc_player.print(std::cerr);
-#endif
+//#ifdef TRACE
+//    std::cerr << "player cond id incomp\n";
+//    for (const auto& elem : all_out_cond)
+//      std::cerr << elem.second.first << ", " << elem.second.second
+//                << " - " << bdd_from_int(elem.first) << '\n';
+//    inc_player.print(std::cerr);
+//#endif
     // direct incomp: Two env states can reach incompatible player states
     // under the same input
     auto direct_incomp = [&](unsigned s1, unsigned s2)
@@ -1181,7 +1252,15 @@ namespace
               if (!is_p_incomp(e1.dst - n_env, e2.dst - n_env))
                 continue; //Compatible -> no prob
               // Reachable under same letter?
-              if (bdd_have_common_assignment(e1.cond, e2.cond))
+              // Take advantage of cubes
+              auto ne1 = mm->edge_number(e1);
+              auto ne2 = mm->edge_number(e2);
+              auto inter
+                  = cond_env_vec[ne1] && cond_env_vec[ne2]
+                    ? cube_set_in.intersect(cond_env_vec[ne1],
+                                            cond_env_vec[ne2])
+                    : bdd_have_common_assignment(e1.cond, e2.cond);
+              if (inter)
                 {
                   trace << s1 << " and " << s2 << " directly incomp "
                         "due to successors " << e1.dst << " and " << e2.dst
@@ -1214,8 +1293,17 @@ namespace
                   if (inc_env.get(ei.dst, ej.dst))
                     // Have already been treated
                     continue;
+                  // Take advantage of cubes
+                  auto nei = mm_t->edge_number(ei);
+                  auto nej = mm_t->edge_number(ej);
+                  auto inter
+                      = cond_env_vec_t[nei] && cond_env_vec_t[nej]
+                        ? cube_set_in.intersect(cond_env_vec_t[nei],
+                                                cond_env_vec_t[nej])
+                        : bdd_have_common_assignment(ei.cond, ej.cond);
+
                   // Now we need to actually check it
-                  if (bdd_have_common_assignment(ei.cond, ej.cond))
+                  if (inter)
                     {
                       trace << ei.dst << " and " << ej.dst << " tagged incomp"
                             " due to " << i << " and " << j << '\n';
@@ -1242,10 +1330,10 @@ namespace
             }
         }
 
-#ifdef TRACE
-    trace << "Env state incomp\n";
-    inc_env.print(std::cerr);
-#endif
+//#ifdef TRACE
+//    std::cerr << "Env state incomp\n";
+//    inc_env.print(std::cerr);
+//#endif
 
     return inc_env;
   }
@@ -1308,15 +1396,15 @@ namespace
     std::transform(incompvec.begin(), incompvec.end(),
                    part_sol.incompvec.begin(),
                    [](auto& p){return p.first; });
-#ifdef TRACE
-    std::cerr << "partsol\n";
-    for (auto e : psol)
-      std::cerr << e << ' ';
-    std::cerr << "\nAssociated classes\n";
-    for (unsigned e : part_sol.is_psol)
-      std::cerr << (e == -1u ? -1 : (int) e) << ' ';
-    std::cerr << '\n';
-#endif
+//#ifdef TRACE
+//    std::cerr << "partsol\n";
+//    for (auto e : psol)
+//      std::cerr << e << ' ';
+//    std::cerr << "\nAssociated classes\n";
+//    for (unsigned e : part_sol.is_psol)
+//      std::cerr << (e == -1u ? -1 : (int) e) << ' ';
+//    std::cerr << '\n';
+//#endif
     return part_sol;
   }
 
@@ -1400,11 +1488,11 @@ namespace
           }
         ++n_group;
       }
-#ifdef TRACE
-      trace << "We found " << n_group << " groups.\n";
-      for (unsigned s = 0; s < n_env; ++s)
-        trace << s << " : " << which_group.at(s) << '\n';
-#endif
+//#ifdef TRACE
+//      std::cerr << "We found " << n_group << " groups.\n";
+//      for (unsigned s = 0; s < n_env; ++s)
+//        trace << s << " : " << which_group.at(s) << '\n';
+//#endif
     return std::make_pair(n_group, which_group);
   }
 
@@ -1520,18 +1608,18 @@ namespace
                   group_letters.emplace_back(rcond, std::set<int>{econd_id});
               }
           }
-#ifdef TRACE
-        trace << "this group letters" << std::endl;
-        auto sp = [&](const auto& c)
-            {std::for_each(c.begin(), c.end(),
-                           [&](auto& e){trace << e << ' '; }); };
-        for (const auto& p : group_letters)
-          {
-            trace << p.first << " - ";
-            sp(p.second);
-            trace << std::endl;
-          }
-#endif
+//#ifdef TRACE
+//        std::cerr << "this group letters" << std::endl;
+//        auto sp = [&](const auto& c)
+//            {std::for_each(c.begin(), c.end(),
+//                           [&](auto& e){std::cerr << e << ' '; }); };
+//        for (const auto& p : group_letters)
+//          {
+//            std::cerr << p.first << " - ";
+//            sp(p.second);
+//            std::cerr << std::endl;
+//          }
+//#endif
       }
   }
 
@@ -1824,50 +1912,50 @@ namespace
                                                             e2.cond.id());
                                   });
     split_mmw->get_graph().chain_edges_();
-#ifdef TRACE
-    trace << "Orig split aut\n";
-    print_hoa(std::cerr, mmw) << '\n';
-    {
-      auto ss = make_twa_graph(split_mmw, twa::prop_set::all());
-      for (unsigned group = 0; group < red.n_groups; ++group)
-        {
-          std::vector<bdd> edge_num;
-          for (unsigned i = 0;  i < red.minimal_letters_vec[group].size(); ++i)
-            {
-              edge_num.push_back(
-                bdd_ithvar(ss->register_ap("g"+std::to_string(group)
-                                           +"e"+std::to_string(i))));
-            }
-          for (unsigned s = 0; s < n_env; ++s)
-            {
-              if (red.which_group.at(s) != group)
-                continue;
-              for (auto& e : ss->out(s))
-                e.cond =
-                    edge_num.at(
-                        find_first_index_of(red.bisim_letters[group],
-                            [&, cc = e.cond](const auto& bs_idx_vec)
-                              {return cc
-                                  == red.minimal_letters_vec[group]
-                                       [bs_idx_vec.front()]; }));
-            }
-        }
-      trace << "Relabeled split aut\n";
-      print_hoa(std::cerr, ss) << '\n';
-      trace << "Bisim ids\n";
-      for (unsigned i = 0; i < n_groups; ++i)
-        {
-          trace << "group " << i << '\n';
-          for (const auto& idx_vec : red.bisim_letters[i])
-            trace << red.minimal_letters_vec[i][idx_vec.front()].id() << '\n';
-          trace << "ids in the edge of the group\n";
-          for (unsigned s = 0; s < n_env; ++s)
-            if (red.which_group.at(s) == i)
-              for (const auto& e : split_mmw->out(s))
-                trace << e.src << "->" << e.dst << ':' << e.cond.id() << '\n';
-        }
-    }
-#endif
+//#ifdef TRACE
+//    std::cerr << "Orig split aut\n";
+//    print_hoa(std::cerr, mmw) << '\n';
+//    {
+//      auto ss = make_twa_graph(split_mmw, twa::prop_set::all());
+//      for (unsigned group = 0; group < red.n_groups; ++group)
+//        {
+//          std::vector<bdd> edge_num;
+//          for (unsigned i = 0;  i < red.minimal_letters_vec[group].size(); ++i)
+//            {
+//              edge_num.push_back(
+//                bdd_ithvar(ss->register_ap("g"+std::to_string(group)
+//                                           +"e"+std::to_string(i))));
+//            }
+//          for (unsigned s = 0; s < n_env; ++s)
+//            {
+//              if (red.which_group.at(s) != group)
+//                continue;
+//              for (auto& e : ss->out(s))
+//                e.cond =
+//                    edge_num.at(
+//                        find_first_index_of(red.bisim_letters[group],
+//                            [&, cc = e.cond](const auto& bs_idx_vec)
+//                              {return cc
+//                                  == red.minimal_letters_vec[group]
+//                                       [bs_idx_vec.front()]; }));
+//            }
+//        }
+//      std::cerr << "Relabeled split aut\n";
+//      print_hoa(std::cerr, ss) << '\n';
+//      std::cerr << "Bisim ids\n";
+//      for (unsigned i = 0; i < n_groups; ++i)
+//        {
+//          std::cerr << "group " << i << '\n';
+//          for (const auto& idx_vec : red.bisim_letters[i])
+//            std::cerr << red.minimal_letters_vec[i][idx_vec.front()].id() << '\n';
+//          std::cerr << "ids in the edge of the group\n";
+//          for (unsigned s = 0; s < n_env; ++s)
+//            if (red.which_group.at(s) == i)
+//              for (const auto& e : split_mmw->out(s))
+//                std::cerr << e.src << "->" << e.dst << ':' << e.cond.id() << '\n';
+//        }
+//    }
+//#endif
     return split_mmw;
   }
 
@@ -1885,12 +1973,11 @@ namespace
     dotimeprint << "Done comp all letters " << " - " << sw.stop() << '\n';
 
     compute_minimal_letters(red, mmw, n_env);
-#ifdef MINTIMINGS
+
     dotimeprint << "Done comp all min sim letters ";
     for (const auto& al : red.bisim_letters)
       dotimeprint << al.size() << ' ';
     dotimeprint << " - " << sw.stop() << '\n';
-#endif
 
     twa_graph_ptr split_mmw = split_on_minimal(red, mmw, n_env);
     dotimeprint << "Done splitting " << sw.stop() << '\n';
@@ -2262,11 +2349,11 @@ namespace
             res[0] = 0; // Convention
             for (int lit : lm.all_lits)
               res[lit] = picosat_deref(lm.psat_, lit);
-#ifdef TRACE
-            trace << "Sol is\n";
-            for (unsigned i = 0; i < res.size(); ++i)
-              trace << i << ": " << res[i] << '\n';
-#endif
+//#ifdef TRACE
+//            std::cerr << "Sol is\n";
+//            for (unsigned i = 0; i < res.size(); ++i)
+//              std::cerr << i << ": " << res[i] << '\n';
+//#endif
             return res;
           }
       default:
@@ -2977,15 +3064,15 @@ namespace
     std::vector<std::vector<bdd>> gmm2cond
         = comp_represented_cond(red);
 
-#ifdef TRACE
-    for (const auto& el : used_ziaj_ordered)
-      {
-        const unsigned group = x_in_class[el.first.i].first;
-        const bdd& incond = gmm2cond[group][el.first.a];
-        std::cerr << el.first.i << " - " << incond << " / "
-                  << el.second << " > " << el.first.j << std::endl;
-      }
-#endif
+//#ifdef TRACE
+//    for (const auto& el : used_ziaj_ordered)
+//      {
+//        const unsigned group = x_in_class[el.first.i].first;
+//        const bdd& incond = gmm2cond[group][el.first.a];
+//        std::cerr << el.first.i << " - " << incond << " / "
+//                  << el.second << " > " << el.first.j << std::endl;
+//      }
+//#endif
 
     // player_state_map
     // xi.x -> dst class
@@ -3106,9 +3193,9 @@ namespace
                 {
                   assert(econd == bddfalse);
                   econd = get_o_cond(e);
-#ifdef NDEBUG
+//#ifdef NDEBUG
                   break;
-#endif
+//#endif
                 }
             // Safe it
             assert(econd != bddfalse);
@@ -3351,9 +3438,9 @@ namespace
     while (true)
       {
         infeasible_classes.clear();
-#ifdef TRACE
-        mm_pb.lm.print(std::cerr);
-#endif
+//#ifdef TRACE
+//        mm_pb.lm.print(std::cerr);
+//#endif
         mm_pb.set_variable_clauses();
         dotimeprint << "Done constructing SAT " << sw.stop() << '\n';
         dotimeprint << "n literals " << mm_pb.n_lits()
@@ -3366,9 +3453,9 @@ namespace
             mm_pb.unset_variable_clauses();
             return nullptr;
           }
-#ifdef TRACE
-        mm_pb.lm.print(std::cerr, &sol);
-#endif
+//#ifdef TRACE
+//        mm_pb.lm.print(std::cerr, &sol);
+//#endif
 
         const unsigned n_classes = mm_pb.n_classes;
         const auto& lm = mm_pb.lm;
@@ -3428,16 +3515,16 @@ namespace
             assert(first_x != n_env && "No state in class.");
             x_in_class[i].first = red.which_group[first_x];
           }
-    #ifdef TRACE
-        for (unsigned i = 0; i < n_classes; ++i)
-          {
-            trace << "Class " << i << " group " << x_in_class[i].first << '\n';
-            for (unsigned x = 0; x < n_env; ++x)
-              if (x_in_class[i].second[x])
-                trace << x << ' ';
-            trace << std::endl;
-          }
-    #endif
+//    #ifdef TRACE
+//        for (unsigned i = 0; i < n_classes; ++i)
+//          {
+//            std::cerr << "Class " << i << " group " << x_in_class[i].first << '\n';
+//            for (unsigned x = 0; x < n_env; ++x)
+//              if (x_in_class[i].second[x])
+//                std::cerr << x << ' ';
+//            std::cerr << std::endl;
+//          }
+//    #endif
 
         // Check that each class has only states of the same group
         assert(std::all_of(x_in_class.begin(), x_in_class.end(),
@@ -3653,9 +3740,9 @@ namespace spot
     unsigned n_env = -1u;
     std::tie(mmw, n_env) = reorganize_mm(mmw, spref);
     assert(is_split_mealy(mmw));
-#ifdef TRACE
-    print_hoa(std::cerr, mmw);
-#endif
+//#ifdef TRACE
+//    print_hoa(std::cerr, mmw);
+//#endif
     assert(n_env != -1u);
     dotimeprint << "Done reorganise " << n_env << " - "
                 << sw.stop() << '\n';
@@ -3663,9 +3750,9 @@ namespace spot
     // Compute incompatibility based on bdd
     auto incompmat = compute_incomp(mmw, n_env, sw);
     dotimeprint << "Done incompatibility " << sw.stop() << '\n';
-#ifdef TRACE
-    incompmat.print(std::cerr);
-#endif
+//#ifdef TRACE
+//    incompmat.print(std::cerr);
+//#endif
 
     // Get a partial solution
     auto partsol = get_part_sol(incompmat);
@@ -3687,10 +3774,10 @@ namespace spot
         dotimeprint << "Done trans comp " << 1 << " - " << sw.stop() << '\n';
         dotimeprint << "Done comp all letters " << " - "
                     << sw.stop() << '\n';
-#ifdef MINTIMINGS
-        dotimeprint << "Done comp all min sim letters 0 - "
-                    << sw.stop() << '\n';
-#endif
+//#ifdef MINTIMINGS
+//        dotimeprint << "Done comp all min sim letters 0 - "
+//                    << sw.stop() << '\n';
+//#endif
         dotimeprint << "Done splitting " << sw.stop() << '\n';
         dotimeprint << "Done split and reduce " << sw.stop() << '\n';
         dotimeprint << "Done build init prob " << sw.stop() << '\n';
