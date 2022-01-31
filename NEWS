@@ -30,6 +30,14 @@ New in spot 2.10.3.dev  (not yet released)
     alphabet, in applications where using atomic propositions is
     inconvenient.
 
+  Bugs fixed:
+
+  - Fix memory leaks in Python bindings for several iteration objects.
+    This occured while itering on twa_graph.out(), twa_graph.edges(),
+    twa_graph.univ_dests(), kripke_graph.out(), kripke_graph.edges(),
+    mark_t.sets(), scc_info.edges_of(), scc_info.inner_edges_of(), and
+    on an scc_info instance.
+
 New in spot 2.10.3  (2022-01-15)
 
   Bugs fixed:
