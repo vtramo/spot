@@ -970,7 +970,7 @@ namespace spot
   }
 
   void
-  set_aliases(twa_ptr& g, std::vector<std::pair<std::string, bdd>> aliases)
+  set_aliases(twa_ptr g, std::vector<std::pair<std::string, bdd>> aliases)
   {
     if (aliases.empty())
       {

@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2013-2021 Laboratoire de Recherche et Développement
+// Copyright (C) 2013-2022 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -88,6 +88,7 @@ enum {
   OPT_ACC_SETS,
   OPT_ACCEPT_WORD,
   OPT_ACCEPTANCE_IS,
+  OPT_ALIASES,
   OPT_AP_N,
   OPT_ARE_ISOMORPHIC,
   OPT_CLEAN_ACC,
@@ -175,6 +176,10 @@ static const argp_option options[] =
     /**************************************************/
     { "count", 'c', nullptr, 0, "print only a count of matched automata", 3 },
     { "max-count", 'n', "NUM", 0, "output at most NUM automata", 3 },
+    { "aliases", OPT_ALIASES, "drop|keep", 0,
+      "If the input automaton uses HOA aliases, this decides whether their "
+      "preservation should be attempted in the output.  The default is "
+      "\"keep\".", 3 },
     /**************************************************/
     { nullptr, 0, nullptr, 0, "Filtering options:", 5 },
     { "ap", OPT_AP_N, "RANGE", 0,
@@ -474,6 +479,20 @@ static gra_type const gra_types[] =
 };
 ARGMATCH_VERIFY(gra_args, gra_types);
 
+static bool opt_aliases = true;
+static char const* const aliases_args[] =
+{
+  "drop", "no", "false", "0",
+  "keep", "yes", "true", "1",
+  nullptr,
+};
+static bool const aliases_types[] =
+{
+  false, false, false, false,
+  true, true, true, true,
+};
+ARGMATCH_VERIFY(aliases_args, aliases_types);
+
 enum acc_type {
   ACC_Any = 0,
   ACC_Given,
@@ -756,6 +775,9 @@ parse_opt(int key, char* arg, struct argp_state*)
         if (opt)
           error(2, 0, "failed to parse --options near '%s'", opt);
       }
+      break;
+    case OPT_ALIASES:
+      opt_aliases = XARGMATCH("--aliases", arg, aliases_args, aliases_types);
       break;
     case OPT_AP_N:
       opt_ap_n = parse_range(arg, 0, std::numeric_limits<int>::max());
@@ -1363,6 +1385,8 @@ namespace
       spot::process_timer timer;
       timer.start();
 
+      auto aliases = get_aliases(haut->aut);
+
       // If --stats or --name is used, duplicate the automaton so we
       // never modify the original automaton (e.g. with
       // merge_edges()) and the statistics about it make sense.
@@ -1660,6 +1684,13 @@ namespace
 
       ++match_count;
 
+      if (aliases)
+        {
+          if (opt_aliases)
+            set_aliases(aut, *aliases);
+          else
+            set_aliases(aut, {});
+        }
       printer.print(aut, timer, nullptr, haut->filename.c_str(), -1,
                     haut, prefix, suffix);
 

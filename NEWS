@@ -1,5 +1,11 @@
 New in spot 2.10.4.dev  (net yet released)
 
+  Command-line tools:
+
+  - autfilt has a new options --aliases=drop|keep to specify
+    if the output code should attempt to preserve aliases
+    present in the HOA input.  This defaults to "keep".
+
   Library:
 
   - "original-classes" is a new named property similar to

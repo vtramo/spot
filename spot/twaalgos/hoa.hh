@@ -61,5 +61,5 @@ namespace spot
   ///
   /// Pass an empty vector to remove existing aliases.
   SPOT_API void
-  set_aliases(twa_ptr& g, std::vector<std::pair<std::string, bdd>> aliases);
+  set_aliases(twa_ptr g, std::vector<std::pair<std::string, bdd>> aliases);
 }
