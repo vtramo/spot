@@ -1,6 +1,6 @@
-New in spot 2.10.3.dev  (net yet released)
+New in spot 2.10.4  (2022-02-01)
 
-  Bugs fixed:
+  Bug fixed:
 
   - Fix memory leaks in Python bindings for several iteration objects.
     This occured while itering on twa_graph.out(), twa_graph.edges(),
