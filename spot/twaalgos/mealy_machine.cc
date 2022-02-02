@@ -51,7 +51,7 @@
 #  define trace while (0) std::cerr
 #endif
 
-//#define MINTIMINGS
+#define MINTIMINGS
 #ifdef MINTIMINGS
 #  define dotimeprint std::cerr
 #else
@@ -1112,12 +1112,14 @@ namespace
     // output cubeset
     const unsigned n_ap_outs = bdd_nodecount(get_synthesis_outputs(mm));
     auto cube_set_out = cubeset(n_ap_outs);
+    const auto n_uint_out = 2*cube_set_out.uint_size();
     auto binder_out = get_binder(get_synthesis_outputs(mm));
     // input cubeset
     const bdd in_ap = bdd_exist(mm->ap_vars(),
                                 get_synthesis_outputs(mm));
     const unsigned n_ap_in = bdd_nodecount(get_synthesis_outputs(mm));
     auto cube_set_in = cubeset(n_ap_in);
+    const auto n_uint_in = 2*cube_set_in.uint_size();
     auto binder_in = get_binder(in_ap);
 
     // We want a vector for cubes of env edges
@@ -1139,34 +1141,60 @@ namespace
     auto mm_t = make_twa_graph(mm->get_dict());
     mm_t->copy_ap_of(mm);
     mm_t->new_states(n_env);
-    {
-      cond_env_vec_t.push_back(nullptr);
-      auto envcond2cube = std::unordered_map<int, cube>(cond_env_vec.size()/2);
-      for (unsigned s = 0; s < n_env; ++s)
-        {
-          for (const auto& e_env : mm->out(s))
-            {
-              unsigned dst_env = mm->out(e_env.dst).begin()->dst;
-              auto ne_t = mm_t->new_edge(dst_env, s, e_env.cond);
-              //Check if it can be converted to c
-              auto ne = mm->edge_number(e_env);
-              auto it = envcond2cube.find(e_env.cond.id());
-              if (it == envcond2cube.end())
-                {
-                  bool inserted;
-                  std::tie(it, inserted)
-                      = envcond2cube.emplace(e_env.cond.id(),
-                                             try_satone_to_cube(e_env.cond,
-                                                                cube_set_in,
-                                                                binder_in));
-                  assert(inserted && "Not found and not inserted?");
-                }
-              cond_env_vec[ne] = it->second;
-              cond_env_vec_t.push_back(it->second);
-              assert(cond_env_vec_t.size() == ne_t+1);
-            }
-        }
-    }
+    cond_env_vec_t.push_back(nullptr);
+    auto envcond2cube = std::unordered_map<int, cube>(cond_env_vec.size()/2);
+    // Get a vector of unsigned guaranteed to be long enough
+    // Worst case: Every edge has a different condition
+    // todo: this needs to become a pool
+    // Every player state has one edge,
+    // all other edges are env
+    const unsigned n_env_edges
+        = mm->num_edges() - (mm->num_states()-n_env);
+    auto envcondcubealloc =
+        std::vector<unsigned>(n_uint_in*n_env_edges, 0);
+    auto env_cubes_allocated = 0;
+    for (unsigned s = 0; s < n_env; ++s)
+      {
+        for (const auto& e_env : mm->out(s))
+          {
+            unsigned dst_env = mm->out(e_env.dst).begin()->dst;
+            auto ne_t = mm_t->new_edge(dst_env, s, e_env.cond);
+            //Check if it can be converted to c
+            auto ne = mm->edge_number(e_env);
+            auto it = envcond2cube.find(e_env.cond.id());
+            if (it == envcond2cube.end())
+              {
+                // Get a "new" cube
+                cube n_c
+                    = envcondcubealloc.data()
+                      + (env_cubes_allocated++ * n_uint_in);
+
+                bool inserted;
+                std::tie(it, inserted)
+                    = envcond2cube.emplace(e_env.cond.id(),
+                                           try_satone_to_cube(e_env.cond,
+                                                              n_c,
+                                                              cube_set_in,
+                                                              binder_in));
+                assert(inserted && "Not found and not inserted?");
+                // Check if it was actually a cube
+                if (!it->second)
+                  {
+                    // No it wasn't a cube -> release
+                    --env_cubes_allocated;
+                    // Erase partial results
+                    std::fill(envcondcubealloc.begin()
+                              + (env_cubes_allocated * n_uint_in),
+                              envcondcubealloc.begin()
+                                  + ((env_cubes_allocated+1) * n_uint_in), 0);
+                  }
+              }
+            cond_env_vec[ne] = it->second;
+            cond_env_vec_t.push_back(it->second);
+            assert(cond_env_vec_t.size() == ne_t+1);
+          }
+      }
+    auto time_env_cubes = sw.stop();
 
 
     // Utility function
@@ -1188,23 +1216,43 @@ namespace
     // bdd id -> "internal" bdd id and possibly cube
     std::unordered_map<int,
                        std::pair<unsigned, cube>> all_out_cond;
+    auto playercondcubealloc =
+        std::vector<unsigned>(n_uint_out*(mm->num_states()-n_env), 0);
+    auto player_cubes_allocated = 0;
     for (unsigned s1 = n_env; s1 < n_tot; ++s1)
       {
-        const bdd &c1 = get_cond(s1);
+        const bdd& c1 = get_cond(s1);
+
+        // Get a new cube
+        cube n_c
+            = playercondcubealloc.data()
+              + (player_cubes_allocated++ * n_uint_out);
         // todo perfect forward
         const auto& [it, inserted] =
             all_out_cond.try_emplace(c1.id(),
                                      std::make_pair(all_out_cond.size(),
-                                      try_satone_to_cube(c1, cube_set_out,
+                                      try_satone_to_cube(c1, n_c, cube_set_out,
                                                          binder_out)));
 
         ps2c.emplace_back(it->second.first);
+        // Clean up if it was no cube (<-> it->second.first == null)
+        if (!it->second.second)
+          {
+            // No it wasn't a cube -> release
+            --player_cubes_allocated;
+            // Erase partial results
+            std::fill(playercondcubealloc.begin()
+                      + (player_cubes_allocated * n_uint_out),
+                      playercondcubealloc.begin()
+                      + ((player_cubes_allocated+1) * n_uint_out), 0);
+          }
 #ifdef TRACE
         if (inserted)
           trace << "Register oc " << it->first << ", " << it->second
                 << " for state " << s1 << '\n';
 #endif
       }
+    auto time_player_cubes = sw.stop();
     // Are two player condition ids states incompatible
     square_matrix<bool, true> inc_player(all_out_cond.size(), false);
     // Compute. First is id of bdd
@@ -1233,7 +1281,10 @@ namespace
         return inc_player.get(ps2c[s1], ps2c[s2]);
       };
 
-    dotimeprint << "Done computing player incomp " << sw.stop() << '\n';
+    dotimeprint << "Done computing player incomp "
+                << sw.stop() << ", "
+                << time_env_cubes <<  ", "
+                << time_player_cubes << '\n';
 
 //#ifdef TRACE
 //    std::cerr << "player cond id incomp\n";
@@ -1334,7 +1385,12 @@ namespace
 //    std::cerr << "Env state incomp\n";
 //    inc_env.print(std::cerr);
 //#endif
-
+    // Release all the cubes
+//    for (auto& [key, val] : all_out_cond)
+//      cube_set_out.release(val.second);
+//    for (auto& [key, val] : envcond2cube)
+//      cube_set_in.release(val);
+    // No release everything is in the vectors
     return inc_env;
   }
 

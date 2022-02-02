@@ -24,26 +24,32 @@
 
 namespace spot
 {
-  spot::cube satone_to_cube(bdd one, cubeset& cubeset,
+  spot::cube satone_to_cube(bdd one, cube c, cubeset& cubeset,
                             std::unordered_map<int, int>& binder)
   {
-    auto cube = cubeset.alloc();
     while (one != bddtrue)
       {
         if (bdd_high(one) == bddfalse)
           {
             assert(binder.find(bdd_var(one)) != binder.end());
-            cubeset.set_false_var(cube, binder[bdd_var(one)]);
+            cubeset.set_false_var(c, binder[bdd_var(one)]);
             one = bdd_low(one);
           }
         else
           {
             assert(binder.find(bdd_var(one)) != binder.end());
-            cubeset.set_true_var(cube, binder[bdd_var(one)]);
+            cubeset.set_true_var(c, binder[bdd_var(one)]);
             one = bdd_high(one);
           }
       }
-    return cube;
+    return c;
+  }
+
+  cube satone_to_cube(bdd one, cubeset& cubeset,
+                      std::unordered_map<int, int>& binder)
+  {
+    auto c = cubeset.alloc();
+    return satone_to_cube(one, c, cubeset, binder);
   }
 
   cube try_satone_to_cube(bdd one, cubeset& cubeset,
@@ -51,9 +57,23 @@ namespace spot
   {
     assert(one != bddfalse && "try_satone_cube(): Input is False");
     if (bdd_is_cube(one))
-      return satone_to_cube(one, cubeset, binder);
+    {
+      auto c = cubeset.alloc();
+      return satone_to_cube(one, c, cubeset, binder);
+    }
     else
       return nullptr;
+  }
+
+  cube try_satone_to_cube(bdd one, cube c, cubeset& cubeset,
+                          std::unordered_map<int, int>& binder)
+  {
+    assert(one != bddfalse && "try_satone_cube(): Input is False");
+    if (bdd_is_cube(one))
+      return satone_to_cube(one, c, cubeset, binder);
+    else
+      return nullptr;
+
   }
 
 

@@ -41,6 +41,13 @@ namespace spot
   SPOT_API spot::cube try_satone_to_cube(bdd one, cubeset& cubeset,
                                          std::unordered_map<int, int>& binder);
 
+  /// \brief Like above but does not allocate
+  SPOT_API spot::cube satone_to_cube(bdd one, cube c, cubeset& cubeset,
+    std::unordered_map<int, int>& binder);
+
+  SPOT_API spot::cube try_satone_to_cube(bdd one, cube c, cubeset& cubeset,
+    std::unordered_map<int, int>& binder);
+
   /// \brief Transform a \a cube cube into bdd using the map
   /// that bind cube indexes to bdd indexes.
   SPOT_API bdd cube_to_bdd(spot::cube cube, const cubeset& cubeset,
