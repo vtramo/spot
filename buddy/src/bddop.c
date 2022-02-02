@@ -3749,6 +3749,10 @@ static int bdd_have_common_assignment_(BDD left, BDD right)
     return bdd_error(BDD_ILLBDD);
 #endif
 
+  // Check if equal
+  if (left == right)
+    return 1;
+
   // Always make "left" the smaller one to improve cache usage
   if (left > right)
     {
