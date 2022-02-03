@@ -1,6 +1,6 @@
 #!/bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2014-2018, 2020 Laboratoire de Recherche et
+# Copyright (C) 2014-2018, 2020, 2022 Laboratoire de Recherche et
 # Développement de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -79,8 +79,8 @@ diff out expected
 randaut -n 5 --stats='name: "%F-%L-%s-%c-%e"' a >out2
 diff out2 expected
 
-randaut -n 5 --dot=@ a 2>stderr && exit 1
-grep 'randaut: unknown option.*@' stderr
+randaut -n 5 --dot='~' a 2>stderr && exit 1
+grep 'randaut: unknown option.*~' stderr
 
 randaut -n -1 -Q2 2 -H | autfilt -H --is-deterministic -n 3 -o out.hoa
 randaut -n -1 -Q2 2 -H | autfilt -H -v --is-deterministic -n 4 -o '>>out.hoa'

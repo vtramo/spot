@@ -32,6 +32,7 @@
 #include <spot/twa/formula2bdd.hh>
 #include <spot/twaalgos/sccinfo.hh>
 #include <spot/kripke/fairkripke.hh>
+#include <spot/twaalgos/hoa.hh>
 #include <cstdlib>
 #include <cstring>
 #include <algorithm>
@@ -83,6 +84,7 @@ namespace spot
       std::map<std::pair<int, int>, int> univ_done;
       std::vector<bool> true_states_;
       std::vector<bool>* state_player_;
+      std::unique_ptr<hoa_alias_formater> haf_ = nullptr;
 
       acc_cond::mark_t inf_sets_ = {};
       acc_cond::mark_t fin_sets_ = {};
@@ -112,6 +114,7 @@ namespace spot
       bool max_states_given_ = false; // related to max_states_
       bool opt_latex_ = false;
       bool opt_showlabel_ = true;
+      bool opt_aliases_ = false;
       const char* nl_ = "\\n";
       const char* label_pre_ = "label=\"";
       char label_post_ = '"';
@@ -224,6 +227,9 @@ namespace spot
               break;
             case '1':
               inline_state_names_ = false;
+              break;
+            case '@':
+              opt_aliases_ = true;
               break;
             case 'a':
               opt_show_acc_ = true;
@@ -479,6 +485,11 @@ namespace spot
       std::ostream&
       format_label(std::ostream& os, bdd label) const
       {
+        if (haf_)
+          {
+            os << haf_->encode_label(label);
+            return os;
+          }
         return format_label(os, bdd_to_formula(label, aut_->get_dict()));
       }
 
@@ -969,6 +980,37 @@ namespace spot
         aut_ = aut;
         if (opt_hide_true_states_)
           find_true_states();
+
+        if (opt_aliases_ &&
+            aut->get_named_prop
+            <std::vector<std::pair<std::string, bdd>>>("aliases"))
+          {
+            const char* falsestr = "0";
+            const char* truestr = "1";
+            const char* orstr = " | ";
+            const char* andstr = " & ";
+            const char* notstr = "!";
+            const char* lparstr = "(";
+            const char* rparstr = ")";
+            if (opt_html_labels_)
+              {
+                andstr = " &amp; ";
+              }
+
+            haf_.reset(new hoa_alias_formater
+              (aut, falsestr, truestr, orstr, andstr,
+               notstr, lparstr, rparstr,
+               [this, d=aut->get_dict()](int var)->std::string
+               {
+                 const bdd_dict::bdd_info& i = d->bdd_map[var];
+                 if (SPOT_UNLIKELY(i.type != bdd_dict::var))
+                   throw std::runtime_error
+                     ("print_dot(): unknown BDD variable");
+                 std::ostringstream os;
+                 format_label(os, i.f);
+                 return os.str();
+               }));
+          }
 
         sn_ = aut->get_named_prop<std::vector<std::string>>("state-names");
         // We have no names.  Do we have product sources?
