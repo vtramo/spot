@@ -694,10 +694,11 @@ named properties of any type.  When attaching a property to a TωA, you
 only supply a name for the property, a pointer, and an optional
 destructor function.
 
-There are currently two [[file:concepts.org::#named-properties][named properties]] related to the HOA format.
+There are currently three [[file:concepts.org::#named-properties][named properties]] related to the HOA format.
 
 - =automaton-name= :: Is a string that stores the name of the automaton (the one given after =name:= in the HOA format)
-- =state-names= :: is a vector of strings that stores the name of the states (in case states are named in the HOA format)
+- =state-names= :: Is a vector of strings that stores the name of the states (in case states are named in the HOA format)
+- =aliases= :: Is a vector of pairs (name, BDD) that declares aliases to use in the HOA format
 
 You can see these properties being preserved when an automaton is read and then immediately output:
 
@@ -710,14 +711,15 @@ States: 3
 Start: 0
 AP: 2 "a" "b"
 Acceptance: 2 Inf(0)&Inf(1)
+Alias: @x 0&1
 --BODY--
 State: 0 {0}
 [0&!1] 0
-[0&1] 1
+[@x] 1
 [!0] 2
 State: 1 "I am a state"
 [0] 1 {1}
-[0&1] 2 {1}
+[@x] 2 {1}
 State: 2 "so am I"
 [!0] 1 {0 1}
 [0]  2 {0 1}
@@ -727,7 +729,7 @@ autfilt hw.hoa
 #+END_SRC
 
 #+RESULTS: hello-world
-#+BEGIN_SRC hoa
+#+begin_SRC hoa
 HOA: v1
 name: "hello world!"
 States: 3
@@ -736,27 +738,29 @@ AP: 2 "a" "b"
 acc-name: generalized-Buchi 2
 Acceptance: 2 Inf(0)&Inf(1)
 properties: trans-labels explicit-labels state-acc
+Alias: @x 0&1
 --BODY--
 State: 0 {0}
 [0&!1] 0
-[0&1] 1
+[@x] 1
 [!0] 2
 State: 1 "I am a state" {1}
-[0] 1
-[0&1] 2
+[@x | 0&!1] 1
+[@x] 2
 State: 2 "so am I" {0 1}
 [!0] 1
-[0] 2
+[@x | 0&!1] 2
 --END--
-#+END_SRC
+#+end_SRC
 
-However if =autfilt= performs some transformation, and actually has to
+However when Spot performs some transformation, and actually has to
 construct a new automaton, those properties will not be quarried over
 to the new automaton.  First because it is not obvious that the new
 automaton should have the same name, and second because if a new
 automaton is created, there might not be clear correspondence between
-the old states and the new ones.
-
+the old states and the new ones.  =autfilt= tries to preserve aliases
+by reintroducing them to the automaton before it is outputs it (unless
+option =--aliases=drop= is used).
 
 Here is for instance the result when =autfilt= is instructed to
 simplify the automaton:
@@ -766,7 +770,7 @@ autfilt --small hw.hoa
 #+END_SRC
 
 #+RESULTS:
-#+BEGIN_SRC hoa
+#+begin_SRC hoa
 HOA: v1
 States: 3
 Start: 0
@@ -774,20 +778,20 @@ AP: 2 "a" "b"
 acc-name: Buchi
 Acceptance: 1 Inf(0)
 properties: trans-labels explicit-labels state-acc deterministic
+Alias: @x 0&1
 --BODY--
 State: 0
 [0&!1] 0
-[0&1] 1
+[@x] 1
 [!0] 2
 State: 1
 [0&!1] 1
-[0&1] 2
+[@x] 2
 State: 2 {0}
 [!0] 1
-[0] 2
+[@x | 0&!1] 2
 --END--
-#+END_SRC
-
+#+end_SRC
 
 Note that if the name of the automaton is important to you, it can be
 fixed via the =--name= option.  For instance =--name=%M= will
@@ -822,9 +826,10 @@ State: 2 {0}
 --END--
 #+END_SRC
 
-The page about [[file:oaut.org][common output option for automata]] has a section showing
-how =--name= can be used to construct complex pipelines with automata that
-preserve their equivalent LTL formula in the =name:= field.
+The page about [[file:oaut.org][common output options for automata]] has a section
+showing how =--name= can be used to construct complex pipelines with
+automata that preserve their equivalent LTL formula in the =name:=
+field.
 
 * Streaming support
 
