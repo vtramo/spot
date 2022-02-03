@@ -36,6 +36,220 @@ using namespace std::string_literals;
 
 namespace spot
 {
+  hoa_alias_formater::hoa_alias_formater(const const_twa_graph_ptr& aut,
+                                         const char* false_str,
+                                         const char* true_str,
+                                         const char* or_str,
+                                         const char* and_str,
+                                         const char* not_str,
+                                         const char* lpar_str,
+                                         const char* rpar_str,
+                                         std::function<std::string(int)>
+                                         ap_printer)
+    : false_str_(false_str), true_str_(true_str), or_str_(or_str),
+      and_str_(and_str), not_str_(not_str), lpar_str_(lpar_str),
+      rpar_str_(rpar_str), ap_printer_(ap_printer)
+  {
+    auto aliases = aliases_ = aut->get_named_prop<aliases_t>("aliases");
+    if (!aliases)
+      return;
+    bdd sup = aut->ap_vars();
+    // Remove all aliases that use variables that are not
+    // registered in this automaton.
+    auto badvar = [sup](std::pair<std::string, bdd>& p) {
+      return bdd_exist(bdd_support(p.second), sup) != bddtrue;
+    };
+    aliases->erase(std::remove_if(aliases->begin(),
+                                  aliases->end(),
+                                  badvar),
+                   aliases->end());
+    unsigned count = aliases->size();
+    for (unsigned i = 0; i < count; ++i)
+      {
+        bdd a = (*aliases)[i].second;
+        aliases_map_[a.id()] = i;
+        if (bdd_is_cube(a))
+          alias_cubes_.emplace_back(a, i);
+        bdd neg = !a;
+        aliases_map_[neg.id()] = i;
+        if (bdd_is_cube(neg))
+          alias_cubes_.emplace_back(neg, i);
+      }
+  }
+
+  std::string
+  hoa_alias_formater::encode_label(bdd label, unsigned aliases_start)
+  {
+    if (aliases_)
+      // Check if we have a perfect alias match for this label.
+      if (auto p = aliases_map_.find(label.id()); p != aliases_map_.end())
+        if (unsigned pos = p->second; pos >= aliases_start)
+          {
+            auto& a = (*aliases_)[pos];
+            if (a.second == label)
+              return '@' + a.first;
+            else
+              return std::string(not_str_) + '@' + a.first;
+          }
+    if (label == bddtrue)
+      return true_str_;
+    if (label == bddfalse)
+      return false_str_;
+    std::ostringstream s;
+    bool notfirstor = false;
+    if (aliases_)
+      {
+        bdd orig_label = label;
+        // If we have some aliases that imply the label, we can use them
+        // and try to cover most of it as a sum of labels.
+        unsigned alias_count = aliases_->size();
+        for (unsigned i = aliases_start; i < alias_count; ++i)
+          if (auto& a = (*aliases_)[i]; bdd_implies(a.second, orig_label))
+            {
+              bdd rest = label - a.second;
+              if (rest != label)
+                {
+                  if (notfirstor)
+                    s << or_str_;
+                  s << '@' << a.first;
+                  notfirstor = true;
+                  label = rest;
+                  if (label == bddfalse)
+                    return s.str();
+                }
+            }
+        // If the label was not completely translated as a
+        // disjunction of aliases, maybe we can see it as a
+        // conjunction?  Let's try.
+        // We first try to remove cubes, from the labels, and then
+        // try to cover the rest with non-cubes.
+        {
+          std::ostringstream s2;
+          bdd labelconj = orig_label; // start again
+          bool notfirstand = false;
+          unsigned alias_count = aliases_->size();
+          // first pass using only cubes
+          for (auto [acube, i]: alias_cubes_)
+            if (i >= aliases_start)
+              if (bdd_implies(orig_label, acube))
+                if (bdd rest = bdd_exist(labelconj, bdd_support(acube));
+                    rest != labelconj)
+                  {
+                    auto& a = (*aliases_)[i];
+                    if (notfirstand)
+                      s2 << and_str_;
+                    if (acube != a.second)
+                      s2 << not_str_;
+                    s2 << '@' << a.first;
+                    notfirstand = true;
+                    labelconj = rest;
+                    if (labelconj == bddtrue)
+                      return s2.str();
+                  }
+          // second pass using all non-cube aliases
+          for (unsigned i = aliases_start; i < alias_count; ++i)
+            {
+              auto& a = (*aliases_)[i];
+              bdd neg = !a.second;
+              if (!bdd_is_cube(a.second)
+                  && bdd_implies(orig_label, a.second))
+                {
+                  bdd rest = labelconj | neg;
+                  if (rest != labelconj)
+                    {
+                      if (notfirstand)
+                        s2 << and_str_;
+                      s2 << '@' << a.first;
+                      notfirstand = true;
+                      labelconj = rest;
+                      if (labelconj == bddtrue)
+                        return s2.str();
+                    }
+                }
+              else if (!bdd_is_cube(neg)
+                       && bdd_implies(orig_label, neg))
+                {
+                  bdd rest = labelconj | a.second;
+                  if (rest != labelconj)
+                    {
+                      if (notfirstand)
+                        s2 << and_str_;
+                      s2 << not_str_ << '@' << a.first;
+                      notfirstand = true;
+                      labelconj = rest;
+                      if (labelconj == bddtrue)
+                        return s2.str();
+                    }
+                }
+            }
+          // If we did not manage to make it look like a
+          // conjunction of aliases, let's continue with
+          // our (possibly partial) disjunction.
+        }
+      }
+    minato_isop isop(label);
+    bdd cube = isop.next();
+    std::ostringstream s3;
+    while (cube != bddfalse)
+      {
+        if (notfirstor)
+          s << or_str_;
+        bool notfirstand = false;
+        s3.str("");
+        if (aliases_)
+          {
+            // We know that cube did not match any aliases.  But
+            // maybe it can be built as a conjunction of aliases?
+            // (or negated aliases)
+            bdd orig_cube = cube;
+            for (auto [acube, i]: alias_cubes_)
+              if (i >= aliases_start)
+                if (bdd_implies(orig_cube, acube))
+                  if (bdd rest = bdd_exist(cube, bdd_support(acube));
+                      rest != cube)
+                    {
+                      if (notfirstand)
+                        s3 << and_str_;
+                      if (acube != (*aliases_)[i].second)
+                        s3 << not_str_;
+                      s3 << '@' << (*aliases_)[i].first;
+                      cube = rest;
+                      if (cube == bddtrue)
+                        break;
+                      notfirstand = true;
+                    }
+          }
+        while (cube != bddtrue)
+          {
+            if (notfirstand)
+              s3 << and_str_;
+            bdd h = bdd_high(cube);
+            if (h == bddfalse)
+              {
+                s3 << not_str_ << ap_printer_(bdd_var(cube));
+                cube = bdd_low(cube);
+              }
+            else
+              {
+                s3 << ap_printer_(bdd_var(cube));
+                cube = h;
+              }
+            if (cube == bddtrue)
+              break;
+            notfirstand = true;
+          }
+        bdd nextcube = isop.next();
+
+        if (notfirstand && (notfirstor || nextcube != bddfalse))
+          s << lpar_str_ << s3.str() << rpar_str_;
+        else
+          s << s3.str();
+        cube = nextcube;
+        notfirstor = true;
+      }
+    return s.str();
+  }
+
   namespace
   {
     struct metadata final
@@ -54,10 +268,7 @@ namespace spot
       bool use_implicit_labels;
       bool use_state_labels = true;
       bdd all_ap;
-      typedef std::vector<std::pair<std::string, bdd>> aliases_t;
-      aliases_t* aliases;
-      std::unordered_map<int, unsigned> aliases_map;
-      std::vector<std::pair<bdd, unsigned>> alias_cubes;
+      hoa_alias_formater haf;
 
       // Label support: the set of all conditions occurring in the
       // automaton.
@@ -66,44 +277,14 @@ namespace spot
 
       metadata(const const_twa_graph_ptr& aut, bool implicit,
                bool state_labels)
+        : haf(aut, "f", "t", " | ", "&", "!", "", "",
+              [&ap=this->ap](int num){ return std::to_string(ap[num]); })
       {
         check_det_and_comp(aut);
         use_implicit_labels = implicit && is_universal && is_complete;
         use_state_labels &= state_labels;
-        setup_aliases(aut);
         number_all_ap(aut);
       }
-
-      void setup_aliases(const const_twa_graph_ptr& aut)
-      {
-        aliases = aut->get_named_prop<aliases_t>("aliases");
-        bdd sup = aut->ap_vars();
-        if (aliases)
-          {
-            // Remove all aliases that use variables that are not
-            // registered in this automaton.
-            auto badvar = [sup](std::pair<std::string, bdd>& p) {
-              return bdd_exist(bdd_support(p.second), sup) != bddtrue;
-            };
-            aliases->erase(std::remove_if(aliases->begin(),
-                                          aliases->end(),
-                                          badvar),
-                           aliases->end());
-            unsigned count = aliases->size();
-            for (unsigned i = 0; i < count; ++i)
-              {
-                bdd a = (*aliases)[i].second;
-                aliases_map[a.id()] = i;
-                if (bdd_is_cube(a))
-                  alias_cubes.emplace_back(a, i);
-                bdd neg = !a;
-                aliases_map[neg.id()] = i;
-                if (bdd_is_cube(neg))
-                  alias_cubes.emplace_back(neg, i);
-              }
-          }
-      }
-
 
       std::ostream&
       emit_acc(std::ostream& os, acc_cond::mark_t b)
@@ -215,164 +396,7 @@ namespace spot
 
       std::string encode_label(bdd label, unsigned aliases_start = 0)
       {
-        if (aliases)
-          // Check if we have a perfect alias match for this label.
-          if (auto p = aliases_map.find(label.id()); p != aliases_map.end())
-            if (unsigned pos = p->second; pos >= aliases_start)
-              {
-                auto& a = (*aliases)[pos];
-                if (a.second == label)
-                  return '@' + a.first;
-                else
-                  return "!@" + a.first;
-              }
-        if (label == bddtrue)
-          return "t";
-        if (label == bddfalse)
-          return "f";
-        std::ostringstream s;
-        bool notfirstor = false;
-        if (aliases)
-          {
-            bdd orig_label = label;
-            // If we have some aliases that imply the label, we can use them
-            // and try to cover most of it as a sum of labels.
-            unsigned alias_count = aliases->size();
-            for (unsigned i = aliases_start; i < alias_count; ++i)
-              if (auto& a = (*aliases)[i]; bdd_implies(a.second, orig_label))
-                {
-                  bdd rest = label - a.second;
-                  if (rest != label)
-                    {
-                      if (notfirstor)
-                        s << " | ";
-                      s << '@' << a.first;
-                      notfirstor = true;
-                      label = rest;
-                      if (label == bddfalse)
-                        return s.str();
-                    }
-                }
-            // If the label was not completely translated as a
-            // disjunction of aliases, maybe we can see it as a
-            // conjunction?  Let's try.
-            // We first try to remove cubes, from the labels, and then
-            // try to cover the rest with non-cubes.
-            {
-              std::ostringstream s2;
-              bdd labelconj = orig_label; // start again
-              bool notfirstand = false;
-              unsigned alias_count = aliases->size();
-              // first pass using only cubes
-              for (auto [acube, i]: alias_cubes)
-                if (i >= aliases_start)
-                  if (bdd_implies(orig_label, acube))
-                    if (bdd rest = bdd_exist(labelconj, bdd_support(acube));
-                        rest != labelconj)
-                      {
-                        auto& a = (*aliases)[i];
-                        if (notfirstand)
-                          s2 << '&';
-                        if (acube != a.second)
-                          s2 << '!';
-                        s2 << '@' << a.first;
-                        notfirstand = true;
-                        labelconj = rest;
-                        if (labelconj == bddtrue)
-                          return s2.str();
-                      }
-              // second pass using all non-cube aliases
-              for (unsigned i = aliases_start; i < alias_count; ++i)
-                  {
-                    auto& a = (*aliases)[i];
-                    bdd neg = !a.second;
-                    if (!bdd_is_cube(a.second)
-                        && bdd_implies(orig_label, a.second))
-                      {
-                        bdd rest = labelconj | neg;
-                        if (rest != labelconj)
-                          {
-                            if (notfirstand)
-                              s2 << '&';
-                            s2 << '@' << a.first;
-                            notfirstand = true;
-                            labelconj = rest;
-                            if (labelconj == bddtrue)
-                              return s2.str();
-                          }
-                      }
-                    else if (!bdd_is_cube(neg)
-                             && bdd_implies(orig_label, neg))
-                      {
-                        bdd rest = labelconj | a.second;
-                        if (rest != labelconj)
-                          {
-                            if (notfirstand)
-                              s2 << '&';
-                            s2 << "!@" << a.first;
-                            notfirstand = true;
-                            labelconj = rest;
-                            if (labelconj == bddtrue)
-                              return s2.str();
-                          }
-                      }
-                  }
-              // If we did not manage to make it look like a
-              // conjunction of aliases, let's continue with
-              // our (possibly partial) disjunction.
-            }
-          }
-        minato_isop isop(label);
-        bdd cube;
-        while ((cube = isop.next()) != bddfalse)
-          {
-            if (notfirstor)
-              s << " | ";
-            bool notfirstand = false;
-            if (aliases)
-              {
-                // We know that cube did not match any aliases.  But
-                // maybe it can be built as a conjunction of aliases?
-                // (or negated aliases)
-                bdd orig_cube = cube;
-                for (auto [acube, i]: alias_cubes)
-                  if (i >= aliases_start)
-                    if (bdd_implies(orig_cube, acube))
-                      if (bdd rest = bdd_exist(cube, bdd_support(acube));
-                          rest != cube)
-                        {
-                          if (notfirstand)
-                            s << '&';
-                          if (acube != (*aliases)[i].second)
-                            s << '!';
-                          s << '@' << (*aliases)[i].first;
-                          notfirstand = true;
-                          cube = rest;
-                          if (cube == bddtrue)
-                            return s.str();
-                        }
-              }
-            while (cube != bddtrue)
-              {
-                if (notfirstand)
-                  s << '&';
-                else
-                  notfirstand = true;
-                bdd h = bdd_high(cube);
-                if (h == bddfalse)
-                  {
-                    s << '!' << ap[bdd_var(cube)];
-                    cube = bdd_low(cube);
-                  }
-                else
-                  {
-                    s << ap[bdd_var(cube)];
-                    cube = h;
-                  }
-              }
-            notfirstor = true;
-          }
-        return s.str();
+        return haf.encode_label(label, aliases_start);
       }
 
       void number_all_ap(const const_twa_graph_ptr& aut)
@@ -798,9 +822,8 @@ namespace spot
           }
         os << nl;
       }
-    if (md.aliases)
+    if (auto* aliases = md.haf.aliases())
       {
-        auto* aliases = md.aliases;
         int cnt = aliases->size();
         for (int i = cnt - 1; i >= 0; --i)
           os << "Alias: @" << (*aliases)[i].first << ' '
