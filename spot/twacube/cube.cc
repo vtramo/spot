@@ -35,38 +35,64 @@ namespace spot
 
   cube cubeset::alloc() const
   {
-    return new unsigned int[2*uint_size_]();
+    auto c = cube();
+    if (uint_size_ <= MAXSMALLCUBE)
+    {
+      c.state = 1;
+      c.ci.a = std::array<unsigned, MAXSMALLCUBE*2>();
+      c.ci.a.fill(0);//redundant?
+    }
+    else
+    {
+      c.state = 2;
+      c.ci.ptr = new unsigned int[2*uint_size_]();
+    }
+    return c;
   }
 
-  void cubeset::release(cube c) const
+  void cubeset::release(cube& c) const
   {
-    delete[] c;
+    if (c.state != 0)
+    {
+      c.state = 0;
+      if (uint_size_ > MAXSMALLCUBE)
+        {
+          delete[] c.ci.ptr;
+          c.ci.ptr = nullptr;
+        }
+
+    }
+
   }
 
-  void cubeset::display(const cube c) const
+  void cubeset::display(const cube& c) const
   {
+    auto rawptr = (uint_size_ <= MAXSMALLCUBE) ? c.ci.a.data() : c.ci.ptr;
     for (unsigned int i = 0; i < 2*uint_size_; ++i)
       {
         if (i == uint_size_)
           std::cout << '\n';
 
         for (unsigned x = 0; x < nb_bits_; ++x)
-          std::cout << ((*(c+i) >> x) & 1);
+          std::cout << ((*(rawptr+i) >> x) & 1);
       }
     std::cout << '\n';
   }
 
-  std::string cubeset::dump(cube c, const std::vector<std::string>& aps) const
+  std::string cubeset::dump(const cube& c, const std::vector<std::string>& aps) const
   {
     std::ostringstream oss;
+
+    auto rawptr = (uint_size_ <= MAXSMALLCUBE) ? c.ci.a.data() : c.ci.ptr;
+
     bool all_free = true;
     unsigned int cpt = 0;
     for (unsigned int i = 0; i < uint_size_; ++i)
       {
-        for (unsigned x = 0; x < nb_bits_ && cpt != size_; ++x)
+        for (unsigned x = 0; x < nb_bits_ && cpt != size_; ++x, ++cpt)
           {
-            bool true_var = (*(c+i) >> x) & 1;
-            bool false_var = (*(c+i+uint_size_) >> x) & 1;
+            bool true_var = (*(rawptr+i) >> x) & 1;
+            bool false_var = (*(rawptr+i+uint_size_) >> x) & 1;
             if (true_var)
               {
                 oss << aps[cpt]
@@ -79,7 +105,6 @@ namespace spot
                     << (cpt != (size_ - 1) ? "&": "");
                 all_free = false;
               }
-            ++cpt;
           }
       }
     if (all_free)

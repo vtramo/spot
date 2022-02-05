@@ -146,6 +146,7 @@ namespace spot
     void next();
     bool done() const;
     cspins_state state() const;
+    cube& condition();
     cube condition() const;
 
   private:

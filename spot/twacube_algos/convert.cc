@@ -24,7 +24,7 @@
 
 namespace spot
 {
-  spot::cube satone_to_cube(bdd one, cube c, cubeset& cubeset,
+  spot::cube satone_to_cube(bdd one, cube& c, cubeset& cubeset,
                             std::unordered_map<int, int>& binder)
   {
     while (one != bddtrue)
@@ -62,17 +62,17 @@ namespace spot
       return satone_to_cube(one, c, cubeset, binder);
     }
     else
-      return nullptr;
+      return cubeset.null();
   }
 
-  cube try_satone_to_cube(bdd one, cube c, cubeset& cubeset,
+  cube try_satone_to_cube(bdd one, cube& c, cubeset& cubeset,
                           std::unordered_map<int, int>& binder)
   {
     assert(one != bddfalse && "try_satone_cube(): Input is False");
     if (bdd_is_cube(one))
       return satone_to_cube(one, c, cubeset, binder);
     else
-      return nullptr;
+      return cubeset.null();
 
   }
 
