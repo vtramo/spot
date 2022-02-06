@@ -78,7 +78,7 @@ namespace spot
   union cube_int{
     cube_int():ptr{nullptr} {};
     cube_int(cubeptr c):ptr{c} {};
-    cube_int(std::array<unsigned, 2*MAXSMALLCUBE> c):a{c} {};
+    cube_int(std::array<unsigned, 2*MAXSMALLCUBE> arr):a{arr} {};
 
     cubeptr ptr;
     std::array<unsigned, 2*MAXSMALLCUBE> a;
@@ -90,12 +90,12 @@ namespace spot
 
     cube():ci(), state{0}{}
     cube(const cube& o):ci{o.ci}, state{o.state}{}
-    cube(cubeptr c):ci{c}, state{2} {};
+    cube(cubeptr c):ci{c}, state(2*((bool) c)) {};
     cube(std::array<unsigned, 2*MAXSMALLCUBE> c):ci{c}, state{1} {};
     cube& operator=(const cube& other) = default;
 
     operator bool() const{
-      return state;
+      return state != 0;
     }
   };
 
@@ -122,7 +122,7 @@ namespace spot
         {
           unsigned i = x/nb_bits_;
           unsigned r = x-i*nb_bits_;
-          unsigned b = 1 << r;
+          unsigned b = 1u << r;
           *(c+i) |= b;
           *(c+uint_size_+i) &= ~b;
         }
@@ -143,8 +143,9 @@ namespace spot
         {
           unsigned i = x/nb_bits_;
           unsigned r = x-i*nb_bits_;
-          *(c+uint_size_+i) |= 1 << r;
-          *(c+i) &= ~(1 << r);
+          unsigned b = 1u << r;
+          *(c+uint_size_+i) |= b;
+          *(c+i) &= ~b;
         }
       else
         {
@@ -162,11 +163,11 @@ namespace spot
         {
           unsigned i = x/nb_bits_;
           unsigned r = x-i*nb_bits_;
-          bool true_var = (*(c+i) >> r) & 1;
+          bool true_var = (*(c+i) >> r) & 1u;
           return true_var;
         }
       else
-        return (*c >> x) & 1;
+        return (*c >> x) & 1u;
     }
   template<unsigned UI>
   bool is_false_var_(c_cubeptr c, unsigned int x) const
@@ -177,7 +178,7 @@ namespace spot
       {
         unsigned i = x/nb_bits_;
         unsigned r = x-i*nb_bits_;
-        bool false_var = (*(c+uint_size_+i) >> r) & 1;
+        bool false_var = (*(c+uint_size_+i) >> r) & 1u;
         return false_var;
       }
     else
@@ -390,6 +391,7 @@ namespace spot
     /// \brief Checks if a cube corresponds to False
     bool is_false(const cube& c) const
     {
+      assert(c && "Target needs to be alive");
       switch (uint_size_)
       {
       case 1:

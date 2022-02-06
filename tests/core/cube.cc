@@ -48,7 +48,7 @@ static bool test_translation(bdd& input,  spot::cubeset& cubeset,
       auto cube = spot::satone_to_cube(one, cubeset, binder);
       res |= spot::cube_to_bdd(cube, cubeset, reverse_binder);
       std::cout << "cube : " << cubeset.dump(cube, aps) << '\n';
-      delete[] cube;
+      cubeset.release(cube);
     }
 
   // Translating BDD to cubes and cubes to BDD should provide same BDD.
