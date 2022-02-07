@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2015 Laboratoire de Recherche et Développement de
+// Copyright (C) 2015, 2022 Laboratoire de Recherche et Développement de
 // l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -40,4 +40,19 @@ namespace spot
 
     twa_graph_ptr strip(const_twa_graph_ptr aut) const;
   };
+
+  /// \brief Interpret the "live" part of an automaton as finite automaton.
+  ///
+  /// This functions assumes that there is a property "alive" is
+  /// that either true or false on all transitions, and that can only
+  /// switch from true to false.
+  ///
+  /// Because Spot does not support finite automata, this creates a
+  /// state-based Büchi automaton where any states with a !alive
+  /// outgoing transition in the original automaton is accepting, and
+  /// all alive/!alive occurrences are removed.
+  SPOT_API twa_graph_ptr
+  to_finite(const_twa_graph_ptr aut, const char* alive = "alive");
+
+
 }

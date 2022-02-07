@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2014-2021 Laboratoire de Recherche et Développement
+// Copyright (C) 2014-2022 Laboratoire de Recherche et Développement
 // de l'Epita.
 //
 // This file is part of Spot, a model checking library.
@@ -713,8 +713,16 @@ namespace spot
             bool useless = true;
             while (t)
               {
-                // An edge is useful if all its
-                // destinations are useful.
+                // Erase any false edge, except self-loops (which can
+                // be used to store colors on state without successor
+                // with state-based acceptance).
+                if (t->cond == bddfalse && t->src != t->dst)
+                  {
+                    t.erase();
+                    continue;
+                  }
+                // A non-false edge is useful if all its destinations
+                // are useful.
                 bool usefuledge = true;
                 for (unsigned d: univ_dests(t->dst))
                   if (!useful[d])

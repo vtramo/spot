@@ -1379,6 +1379,13 @@ states: %empty
 		    }
 		}
 	    }
+         if (res.acc_state &&
+             !res.opts.want_kripke &&
+             res.h->aut->get_graph().state_storage(res.cur_state).succ == 0)
+           {
+             res.h->aut->new_edge(res.cur_state, res.cur_state,
+                                  bddfalse, res.acc_state);
+           }
 	}
 state: state-name labeled-edges
      | state-name unlabeled-edges
@@ -1403,7 +1410,6 @@ state: state-name labeled-edges
 	   {
 	     res.h->ks->state_from_number(res.cur_state)->cond(res.state_label);
 	   }
-
        }
      | error
        {
@@ -1412,6 +1418,8 @@ state: state-name labeled-edges
 	 res.universal = spot::trival::maybe();
 	 res.existential = spot::trival::maybe();
 	 res.complete = spot::trival::maybe();
+         // also do not try to preserve any color
+         res.acc_state = {};
        }
 
 
@@ -1595,7 +1603,12 @@ incorrectly-unlabeled-edge: checked-state-num trans-acc_opt
 			    }
 labeled-edge: trans-label checked-state-num trans-acc_opt
 	      {
-		if (res.cur_label != bddfalse)
+		if (res.cur_label != bddfalse ||
+                    // As a hack to allow states to be accepting
+                    // even if they do not have transitions, we
+                    // do not ignore false-labeled self-loops if they
+                    // have some colors)
+                    ($2 == res.cur_state && !!($3 | res.acc_state)))
 		  {
 		    if (res.opts.want_kripke)
 		      res.h->ks->new_edge(res.cur_state, $2);

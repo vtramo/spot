@@ -159,6 +159,7 @@ enum {
   OPT_SUM_OR,
   OPT_SUM_AND,
   OPT_TERMINAL_SCCS,
+  OPT_TO_FINITE,
   OPT_TRIV_SCCS,
   OPT_USED_AP_N,
   OPT_UNUSED_AP_N,
@@ -391,6 +392,10 @@ static const argp_option options[] =
       "solver can be set thanks to the SPOT_SATSOLVER environment variable"
       "(see spot-x)."
       , 0 },
+    { "to-finite", OPT_TO_FINITE, "alive", OPTION_ARG_OPTIONAL,
+      "Convert an automaton with \"alive\" and \"!alive\" propositions "
+      "into a Büchi automaton interpretable as a finite automaton.  "
+      "States with a outgoing \"!alive\" edge are marked as accepting.", 0 },
     { nullptr, 0, nullptr, 0, "Decorations (for -d and -H1.1 output):", 9 },
     { "highlight-accepting-run", OPT_HIGHLIGHT_ACCEPTING_RUN, "NUM",
       OPTION_ARG_OPTIONAL, "highlight one accepting run using color NUM", 0},
@@ -688,6 +693,7 @@ static bool opt_rem_unused_ap = false;
 static bool opt_sep_sets = false;
 static bool opt_split_edges = false;
 static const char* opt_sat_minimize = nullptr;
+static const char* opt_to_finite = nullptr;
 static int opt_highlight_nondet_states = -1;
 static int opt_highlight_nondet_edges = -1;
 static int opt_highlight_accepting_run = -1;
@@ -1225,6 +1231,9 @@ parse_opt(int key, char* arg, struct argp_state*)
       opt_terminal_sccs_set = true;
       opt_art_sccs_set = true;
       break;
+    case OPT_TO_FINITE:
+      opt_to_finite = arg ? arg : "alive";
+      break;
     case OPT_TRIV_SCCS:
       opt_triv_sccs = parse_range(arg, 0, std::numeric_limits<int>::max());
       opt_art_sccs_set = true;
@@ -1647,6 +1656,9 @@ namespace
 
       if (opt_split_edges)
         aut = spot::split_edges(aut);
+
+      if (opt_to_finite)
+        aut = spot::to_finite(aut, opt_to_finite);
 
       if (randomize_st || randomize_tr)
         spot::randomize(aut, randomize_st, randomize_tr);

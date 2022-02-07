@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2015-2019 Laboratoire de Recherche et Développement
+// Copyright (C) 2015-2019, 2022 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -174,4 +174,74 @@ namespace spot
                          });
     return res;
   }
+
+
+  twa_graph_ptr to_finite(const_twa_graph_ptr aut, const char* alive)
+  {
+    twa_graph_ptr res =
+      make_twa_graph(aut,
+                     { false, false, true, false, false, false });
+
+    bdd rem = bddtrue;
+    bdd neg = bddfalse;
+    int v = res->get_dict()->
+      has_registered_proposition(spot::formula::ap(alive), aut);
+    if (v >= 0)
+      {
+        rem = bdd_ithvar(v);
+        neg = bdd_nithvar(v);
+        res->unregister_ap(v);
+      }
+
+    unsigned ns = res->num_states();
+    std::vector<bool> isacc(ns, false);
+    for (unsigned s = 0; s < ns; ++s)
+      {
+        for (auto& e: res->out(s))
+          if (bdd_implies(e.cond, neg))
+            {
+              isacc[e.src] = true;
+              e.cond = bddfalse;
+            }
+          else
+            {
+              e.cond = bdd_exist(e.cond, rem);
+            }
+      }
+
+    res->set_buchi();
+    res->prop_state_acc(true);
+
+    // Purge dead states will remove all states accessible via edges
+    // marked as "bddfalse" above, along with those edges.
+    auto old = new std::vector<unsigned>(ns);
+    std::iota(old->begin(), old->end(), 0);
+    res->set_named_prop("original-states", old);
+    res->purge_dead_states();
+    ns = res->num_states();
+    for (unsigned s = 0; s < ns; ++s)
+      {
+        if (isacc[(*old)[s]])
+          {
+            acc_cond::mark_t m = {0};
+            bool done = false;
+            for (auto& e: res->out(s))
+              {
+                e.acc = m;
+                done = true;
+              }
+            if (!done)
+              res->new_edge(s, s, bddfalse, m);
+          }
+        else
+          {
+            acc_cond::mark_t m = {};
+            for (auto& e: res->out(s))
+              e.acc = m;
+          }
+      }
+    return res;
+
+  }
+
 }
