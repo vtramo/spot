@@ -36,6 +36,7 @@
 #include <spot/twaalgos/hoa.hh>
 #include <spot/twaalgos/synthesis.hh>
 
+#include <spot/priv/robin_hood.hh>
 #include <picosat/picosat.h>
 
 
@@ -611,7 +612,7 @@ namespace
     }
 
     unsigned
-    flatten_aux(std::unordered_map<bdd, unsigned, spot::bdd_hash>& res)
+    flatten_aux(robin_hood::unordered_map<bdd, unsigned, spot::bdd_hash> &res)
     {
       if (children_.empty())
       {
@@ -631,10 +632,10 @@ namespace
       return my_repr;
     }
 
-    std::unordered_map<bdd, unsigned, spot::bdd_hash>
+    robin_hood::unordered_map<bdd, unsigned, spot::bdd_hash>
     flatten()
     {
-      std::unordered_map<bdd, unsigned, spot::bdd_hash> res;
+      robin_hood::unordered_map<bdd, unsigned, spot::bdd_hash> res;
       flatten_aux(res);
       return res;
     }
@@ -656,6 +657,83 @@ namespace
       }
     }
   };
+
+  std::vector<unsigned>
+  get_repres_bwoa(twa_graph_ptr &a)
+  {
+    unsigned num_states = a->num_states();
+    // Compute signatures
+    sig_calculator red(a, true);
+    red.main_loop();
+    // Detect if a signature is a leaf.
+    unsigned index = 0;
+    std::vector<unsigned> indices_leaf;
+    indices_leaf.reserve(num_states);
+    for (auto& [sig, states] : red.bdd_lstate_)
+    {
+      bool no_leaf = false;
+      unsigned inner_index = 0;
+      for (auto &[sig2, states2] : red.bdd_lstate_)
+      {
+        if (sig != sig2 && bdd_implies(sig2, sig))
+        {
+          no_leaf = true;
+          break;
+        }
+        ++inner_index;
+      }
+
+      if (!no_leaf)
+        indices_leaf.push_back(index);
+      ++index;
+    }
+
+    std::vector<unsigned> result(num_states, -1U);
+
+    // If every signature is a leaf we cannot reduce.
+    if (indices_leaf.size() == num_states)
+      return result;
+
+    // Iterate over leafs
+    auto leaf_ind_iter = indices_leaf.begin();
+    index = 0;
+    for (auto& [sig, states] : red.bdd_lstate_)
+    {
+      bool is_leaf = leaf_ind_iter != indices_leaf.end() &&
+                    (*leaf_ind_iter) == index;
+      if (is_leaf)
+      {
+        ++leaf_ind_iter;
+        for (auto state : states)
+        {
+          assert(state < result.size());
+          result[state] = states[0];
+        }
+      }
+      else
+      {
+        for (auto leaf_index : indices_leaf)
+        {
+          auto pt = red.bdd_lstate_.begin();
+          std::advance(pt, leaf_index);
+          auto& [sig2, states2] = *pt;
+          if (bdd_implies(sig2, sig))
+          {
+            assert(states.size() > 0);
+            auto new_dst = states2[0];
+            for (auto state : states)
+            {
+              assert(state < result.size());
+              result[state] = new_dst;
+            }
+            break;
+          }
+        }
+      }
+      ++index;
+    }
+    return result;
+  }
 
 
   // Associate to a state a representative. The first value of the result
@@ -739,7 +817,11 @@ namespace spot
     // Only consider infinite runs
     mm->purge_dead_states();
 
-    auto repr = get_repres(mm, output_assignment);
+    std::vector<unsigned> repr;
+    if (output_assignment)
+      repr = get_repres_bwoa(mm);
+    else
+     repr = get_repres(mm, false);
     if (repr[0] == -1U)
       return;
 
