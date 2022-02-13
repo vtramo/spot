@@ -2,6 +2,11 @@ New in spot 2.10.4.dev  (net yet released)
 
   Nothing yet.
 
+  Bugs fixed:
+
+  - reduce_parity() produced incorrect results when applied to
+    automata with deleted edges.
+
 New in spot 2.10.4  (2022-02-01)
 
   Bug fixed:
