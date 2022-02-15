@@ -407,11 +407,12 @@ static const argp_option options[] =
     { "given-formula", OPT_GIVEN_FORMULA, "FORMULA", 0,
       "simplify input automata assuming they are only used in a context where "
       "FORMULA holds", 0 },
-    { "given-strategy", OPT_GIVEN_STRAT, "restrict|relax|all", 0,
+    { "given-strategy", OPT_GIVEN_STRAT, "restrict|relax|stutter|all", 0,
       "strategy to use to simplify input automata based on given knowledge: "
       "(restrict) restrict edge labels to their useful subset, (relax) relax "
       "labels using impossible assignments if that reduce their support, "
-      "(all) do both [the default].", 0 },
+      "(stutter) build a stutter-invariant results if the added words are "
+      "outside the given knowledge, (all) do all [the default].", 0 },
     { nullptr, 0, nullptr, 0, "Decorations (for -d and -H1.1 output):", 9 },
     { "highlight-accepting-run", OPT_HIGHLIGHT_ACCEPTING_RUN, "NUM",
       OPTION_ARG_OPTIONAL, "highlight one accepting run using color NUM", 0},
@@ -516,11 +517,11 @@ ARGMATCH_VERIFY(aliases_args, aliases_types);
 
 static char const *const given_args[] =
 {
-  "restrict", "relax", "all", nullptr
+  "restrict", "relax", "stutter", "all", nullptr
 };
 static spot::given_strategy const given_types[] =
 {
-  spot::GIVEN_RESTRICT, spot::GIVEN_RELAX, spot::GIVEN_ALL
+  spot::GIVEN_RESTRICT, spot::GIVEN_RELAX, spot::GIVEN_STUTTER, spot::GIVEN_ALL
 };
 ARGMATCH_VERIFY(given_args, given_types);
 

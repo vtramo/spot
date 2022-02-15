@@ -26,7 +26,8 @@ namespace spot
     {
       GIVEN_RESTRICT = 1,
       GIVEN_RELAX = 2,
-      GIVEN_ALL = GIVEN_RESTRICT | GIVEN_RELAX,
+      GIVEN_STUTTER = 4,
+      GIVEN_ALL = GIVEN_RESTRICT | GIVEN_RELAX | GIVEN_STUTTER,
     };
 
   /// \ingroup twa_algorithms
@@ -45,6 +46,11 @@ namespace spot
   /// enlarge the set of assignments supported by this edge. The
   /// latter enlargment is only done if it reduces the support of the
   /// edge label.
+  ///
+  /// The GIVEN_STUTTER strategy tries to turn \a aut into a
+  /// stutter-invariant automaton. If the paths added to \a aut
+  /// in the process are outside the knowledge, they can be kept.
+  /// Doing so may add many more arcs to the automaton.
   /// @{
   SPOT_API twa_graph_ptr
   given_here(twa_graph_ptr& aut, const_twa_graph_ptr& fact,

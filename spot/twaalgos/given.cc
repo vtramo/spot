@@ -22,6 +22,8 @@
 #include "spot/twaalgos/product.hh"
 #include "spot/twaalgos/sccinfo.hh"
 #include "spot/twaalgos/mask.hh"
+#include "spot/twaalgos/stutter.hh"
+#include "spot/twaalgos/complement.hh"
 
 namespace spot
 {
@@ -126,8 +128,15 @@ namespace spot
         false, // complete
         false, // stutter
       });
-
     aut->purge_dead_states();
+
+    if (strat & GIVEN_STUTTER)
+      {
+        auto stut = sl2(closure(aut));
+        if (!product(stut, complement(aut))->intersects(fact))
+          return stut;
+      }
+
     return aut;
   }
 
