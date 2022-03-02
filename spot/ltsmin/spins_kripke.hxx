@@ -185,7 +185,12 @@ namespace spot
     return (unsigned)  ((c*p) % s);
   }
 
-  cube cspins_iterator::condition() const
+  cube& cspins_iterator::condition()
+  {
+    return cond_;
+  }
+
+  const cube& cspins_iterator::condition() const
   {
     return cond_;
   }

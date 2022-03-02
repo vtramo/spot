@@ -146,7 +146,8 @@ namespace spot
     void next();
     bool done() const;
     cspins_state state() const;
-    cube condition() const;
+    cube& condition();
+    const cube& condition() const;
 
   private:
     /// \brief Compute the real index in the successor vector
