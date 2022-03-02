@@ -54,16 +54,20 @@ namespace spot
   bool cubeset::is_true_var(cube c, unsigned int x) const
   {
     unsigned int i = x/nb_bits_;
-    bool true_var = (*(c+i) >> x) & 1;
-    bool false_var = (*(c+i+uint_size_) >> x) & 1;
+    auto shift = x - i*nb_bits_;
+    // before: (*(c+i) >> x)
+    // technically UB, but ok for most compilers
+    bool true_var = (*(c+i) >> shift) & 1;
+    bool false_var = (*(c+i+uint_size_) >> shift) & 1;
     return true_var && !false_var;
   }
 
   bool cubeset::is_false_var(cube c, unsigned int x) const
   {
     unsigned int i = x/nb_bits_;
-    bool true_var = (*(c+i) >> x) & 1;
-    bool false_var = (*(c+i+uint_size_) >> x) & 1;
+    auto shift = x - i*nb_bits_;
+    bool true_var = (*(c+i) >> shift) & 1;
+    bool false_var = (*(c+i+uint_size_) >> shift) & 1;
     return !true_var && false_var;
   }
 

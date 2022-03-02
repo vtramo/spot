@@ -184,4 +184,58 @@ int main()
   cs.release(mc1);
   cs.release(mc);
   test_bdd_to_cube();
+
+  // Additional is_true/is_false tests
+  const unsigned NN = 101;
+  auto ncset = spot::cubeset(NN);
+  for (unsigned idx = 0; idx < NN; ++idx)
+    {
+      auto nc = ncset.alloc();
+      for (unsigned idx2 = 0; idx2 < NN; ++idx2)
+        {
+          if (ncset.is_true_var(nc, idx2) || ncset.is_false_var(nc, idx2))
+            std::cout << "Fresh cube does not correspond to T\n"
+                         "Error for index " << idx2 << '\n';
+        }
+      ncset.set_true_var(nc, idx);
+      for (unsigned idx2 = 0; idx2 < NN; ++idx2)
+        {
+          if (ncset.is_false_var(nc, idx2))
+            std::cout << "false var " << idx2 << " flipped\n";
+          if ((idx2 != idx)
+              && ncset.is_true_var(nc, idx2))
+            std::cout << "Var " << idx2 << " was not set to T but did "
+                                           "not return T!\n";
+          else if ((idx2 == idx)
+                   && !ncset.is_true_var(nc, idx2))
+            std::cout << "Var " << idx2 << " was set to T but did "
+                                           "not return T!\n";
+        }
+      ncset.release(nc);
+    }
+  for (unsigned idx = 0; idx < NN; ++idx)
+    {
+      auto nc = ncset.alloc();
+      for (unsigned idx2 = 0; idx2 < NN; ++idx2)
+        {
+          if (ncset.is_true_var(nc, idx2) || ncset.is_false_var(nc, idx2))
+            std::cout << "Fresh cube does not correspond to T\n"
+                         "Error for index " << idx2 << '\n';
+        }
+      ncset.set_false_var(nc, idx);
+      for (unsigned idx2 = 0; idx2 < NN; ++idx2)
+        {
+          if (ncset.is_true_var(nc, idx2))
+            std::cout << "true var " << idx2 << " flipped\n";
+          if ((idx2 != idx)
+              && ncset.is_false_var(nc, idx2))
+            std::cout << "Var " << idx2 << " was not set to F but did "
+                                           "not return F!\n";
+          else if ((idx2 == idx)
+                   && !ncset.is_false_var(nc, idx2))
+            std::cout << "Var " << idx2 << " was set to F but did "
+                                           "not return F!\n";
+        }
+      ncset.release(nc);
+    }
 }
