@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2011, 2015-2018, 2020 Laboratoire de Recherche et
+// Copyright (C) 2011, 2015-2018, 2020, 2022 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE)
 //
 // This file is part of Spot, a model checking library.
@@ -22,7 +22,9 @@
 #include <spot/misc/common.hh>
 #include <spot/misc/clz.hh>
 
-#if SPOT_DEBUG && defined(HAVE_VALGRIND_MEMCHECK_H)
+#if SPOT_DEBUG && __has_include(<valgrind/memcheck.h>)
+#undef USES_MEMCHECK_H
+#define USES_MEMCHECK_H 1
 #include <valgrind/memcheck.h>
 #endif
 
@@ -90,7 +92,7 @@ namespace spot
       // If we have free blocks available, return the first one.
       if (f)
         {
-#if SPOT_DEBUG && defined(HAVE_VALGRIND_MEMCHECK_H)
+#ifdef USES_MEMCHECK_H
           if (Kind == pool_type::Safe)
             {
               VALGRIND_MALLOCLIKE_BLOCK(f, size_, 0, false);
@@ -112,7 +114,7 @@ namespace spot
 
       void* res = free_start_;
       free_start_ += size_;
-#if SPOT_DEBUG && defined(HAVE_VALGRIND_MEMCHECK_H)
+#ifdef USES_MEMCHECK_H
       if (Kind == pool_type::Safe)
         {
           VALGRIND_MALLOCLIKE_BLOCK(res, size_, 0, false);
@@ -134,7 +136,7 @@ namespace spot
       block_* b = reinterpret_cast<block_*>(ptr);
       b->next = freelist_;
       freelist_ = b;
-#if SPOT_DEBUG && defined(HAVE_VALGRIND_MEMCHECK_H)
+#ifdef USES_MEMCHECK_H
       if (Kind == pool_type::Safe)
         {
           VALGRIND_FREELIKE_BLOCK(ptr, 0);

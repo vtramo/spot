@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2011, 2013, 2015, 2016, 2018 Laboratoire de Recherche et
-// Developpement de l'Epita (LRDE)
+// Copyright (C) 2011, 2013, 2015-2016, 2018, 2022 Laboratoire de
+// Recherche et Developpement de l'Epita (LRDE)
 //
 // This file is part of Spot, a model checking library.
 //
@@ -22,7 +22,9 @@
 #include <spot/misc/common.hh>
 #include <unordered_map>
 
-#if SPOT_DEBUG && defined(HAVE_VALGRIND_MEMCHECK_H)
+#if SPOT_DEBUG && __has_include(<valgrind/memcheck.h>)
+#undef USES_MEMCHECK_H
+#define USES_MEMCHECK_H 1
 #include <valgrind/memcheck.h>
 #endif
 
@@ -70,7 +72,7 @@ namespace spot
       if (f)
         {
           block_* first = f;
-#if SPOT_DEBUG && defined(HAVE_VALGRIND_MEMCHECK_H)
+#ifdef USES_MEMCHECK_H
           VALGRIND_MALLOCLIKE_BLOCK(f, size, 0, false);
           // field f->next is initialized: prevents valgrind from complaining
           // about jumps depending on uninitialized memory
@@ -99,7 +101,7 @@ namespace spot
 
       void* res = free_start_;
       free_start_ += size;
-#if SPOT_DEBUG && defined(HAVE_VALGRIND_MEMCHECK_H)
+#ifdef USES_MEMCHECK_H
       VALGRIND_MALLOCLIKE_BLOCK(res, size, 0, false);
 #endif
       return res;
@@ -123,7 +125,7 @@ namespace spot
       block_*& f = freelist_[size];
       b->next = f;
       f = b;
-#if SPOT_DEBUG && defined(HAVE_VALGRIND_MEMCHECK_H)
+#ifdef USES_MEMCHECK_H
       VALGRIND_FREELIKE_BLOCK(ptr, 0);
 #endif
     }

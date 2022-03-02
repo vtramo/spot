@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2015-2021 Laboratoire de Recherche et Développement
+// Copyright (C) 2015-2022 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -27,7 +27,8 @@
 #include <sys/wait.h>
 #include <fcntl.h>
 #include <iomanip>
-#ifdef HAVE_SPAWN_H
+#if __has_include(<spawn.h>)
+#define HAVE_SPAWN_H 1
 #include <spawn.h>
 #endif
 #include <regex>

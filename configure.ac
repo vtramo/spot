@@ -147,7 +147,6 @@ CHECK_ATOMIC
 
 AX_CHECK_BUDDY
 
-AC_CHECK_HEADERS([sys/times.h valgrind/memcheck.h spawn.h])
 AC_CHECK_FUNCS([times kill alarm sigaction sched_getcpu])
 
 oLIBS=$LIBS
