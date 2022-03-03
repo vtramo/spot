@@ -69,7 +69,8 @@ EXTRA_DIST = HACKING ChangeLog.1 tools/gitlog-to-changelog	\
 	     tools/help2man tools/man2html.pl			\
 	     tools/test-driver-teamcity $(UTF8) $(DEBIAN)	\
 	     m4/gnulib-cache.m4 .dir-locals.el			\
-	     spot.spec spot.spec.in
+	     spot.spec spot.spec.in \
+	     default.nix default.nix.in
 
 dist-hook: gen-ChangeLog
 
@@ -115,3 +116,6 @@ deb: dist
 
 spot.spec: configure.ac spot.spec.in
 	sed 's/[@]VERSION[@]/$(VERSION)/;s/[@]GITPATCH[@]/@@@$(GITPATCH)/;s/@@@\.//' spot.spec.in > $@.tmp && mv $@.tmp $@
+
+default.nix: configure.ac default.nix.in
+	sed 's/[@]VERSION[@]/$(VERSION)/' default.nix.in > $@.tmp && mv $@.tmp $@
