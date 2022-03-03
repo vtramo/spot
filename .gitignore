@@ -81,3 +81,4 @@ GTAGS
 *.dsc
 *.gcov
 spot.spec
+default.nix
