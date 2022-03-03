@@ -74,6 +74,9 @@ New in spot 2.10.4.dev  (net yet released)
   - work around a portability issue in Flex 2.6.4 preventing
     compilation on OpenBSD.
 
+  - Do not use the seq command in test cases, it is not available
+    everywhere.
+
 New in spot 2.10.4  (2022-02-01)
 
   Bug fixed:
