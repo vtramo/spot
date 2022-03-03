@@ -115,8 +115,9 @@ alpine-gcc:
   artifacts:
     when: always
     paths:
-      - tests/*/*.log
+      - ./spot-*/_build/sub/tests/*/*.log
       - ./*.log
+      - ./*.tar.gz
 
 arch-clang:
   stage: build
