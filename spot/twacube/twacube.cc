@@ -41,9 +41,10 @@ namespace spot
 
   twacube::~twacube()
   {
-    const spot::cubeset cs = get_cubeset();
-    for (unsigned i = 1; i <= theg_.num_edges(); ++i)
-      cs.release(theg_.edge_data(i).cube_);
+    // No need, cube is raii
+    //const spot::cubeset cs = get_cubeset();
+    //for (unsigned i = 1; i <= theg_.num_edges(); ++i)
+    //  cs.release(theg_.edge_data(i).cube_);
   }
 
   acc_cond& twacube::acc()

@@ -48,7 +48,6 @@ static bool test_translation(bdd& input,  spot::cubeset& cubeset,
       auto cube = spot::satone_to_cube(one, cubeset, binder);
       res |= spot::cube_to_bdd(cube, cubeset, reverse_binder);
       std::cout << "cube : " << cubeset.dump(cube, aps) << '\n';
-      delete[] cube;
     }
 
   // Translating BDD to cubes and cubes to BDD should provide same BDD.
@@ -137,52 +136,49 @@ static void test_bdd_to_cube()
 
 int main()
 {
-  std::vector<std::string> aps = {"a", "b", "c", "d", "e"};
-  spot::cubeset cs(aps.size());
-  spot::cube mc = cs.alloc();
-  cs.set_true_var(mc, 0);
-  cs.set_false_var(mc, 3);
-  std::cout << "size : " << cs.size() << '\n';
-  std::cout << "cube : " << cs.dump(mc, aps) << '\n';
-  std::cout << "valid : " << cs.is_valid(mc) << '\n';
-  std::cout << "intersect(c,c) : " << cs.intersect(mc, mc) << '\n';
-  cs.display(mc);
+  {
+    std::vector<std::string> aps = {"a", "b", "c", "d", "e"};
+    spot::cubeset cs(aps.size());
+    spot::cube mc = cs.alloc();
+    cs.set_true_var(mc, 0);
+    cs.set_false_var(mc, 3);
+    std::cout << "size : " << cs.size() << '\n';
+    std::cout << "cube : " << cs.dump(mc, aps) << '\n';
+    std::cout << "valid : " << cs.is_valid(mc) << '\n';
+    std::cout << "intersect(c,c) : " << cs.intersect(mc, mc) << '\n';
+    cs.display(mc);
 
-  spot::cube mc1 = cs.alloc();
-  cs.set_false_var(mc1, 0);
-  cs.set_true_var(mc1, 1);
-  std::cout << "size : " << cs.size() << '\n';
-  std::cout << "cube : " << cs.dump(mc1, aps) << '\n';
-  std::cout << "valid : " << cs.is_valid(mc1) << '\n';
-  std::cout << "intersect(c1,c1) : " << cs.intersect(mc1, mc1) << '\n';
-  std::cout << "intersect(c,c1) : " << cs.intersect(mc, mc1) << '\n';
-  std::cout << "intersect(c1,c) : " << cs.intersect(mc1, mc) << '\n';
-  cs.display(mc1);
+    spot::cube mc1 = cs.alloc();
+    cs.set_false_var(mc1, 0);
+    cs.set_true_var(mc1, 1);
+    std::cout << "size : " << cs.size() << '\n';
+    std::cout << "cube : " << cs.dump(mc1, aps) << '\n';
+    std::cout << "valid : " << cs.is_valid(mc1) << '\n';
+    std::cout << "intersect(c1,c1) : " << cs.intersect(mc1, mc1) << '\n';
+    std::cout << "intersect(c,c1) : " << cs.intersect(mc, mc1) << '\n';
+    std::cout << "intersect(c1,c) : " << cs.intersect(mc1, mc) << '\n';
+    cs.display(mc1);
 
-  spot::cube mc2 = cs.alloc();
-  cs.set_true_var(mc2, 1);
-  cs.set_true_var(mc2, 3);
-  std::cout << "size : " << cs.size() << '\n';
-  std::cout << "cube : " << cs.dump(mc2, aps) << '\n';
-  std::cout << "valid : " << cs.is_valid(mc2) << '\n';
-  std::cout << "intersect(c2,c1) : " << cs.intersect(mc1, mc2) << '\n';
-  std::cout << "intersect(c2,c) : " << cs.intersect(mc, mc2) << '\n';
-  cs.display(mc2);
+    spot::cube mc2 = cs.alloc();
+    cs.set_true_var(mc2, 1);
+    cs.set_true_var(mc2, 3);
+    std::cout << "size : " << cs.size() << '\n';
+    std::cout << "cube : " << cs.dump(mc2, aps) << '\n';
+    std::cout << "valid : " << cs.is_valid(mc2) << '\n';
+    std::cout << "intersect(c2,c1) : " << cs.intersect(mc1, mc2) << '\n';
+    std::cout << "intersect(c2,c) : " << cs.intersect(mc, mc2) << '\n';
+    cs.display(mc2);
 
-  std::vector<std::string> apsx;
-  for (unsigned i = 0; i < 44; ++i)
-    apsx.push_back("a" + std::to_string(i));
-  spot::cubeset csx(apsx.size());
-  spot::cube mcx = csx.alloc();
-  csx.set_true_var(mcx, 0);
-  csx.set_false_var(mcx, 42);
-  std::cout << "cube : " << csx.dump(mcx, apsx) << '\n';
-  csx.display(mcx);
-
-  cs.release(mcx);
-  cs.release(mc2);
-  cs.release(mc1);
-  cs.release(mc);
+    std::vector<std::string> apsx;
+    for (unsigned i = 0; i < 44; ++i)
+      apsx.push_back("a" + std::to_string(i));
+    spot::cubeset csx(apsx.size());
+    spot::cube mcx = csx.alloc();
+    csx.set_true_var(mcx, 0);
+    csx.set_false_var(mcx, 42);
+    std::cout << "cube : " << csx.dump(mcx, apsx) << '\n';
+    csx.display(mcx);
+  }
   test_bdd_to_cube();
 
   // Additional is_true/is_false tests
@@ -211,7 +207,6 @@ int main()
             std::cout << "Var " << idx2 << " was set to T but did "
                                            "not return T!\n";
         }
-      ncset.release(nc);
     }
   for (unsigned idx = 0; idx < NN; ++idx)
     {
@@ -236,6 +231,5 @@ int main()
             std::cout << "Var " << idx2 << " was set to F but did "
                                            "not return F!\n";
         }
-      ncset.release(nc);
     }
 }

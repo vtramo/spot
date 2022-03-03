@@ -226,14 +226,15 @@ namespace spot
 
   kripkecube<cspins_state, cspins_iterator>::~kripkecube()
   {
-    for (auto& i: recycle_)
-      {
-        for (auto& j: i)
-          {
-            cubeset_.release(j->condition());
-            delete j;
-          }
-      }
+    // Raii
+    //for (auto& i: recycle_)
+    //  {
+    //    for (auto& j: i)
+    //      {
+    //        cubeset_.release(j->condition());
+    //        delete j;
+    //      }
+    //  }
 
     for (unsigned i = 0; i < nb_threads_; ++i)
       {
@@ -280,7 +281,7 @@ namespace spot
     cspins_iterator::cspins_iterator_param p =
       {
         s, d_, manager_[tid], inner_[tid],
-        nullptr, compress_, selfloopize_,
+        {}, compress_, selfloopize_,
         cubeset_, dead_idx_, tid
       };
 

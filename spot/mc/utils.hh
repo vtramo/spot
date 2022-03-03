@@ -313,7 +313,6 @@ namespace spot
 
           bdd x = spot::cube_to_bdd(c, twa_->get_cubeset(),
                                     reverse_binder_);
-          twa_->get_cubeset().release(c);
           res_->new_edge(map[todo_.back().st]-1, st, x,
                          twa_->trans_data
                          (todo_.back().it_prop).acc_);
@@ -337,7 +336,6 @@ namespace spot
 
       bdd x = spot::cube_to_bdd(c, twa_->get_cubeset(),
                                 reverse_binder_);
-      twa_->get_cubeset().release(c);
       res_->new_edge(src-1, dst-1, x, cond);
       return false;
     }

@@ -23,22 +23,24 @@
 
 namespace spot
 {
-  void cubeset::display(const cube c) const
+  void cubeset::display(const cube& c) const
   {
+    auto cd = c.data();
     for (unsigned int i = 0; i < 2*uint_size_; ++i)
       {
         if (i == uint_size_)
           std::cout << '\n';
 
         for (unsigned x = 0; x < nb_bits_; ++x)
-          std::cout << ((*(c+i) >> x) & 1);
+          std::cout << ((*(cd+i) >> x) & 1);
       }
     std::cout << '\n';
   }
 
   std::string
-  cubeset::dump(cube c, const std::vector<std::string>& aps) const
+  cubeset::dump(const cube& c, const std::vector<std::string>& aps) const
   {
+    auto cd = c.data();
     std::ostringstream oss;
     bool all_free = true;
     unsigned int cpt = 0;
@@ -46,8 +48,8 @@ namespace spot
       {
         for (unsigned x = 0; x < nb_bits_ && cpt != size_; ++x)
           {
-            bool true_var = (*(c+i) >> x) & 1;
-            bool false_var = (*(c+i+uint_size_) >> x) & 1;
+            bool true_var = (*(cd+i) >> x) & 1;
+            bool false_var = (*(cd+i+uint_size_) >> x) & 1;
             if (true_var)
               {
                 oss << aps[cpt]
