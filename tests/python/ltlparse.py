@@ -1,6 +1,6 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2009-2012, 2014-2017, 2019, 2021 Laboratoire de Recherche et
-# Développement de l'Epita (LRDE).
+# Copyright (C) 2009-2012, 2014-2017, 2019, 2021-2022 Laboratoire de
+# Recherche et Développement de l'Epita (LRDE).
 # Copyright (C) 2003, 2004 Laboratoire d'Informatique de Paris 6 (LIP6),
 # département Systèmes Répartis Coopératifs (SRC), Université Pierre
 # et Marie Curie.
@@ -22,6 +22,8 @@
 
 import sys
 import spot
+from unittest import TestCase
+tc = TestCase()
 
 e = spot.default_environment.instance()
 
@@ -41,11 +43,11 @@ for str1, isl in l:
     pf = spot.parse_infix_psl(str2, e)
     if pf.format_errors(spot.get_cout()):
         sys.exit(1)
-    assert isl == pf.f.is_leaf()
+    tc.assertEqual(isl, pf.f.is_leaf())
     del pf
 
-assert spot.formula('a').is_leaf()
-assert spot.formula('0').is_leaf()
+tc.assertTrue(spot.formula('a').is_leaf())
+tc.assertTrue(spot.formula('0').is_leaf())
 
 for str1 in ['a * b', 'a xor b', 'a <-> b']:
     pf = spot.parse_infix_boolean(str1, e, False)
@@ -66,21 +68,21 @@ for (x, op) in [('a* <-> b*', "`<->'"),
                 ('a*[=2]', "[=...]"),
                 ('a*[->2]', "[->...]")]:
     f5 = spot.parse_infix_sere(x)
-    assert f5.errors
+    tc.assertTrue(f5.errors)
     ostr = spot.ostringstream()
     f5.format_errors(ostr)
     err = ostr.str()
-    assert "not a Boolean expression" in err
-    assert op in err
-    assert "SERE" in err
+    tc.assertIn("not a Boolean expression", err)
+    tc.assertIn(op, err)
+    tc.assertIn("SERE", err)
     del f5
 
 f6 = spot.parse_infix_sere('(a <-> b -> c ^ "b\n\n\rc")[=2] & c[->2]')
-assert not f6.errors
+tc.assertFalse(f6.errors)
 del f6
 
 f6 = spot.parse_infix_sere('-')
-assert f6.errors
+tc.assertTrue(f6.errors)
 del f6
 
 for (x, msg) in [('{foo[->bug]}', "treating this goto block as [->]"),
@@ -150,12 +152,12 @@ for (x, msg) in [('{foo[->bug]}', "treating this goto block as [->]"),
                  ('{"X}', "missing closing brace"),
                  ]:
     f7 = spot.parse_infix_psl(x)
-    assert f7.errors
+    tc.assertTrue(f7.errors)
     ostr = spot.ostringstream()
     f7.format_errors(ostr)
     err = ostr.str()
     print(err)
-    assert msg in err
+    tc.assertIn(msg, err)
     del f7
 
 for (x, msg) in [('a&', "missing right operand for \"and operator\""),
@@ -174,12 +176,12 @@ for (x, msg) in [('a&', "missing right operand for \"and operator\""),
                  ('!', "missing right operand for \"not operator\""),
                  ]:
     f8 = spot.parse_infix_boolean(x)
-    assert f8.errors
+    tc.assertTrue(f8.errors)
     ostr = spot.ostringstream()
     f8.format_errors(ostr)
     err = ostr.str()
     print(err)
-    assert msg in err
+    tc.assertIn(msg, err)
     del f8
 
 for (x, msg) in [('a->', "missing right operand for \"implication operator\""),
@@ -191,12 +193,12 @@ for (x, msg) in [('a->', "missing right operand for \"implication operator\""),
                  ]:
     f9 = spot.parse_infix_psl(x, spot.default_environment.instance(),
                               False, True)
-    assert f9.errors
+    tc.assertTrue(f9.errors)
     ostr = spot.ostringstream()
     f9.format_errors(ostr)
     err = ostr.str()
     print(err)
-    assert msg in err
+    tc.assertIn(msg, err)
     del f9
 
 # force GC before fnode_instances_check(), unless it's CPython
@@ -205,15 +207,15 @@ if python_implementation() != 'CPython':
     import gc
     gc.collect()
 
-assert spot.fnode_instances_check()
+tc.assertTrue(spot.fnode_instances_check())
 
 f = spot.formula_F(2, 4, spot.formula_ap("a"))
-assert f == spot.formula("XX(a | X(a | X(a)))")
+tc.assertEqual(f, spot.formula("XX(a | X(a | X(a)))"))
 f = spot.formula_G(2, 4, spot.formula_ap("a"))
-assert f == spot.formula("XX(a & X(a & X(a)))")
+tc.assertEqual(f, spot.formula("XX(a & X(a & X(a)))"))
 f = spot.formula_X(2, spot.formula_ap("a"))
-assert f == spot.formula("XX(a)")
+tc.assertEqual(f, spot.formula("XX(a)"))
 f = spot.formula_G(2, spot.formula_unbounded(), spot.formula_ap("a"))
-assert f == spot.formula("XXG(a)")
+tc.assertEqual(f, spot.formula("XXG(a)"))
 f = spot.formula_F(2, spot.formula_unbounded(), spot.formula_ap("a"))
-assert f == spot.formula("XXF(a)")
+tc.assertEqual(f, spot.formula("XXF(a)"))

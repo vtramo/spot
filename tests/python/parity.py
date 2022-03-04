@@ -19,36 +19,38 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import spot
+from unittest import TestCase
+tc = TestCase()
 
 max_even_5 = spot.acc_code.parity(True, False, 5)
-assert max_even_5 == spot.acc_code.parity_max_even(5)
-assert max_even_5 == spot.acc_code.parity_max(False, 5)
+tc.assertEqual(max_even_5, spot.acc_code.parity_max_even(5))
+tc.assertEqual(max_even_5, spot.acc_code.parity_max(False, 5))
 min_even_5 = spot.acc_code.parity(False, False, 5)
-assert min_even_5 == spot.acc_code.parity_min_even(5)
-assert min_even_5 == spot.acc_code.parity_min(False, 5)
+tc.assertEqual(min_even_5, spot.acc_code.parity_min_even(5))
+tc.assertEqual(min_even_5, spot.acc_code.parity_min(False, 5))
 
 max_odd_5 = spot.acc_code.parity(True, True, 5)
-assert max_odd_5 == spot.acc_code.parity_max_odd(5)
-assert max_odd_5 == spot.acc_code.parity_max(True, 5)
+tc.assertEqual(max_odd_5, spot.acc_code.parity_max_odd(5))
+tc.assertEqual(max_odd_5, spot.acc_code.parity_max(True, 5))
 min_odd_5 = spot.acc_code.parity(False, True, 5)
-assert min_odd_5 == spot.acc_code.parity_min_odd(5)
-assert min_odd_5 == spot.acc_code.parity_min(True, 5)
+tc.assertEqual(min_odd_5, spot.acc_code.parity_min_odd(5))
+tc.assertEqual(min_odd_5, spot.acc_code.parity_min(True, 5))
 
 
 for f in ('FGa', 'GFa & GFb & FGc', 'XXX(a U b)'):
     a1 = spot.translate(f, 'parity')
-    assert a1.acc().is_parity()
+    tc.assertTrue(a1.acc().is_parity())
     a2 = spot.translate(f).postprocess('parity')
-    assert a2.acc().is_parity()
+    tc.assertTrue(a2.acc().is_parity())
     a3 = spot.translate(f, 'det').postprocess('parity', 'colored')
-    assert a3.acc().is_parity()
-    assert spot.is_colored(a3)
+    tc.assertTrue(a3.acc().is_parity())
+    tc.assertTrue(spot.is_colored(a3))
 
 a = spot.translate('GFa & GFb')
 try:
     spot.change_parity_here(a, spot.parity_kind_same, spot.parity_style_even)
 except RuntimeError as e:
-    assert 'input should have parity acceptance' in str(e)
+    tc.assertIn('input should have parity acceptance', str(e))
 else:
     exit(2)
 
@@ -64,7 +66,7 @@ State: 0
 --END--
 """)
 spot.cleanup_parity_here(a)
-assert a.to_str() == """HOA: v1
+tc.assertEqual(a.to_str(), """HOA: v1
 States: 1
 Start: 0
 AP: 1 "a"
@@ -75,7 +77,7 @@ properties: deterministic
 --BODY--
 State: 0
 [t] 0
---END--"""
+--END--""")
 
 a = spot.automaton("""
 HOA: v1
@@ -89,7 +91,7 @@ State: 0
 --END--
 """)
 spot.cleanup_parity_here(a)
-assert a.to_str() == """HOA: v1
+tc.assertEqual(a.to_str(), """HOA: v1
 States: 1
 Start: 0
 AP: 1 "a"
@@ -100,7 +102,7 @@ properties: deterministic
 --BODY--
 State: 0
 [t] 0
---END--"""
+--END--""")
 
 a = spot.automaton("""HOA: v1
 States: 3
@@ -120,39 +122,39 @@ State: 2
 try:
 	spot.get_state_players(a)
 except RuntimeError as e:
-  assert "not a game" in str(e)
+  tc.assertIn("not a game", str(e))
 else:
   report_missing_exception()
 
 try:
     spot.set_state_player(a, 1, True)
 except RuntimeError as e:
-    assert "Can only" in str(e)
+    tc.assertIn("Can only", str(e))
 else:
     report_missing__exception()
 spot.set_state_players(a, (False, True, False))
-assert spot.get_state_player(a, 0) == False
-assert spot.get_state_player(a, 1) == True
-assert spot.get_state_player(a, 2) == False
+tc.assertEqual(spot.get_state_player(a, 0), False)
+tc.assertEqual(spot.get_state_player(a, 1), True)
+tc.assertEqual(spot.get_state_player(a, 2), False)
 
 try:
 	spot.set_state_players(a, [True, False, False, False])
 except RuntimeError as e:
-  assert "many owners as states" in str(e)
+  tc.assertIn("many owners as states", str(e))
 else:
   report_missing_exception()
 
 try:
 	spot.get_state_player(a, 4)
 except RuntimeError as e:
-  assert "invalid state number" in str(e)
+  tc.assertIn("invalid state number", str(e))
 else:
   report_missing_exception()
 
 try:
 	spot.set_state_player(a, 4, True)
 except RuntimeError as e:
-  assert "invalid state number" in str(e)
+  tc.assertIn("invalid state number", str(e))
 else:
   report_missing_exception()
 
@@ -168,4 +170,4 @@ oi.erase()
 # postprocess used to call reduce_parity that did not
 # work correctly on automata with deleted edges.
 sm = a.postprocess("gen", "small")
-assert sm.num_states() == 3
+tc.assertEqual(sm.num_states(), 3)

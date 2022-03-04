@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2017-2019, 2021 Laboratoire de Recherche et Développement de
-# l'EPITA.
+# Copyright (C) 2017-2019, 2021-2022 Laboratoire de Recherche et
+# Développement de l'EPITA.
 #
 # This file is part of Spot, a model checking library.
 #
@@ -20,6 +20,8 @@
 
 import spot
 import buddy
+from unittest import TestCase
+tc = TestCase()
 
 match_strings = [('is_buchi', 'is_co_buchi'),
                  ('is_generalized_buchi', 'is_generalized_co_buchi'),
@@ -79,19 +81,19 @@ def test_aut(aut, d=None):
 
 
 def test_complement(aut):
-    assert aut.is_deterministic()
+    tc.assertTrue(aut.is_deterministic())
     d = spot.dualize(aut)
     s = spot.product_or(aut, d)
-    assert spot.dualize(s).is_empty()
+    tc.assertTrue(spot.dualize(s).is_empty())
 
 
 def test_assert(a, d=None):
     t = test_aut(a, d)
     if not t[0]:
-        print (t[1])
-        print (a.to_str('hoa'))
-        print (spot.dualize(a).to_str('hoa'))
-        assert False
+        print(t[1])
+        print(a.to_str('hoa'))
+        print(spot.dualize(a).to_str('hoa'))
+    tc.assertTrue(t[0])
 
 
 aut = spot.translate('a')
@@ -101,7 +103,7 @@ test_assert(aut)
 dual = spot.dualize(aut)
 h = dual.to_str('hoa')
 
-assert h == """HOA: v1
+tc.assertEqual(h, """HOA: v1
 States: 3
 Start: 1
 AP: 1 "a"
@@ -117,7 +119,7 @@ State: 1
 [!0] 2
 State: 2
 [t] 2
---END--"""
+--END--""")
 
 aut = spot.automaton("""
 HOA: v1
@@ -141,7 +143,7 @@ test_assert(aut)
 dual = spot.dualize(aut)
 h = dual.to_str('hoa')
 
-assert h == """HOA: v1
+tc.assertEqual(h, """HOA: v1
 States: 4
 Start: 0
 AP: 2 "a" "b"
@@ -161,7 +163,7 @@ State: 2 {0}
 [!1] 3
 State: 3
 [t] 3
---END--"""
+--END--""")
 
 aut = spot.automaton("""
 HOA: v1
@@ -186,7 +188,7 @@ test_assert(aut)
 dual = spot.dualize(aut)
 h = dual.to_str('hoa')
 
-assert h == """HOA: v1
+tc.assertEqual(h, """HOA: v1
 States: 2
 Start: 1
 AP: 2 "a" "b"
@@ -198,7 +200,7 @@ State: 0
 [t] 0
 State: 1
 [!0 | !1] 0
---END--"""
+--END--""")
 
 aut = spot.automaton("""
 HOA: v1
@@ -219,10 +221,10 @@ State: 3 {1}
 --END--""")
 
 dual = spot.dualize(aut)
-assert dualtype(aut, dual)
+tc.assertTrue(dualtype(aut, dual))
 h = dual.to_str('hoa')
 
-assert h == """HOA: v1
+tc.assertEqual(h, """HOA: v1
 States: 2
 Start: 1
 AP: 2 "a" "b"
@@ -234,7 +236,7 @@ State: 0
 [t] 0
 State: 1
 [!0 | !1] 0
---END--"""
+--END--""")
 
 aut = spot.automaton("""
 HOA: v1
@@ -255,10 +257,10 @@ State: 3 {0}
 --END--""")
 
 dual = spot.dualize(aut)
-assert dualtype(aut, dual)
+tc.assertTrue(dualtype(aut, dual))
 h = dual.to_str('hoa')
 
-assert h == """HOA: v1
+tc.assertEqual(h, """HOA: v1
 States: 5
 Start: 0
 AP: 2 "a" "b"
@@ -280,7 +282,7 @@ State: 3 {0}
 [t] 3
 State: 4
 [t] 4
---END--"""
+--END--""")
 
 aut = spot.automaton("""
 HOA: v1
@@ -302,10 +304,10 @@ State: 2
 --END--""")
 
 dual = spot.dualize(aut)
-assert dualtype(aut, dual)
+tc.assertTrue(dualtype(aut, dual))
 h = dual.to_str('hoa')
 
-assert h == """HOA: v1
+tc.assertEqual(h, """HOA: v1
 States: 4
 Start: 0
 AP: 2 "a" "b"
@@ -327,7 +329,7 @@ State: 2
 [!0&!1] 0&2
 State: 3
 [t] 3
---END--"""
+--END--""")
 
 aut = spot.automaton("""
 HOA: v1
@@ -348,10 +350,10 @@ State: 2
 --END--""")
 
 dual = spot.dualize(aut)
-assert dualtype(aut, dual)
+tc.assertTrue(dualtype(aut, dual))
 h = dual.to_str('hoa')
 
-assert h == """HOA: v1
+tc.assertEqual(h, """HOA: v1
 States: 1
 Start: 0
 AP: 1 "a"
@@ -362,7 +364,7 @@ properties: deterministic terminal
 --BODY--
 State: 0
 [t] 0
---END--"""
+--END--""")
 
 aut = spot.automaton("""
 HOA: v1
@@ -382,10 +384,10 @@ State: 2
 --END--""")
 
 dual = spot.dualize(aut)
-assert dualtype(aut, dual)
+tc.assertTrue(dualtype(aut, dual))
 h = dual.to_str('hoa')
 
-assert h == """HOA: v1
+tc.assertEqual(h, """HOA: v1
 States: 1
 Start: 0
 AP: 1 "a"
@@ -396,7 +398,7 @@ properties: deterministic terminal
 --BODY--
 State: 0
 [t] 0
---END--"""
+--END--""")
 
 aut = spot.automaton("""
 HOA: v1
@@ -419,7 +421,7 @@ State: 2
 dual = spot.dualize(aut)
 h = dual.to_str('hoa')
 
-assert h == """HOA: v1
+tc.assertEqual(h, """HOA: v1
 States: 3
 Start: 0
 AP: 2 "a" "b"
@@ -435,7 +437,7 @@ State: 1 {0}
 [t] 1
 State: 2
 [t] 2
---END--"""
+--END--""")
 
 aut = spot.automaton("""
 HOA: v1
@@ -456,10 +458,10 @@ State: 2
 
 
 dual = spot.dualize(aut)
-assert dualtype(aut, dual)
+tc.assertTrue(dualtype(aut, dual))
 h = dual.to_str('hoa')
 
-assert h == """HOA: v1
+tc.assertEqual(h, """HOA: v1
 States: 2
 Start: 0
 AP: 1 "a"
@@ -471,7 +473,7 @@ State: 0
 [!0] 1
 State: 1 {0}
 [t] 1
---END--"""
+--END--""")
 
 aut = spot.automaton("""
 HOA: v1
@@ -495,10 +497,10 @@ State: 3 {0}
 --END--""")
 
 dual = spot.dualize(aut)
-assert dualtype(aut, dual)
+tc.assertTrue(dualtype(aut, dual))
 h = dual.to_str('hoa')
 
-assert h == """HOA: v1
+tc.assertEqual(h, """HOA: v1
 States: 3
 Start: 0
 AP: 1 "a"
@@ -515,7 +517,7 @@ State: 1
 [0] 2
 State: 2 {0}
 [t] 2
---END--"""
+--END--""")
 
 aut = spot.automaton("""
 HOA: v1
@@ -536,10 +538,10 @@ State: 2
 --END--""")
 
 dual = spot.dualize(aut)
-assert dualtype(aut, dual)
+tc.assertTrue(dualtype(aut, dual))
 h = dual.to_str('hoa')
 
-assert h == """HOA: v1
+tc.assertEqual(h, """HOA: v1
 States: 3
 Start: 0
 AP: 1 "a"
@@ -555,14 +557,14 @@ State: 1 {0}
 [t] 0
 State: 2 {1}
 [t] 0
---END--"""
+--END--""")
 
 aut = spot.translate('G!a R XFb')
 test_assert(aut)
 dual = spot.dualize(aut)
 h = dual.to_str('hoa')
 
-assert h == """HOA: v1
+tc.assertEqual(h, """HOA: v1
 States: 5
 Start: 0
 AP: 2 "a" "b"
@@ -589,7 +591,7 @@ State: 3 {0}
 [0] 4
 State: 4
 [t] 4
---END--"""
+--END--""")
 
 opts = spot.option_map()
 opts.set('output', spot.randltlgenerator.LTL)

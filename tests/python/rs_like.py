@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2017 Laboratoire de Recherche et Développement
+# Copyright (C) 2017, 2022 Laboratoire de Recherche et Développement
 # de l'Epita
 #
 # This file is part of Spot, a model checking library.
@@ -18,6 +18,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import spot
+from unittest import TestCase
+tc = TestCase()
 
 a = spot.vector_rs_pair()
 
@@ -30,12 +32,13 @@ mall = spot.mark_t()
 
 def test_rs(acc, rs, expected_res, expected_pairs):
     res, p = getattr(acc, 'is_' + rs + '_like')()
-    assert res == expected_res
+    tc.assertEqual(res, expected_res)
     if expected_res:
         expected_pairs.sort()
         p = sorted(p)
         for a, b in zip(p, expected_pairs):
-            assert a.fin == b.fin and a.inf == b.inf
+            tc.assertEqual(a.fin, b.fin)
+            tc.assertEqual(a.inf, b.inf)
 
 
 def switch_pairs(pairs):

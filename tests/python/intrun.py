@@ -1,6 +1,6 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2020 Laboratoire de Recherche et Développement de l'Epita
-# (LRDE).
+# Copyright (C) 2020, 2022 Laboratoire de Recherche et Développement
+# de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
 #
@@ -18,6 +18,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import spot
+from unittest import TestCase
+tc = TestCase()
 
 # This issue was reported by Florian Renkin.  The reduce() call used in
 # intersecting_run() was bogus, and could incorrectly reduce a word
@@ -34,5 +36,5 @@ trans-labels explicit-labels trans-acc complete properties: deterministic
 State: 3 [t] 1 {1 2} State: 4 [!0&1] 4 {2} [!0&!1] 3 {2} [0] 2 {0 2} --END--""")
 r = b.intersecting_run(spot.complement(a));
 c = spot.twa_word(r).as_automaton()
-assert c.intersects(b)
-assert not c.intersects(a)
+tc.assertTrue(c.intersects(b))
+tc.assertFalse(c.intersects(a))

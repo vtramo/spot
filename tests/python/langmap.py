@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2016, 2017, 2020 Laboratoire de Recherche et Développement
-# de l'Epita (LRDE)
+# Copyright (C) 2016, 2017, 2020, 2022 Laboratoire de Recherche et
+# Développement de l'Epita (LRDE)
 #
 # This file is part of Spot, a model checking library.
 #
@@ -19,6 +19,8 @@
 
 import spot
 import sys
+from unittest import TestCase
+tc = TestCase()
 
 
 def hstates(txt):
@@ -31,13 +33,10 @@ def hstates(txt):
 def test(f, opt, expected):
     aut = spot.translate(f, *opt, 'deterministic')
     v = spot.language_map(aut)
-    assert len(v) == aut.num_states()
+    tc.assertEqual(len(v), aut.num_states())
     spot.highlight_languages(aut)
     l = hstates(aut.to_str('hoa', '1.1'))
-    if l != expected:
-        print('for {}\nexpected: {}\n but got: {}'.format(f, expected, l),
-              file=sys.stderr)
-        exit(1)
+    tc.assertEqual(l, expected)
 
 
 test('GF(a) & GFb & c', ['Buchi', 'SBAcc'], '1 0 2 0 3 0')
@@ -50,6 +49,6 @@ test('Xa', ['Buchi', 'SBAcc'], '')
 try:
     test('FGa', ['Buchi'], '')
 except RuntimeError as e:
-    assert 'language_map only works with deterministic automata'in str(e)
+    tc.assertIn('language_map only works with deterministic automata', str(e))
 else:
     exit(1)

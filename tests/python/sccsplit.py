@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2018 Laboratoire de Recherche et Développement de
-# l'EPITA.
+# Copyright (C) 2018, 2022 Laboratoire de Recherche et Développement
+# de l'EPITA.
 #
 # This file is part of Spot, a model checking library.
 #
@@ -19,6 +19,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import spot
+from unittest import TestCase
+tc = TestCase()
+
 
 aut = spot.translate('GF(a <-> Xa) & GF(b <-> XXb)')
 si = spot.scc_info(aut)
@@ -27,4 +30,4 @@ for aut2 in si.split_on_sets(0, [0]):
     # This call to to_str() used to fail because split_on_sets had not
     # registered the atomic propositions of aut
     s += aut2.to_str()
-assert spot.automaton(s).num_states() == 8
+tc.assertEqual(spot.automaton(s).num_states(), 8)

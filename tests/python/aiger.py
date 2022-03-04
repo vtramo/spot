@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2021 Laboratoire de Recherche et
+# Copyright (C) 2021, 2022 Laboratoire de Recherche et
 # Développement de l'Epita
 #
 # This file is part of Spot, a model checking library.
@@ -18,6 +18,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import spot, buddy
+from unittest import TestCase
+tc = TestCase()
 
 strats = (("""HOA: v1
 States: 4
@@ -3346,7 +3348,7 @@ for strat_string, (ins_str, outs_str) in strats:
                         print(f"Mode is {m+ss+ddx+uud}")
                         print(f"""Strat is \n{strat_s.to_str("hoa")}""")
                         print(f"""Aig as aut is \n{strat2_s.to_str("hoa")}""")
-                        assert 0
+                        raise AssertionError("not a specialization")
 
 
 # Check stepwise simulation
@@ -3386,7 +3388,7 @@ for (i, e_latch) in zip(ins, exp_latches):
 
 # Variable names
 
-assert(spot.aiger_circuit("""aag 2 2 0 2 0
+tc.assertEqual(spot.aiger_circuit("""aag 2 2 0 2 0
 2
 4
 2
@@ -3394,9 +3396,9 @@ assert(spot.aiger_circuit("""aag 2 2 0 2 0
 i0 a
 i1 b c
 c
-""").to_str() == 'aag 2 2 0 2 0\n2\n4\n2\n1\ni0 a\ni1 b c\no0 o0\no1 o1')
+""").to_str(), 'aag 2 2 0 2 0\n2\n4\n2\n1\ni0 a\ni1 b c\no0 o0\no1 o1')
 
-assert(spot.aiger_circuit("""aag 2 2 0 2 0
+tc.assertEqual(spot.aiger_circuit("""aag 2 2 0 2 0
 2
 4
 2
@@ -3404,7 +3406,7 @@ assert(spot.aiger_circuit("""aag 2 2 0 2 0
 o0 x
 o1 y
 c
-""").to_str() == 'aag 2 2 0 2 0\n2\n4\n2\n1\ni0 i0\ni1 i1\no0 x\no1 y')
+""").to_str(), 'aag 2 2 0 2 0\n2\n4\n2\n1\ni0 i0\ni1 i1\no0 x\no1 y')
 
 
 def report_missing_exception():
@@ -3415,7 +3417,7 @@ try:
 0
 """)
 except SyntaxError as e:
-    assert str(e) == "\n<string>:1: invalid header line"
+    tc.assertEqual(str(e), "\n<string>:1: invalid header line")
 else:
     report_missing_exception()
 
@@ -3423,14 +3425,15 @@ try:
     spot.aiger_circuit("""aag 2 2 3 2 0
 """)
 except SyntaxError as e:
-    assert str(e) == "\n<string>:1: more variables than indicated by max var"
+    tc.assertEqual(str(e),
+                   "\n<string>:1: more variables than indicated by max var")
 else:
     report_missing_exception()
 
 try:
     spot.aiger_circuit("""aag 2 2 0 2 0\n""")
 except SyntaxError as e:
-    assert str(e) == "\n<string>:2: expecting input number 2"
+    tc.assertEqual(str(e), "\n<string>:2: expecting input number 2")
 else:
     report_missing_exception()
 
@@ -3439,7 +3442,7 @@ try:
 3
 """)
 except SyntaxError as e:
-    assert str(e) == "\n<string>:2: expecting input number 2"
+    tc.assertEqual(str(e), "\n<string>:2: expecting input number 2")
 else:
     report_missing_exception()
 
@@ -3448,7 +3451,7 @@ try:
 3 4 5
 """)
 except SyntaxError as e:
-    assert str(e) == "\n<string>:2: invalid format for an input"
+    tc.assertEqual(str(e), "\n<string>:2: invalid format for an input")
 else:
     report_missing_exception()
 
@@ -3457,7 +3460,7 @@ try:
 2
 """)
 except SyntaxError as e:
-    assert str(e) == "\n<string>:3: expecting input number 4"
+    tc.assertEqual(str(e), "\n<string>:3: expecting input number 4")
 else:
     report_missing_exception()
 
@@ -3468,7 +3471,7 @@ try:
 1
 """)
 except SyntaxError as e:
-    assert str(e) == "\n<string>:4: invalid format for a latch"
+    tc.assertEqual(str(e), "\n<string>:4: invalid format for a latch")
 else:
     report_missing_exception()
 
@@ -3479,7 +3482,7 @@ try:
 1 1
 """)
 except SyntaxError as e:
-    assert str(e) == "\n<string>:4: expecting latch number 6"
+    tc.assertEqual(str(e), "\n<string>:4: expecting latch number 6")
 else:
     report_missing_exception()
 
@@ -3490,7 +3493,7 @@ try:
 6 1
 """)
 except SyntaxError as e:
-    assert str(e) == "\n<string>:5: expecting latch number 8"
+    tc.assertEqual(str(e), "\n<string>:5: expecting latch number 8")
 else:
     report_missing_exception()
 
@@ -3502,20 +3505,7 @@ try:
 8 7
 """)
 except SyntaxError as e:
-    assert str(e) == "\n<string>:6: expecting an output"
-else:
-    report_missing_exception()
-
-try:
-    spot.aiger_circuit("""aag 5 2 2 1 0
-2
-4
-6 1
-8 7
-9 9 9
-""")
-except SyntaxError as e:
-    assert str(e) == "\n<string>:6: invalid format for an output"
+    tc.assertEqual(str(e), "\n<string>:6: expecting an output")
 else:
     report_missing_exception()
 
@@ -3528,7 +3518,20 @@ try:
 9 9 9
 """)
 except SyntaxError as e:
-    assert str(e) == "\n<string>:6: invalid format for an output"
+    tc.assertEqual(str(e), "\n<string>:6: invalid format for an output")
+else:
+    report_missing_exception()
+
+try:
+    spot.aiger_circuit("""aag 5 2 2 1 0
+2
+4
+6 1
+8 7
+9 9 9
+""")
+except SyntaxError as e:
+    tc.assertEqual(str(e), "\n<string>:6: invalid format for an output")
 else:
     report_missing_exception()
 
@@ -3541,7 +3544,7 @@ try:
 9
 """)
 except SyntaxError as e:
-    assert str(e) == "\n<string>:7: expecting AND gate number 10"
+    tc.assertEqual(str(e), "\n<string>:7: expecting AND gate number 10")
 else:
     report_missing_exception()
 
@@ -3555,7 +3558,7 @@ try:
 10 3 8 9
 """)
 except SyntaxError as e:
-    assert str(e) == "\n<string>:7: invalid format for an AND gate"
+    tc.assertEqual(str(e), "\n<string>:7: invalid format for an AND gate")
 else:
     report_missing_exception()
 
@@ -3569,7 +3572,7 @@ try:
 10 3
 """)
 except SyntaxError as e:
-    assert str(e) == "\n<string>:7: invalid format for an AND gate"
+    tc.assertEqual(str(e), "\n<string>:7: invalid format for an AND gate")
 else:
     report_missing_exception()
 
@@ -3583,7 +3586,7 @@ try:
 10 3 8
 """)
 except SyntaxError as e:
-    assert str(e) == "\n<string>:8: expecting AND gate number 12"
+    tc.assertEqual(str(e), "\n<string>:8: expecting AND gate number 12")
 else:
     report_missing_exception()
 
@@ -3599,7 +3602,7 @@ try:
 i0
 """)
 except SyntaxError as e:
-    assert str(e) == "\n<string>:9: could not parse as input name"
+    tc.assertEqual(str(e), "\n<string>:9: could not parse as input name")
 else:
     report_missing_exception()
 
@@ -3616,7 +3619,7 @@ i0 foo
 i3 bar
 """)
 except SyntaxError as e:
-    assert str(e) == "\n<string>:10: value 3 exceeds input count"
+    tc.assertEqual(str(e), "\n<string>:10: value 3 exceeds input count")
 else:
     report_missing_exception()
 
@@ -3633,7 +3636,7 @@ i1 bar
 i0 foo
 """)
 except SyntaxError as e:
-    assert str(e) == "\n<string>:9: expecting name for input 0"
+    tc.assertEqual(str(e), "\n<string>:9: expecting name for input 0")
 else:
     report_missing_exception()
 
@@ -3650,8 +3653,8 @@ i0 name with spaces
 i1 name with spaces
 """)
 except SyntaxError as e:
-    assert str(e) == \
-        "\n<string>:10: name 'name with spaces' already used"
+    tc.assertEqual(str(e), \
+        "\n<string>:10: name 'name with spaces' already used")
 else:
     report_missing_exception()
 
@@ -3669,7 +3672,7 @@ i1 bar
 o0
 """)
 except SyntaxError as e:
-    assert str(e) == "\n<string>:11: could not parse as output name"
+    tc.assertEqual(str(e), "\n<string>:11: could not parse as output name")
 else:
     report_missing_exception()
 
@@ -3689,7 +3692,7 @@ o1 hmm
 o0 foo bar baz
 """)
 except SyntaxError as e:
-    assert str(e) == "\n<string>:12: expecting name for output 0"
+    tc.assertEqual(str(e), "\n<string>:12: expecting name for output 0")
 else:
     report_missing_exception()
 
@@ -3709,7 +3712,7 @@ o0 hmm
 o2 foo bar baz
 """)
 except SyntaxError as e:
-    assert str(e) == "\n<string>:13: value 2 exceeds output count"
+    tc.assertEqual(str(e), "\n<string>:13: value 2 exceeds output count")
 else:
     report_missing_exception()
 
@@ -3729,7 +3732,7 @@ o0 foo
 o1 foo
 """)
 except SyntaxError as e:
-    assert str(e) == "\n<string>:13: name 'foo' already used"
+    tc.assertEqual(str(e), "\n<string>:13: name 'foo' already used")
 else:
     report_missing_exception()
 
@@ -3749,7 +3752,7 @@ o0 foo
 o1 bar
 """)
 except SyntaxError as e:
-    assert str(e) == "\n<string>:13: name 'bar' already used"
+    tc.assertEqual(str(e), "\n<string>:13: name 'bar' already used")
 else:
     report_missing_exception()
 
@@ -3770,7 +3773,7 @@ o1 baz
 this is a bug
 """)
 except SyntaxError as e:
-    assert str(e) == "\n<string>:14: unsupported line type"
+    tc.assertEqual(str(e), "\n<string>:14: unsupported line type")
 else:
     report_missing_exception()
 
@@ -3791,8 +3794,8 @@ c
 this is not a bug
 """)
 except SyntaxError as e:
-    assert str(e) == \
-        "\n<string>:10: either all or none of the inputs should be named"
+    tc.assertEqual(str(e), \
+        "\n<string>:10: either all or none of the inputs should be named")
 else:
     report_missing_exception()
 
@@ -3815,8 +3818,8 @@ c
 this is not a bug
 """)
 except SyntaxError as e:
-    assert str(e) == \
-        "\n<string>:11-12: either all or none of the inputs should be named"
+    tc.assertEqual(str(e), \
+        "\n<string>:11-12: either all or none of the inputs should be named")
 else:
     report_missing_exception()
 
@@ -3841,8 +3844,8 @@ c
 this is not a bug
 """)
 except SyntaxError as e:
-    assert str(e) == \
-        "\n<string>:14-16: either all or none of the outputs should be named"
+    tc.assertEqual(str(e), \
+        "\n<string>:14-16: either all or none of the outputs should be named")
 else:
     report_missing_exception()
 
@@ -3866,4 +3869,4 @@ o2 bar
 c
 this is not a bug
 """).to_str()
-assert x == spot.aiger_circuit(x).to_str()
+tc.assertEqual(x, spot.aiger_circuit(x).to_str())

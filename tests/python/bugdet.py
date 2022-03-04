@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2016 Laboratoire de Recherche et Développement de
-# l'EPITA.
+# Copyright (C) 2016, 2022 Laboratoire de Recherche et Développement
+# de l'EPITA.
 #
 # This file is part of Spot, a model checking library.
 #
@@ -22,6 +22,8 @@
 # sent to the Spot mailing list on 2016-10-31.
 
 import spot
+from unittest import TestCase
+tc = TestCase()
 
 a = spot.automaton("""
 HOA: v1
@@ -80,12 +82,12 @@ State: 7 {0}
 # was fine.
 print("use_simulation=True")
 b1 = spot.tgba_determinize(b, False, True, True, True)
-assert b1.num_states() == 5
+tc.assertEqual(b1.num_states(), 5)
 b1 = spot.remove_fin(spot.dualize(b1))
-assert not a.intersects(b1)
+tc.assertFalse(a.intersects(b1))
 
 print("\nuse_simulation=False")
 b2 = spot.tgba_determinize(b, False, True, False, True)
-assert b2.num_states() == 5
+tc.assertEqual(b2.num_states(), 5)
 b2 = spot.remove_fin(spot.dualize(b2))
-assert not a.intersects(b2)
+tc.assertFalse(a.intersects(b2))

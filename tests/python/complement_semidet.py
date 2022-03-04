@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2018 Laboratoire de Recherche et Développement de
+# Copyright (C) 2018, 2022 Laboratoire de Recherche et Développement de
 # l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -19,6 +19,8 @@
 
 import spot
 import buddy
+from unittest import TestCase
+tc = TestCase()
 
 
 def complement(aut):
@@ -35,4 +37,4 @@ for aut in spot.automata(
 
     comp = complement(aut)
     semidet_comp = spot.complement_semidet(aut, True)
-    assert(comp.equivalent_to(semidet_comp))
+    tc.assertTrue(comp.equivalent_to(semidet_comp))

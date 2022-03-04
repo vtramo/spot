@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2020 Laboratoire de Recherche et Développement de l'Epita
+# Copyright (C) 2020, 2022 Laboratoire de Recherche et Développement de l'Epita
 # (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -18,6 +18,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import spot
+from unittest import TestCase
+tc = TestCase()
 
 
 auts = list(spot.automata("""
@@ -70,19 +72,19 @@ explicit-labels trans-acc deterministic --BODY-- State: 0 [0&!1] 0 {2 3}
 res = []
 for a in auts:
     b = spot.simplify_acceptance(a)
-    assert b.equivalent_to(a)
+    tc.assertTrue(b.equivalent_to(a))
     res.append(str(b.get_acceptance()))
     c = spot.simplify_acceptance(b)
-    assert b.get_acceptance() == c.get_acceptance()
+    tc.assertEqual(b.get_acceptance(), c.get_acceptance())
 
     a.set_acceptance(a.num_sets(), a.get_acceptance().complement())
     b = spot.simplify_acceptance(a)
-    assert b.equivalent_to(a)
+    tc.assertTrue(b.equivalent_to(a))
     res.append(str(b.get_acceptance()))
     c = spot.simplify_acceptance(b)
-    assert b.get_acceptance() == c.get_acceptance()
+    tc.assertEqual(b.get_acceptance(), c.get_acceptance())
 
-assert res == [
+tc.assertEqual(res, [
     'Inf(0)',
     'Fin(0)',
     'Inf(1) & Fin(0)',
@@ -101,4 +103,4 @@ assert res == [
     '(Inf(0) | Fin(2)) & Inf(1)',
     '(Fin(2) & (Inf(1) | Fin(0))) | (Inf(0)&Inf(2))',
     '(Inf(2) | (Fin(1) & Inf(0))) & (Fin(0)|Fin(2))',
-    ]
+    ])

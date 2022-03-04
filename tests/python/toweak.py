@@ -1,6 +1,6 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2017, 2018, 2020  Laboratoire de Recherche et Développement
-# de l'Epita
+# Copyright (C) 2017, 2018, 2020, 2022 Laboratoire de Recherche et
+# Développement de l'Epita
 #
 # This file is part of Spot, a model checking library.
 #
@@ -18,6 +18,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import spot
+from unittest import TestCase
+tc = TestCase()
 
 phi1 = """GFb
 X(!b | GF!a)
@@ -33,7 +35,7 @@ b | (a & XF(b R a)) | (!a & XG(!b U !a))"""
 def test_phi(phi):
     a = spot.translate(phi, 'GeneralizedBuchi', 'SBAcc')
     res = spot.to_weak_alternating(spot.dualize(a))
-    assert res.equivalent_to(spot.formula.Not(spot.formula(phi)))
+    tc.assertTrue(res.equivalent_to(spot.formula.Not(spot.formula(phi))))
 
 
 for p in phi1.split('\n'):
@@ -83,4 +85,4 @@ State: 6
 --END--
 """)
 a2 = spot.to_weak_alternating(a2)
-assert a2.equivalent_to(phi2)
+tc.assertTrue(a2.equivalent_to(phi2))

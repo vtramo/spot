@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2016-2018, 2020-2021  Laboratoire de Recherche
+# Copyright (C) 2016-2018, 2020-2022  Laboratoire de Recherche
 # et Développement de l'Epita
 #
 # This file is part of Spot, a model checking library.
@@ -18,6 +18,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import spot
+from unittest import TestCase
+tc = TestCase()
 
 # CPython use reference counting, so that automata are destructed
 # when we expect them to be.   However other implementations like
@@ -57,7 +59,7 @@ State: 1
 --END--"""
 
 res = spot.remove_fin(aut)
-assert(res.to_str('hoa') == exp)
+tc.assertEqual(res.to_str('hoa'), exp)
 
 # Test 2.
 aut = spot.automaton("""
@@ -97,7 +99,7 @@ State: 2
 --END--"""
 
 res = spot.remove_fin(aut)
-assert(res.to_str('hoa') == exp)
+tc.assertEqual(res.to_str('hoa'), exp)
 
 # Test 3.
 aut = spot.automaton("""
@@ -128,7 +130,7 @@ State: 0
 --END--"""
 
 res = spot.remove_fin(aut)
-assert(res.to_str('hoa') == exp)
+tc.assertEqual(res.to_str('hoa'), exp)
 
 # Test 4.
 aut = spot.automaton("""
@@ -168,7 +170,7 @@ State: 2 {0}
 --END--"""
 
 res = spot.remove_fin(aut)
-assert(res.to_str('hoa') == exp)
+tc.assertEqual(res.to_str('hoa'), exp)
 
 # Test 5.
 aut = spot.automaton("""
@@ -214,7 +216,7 @@ State: 3 {0}
 --END--"""
 
 res = spot.remove_fin(aut)
-assert(res.to_str('hoa') == exp)
+tc.assertEqual(res.to_str('hoa'), exp)
 
 # Test 6.
 aut = spot.automaton("""
@@ -257,7 +259,7 @@ State: 2 {0}
 --END--"""
 
 res = spot.remove_fin(aut)
-assert(res.to_str('hoa') == exp)
+tc.assertEqual(res.to_str('hoa'), exp)
 
 # Test 7.
 aut = spot.automaton("""
@@ -292,7 +294,7 @@ State: 1 {0}
 --END--"""
 
 res = spot.remove_fin(aut)
-assert(res.to_str('hoa') == exp)
+tc.assertEqual(res.to_str('hoa'), exp)
 
 # Test 8.
 aut = spot.automaton("""
@@ -372,9 +374,9 @@ State: 7
 
 res = spot.remove_fin(aut)
 if is_cpython:
-    assert(res.to_str('hoa') == exp)
+    tc.assertEqual(res.to_str('hoa'), exp)
 else:
-    assert(res.equivalent_to(spot.automaton(exp)))
+    tc.assertTrue(res.equivalent_to(spot.automaton(exp)))
 
 # Test 9.
 aut = spot.automaton("""
@@ -411,9 +413,9 @@ State: 1
 
 res = spot.remove_fin(aut)
 if is_cpython:
-    assert(res.to_str('hoa') == exp)
+    tc.assertEqual(res.to_str('hoa'), exp)
 else:
-    assert(res.equivalent_to(spot.automaton(exp)))
+    tc.assertTrue(res.equivalent_to(spot.automaton(exp)))
 
 # Test 10.
 aut = spot.automaton("""
@@ -453,9 +455,9 @@ State: 2 {0}
 
 res = spot.remove_fin(aut)
 if is_cpython:
-    assert(res.to_str('hoa') == exp)
+    tc.assertEqual(res.to_str('hoa'), exp)
 else:
-    assert(res.equivalent_to(spot.automaton(exp)))
+    tc.assertTrue(res.equivalent_to(spot.automaton(exp)))
 
 # Test 11.
 aut = spot.automaton("""
@@ -493,9 +495,9 @@ State: 1
 
 res = spot.remove_fin(aut)
 if is_cpython:
-    assert(res.to_str('hoa') == exp)
+    tc.assertEqual(res.to_str('hoa'), exp)
 else:
-    assert(res.equivalent_to(spot.automaton(exp)))
+    tc.assertTrue(res.equivalent_to(spot.automaton(exp)))
 
 # Different order for rabin_to_buchi_if_realizable() due to merge_edges() not
 # being called.  This is on purpose: the edge order should match exactly the
@@ -518,9 +520,9 @@ State: 1
 --END--"""
 res = spot.rabin_to_buchi_if_realizable(aut)
 if is_cpython:
-    assert(res.to_str('hoa') == exp2)
+    tc.assertEqual(res.to_str('hoa'), exp2)
 else:
-    assert(res.equivalent_to(spot.automaton(exp2)))
+    tc.assertTrue(res.equivalent_to(spot.automaton(exp2)))
 
 # Test 12.
 aut = spot.automaton("""
@@ -565,9 +567,9 @@ State: 3 {0}
 
 res = spot.remove_fin(aut)
 if is_cpython:
-    assert(res.to_str('hoa') == exp)
+    tc.assertEqual(res.to_str('hoa'), exp)
 else:
-    assert(res.equivalent_to(spot.automaton(exp)))
+    tc.assertTrue(res.equivalent_to(spot.automaton(exp)))
 
 # Test 13.
 aut = spot.automaton("""
@@ -615,9 +617,9 @@ State: 1
 
 res = spot.remove_fin(aut)
 if is_cpython:
-    assert(res.to_str('hoa') == exp)
+    tc.assertEqual(res.to_str('hoa'), exp)
 else:
-    assert(res.equivalent_to(spot.automaton(exp)))
+    tc.assertTrue(res.equivalent_to(spot.automaton(exp)))
 
 # rabin_to_buchi_if_realizable() does not call merge_edges() on purpose: the
 # edge order should match exactly the original automaton.
@@ -644,9 +646,9 @@ State: 1
 
 res = spot.rabin_to_buchi_if_realizable(aut)
 if is_cpython:
-    assert(res.to_str('hoa') == exp2)
+    tc.assertEqual(res.to_str('hoa'), exp2)
 else:
-    assert(res.equivalent_to(spot.automaton(exp2)))
+    tc.assertTrue(res.equivalent_to(spot.automaton(exp2)))
 
 # Test 14.
 aut = spot.automaton("""
@@ -681,7 +683,7 @@ State: 1
 
 res = spot.remove_fin(aut)
 if is_cpython:
-    assert(res.to_str('hoa') == exp)
+    tc.assertEqual(res.to_str('hoa'), exp)
 else:
-    assert(res.equivalent_to(spot.automaton(exp)))
-assert spot.rabin_to_buchi_if_realizable(aut) is None
+    tc.assertTrue(res.equivalent_to(spot.automaton(exp)))
+tc.assertIsNone(spot.rabin_to_buchi_if_realizable(aut))

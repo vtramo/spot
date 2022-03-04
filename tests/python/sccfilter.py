@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2016 Laboratoire de Recherche et Développement de
+# Copyright (C) 2016, 2022 Laboratoire de Recherche et Développement de
 # l'EPITA.
 #
 # This file is part of Spot, a model checking library.
@@ -22,6 +22,8 @@
 # Major)
 
 import spot
+from unittest import TestCase
+tc = TestCase()
 
 a = spot.automaton("""
 HOA: v1.1
@@ -43,7 +45,7 @@ State: 1 "bar"
 --END--
 """)
 
-assert (spot.scc_filter(a, True).to_str('hoa', '1.1') == """HOA: v1.1
+tc.assertEqual(spot.scc_filter(a, True).to_str('hoa', '1.1'), """HOA: v1.1
 States: 2
 Start: 0
 AP: 1 "a"

@@ -1,6 +1,6 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2015-2018, 2020 Laboratoire de Recherche et Développement de
-# l'Epita
+# Copyright (C) 2015-2018, 2020, 2022 Laboratoire de Recherche et
+# Développement de l'Epita
 #
 # This file is part of Spot, a model checking library.
 #
@@ -19,6 +19,8 @@
 
 
 import spot
+from unittest import TestCase
+tc = TestCase()
 
 # This test used to trigger an assertion (or a segfault)
 # in scc_filter_states().
@@ -41,7 +43,7 @@ State: 2
 aut.prop_inherently_weak(True)
 aut = spot.dualize(aut)
 aut1 = spot.scc_filter_states(aut)
-assert(aut1.to_str('hoa') == """HOA: v1
+tc.assertEqual(aut1.to_str('hoa'), """HOA: v1
 States: 2
 Start: 0
 AP: 1 "a"
@@ -56,17 +58,17 @@ State: 1
 [t] 1
 --END--""")
 
-assert(aut.scc_filter_states().to_str() == aut1.to_str())
-assert(aut1.get_name() == None)
+tc.assertEqual(aut.scc_filter_states().to_str(), aut1.to_str())
+tc.assertIsNone(aut1.get_name())
 aut1.set_name("test me")
-assert(aut1.get_name() == "test me")
+tc.assertEqual(aut1.get_name(), "test me")
 # The method is the same as the function
 
 a = spot.translate('true', 'low', 'any')
-assert(a.prop_universal().is_maybe())
-assert(a.prop_unambiguous().is_maybe())
-assert(a.is_deterministic() == True)
-assert(a.is_unambiguous() == True)
+tc.assertTrue(a.prop_universal().is_maybe())
+tc.assertTrue(a.prop_unambiguous().is_maybe())
+tc.assertTrue(a.is_deterministic())
+tc.assertTrue(a.is_unambiguous())
 
 a = spot.automaton("""
 HOA: v1
@@ -92,4 +94,4 @@ State: 2
 """)
 b = spot.remove_fin(a)
 size = (b.num_states(), b.num_edges())
-assert size == (5, 13);
+tc.assertEqual(size, (5, 13))

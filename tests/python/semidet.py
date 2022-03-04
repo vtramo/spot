@@ -1,6 +1,6 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2017 Laboratoire de Recherche et Développement de
-# l'Epita (LRDE).
+# Copyright (C) 2017, 2022 Laboratoire de Recherche et Développement
+# de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
 #
@@ -18,6 +18,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import spot
+from unittest import TestCase
+tc = TestCase()
 
 formulas = [('(Gp0 | Fp1) M 1', False, True),
             ('(!p1 U p1) U X(!p0 -> Fp1)', False, True),
@@ -31,9 +33,9 @@ for f, isd, issd in formulas:
     aut = spot.translate(f)
     # The formula with isd=True, issd=True is the only one
     # for which both properties are already set.
-    assert (aut.prop_deterministic().is_maybe() or
-            aut.prop_semi_deterministic().is_maybe() or
-            isd == issd)
+    tc.assertTrue(aut.prop_deterministic().is_maybe() or
+                  aut.prop_semi_deterministic().is_maybe() or
+                  isd == issd)
     spot.check_determinism(aut)
-    assert aut.prop_deterministic() == isd
-    assert aut.prop_semi_deterministic() == issd
+    tc.assertEqual(aut.prop_deterministic(), isd)
+    tc.assertEqual(aut.prop_semi_deterministic(), issd)

@@ -1,6 +1,6 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2017 Laboratoire de Recherche et Développement de l'Epita
-# (LRDE).
+# Copyright (C) 2017, 2022 Laboratoire de Recherche et Développement
+# de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
 #
@@ -21,6 +21,8 @@
 # This file tests various error conditions on the twa API
 
 import spot
+from unittest import TestCase
+tc = TestCase()
 
 env = spot.declarative_environment()
 env.declare("a")
@@ -28,26 +30,27 @@ env.declare("b")
 
 f1a = spot.parse_infix_psl("a U b")
 f1b = spot.parse_infix_psl("a U b", env)
-assert not f1a.errors
-assert not f1b.errors
+tc.assertFalse(f1a.errors)
+tc.assertFalse(f1b.errors)
+
 # In the past, atomic propositions requires via different environments were
 # never equal, but this feature was never used and we changed that in Spot 2.0
 # for the sake of simplicity.
-assert f1a.f == f1b.f
+tc.assertEqual(f1a.f, f1b.f)
 
 f2 = spot.parse_infix_psl("(a U b) U c", env)
-assert f2.errors
+tc.assertTrue(f2.errors)
 ostr = spot.ostringstream()
 f2.format_errors(ostr)
 err = ostr.str()
-assert "unknown atomic proposition `c'" in err
+tc.assertIn("unknown atomic proposition `c'", err)
 
 f3 = spot.parse_prefix_ltl("R a d", env)
-assert f3.errors
+tc.assertTrue(f3.errors)
 ostr = spot.ostringstream()
 f3.format_errors(ostr)
 err = ostr.str()
-assert "unknown atomic proposition `d'" in err
+tc.assertIn("unknown atomic proposition `d'", err)
 
 f4 = spot.parse_prefix_ltl("R a b", env)
-assert not f4.errors
+tc.assertFalse(f4.errors)

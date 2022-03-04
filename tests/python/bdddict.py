@@ -1,6 +1,6 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2019, 2021 Laboratoire de Recherche et Développement de l'Epita
-# (LRDE).
+# Copyright (C) 2019, 2021, 2022 Laboratoire de Recherche et
+# Développement de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
 #
@@ -33,6 +33,8 @@ else:
         gc.collect()
 
 import spot
+from unittest import TestCase
+tc = TestCase()
 
 
 class bdd_holder:
@@ -64,7 +66,7 @@ class bdd_holder3:
 
 
 def check_ok():
-    assert type(bdict.varnum(spot.formula.ap("a"))) is int
+    tc.assertIs(type(bdict.varnum(spot.formula.ap("a"))), int)
 
 
 def check_nok():
@@ -123,7 +125,7 @@ debug("h2")
 h3 = bdd_holder3(h2)
 var = bdict.register_anonymous_variables(1, h3)
 debug("h3")
-assert var == 2
+tc.assertEqual(var, 2)
 del h2
 gcollect()
 debug("-h2")

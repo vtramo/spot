@@ -1,6 +1,6 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2017-2019 Laboratoire de Recherche et Développement
-# de l'Epita
+# Copyright (C) 2017-2019, 2022 Laboratoire de Recherche et
+# Développement de l'Epita
 #
 # This file is part of Spot, a model checking library.
 #
@@ -20,6 +20,8 @@
 import spot
 import sys
 import itertools
+from unittest import TestCase
+tc = TestCase()
 
 # make sure that we are not allowed to build the sum of two automata with
 # different dictionaries.
@@ -65,8 +67,8 @@ for p in zip(phi1, phi2):
 
     p0orp1 = spot.formula.Or(p)
     a1ora2 = spot.remove_alternation(spot.sum(a1, a2), True)
-    assert p0orp1.equivalent_to(a1ora2)
+    tc.assertTrue(p0orp1.equivalent_to(a1ora2))
 
     p0andp1 = spot.formula.And(p)
     a1anda2 = spot.remove_alternation(spot.sum_and(a1, a2), True)
-    assert p0andp1.equivalent_to(a1anda2)
+    tc.assertTrue(p0andp1.equivalent_to(a1anda2))

@@ -1,6 +1,6 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2015, 2017  Laboratoire de Recherche et Développement
-# de l'Epita
+# Copyright (C) 2015, 2017, 2022 Laboratoire de Recherche et
+# Développement de l'Epita
 #
 # This file is part of Spot, a model checking library.
 #
@@ -19,6 +19,8 @@
 
 import spot
 from sys import exit
+from unittest import TestCase
+tc = TestCase()
 
 aut = spot.automaton("""
 HOA: v1
@@ -38,7 +40,7 @@ State: 1
 """)
 
 aut2 = spot.degeneralize(aut)
-assert aut2.to_str() == """HOA: v1
+tc.assertEqual(aut2.to_str(), """HOA: v1
 States: 3
 Start: 0
 AP: 2 "a" "b"
@@ -56,10 +58,10 @@ State: 1
 [1] 2
 State: 2 {0}
 [1] 2
---END--"""
+--END--""")
 
 aut2.copy_state_names_from(aut)
-assert aut2.to_str() == """HOA: v1
+tc.assertEqual(aut2.to_str(), """HOA: v1
 States: 3
 Start: 0
 AP: 2 "a" "b"
@@ -77,7 +79,7 @@ State: 1 "0#0"
 [1] 2
 State: 2 "1#1" {0}
 [1] 2
---END--"""
+--END--""")
 
 aut2.set_init_state(2)
 aut2.purge_unreachable_states()
@@ -93,16 +95,16 @@ properties: deterministic
 State: 0 "1#1" {0}
 [1] 0
 --END--"""
-assert aut2.to_str() == ref
+tc.assertEqual(aut2.to_str(), ref)
 # This makes sure that the original-states vector has also been renamed.
 aut2.copy_state_names_from(aut)
-assert aut2.to_str() == ref
+tc.assertEqual(aut2.to_str(), ref)
 
 aut2 = spot.degeneralize(aut)
 aut2.release_named_properties()
 try:
     aut2.copy_state_names_from(aut)
 except RuntimeError as e:
-    assert "state does not exist in source automaton" in str(e)
+    tc.assertIn("state does not exist in source automaton", str(e))
 else:
     exit(1)

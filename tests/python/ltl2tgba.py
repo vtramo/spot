@@ -1,6 +1,6 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2009, 2010, 2012, 2014-2016, 2021 Laboratoire de Recherche
-# et Développement de l'Epita (LRDE).
+# Copyright (C) 2009, 2010, 2012, 2014-2016, 2021-2022 Laboratoire de
+# Recherche et Développement de l'Epita (LRDE).
 # Copyright (C) 2003, 2004 Laboratoire d'Informatique de Paris 6 (LIP6),
 # département Systèmes Répartis Coopératifs (SRC), Université Pierre
 # et Marie Curie.
@@ -98,7 +98,7 @@ if f:
     elif taa_opt:
         a = concrete = spot.ltl_to_taa(f, dict)
     else:
-        assert "unspecified translator"
+        raise RuntimeError("unspecified translator")
 
     if wdba:
         a = spot.ensure_digraph(a)
@@ -117,7 +117,7 @@ if f:
     elif output == 6:
         spot.print_lbtt(cout, a)
     else:
-        assert "unknown output option"
+        raise RuntimeError("unknown output option")
 
     if degeneralize_opt:
         del degeneralized
@@ -137,4 +137,6 @@ del dict
 # not necessary in other implementations.
 from platform import python_implementation
 if python_implementation() == 'CPython':
-    assert spot.fnode_instances_check()
+    from unittest import TestCase
+    tc = TestCase()
+    tc.assertTrue(spot.fnode_instances_check())

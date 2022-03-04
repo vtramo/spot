@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2009, 2010, 2012, 2015, 2018, 2021 Laboratoire de
+# Copyright (C) 2009, 2010, 2012, 2015, 2018, 2021-2022 Laboratoire de
 # Recherche et Développement de l'Epita (LRDE).
 # Copyright (C) 2003, 2004 Laboratoire d'Informatique de Paris 6 (LIP6),
 # département Systemes Répartis Coopératifs (SRC), Université Pierre
@@ -22,6 +22,8 @@
 
 import spot
 import sys
+from unittest import TestCase
+tc = TestCase()
 
 # Some of the tests here assume timely destructor calls, as they occur
 # in the the reference-counted CPython implementation.  Other
@@ -35,13 +37,13 @@ b = spot.formula.ap('b')
 c = spot.formula.ap('c')
 c2 = spot.formula.ap('c')
 
-assert c == c2
+tc.assertEqual(c, c2)
 
 op = spot.formula.And([a, b])
 op2 = spot.formula.And([op, c])
 op3 = spot.formula.And([a, c, b])
 
-assert op2 == op3
+tc.assertEqual(op2, op3)
 
 # The symbol for a subformula which hasn't been cloned is better
 # suppressed, so we don't attempt to reuse it elsewhere.
@@ -52,12 +54,12 @@ sys.stdout.write('op2 = %s\n' % str(op2))
 del a, b, c2
 
 sys.stdout.write('op3 = %s\n' % str(op3))
-assert op2 == op3
+tc.assertEqual(op2, op3)
 
 op4 = spot.formula.Or([op2, op3])
 
 sys.stdout.write('op4 = %s\n' % str(op4))
-assert op4 == op2
+tc.assertEqual(op4, op2)
 
 del op2, op3, op4
 
@@ -78,10 +80,11 @@ f5 = spot.formula.Xor(F, c)
 del a, b, c, T, F, f1, f2, f4, f5
 
 if is_cpython:
-    assert spot.fnode_instances_check()
+    tc.assertTrue(spot.fnode_instances_check())
 
 # ----------------------------------------------------------------------
-assert str([str(x) for x in spot.formula('a &b & c')]) == "['a', 'b', 'c']"
+tc.assertEqual(str([str(x) for x in spot.formula('a &b & c')]),
+               "['a', 'b', 'c']")
 
 
 def switch_g_f(x):
@@ -93,7 +96,7 @@ def switch_g_f(x):
 
 
 f = spot.formula('GFa & XFGb & Fc & G(a | b | Fd)')
-assert str(switch_g_f(f)) == 'FGa & XGFb & Gc & F(a | b | Gd)'
+tc.assertEqual(str(switch_g_f(f)), 'FGa & XGFb & Gc & F(a | b | Gd)')
 
 x = 0
 
@@ -105,7 +108,7 @@ def count_g(f):
 
 
 f.traverse(count_g)
-assert x == 3
+tc.assertEqual(x, 3)
 
 # ----------------------------------------------------------------------
 
@@ -121,14 +124,14 @@ LBT for shell:     echo {f:lq} | ...
 Default for CSV:   ...,{f:c},...
 Wring, centered:   {f:w:~^50}""".format(f=formula)
 
-assert res == """\
+tc.assertEqual(res, """\
 Default output:    a U (b U "$strange[0]=name")
 Spin syntax:       a U (b U ($strange[0]=name))
 (Spin syntax):     (a) U ((b) U ($strange[0]=name))
 Default for shell: echo 'a U (b U "$strange[0]=name")' | ...
 LBT for shell:     echo 'U "a" U "b" "$strange[0]=name"' | ...
 Default for CSV:   ...,"a U (b U ""$strange[0]=name"")",...
-Wring, centered:   ~~~~~(a=1) U ((b=1) U ("$strange[0]=name"=1))~~~~~"""
+Wring, centered:   ~~~~~(a=1) U ((b=1) U ("$strange[0]=name"=1))~~~~~""")
 
 
 opt = spot.tl_simplifier_options(False, True, True,
@@ -144,9 +147,8 @@ for (input, output) in [('(a&b)<->b', 'b->(a&b)'),
                         ('b xor (!(a&b))', 'b->(a&b)'),
                         ('!b xor (a&b)', 'b->(a&b)')]:
     f = spot.tl_simplifier(opt).simplify(input)
-    print(input, f, output)
-    assert(f == output)
-    assert(spot.are_equivalent(input, output))
+    tc.assertEqual(f, output)
+    tc.assertTrue(spot.are_equivalent(input, output))
 
 
 def myparse(input):
@@ -157,7 +159,7 @@ def myparse(input):
 
 # This used to fail, because myparse would return a pointer
 # to pf.f inside the destroyed pf.
-assert myparse('a U b') == spot.formula('a U b')
+tc.assertEqual(myparse('a U b'), spot.formula('a U b'))
 
-assert spot.is_liveness('a <-> GFb')
-assert not spot.is_liveness('a & GFb')
+tc.assertTrue(spot.is_liveness('a <-> GFb'))
+tc.assertFalse(spot.is_liveness('a & GFb'))

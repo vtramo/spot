@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2017, 2021 Laboratoire de Recherche et Développement de
-# l'EPITA.
+# Copyright (C) 2017, 2021, 2022 Laboratoire de Recherche et
+# Développement de l'EPITA.
 #
 # This file is part of Spot, a model checking library.
 #
@@ -19,6 +19,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import spot
+from unittest import TestCase
+tc = TestCase()
 
 a = spot.translate('(Ga -> Gb) W c')
 
@@ -26,11 +28,11 @@ try:
     si = spot.scc_info(a, 10)
     exit(2)
 except RuntimeError as e:
-    assert "initial state does not exist" in str(e)
+    tc.assertIn("initial state does not exist", str(e))
 
 si = spot.scc_info(a)
 n = si.scc_count()
-assert n == 4
+tc.assertEqual(n, 4)
 
 acc = 0
 rej = 0
@@ -39,24 +41,24 @@ for i in range(n):
     acc += si.is_accepting_scc(i)
     rej += si.is_rejecting_scc(i)
     triv += si.is_trivial(i)
-assert acc == 3
-assert rej == 1
-assert triv == 0
+tc.assertEqual(acc, 3)
+tc.assertEqual(rej, 1)
+tc.assertEqual(triv, 0)
 
 for scc in si:
     acc -= scc.is_accepting()
     rej -= scc.is_rejecting()
     triv -= scc.is_trivial()
-assert acc == 0
-assert rej == 0
-assert triv == 0
+tc.assertEqual(acc, 0)
+tc.assertEqual(rej, 0)
+tc.assertEqual(triv, 0)
 
 l0 = si.states_of(0)
 l1 = si.states_of(1)
 l2 = si.states_of(2)
 l3 = si.states_of(3)
 l = sorted(list(l0) + list(l1) + list(l2) + list(l3))
-assert l == [0, 1, 2, 3, 4]
+tc.assertEqual(l, [0, 1, 2, 3, 4])
 
 i = si.initial()
 todo = [i]
@@ -73,14 +75,14 @@ while todo:
         if s not in seen:
             seen.add(s)
             todo.append(s)
-assert seen == {0, 1, 2, 3}
-assert trans == [(0, 0), (0, 1), (0, 2), (0, 3),
-                 (2, 0), (2, 1), (2, 2), (2, 4),
-                 (3, 3), (4, 1), (4, 4), (1, 1)]
-assert transi == [(0, 0, 1), (0, 2, 3), (2, 0, 6),
-                  (2, 2, 8), (3, 3, 10), (4, 4, 12), (1, 1, 5)]
+tc.assertEqual(seen, {0, 1, 2, 3})
+tc.assertEqual(trans, [(0, 0), (0, 1), (0, 2), (0, 3),
+                       (2, 0), (2, 1), (2, 2), (2, 4),
+                       (3, 3), (4, 1), (4, 4), (1, 1)])
+tc.assertEqual(transi, [(0, 0, 1), (0, 2, 3), (2, 0, 6),
+                        (2, 2, 8), (3, 3, 10), (4, 4, 12), (1, 1, 5)])
 
-assert not spot.is_weak_automaton(a, si)
+tc.assertFalse(spot.is_weak_automaton(a, si))
 
 
 a = spot.automaton("""
@@ -107,8 +109,8 @@ State: 3
 """)
 si = spot.scc_info(a)
 si.determine_unknown_acceptance()
-assert si.scc_count() == 2
-assert si.is_accepting_scc(0)
-assert not si.is_rejecting_scc(0)
-assert si.is_rejecting_scc(1)
-assert not si.is_accepting_scc(1)
+tc.assertEqual(si.scc_count(), 2)
+tc.assertTrue(si.is_accepting_scc(0))
+tc.assertFalse(si.is_rejecting_scc(0))
+tc.assertTrue(si.is_rejecting_scc(1))
+tc.assertFalse(si.is_accepting_scc(1))

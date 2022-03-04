@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2016, 2018  Laboratoire de Recherche et Développement
+# Copyright (C) 2016, 2018, 2022  Laboratoire de Recherche et Développement
 # de l'Epita
 #
 # This file is part of Spot, a model checking library.
@@ -18,30 +18,32 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import spot
+from unittest import TestCase
+tc = TestCase()
 
 v1 = spot.trival()
 v2 = spot.trival(False)
 v3 = spot.trival(True)
 v4 = spot.trival_maybe()
-assert v1 != v2
-assert v1 != v3
-assert v2 != v3
-assert v2 == spot.trival(spot.trival.no_value)
-assert v2 != spot.trival(spot.trival.yes_value)
-assert v4 != v2
-assert v4 != v3
-assert v2 == False
-assert True == v3
-assert v2 != True
-assert False != v3
-assert v4 == spot.trival_maybe()
-assert v4 == spot.trival(spot.trival.maybe_value)
-assert v3
-assert -v2
-assert not -v1
-assert not v1
-assert not -v3
+tc.assertNotEqual(v1, v2)
+tc.assertNotEqual(v1, v3)
+tc.assertNotEqual(v2, v3)
+tc.assertEqual(v2, spot.trival(spot.trival.no_value))
+tc.assertNotEqual(v2, spot.trival(spot.trival.yes_value))
+tc.assertNotEqual(v4, v2)
+tc.assertNotEqual(v4, v3)
+tc.assertEqual(v2, False)
+tc.assertEqual(True, v3)
+tc.assertNotEqual(v2, True)
+tc.assertNotEqual(False, v3)
+tc.assertEqual(v4, spot.trival_maybe())
+tc.assertEqual(v4, spot.trival(spot.trival.maybe_value))
+tc.assertTrue(v3)
+tc.assertTrue(-v2)
+tc.assertFalse(-v1)
+tc.assertFalse(v1)
+tc.assertFalse(-v3)
 
 for u in (v1, v2, v3):
     for v in (v1, v2, v3):
-        assert (u & v) == -(-u | -v)
+        tc.assertEqual((u & v), -(-u | -v))

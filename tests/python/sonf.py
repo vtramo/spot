@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2020 Laboratoire de Recherche et Développement de l'Epita
+# Copyright (C) 2020, 2022 Laboratoire de Recherche et Développement de l'Epita
 # (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -18,6 +18,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import spot
+from unittest import TestCase
+tc = TestCase()
 
 formulas = """\
 {x[*]}[]-> F({y[*]}<>-> GFz)
@@ -38,4 +40,4 @@ for f1 in formulas.splitlines():
         rm.add_ap(ap)
     a2 = rm.strip(a2)
 
-    assert(spot.are_equivalent(a1, a2))
+    tc.assertTrue(spot.are_equivalent(a1, a2))

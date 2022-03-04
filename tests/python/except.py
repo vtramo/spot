@@ -24,6 +24,8 @@
 
 import spot
 import buddy
+from unittest import TestCase
+tc = TestCase()
 
 
 def report_missing_exception():
@@ -35,7 +37,7 @@ aut.set_acceptance(spot.acc_cond("parity min even 4"))
 try:
     spot.iar(aut)
 except RuntimeError as e:
-    assert 'iar() expects Rabin-like or Streett-like input' in str(e)
+    tc.assertIn('iar() expects Rabin-like or Streett-like input', str(e))
 else:
     report_missing_exception()
 
@@ -43,7 +45,7 @@ alt = spot.dualize(spot.translate('FGa | FGb'))
 try:
     spot.tgba_determinize(alt)
 except RuntimeError as e:
-    assert 'tgba_determinize() does not support alternation' in str(e)
+    tc.assertIn('tgba_determinize() does not support alternation', str(e))
 else:
     report_missing_exception()
 
@@ -52,18 +54,18 @@ aps = aut.ap()
 rem = spot.remove_ap()
 rem.add_ap('"a"=0,b')
 aut = rem.strip(aut)
-assert aut.ap() == aps[2:]
+tc.assertEqual(aut.ap(), aps[2:])
 try:
     rem.add_ap('"a=0,b')
 except ValueError as e:
-    assert """missing closing '"'""" in str(e)
+    tc.assertIn("""missing closing '"'""", str(e))
 else:
     report_missing_exception()
 
 try:
     rem.add_ap('a=0=b')
 except ValueError as e:
-    assert """unexpected '=' at position 3""" in str(e)
+    tc.assertIn("""unexpected '=' at position 3""", str(e))
 else:
     report_missing_exception()
 
@@ -73,7 +75,7 @@ for meth in ('scc_has_rejecting_cycle', 'is_inherently_weak_scc',
     try:
         getattr(spot, meth)(si, 20)
     except ValueError as e:
-        assert "invalid SCC number" in str(e)
+        tc.assertIn("invalid SCC number", str(e))
     else:
         report_missing_exception()
 
@@ -89,14 +91,15 @@ si = spot.scc_info(alt)
 try:
     si.determine_unknown_acceptance()
 except RuntimeError as e:
-    assert "scc_info::determine_unknown_acceptance() does not supp" in str(e)
+    tc.assertIn("scc_info::determine_unknown_acceptance() does not supp",
+                str(e))
 else:
     report_missing_exception()
 
 try:
     alt.set_init_state(999)
 except ValueError as e:
-    assert "set_init_state()" in str(e)
+    tc.assertIn("set_init_state()", str(e))
 else:
     report_missing_exception()
 
@@ -107,7 +110,7 @@ alt.set_init_state(u)
 try:
     alt.set_init_state(u - 1)
 except ValueError as e:
-    assert "set_init_state()" in str(e)
+    tc.assertIn("set_init_state()", str(e))
 else:
     report_missing_exception()
 
@@ -116,21 +119,21 @@ r = spot.twa_run(aut)
 try:
     a = r.as_twa()
 except RuntimeError as e:
-    assert "empty cycle" in str(e)
+    tc.assertIn("empty cycle", str(e))
 else:
     report_missing_exception()
 
 try:
     a = r.replay(spot.get_cout())
 except RuntimeError as e:
-    assert "empty cycle" in str(e)
+    tc.assertIn("empty cycle", str(e))
 else:
     report_missing_exception()
 
 try:
     a = r.reduce()
 except RuntimeError as e:
-    assert "empty cycle" in str(e)
+    tc.assertIn("empty cycle", str(e))
 else:
     report_missing_exception()
 
@@ -138,12 +141,12 @@ a = spot.translate('Fa')
 a = spot.to_generalized_rabin(a, False)
 r = a.accepting_run()
 r = r.reduce()
-assert r.cycle[0].acc == spot.mark_t([1])
+tc.assertEqual(r.cycle[0].acc, spot.mark_t([1]))
 r.cycle[0].acc = spot.mark_t([0])
 try:
     r.reduce();
 except RuntimeError as e:
-    assert "expects an accepting cycle" in str(e)
+    tc.assertIn("expects an accepting cycle", str(e))
 else:
     report_missing_exception()
 
@@ -151,7 +154,7 @@ f = spot.formula('GF(a | Gb)')
 try:
     spot.gf_guarantee_to_ba(f, spot._bdd_dict)
 except RuntimeError as e:
-    assert "guarantee" in str(e)
+    tc.assertIn("guarantee", str(e))
 else:
     report_missing_exception()
 
@@ -159,7 +162,7 @@ f = spot.formula('FG(a | Fb)')
 try:
     spot.fg_safety_to_dca(f, spot._bdd_dict)
 except RuntimeError as e:
-    assert "safety" in str(e)
+    tc.assertIn("safety", str(e))
 else:
     report_missing_exception()
 
@@ -168,28 +171,28 @@ m = spot.mark_t([n - 1])
 try:
     m = spot.mark_t([0]) << n
 except RuntimeError as e:
-    assert "Too many acceptance sets" in str(e)
+    tc.assertIn("Too many acceptance sets", str(e))
 else:
     report_missing_exception()
 
 try:
     m.set(n)
 except RuntimeError as e:
-    assert "bit index is out of bounds" in str(e)
+    tc.assertIn("bit index is out of bounds", str(e))
 else:
     report_missing_exception()
 
 try:
     m = spot.mark_t([0, n, 1])
 except RuntimeError as e:
-    assert "Too many acceptance sets used.  The limit is" in str(e)
+    tc.assertIn("Too many acceptance sets used.  The limit is", str(e))
 else:
     report_missing_exception()
 
 try:
     spot.complement_semidet(spot.translate('Gb R a', 'ba'))
 except RuntimeError as e:
-    assert "requires a semi-deterministic input" in str(e)
+    tc.assertIn("requires a semi-deterministic input", str(e))
 else:
     report_missing_exception()
 
@@ -197,52 +200,55 @@ try:
     spot.translate('F(G(a | !a) & ((b <-> c) W d))', 'det', 'any')
 except ValueError as e:
     s = str(e)
-    assert 'det' in s
-    assert 'any' in s
+    tc.assertIn('det', s)
+    tc.assertIn('any', s)
 else:
     report_missing_exception()
 
 a1 = spot.translate('FGa')
 a2 = spot.translate('Gb')
-assert not spot.is_deterministic(a1)
-assert spot.is_deterministic(a2)
+tc.assertFalse(spot.is_deterministic(a1))
+tc.assertTrue(spot.is_deterministic(a2))
 try:
     spot.product_xor(a1, a2)
 except RuntimeError as e:
-    assert "product_xor() only works with deterministic automata" in str(e)
+    tc.assertIn("product_xor() only works with deterministic automata", str(e))
 else:
     report_missing_exception()
 try:
     spot.product_xor(a2, a1)
 except RuntimeError as e:
-    assert "product_xor() only works with deterministic automata" in str(e)
+    tc.assertIn("product_xor() only works with deterministic automata", str(e))
 else:
     report_missing_exception()
 try:
     spot.product_xnor(a1, a2)
 except RuntimeError as e:
-    assert "product_xnor() only works with deterministic automata" in str(e)
+    tc.assertIn("product_xnor() only works with deterministic automata", str(e))
 else:
     report_missing_exception()
 try:
     spot.product_xnor(a2, a1)
 except RuntimeError as e:
-    assert "product_xnor() only works with deterministic automata" in str(e)
+    tc.assertIn("product_xnor() only works with deterministic automata", str(e))
 else:
     report_missing_exception()
 
 try:
     spot.solve_safety_game(a1)
 except RuntimeError as e:
-    assert "solve_safety_game(): arena should have true acceptance" in str(e)
+    tc.assertIn(
+        "solve_safety_game(): arena should have true acceptance",
+        str(e))
 else:
     report_missing_exception()
 
 try:
     spot.solve_parity_game(a1)
 except RuntimeError as e:
-    assert "solve_parity_game(): arena must have max-odd acceptance condition" \
-        in str(e)
+    tc.assertIn(
+        "solve_parity_game(): arena must have max-odd acceptance condition",
+        str(e))
 else:
     report_missing_exception()
 
@@ -250,16 +256,16 @@ else:
 try:
     spot.formula_Star(spot.formula("a"), 10, 333)
 except OverflowError as e:
-    assert "333" in str(e)
-    assert "254" in str(e)
+    tc.assertIn("333", str(e))
+    tc.assertIn("254", str(e))
 else:
     report_missing_exception()
 
 try:
     spot.formula_FStar(spot.formula("a"), 333, 400)
 except OverflowError as e:
-    assert "333" in str(e)
-    assert "254" in str(e)
+    tc.assertIn("333", str(e))
+    tc.assertIn("254", str(e))
 else:
     report_missing_exception()
 
@@ -267,15 +273,15 @@ try:
     spot.formula_nested_unop_range(spot.op_F, spot.op_Or, 333, 400,
                                    spot.formula("a"))
 except OverflowError as e:
-    assert "333" in str(e)
-    assert "254" in str(e)
+    tc.assertIn("333", str(e))
+    tc.assertIn("254", str(e))
 else:
     report_missing_exception()
 
 try:
     spot.formula_FStar(spot.formula("a"), 50, 40)
 except OverflowError as e:
-    assert "reversed" in str(e)
+    tc.assertIn("reversed", str(e))
 else:
     report_missing_exception()
 
@@ -287,5 +293,5 @@ try:
     a.to_str()
 except RuntimeError as e:
     se = str(e)
-    assert "synthesis-outputs" in se
-    assert "unregistered proposition" in se
+    tc.assertIn("synthesis-outputs", se)
+    tc.assertIn("unregistered proposition", se)

@@ -1,6 +1,6 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2012, 2014, 2015 Laboratoire de Recherche et Développement
-# de l'Epita (LRDE).
+# Copyright (C) 2012, 2014, 2015, 2022 Laboratoire de Recherche et
+# Développement de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
 #
@@ -19,6 +19,8 @@
 
 import os
 import spot
+from unittest import TestCase
+tc = TestCase()
 
 contents = '''
 HOA: v1 name: "a U b" States: 2 Start: 1 AP: 2 "a" "b" acc-name: Buchi
@@ -34,7 +36,7 @@ out.close()
 
 a = spot.parse_aut(filename, spot.make_bdd_dict())
 
-assert not a.errors
+tc.assertFalse(a.errors)
 
 spot.print_dot(spot.get_cout(), a.aut)
 

@@ -1,6 +1,6 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2021 Laboratoire de Recherche et Développement de l'Epita
-# (LRDE).
+# Copyright (C) 2021, 2022 Laboratoire de Recherche et Développement
+# de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
 #
@@ -18,6 +18,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import spot
+from unittest import TestCase
+tc = TestCase()
 
 a = spot.automaton("""HOA: v1 States: 5 Start: 0 AP: 2 "p0" "p1"
 Acceptance: 4 Inf(3) | Fin(3) properties: trans-labels explicit-labels
@@ -25,8 +27,8 @@ trans-acc --BODY-- State: 0 [!0&!1] 3 [!0&!1] 4 State: 1 [!0&!1] 4 {3}
 [0&!1] 0 {2} [!0&1] 1 {2} State: 2 [!0&1] 0 {0 2} [!0&!1] 1 State: 3
 [!0&1] 2 State: 4 [0&!1] 3 --END--""")
 b = spot.zielonka_tree_transform(a)
-assert spot.are_equivalent(a, b)
-assert b.acc().is_buchi()
+tc.assertTrue(spot.are_equivalent(a, b))
+tc.assertTrue(b.acc().is_buchi())
 
 def report_missing_exception():
     raise RuntimeError("missing exception")
@@ -45,95 +47,96 @@ State: 2 [0&1] 8 {3} [0&1] 2 {1} [!0&1] 4 {3 4} [!0&!1] 3 {2 5} State:
 [!0&!1] 2 {5} [!0&!1] 0 {3} [!0&!1] 5 --END--""")
 aa = spot.acd(a)
 try:
-    assert aa.has_rabin_shape()
+    tc.assertTrue(aa.has_rabin_shape())
 except RuntimeError as e:
-    assert 'CHECK_RABIN' in str(e)
+    tc.assertIn('CHECK_RABIN', str(e))
 else:
     report_missing_exception()
 
 try:
-    assert not aa.has_streett_shape()
+    tc.assertFalse(aa.has_streett_shape())
 except RuntimeError as e:
-    assert 'CHECK_STREETT' in str(e)
+    tc.assertIn('CHECK_STREETT', str(e))
 else:
     report_missing_exception()
 
 try:
-    assert not aa.has_parity_shape()
+    tc.assertFalse(aa.has_parity_shape())
 except RuntimeError as e:
-    assert 'CHECK_PARITY' in str(e)
+    tc.assertIn('CHECK_PARITY', str(e))
 else:
     report_missing_exception()
 
 
 aa = spot.acd(a, spot.acd_options_CHECK_RABIN)
-assert aa.has_rabin_shape()
-assert aa.node_count() == 13
+tc.assertTrue(aa.has_rabin_shape())
+tc.assertEqual(aa.node_count(), 13)
 
 try:
-    assert not aa.has_streett_shape()
+    tc.assertFalse(aa.has_streett_shape())
 except RuntimeError as e:
-    assert 'CHECK_STREETT' in str(e)
+    tc.assertIn('CHECK_STREETT', str(e))
 else:
     report_missing_exception()
 
 try:
-    assert aa.has_parity_shape()
+    tc.assertTrue(aa.has_parity_shape())
 except RuntimeError as e:
-    assert 'CHECK_PARITY' in str(e)
+    tc.assertIn('CHECK_PARITY', str(e))
 else:
     report_missing_exception()
 
 aa = spot.acd(a, (spot.acd_options_CHECK_PARITY |
                   spot.acd_options_ABORT_WRONG_SHAPE))
-assert aa.has_rabin_shape()
-assert not aa.has_streett_shape()
-assert not aa.has_parity_shape()
-assert aa.node_count() == 0
+tc.assertTrue(aa.has_rabin_shape())
+tc.assertFalse(aa.has_streett_shape())
+tc.assertFalse(aa.has_parity_shape())
+tc.assertEqual(aa.node_count(), 0)
+
 try:
     aa.first_branch(0)
 except RuntimeError as e:
-    assert 'ABORT_WRONG_SHAPE' in str(e)
+    tc.assertIn('ABORT_WRONG_SHAPE', str(e))
 else:
     report_missing_exception()
 
 try:
     aa.step(0, 0)
 except RuntimeError as e:
-    assert 'incorrect branch number' in str(e)
+    tc.assertIn('incorrect branch number', str(e))
 else:
     report_missing_exception()
 
 try:
     aa.node_acceptance(0)
 except RuntimeError as e:
-    assert 'unknown node' in str(e)
+    tc.assertIn('unknown node', str(e))
 else:
     report_missing_exception()
 
 try:
     aa.edges_of_node(0)
 except RuntimeError as e:
-    assert 'unknown node' in str(e)
+    tc.assertIn('unknown node', str(e))
 else:
     report_missing_exception()
 
 try:
     aa.node_level(0)
 except RuntimeError as e:
-    assert 'unknown node' in str(e)
+    tc.assertIn('unknown node', str(e))
 else:
     report_missing_exception()
 
 a = spot.translate('true')
 a.set_acceptance(spot.acc_cond('f'))
 b = spot.acd_transform(a)
-assert a.equivalent_to(b)
+tc.assertTrue(a.equivalent_to(b))
 
 a = spot.translate('true')
 a.set_acceptance(spot.acc_cond('f'))
 b = spot.zielonka_tree_transform(a)
-assert a.equivalent_to(b)
+tc.assertTrue(a.equivalent_to(b))
 
 a = spot.automaton("""HOA: v1 name: "^ G F p0 G F p1" States: 5 Start:
 2 AP: 2 "a" "b" acc-name: Rabin 2 Acceptance: 4 (Fin(0) & Inf(1)) |
@@ -144,8 +147,8 @@ complete properties: deterministic --BODY-- State: 0 {0} [!0&!1] 0
 2} [!0&!1] 1 [0&!1] 4 [!0&1] 3 [0&1] 2 State: 4 {0 3} [!0&!1] 0 [0&!1]
 4 [!0&1] 3 [0&1] 2 --END--""")
 b = spot.acd_transform_sbacc(a, True)
-assert str(b.acc()) == '(3, Fin(0) & (Inf(1) | Fin(2)))'
-assert a.equivalent_to(b)
+tc.assertEqual(str(b.acc()), '(3, Fin(0) & (Inf(1) | Fin(2)))')
+tc.assertTrue(a.equivalent_to(b))
 b = spot.acd_transform_sbacc(a, False)
-assert str(b.acc()) == '(2, Fin(0) & Inf(1))'
-assert a.equivalent_to(b)
+tc.assertEqual(str(b.acc()), '(2, Fin(0) & Inf(1))')
+tc.assertTrue(a.equivalent_to(b))

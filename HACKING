@@ -290,8 +290,8 @@ would understand with:
   make check LOG_DRIVER=$PWD/tools/test-driver-teamcity
 
 
-Coding conventions
-==================
+C++ Coding conventions
+======================
 
 Here some of the conventions we follow in Spot, so that the code looks
 homogeneous.  Please follow these strictly.  Since this is free
@@ -682,3 +682,43 @@ Other style recommandations
 
   * Always code as if the person who ends up maintaining your code is
     a violent psychopath who knows where you live.
+
+
+Coding conventions for Python Tests
+===================================
+
+Unless you have some specific reason to write test cases in C++ (for
+instance do test some specific C++ constructions, or to use valgrind),
+prefer writing test cases in Python.  Writing test cases in C++
+requires some compilation, which slows down the test suite.  Doing the
+same test in Python is therefore faster, and it has the added benefit
+of ensuring that the Python bindings works.
+
+We have two types of Python tests: Python scripts or jupyter
+notebooks.  Jupyter notebooks are usually used for a sequence of
+examples and comments that can also serve as part of the
+documentation.  Such jupyter notebooks should be added to the list of
+code examples in doc/org/tut.org.  Testing a notebook is done by the
+tests/python/ipnbdoctest.py scripts, which evaluate each cells, and
+checks that the obtainted result is equivalent to the result saved in
+the notebook.  The process is a bit slow, so plain Python scripts
+should be prefered for most tests.
+
+If you do need a notebook to tests Jupyter-specific code but this
+notebook should not be shown in the documentation, use a filename
+starting with '_'.
+
+Tests written as Python scripts should follow the same convention as
+shell scripts: exit 0 for PASS, exit 77 for SKIP, and any other exit
+code for FAIL.
+
+Do not use assert() in those scripts, as (1) asserts can be disabled,
+and (2) they provide poor insights in case of failures.  Instead do
+
+   from unittest import TestCase
+   tc = TestCase()
+
+and then use tc.assertTrue(...), tc.assertEqual(..., ...),
+tc.assertIn(..., ...), etc.  In case of failures, those will print
+useful messages in the trace of the tests.  For instance multiline
+strings that should have been equal will be presented with a diff.

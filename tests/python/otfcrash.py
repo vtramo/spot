@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2016, 2018  Laboratoire de Recherche et Développement
+# Copyright (C) 2016, 2018, 2022  Laboratoire de Recherche et Développement
 # de l'Epita
 #
 # This file is part of Spot, a model checking library.
@@ -23,6 +23,8 @@ import spot.aux
 import tempfile
 import shutil
 import sys
+from unittest import TestCase
+tc = TestCase()
 
 spot.ltsmin.require('divine')
 
@@ -51,4 +53,4 @@ system async;
         p = spot.otf_product(k, a)
         return p.is_empty()
 
-    assert(modelcheck('X "R.found"', m) == True)
+    tc.assertTrue(modelcheck('X "R.found"', m))

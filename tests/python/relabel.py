@@ -1,6 +1,6 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2015, 2017-2019  Laboratoire de Recherche et Développement
-# de l'Epita
+# Copyright (C) 2015, 2017-2019, 2022 Laboratoire de Recherche et
+# Développement de l'Epita
 #
 # This file is part of Spot, a model checking library.
 #
@@ -18,6 +18,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import spot
+from unittest import TestCase
+tc = TestCase()
 
 f = spot.formula('GF(a & b) -> (FG(a & b) & Gc)')
 m = spot.relabeling_map()
@@ -26,19 +28,18 @@ res = ""
 for old, new in m.items():
     res += "#define {} {}\n".format(old, new)
 res += str(g)
-print(res)
-assert(res == """#define p0 a & b
+tc.assertEqual(res, """#define p0 a & b
 #define p1 c
 GFp0 -> (FGp0 & Gp1)""")
 
 h = spot.relabel_apply(g, m)
-assert h == f
+tc.assertEqual(h, f)
 
 autg = g.translate()
 spot.relabel_here(autg, m)
-assert str(autg.ap()) == \
-    '(spot.formula("a"), spot.formula("b"), spot.formula("c"))'
-assert spot.isomorphism_checker.are_isomorphic(autg, f.translate())
+tc.assertEqual(str(autg.ap()), \
+    '(spot.formula("a"), spot.formula("b"), spot.formula("c"))')
+tc.assertTrue(spot.isomorphism_checker.are_isomorphic(autg, f.translate()))
 
 a = spot.formula('a')
 u = spot.formula('a U b')
@@ -46,11 +47,11 @@ m[a] = u
 try:
     spot.relabel_here(autg, m)
 except RuntimeError as e:
-    assert "new labels" in str(e)
+    tc.assertIn("new labels", str(e))
 
 m = spot.relabeling_map()
 m[u] = a
 try:
     spot.relabel_here(autg, m)
 except RuntimeError as e:
-    assert "old labels" in str(e)
+    tc.assertIn("old labels", str(e))

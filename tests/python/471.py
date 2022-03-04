@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2021 Laboratoire de Recherche et Développement de l'Epita
+# Copyright (C) 2021, 2022 Laboratoire de Recherche et Développement de l'Epita
 # (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -20,9 +20,12 @@
 # Test for Issue #471.
 
 import spot
+from unittest import TestCase
+tc = TestCase()
+
 a = spot.translate('Fa')
 a = spot.to_generalized_rabin(a, False)
 r1 = a.intersecting_run(a)
 r2 = a.accepting_run()
-assert str(r1) == str(r2)
-assert a.prop_weak().is_true()
+tc.assertEqual(str(r1), str(r2))
+tc.assertTrue(a.prop_weak().is_true())

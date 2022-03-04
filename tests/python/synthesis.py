@@ -18,6 +18,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import spot
+from unittest import TestCase
+tc = TestCase()
 
 # A shared variable caused the 2nd call to ltl_to_game to give an incorrect
 # result.
@@ -25,11 +27,11 @@ for i in range(0, 2):
     gi = spot.synthesis_info()
     gi.s = spot.synthesis_info.algo_LAR
     game = spot.ltl_to_game("(Ga) <-> (Fb)", ["b"], gi)
-    assert not spot.solve_game(game)
+    tc.assertFalse(spot.solve_game(game))
 
 # A game can have only inputs
 game = spot.ltl_to_game("GFa", [])
-assert(game.to_str() == """HOA: v1
+tc.assertEqual(game.to_str(), """HOA: v1
 States: 3
 Start: 0
 AP: 1 "a"

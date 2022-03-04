@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2020, 2021 Laboratoire de Recherche et Développement de
+# Copyright (C) 2020-2022 Laboratoire de Recherche et Développement de
 # l'EPITA.
 #
 # This file is part of Spot, a model checking library.
@@ -20,12 +20,14 @@
 
 
 import spot
+from unittest import TestCase
+tc = TestCase()
 
 aut = spot.automaton("""HOA: v1 States: 1 Start: 0 AP: 1 "a"
 Acceptance: 1 Inf(0) --BODY-- State: 0 [0] 0 [0] 0 {0} --END--""")
-assert aut.num_edges() == 2
+tc.assertEqual(aut.num_edges(), 2)
 aut.merge_edges()
-assert aut.num_edges() == 1
+tc.assertEqual(aut.num_edges(), 1)
 
 aut = spot.automaton("""
 HOA: v1
@@ -44,15 +46,15 @@ State: 1
 [0 | 1] 1
 [0&!1] 1 {0}
 --END--""")
-assert aut.num_edges() == 5
+tc.assertEqual(aut.num_edges(), 5)
 aut.merge_edges()
-assert aut.num_edges() == 5
-assert not spot.is_deterministic(aut)
+tc.assertEqual(aut.num_edges(), 5)
+tc.assertFalse(spot.is_deterministic(aut))
 aut = spot.split_edges(aut)
-assert aut.num_edges() == 9
+tc.assertEqual(aut.num_edges(), 9)
 aut.merge_edges()
-assert aut.num_edges() == 5
-assert spot.is_deterministic(aut)
+tc.assertEqual(aut.num_edges(), 5)
+tc.assertTrue(spot.is_deterministic(aut))
 
 aut = spot.automaton("""
 HOA: v1
@@ -74,15 +76,15 @@ State: 2
 [0] 1
 --END--""")
 aut.merge_states()
-assert aut.num_edges() == 4
-assert aut.num_states() == 2
-assert spot.is_deterministic(aut)
-assert aut.prop_complete()
+tc.assertEqual(aut.num_edges(), 4)
+tc.assertEqual(aut.num_states(), 2)
+tc.assertTrue(spot.is_deterministic(aut))
+tc.assertTrue(aut.prop_complete())
 aut.merge_states()
-assert aut.num_edges() == 4
-assert aut.num_states() == 2
-assert spot.is_deterministic(aut)
-assert aut.prop_complete()
+tc.assertEqual(aut.num_edges(), 4)
+tc.assertEqual(aut.num_states(), 2)
+tc.assertTrue(spot.is_deterministic(aut))
+tc.assertTrue(aut.prop_complete())
 
 
 aa = spot.automaton("""

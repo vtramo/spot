@@ -1,6 +1,6 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2010, 2011 Laboratoire de Recherche et Développement
-# de l'EPITA.
+# Copyright (C) 2010, 2011, 2022 Laboratoire de Recherche et
+# Développement de l'EPITA.
 #
 # This file is part of Spot, a model checking library.
 #
@@ -19,6 +19,8 @@
 
 import sys
 from buddy import *
+from unittest import TestCase
+tc = TestCase()
 
 bdd_init(10000, 10000)
 bdd_setvarnum(5)
@@ -29,18 +31,18 @@ a = V[0] & -V[1] & V[2] & -V[3]
 b = V[0] & V[1] & V[2] & -V[3]
 c = -V[0] & V[1] & -V[2] & -V[3]
 
-assert(c == bdd_setxor(a, b))
-assert(c == bdd_setxor(b, a))
-assert(a == bdd_setxor(b, c))
-assert(a == bdd_setxor(c, b))
-assert(b == bdd_setxor(a, c))
-assert(b == bdd_setxor(c, a))
+tc.assertEqual(c, bdd_setxor(a, b))
+tc.assertEqual(c, bdd_setxor(b, a))
+tc.assertEqual(a, bdd_setxor(b, c))
+tc.assertEqual(a, bdd_setxor(c, b))
+tc.assertEqual(b, bdd_setxor(a, c))
+tc.assertEqual(b, bdd_setxor(c, a))
 
 d = V[1] & V[2] & -V[3] & V[4]
 e = V[0] & V[1] & -V[2] & -V[3] & V[4]
 
-assert(e == bdd_setxor(a, d))
-assert(e == bdd_setxor(d, a))
+tc.assertEqual(e, bdd_setxor(a, d))
+tc.assertEqual(e, bdd_setxor(d, a))
 
 # Cleanup all BDD variables before calling bdd_done(), otherwise
 # bdd_delref will be called after bdd_done() and this is unsafe in

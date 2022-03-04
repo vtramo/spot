@@ -1,6 +1,6 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2017 Laboratoire de Recherche et Développement de l'Epita
-# (LRDE).
+# Copyright (C) 2017, 2022 Laboratoire de Recherche et Développement
+# de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
 #
@@ -19,7 +19,8 @@
 
 import spot
 from subprocess import _active
-
+from unittest import TestCase
+tc = TestCase()
 
 def two_intersecting_automata():
     """return two random automata with a non-empty intersection"""
@@ -34,4 +35,4 @@ for i in range(5):
 
 n = len(_active)
 print(n, "active processes")
-assert(n == 0)
+tc.assertEqual(n, 0)

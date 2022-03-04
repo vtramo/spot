@@ -1,6 +1,6 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2020 Laboratoire de Recherche et Développement de l'Epita
-# (LRDE).
+# Copyright (C) 2020, 2022 Laboratoire de Recherche et Développement
+# de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
 #
@@ -20,21 +20,23 @@
 # Test for parts of Issue #298.
 
 import spot
+from unittest import TestCase
+tc = TestCase()
 
 a1 = spot.automaton("""genltl --dac=51 | ltl2tgba --med |""")
 a1 = spot.degeneralize_tba(a1)
 r1 = spot.tgba_determinize(a1, True, False, False)
-assert r1.num_sets() == 3
-assert a1.prop_complete().is_false();
+tc.assertEqual(r1.num_sets(), 3)
+tc.assertTrue(a1.prop_complete().is_false())
 # This used to fail in 2.9.5 and earlier.
-assert r1.prop_complete().is_maybe();
-assert spot.is_complete(r1)
+tc.assertTrue(r1.prop_complete().is_maybe())
+tc.assertTrue(spot.is_complete(r1))
 
 a2 = spot.automaton("""genltl --dac=51 | ltl2tgba --high |""")
 a2 = spot.degeneralize_tba(a2)
 r2 = spot.tgba_determinize(a2, True, False, False)
 # This used to fail in 2.9.5 and earlier.
-assert r2.num_sets() == 3
-assert a2.prop_complete().is_false();
-assert r2.prop_complete().is_maybe();
-assert spot.is_complete(r2)
+tc.assertEqual(r2.num_sets(), 3)
+tc.assertTrue(a2.prop_complete().is_false())
+tc.assertTrue(r2.prop_complete().is_maybe())
+tc.assertTrue(spot.is_complete(r2))

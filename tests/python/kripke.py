@@ -1,6 +1,6 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2019 Laboratoire de Recherche et Développement de l'Epita
-# (LRDE).
+# Copyright (C) 2019, 2022 Laboratoire de Recherche et Développement
+# de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
 #
@@ -19,6 +19,9 @@
 
 import spot
 import buddy
+from unittest import TestCase
+tc = TestCase()
+
 bdict = spot.make_bdd_dict()
 k = spot.make_kripke_graph(bdict)
 p1 = buddy.bdd_ithvar(k.register_ap("p1"))
@@ -51,25 +54,25 @@ State: [0&1] 1 "0"
 State: [!0&!1] 2 "2"
 2 1
 --END--"""
-assert hoa == k.to_str('HOA')
-assert k.num_states() == 3
-assert k.num_edges() == 5
+tc.assertEqual(hoa, k.to_str('HOA'))
+tc.assertEqual(k.num_states(), 3)
+tc.assertEqual(k.num_edges(), 5)
 
 res = []
 for e in k.out(s1):
     res.append((e.src, e.dst))
-assert res == [(1, 0), (1, 2)]
+tc.assertEqual(res, [(1, 0), (1, 2)])
 
 res = []
 for e in k.edges():
     res.append((e.src, e.dst))
-assert res == [(1, 0), (0, 0), (1, 2), (2, 2), (2, 0)]
+tc.assertEqual(res, [(1, 0), (0, 0), (1, 2), (2, 2), (2, 0)])
 
 res = []
 for s in k.states():
     res.append(s.cond())
-assert res == [cond1, cond2, cond3]
+tc.assertEqual(res, [cond1, cond2, cond3])
 
-assert k.states()[0].cond() == cond1
-assert k.states()[1].cond() == cond2
-assert k.states()[2].cond() == cond3
+tc.assertEqual(k.states()[0].cond(), cond1)
+tc.assertEqual(k.states()[1].cond(), cond2)
+tc.assertEqual(k.states()[2].cond(), cond3)

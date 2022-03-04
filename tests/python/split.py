@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2018-2021 Laboratoire de Recherche et
+# Copyright (C) 2018-2022 Laboratoire de Recherche et
 # Développement de l'Epita
 #
 # This file is part of Spot, a model checking library.
@@ -19,6 +19,8 @@
 
 import spot
 import buddy
+from unittest import TestCase
+tc = TestCase()
 
 # CPython use reference counting, so that automata are destructed
 # when we expect them to be.   However other implementations like
@@ -51,16 +53,17 @@ def do_split(f, out_list):
     return aut, s
 
 aut, s = do_split('(FG !a) <-> (GF b)', ['b'])
-assert equiv(aut, spot.unsplit_2step(s))
+tc.assertTrue(equiv(aut, spot.unsplit_2step(s)))
 
 del aut
 del s
 gcollect()
 
 aut, s = do_split('GFa && GFb', ['b'])
-assert equiv(aut, spot.unsplit_2step(s))
-# FIXME see below
-# assert str_diff("""HOA: v1
+tc.assertTrue(equiv(aut, spot.unsplit_2step(s)))
+# FIXME s.to_str() is NOT the same on Debian stable and on Debian unstable
+#       we should investigate this.  See Issue #502.
+# tc.assertEqual("""HOA: v1
 # States: 3
 # Start: 0
 # AP: 2 "a" "b"
@@ -86,10 +89,11 @@ del s
 gcollect()
 
 aut, s = do_split('! ((G (req -> (F ack))) && (G (go -> (F grant))))', ['ack'])
-assert equiv(aut, spot.unsplit_2step(s))
+tc.assertTrue(equiv(aut, spot.unsplit_2step(s)))
+
 # FIXME s.to_str() is NOT the same on Debian stable and on Debian unstable
-#       we should investigate this
-# assert s.to_str() == """HOA: v1
+#       we should investigate this.  See Issue #502.
+# tc.assertEqual(s.to_str(), """HOA: v1
 # States: 9
 # Start: 0
 # AP: 4 "ack" "req" "go" "grant"
@@ -122,7 +126,7 @@ assert equiv(aut, spot.unsplit_2step(s))
 # [!0] 1
 # State: 8 {0}
 # [!3] 2
-# --END--"""
+# --END--""")
 
 del aut
 del s
@@ -131,4 +135,4 @@ gcollect()
 aut, s = do_split('((G (((! g_0) || (! g_1)) && ((r_0 && (X r_1)) -> (F (g_0 \
     && g_1))))) && (G (r_0 -> F g_0))) && (G (r_1 -> F g_1))',
                   ['g_0', 'g_1'])
-assert equiv(aut, spot.unsplit_2step(s))
+tc.assertTrue(equiv(aut, spot.unsplit_2step(s)))

@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2016 Laboratoire de Recherche et Développement de
+# Copyright (C) 2016, 2022 Laboratoire de Recherche et Développement de
 # l'Epita
 #
 # This file is part of Spot, a model checking library.
@@ -18,6 +18,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import spot
+from unittest import TestCase
+tc = TestCase()
 
 lcc = spot.language_containment_checker()
 
@@ -43,5 +45,5 @@ for f in formulas:
     f4 = spot.formula_And([spot.from_ltlf(f2), cst])
     print("{}\t=>\t{}".format(f1, f3))
     print("{}\t=>\t{}".format(f2, f4))
-    assert lcc.equal(f3, f4)
+    tc.assertTrue(lcc.equal(f3, f4))
     print()

@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2018-2021 Laboratoire de Recherche et Développement de
+# Copyright (C) 2018-2022 Laboratoire de Recherche et Développement de
 # l'EPITA.
 #
 # This file is part of Spot, a model checking library.
@@ -21,6 +21,8 @@
 import spot
 from itertools import zip_longest
 from buddy import bddfalse
+from unittest import TestCase
+tc = TestCase()
 
 # Tests for the new version of to_parity
 
@@ -114,17 +116,16 @@ def test(aut, expected_num_states=[], full=True):
         if opt is not None and opt.parity_prefix is False:
             # Reduce the number of colors to help are_equivalent
             spot.reduce_parity_here(p1)
-        assert spot.are_equivalent(aut, p1)
+        tc.assertTrue(spot.are_equivalent(aut, p1))
         if expected_num is not None:
-            # print(p1.num_states(), expected_num)
-            assert p1.num_states() == expected_num
+            tc.assertEqual(p1.num_states(), expected_num)
         if full and opt is not None:
             # Make sure passing opt is the same as setting
             # each argument individually
             p2 = spot.to_parity(aut, opt)
-            assert p2.num_states() == p1st
-            assert p2.num_edges() == p1ed
-            assert p2.num_sets() == p1se
+            tc.assertEqual(p2.num_states(), p1st)
+            tc.assertEqual(p2.num_edges(), p1ed)
+            tc.assertEqual(p2.num_sets(), p1se)
 
 test(spot.automaton("""HOA: v1
 name: "(FGp0 & ((XFp0 & F!p1) | F(Gp1 & XG!p0))) | G(F!p0 & (XFp0 | F!p1) &
@@ -351,7 +352,7 @@ State: 0
 [!0&!1] 0
 --END--""")
 p = spot.to_parity_old(a, True)
-assert spot.are_equivalent(a, p)
+tc.assertTrue(spot.are_equivalent(a, p))
 test(a)
 
 a = spot.automaton("""
@@ -363,8 +364,8 @@ explicit-labels trans-acc --BODY-- State: 0 [0&1] 2 {4 5} [0&1] 4 {0 4}
 4 [!0&!1] 1 {2 4} State: 5 [!0&1] 4 --END--
 """)
 p = spot.to_parity_old(a, True)
-assert p.num_states() == 22
-assert spot.are_equivalent(a, p)
+tc.assertEqual(p.num_states(), 22)
+tc.assertTrue(spot.are_equivalent(a, p))
 test(a, [8, 6, 6, 6, 6, 6, 6, 6])
 
 # Force a few edges to false, to make sure to_parity() is OK with that.
@@ -377,22 +378,22 @@ for e in a.out(3):
         e.cond = bddfalse
         break
 p = spot.to_parity_old(a, True)
-assert p.num_states() == 22
-assert spot.are_equivalent(a, p)
+tc.assertEqual(p.num_states(), 22)
+tc.assertTrue(spot.are_equivalent(a, p))
 test(a, [7, 6, 6, 6, 6, 6, 6, 6])
 
 for f in spot.randltl(4, 400):
     d = spot.translate(f, "det", "G")
     p = spot.to_parity_old(d, True)
-    assert spot.are_equivalent(p, d)
+    tc.assertTrue(spot.are_equivalent(p, d))
 
 for f in spot.randltl(5, 2000):
     n = spot.translate(f)
     p = spot.to_parity_old(n, True)
-    assert spot.are_equivalent(n, p)
+    tc.assertTrue(spot.are_equivalent(n, p))
 
 # Issue #390.
 a = spot.translate('!(GFa -> (GFb & GF(!b & !Xb)))', 'gen', 'det')
 b = spot.to_parity_old(a, True)
-assert a.equivalent_to(b)
+tc.assertTrue(a.equivalent_to(b))
 test(a, [7, 7, 3, 7, 7, 7, 3, 3])

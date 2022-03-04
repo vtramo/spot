@@ -1,6 +1,6 @@
 #! /bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2009-2021 Laboratoire de Recherche et Développement de
+# Copyright (C) 2009-2022 Laboratoire de Recherche et Développement de
 # l'Epita (LRDE).
 # Copyright (C) 2004, 2005 Laboratoire d'Informatique de Paris 6
 # (LIP6), département Systèmes Répartis Coopératifs (SRC), Université
@@ -391,6 +391,27 @@ for dir in "${INCDIR-..}" "${INCDIR-..}/../bin" "${INCDIR-..}/../tests"; do
     $fail && echo "$file" >>failures.style
   done || : # Make sure sh does not abort when read exits with false.
 done
+
+# Rules for Python tests
+for dir in "${INCDIR-..}/../tests"; do
+
+  find "$dir" -name "*.py" -a -type f -a -print |
+  while read file; do
+    fail=false
+
+    # Strip comments.
+    sed 's,[	 ]*#.*,,' < $file > $tmp
+
+    $GREP '[	 ]$' $tmp &&
+      diag 'Trailing whitespace.'
+
+    $GREP -E '([	 ]|^)assert[ (]' $tmp &&
+	diag "replace assert keywords by unittest assertion tests"
+
+    $fail && echo "$file" >>failures.style
+  done || : # Make sure sh does not abort when read exits with false.
+done
+
 
 if test -f failures.style; then
    echo "The following files contain style errors:"

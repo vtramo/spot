@@ -20,6 +20,8 @@
 # Test for parts of Issue #497.
 
 import spot
+from unittest import TestCase
+tc = TestCase()
 
 aut = spot.automaton("""
 HOA: v1
@@ -63,11 +65,11 @@ State: 0
 --END--""")
 s = aut.to_str('hoa')
 aut2 = spot.automaton(s)
-assert aut.equivalent_to(aut2)
+tc.assertTrue(aut.equivalent_to(aut2))
 s2 = aut.to_str('hoa')
-assert s == s2
+tc.assertEqual(s, s2)
 
-assert s == """HOA: v1
+tc.assertEqual(s, """HOA: v1
 States: 1
 Start: 0
 AP: 3 "x" "y" "z"
@@ -105,7 +107,7 @@ State: 0
 [@a&2 | @p1&@p0&2] 0
 [@a&2] 0
 [@p0&2 | @p1&2] 0
---END--"""
+--END--""")
 
 # Check what happens to aliases when an AP has been removed, but
 # the aliases have been preserved...
@@ -115,7 +117,7 @@ aut3 = rem.strip(aut)
 spot.set_aliases(aut3, spot.get_aliases(aut))
 s2 = aut3.to_str('hoa')
 # Aliases based on "x" should have disappeared.
-assert(s2 == """HOA: v1
+tc.assertEqual(s2, """HOA: v1
 States: 1
 Start: 0
 AP: 2 "y" "z"

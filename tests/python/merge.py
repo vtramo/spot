@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2017, 2020 Laboratoire de Recherche et Développement de
-# l'EPITA.
+# Copyright (C) 2017, 2020, 2022 Laboratoire de Recherche et
+# Développement de l'EPITA.
 #
 # This file is part of Spot, a model checking library.
 #
@@ -19,6 +19,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import spot
+from unittest import TestCase
+tc = TestCase()
 
 aut = spot.automaton("""
 HOA: v1
@@ -39,7 +41,7 @@ State: 2
 out = spot.simplify_acceptance(aut)
 hoa = out.to_str('hoa')
 
-assert hoa == """HOA: v1
+tc.assertEqual(hoa, """HOA: v1
 States: 3
 Start: 0
 AP: 2 "a" "b"
@@ -54,8 +56,8 @@ State: 1
 [1] 2 {0}
 State: 2
 [1] 0
---END--"""
-assert spot.are_equivalent(out, aut)
+--END--""")
+tc.assertTrue(spot.are_equivalent(out, aut))
 
 aut = spot.automaton("""HOA: v1
 States: 3
@@ -75,7 +77,7 @@ State: 2
 spot.simplify_acceptance_here(aut)
 hoa = aut.to_str('hoa')
 
-assert hoa == """HOA: v1
+tc.assertEqual(hoa, """HOA: v1
 States: 3
 Start: 0
 AP: 2 "a" "b"
@@ -90,7 +92,7 @@ State: 1
 [1] 2 {0}
 State: 2
 [1] 0
---END--"""
+--END--""")
 
 aut = spot.automaton("""
 HOA: v1
@@ -111,7 +113,7 @@ State: 2
 spot.simplify_acceptance_here(aut)
 hoa = aut.to_str('hoa')
 
-assert hoa == """HOA: v1
+tc.assertEqual(hoa, """HOA: v1
 States: 3
 Start: 0
 AP: 2 "a" "b"
@@ -126,7 +128,7 @@ State: 1
 [1] 2
 State: 2
 [1] 0
---END--"""
+--END--""")
 
 aut = spot.automaton("""HOA: v1
 States: 3
@@ -146,7 +148,7 @@ State: 2
 spot.simplify_acceptance_here(aut)
 hoa = aut.to_str('hoa')
 
-assert hoa == """HOA: v1
+tc.assertEqual(hoa, """HOA: v1
 States: 3
 Start: 0
 AP: 2 "a" "b"
@@ -161,7 +163,7 @@ State: 1
 [1] 2 {1}
 State: 2
 [1] 0 {0}
---END--"""
+--END--""")
 
 aut = spot.automaton("""
 HOA: v1
@@ -182,7 +184,7 @@ State: 2
 spot.simplify_acceptance_here(aut)
 hoa = aut.to_str('hoa')
 
-assert hoa == """HOA: v1
+tc.assertEqual(hoa, """HOA: v1
 States: 3
 Start: 0
 AP: 2 "a" "b"
@@ -197,7 +199,7 @@ State: 1
 [1] 2
 State: 2
 [1] 0
---END--"""
+--END--""")
 
 aut = spot.automaton("""HOA: v1
 States: 3
@@ -217,7 +219,7 @@ State: 2
 spot.simplify_acceptance_here(aut)
 hoa = aut.to_str('hoa')
 
-assert hoa == """HOA: v1
+tc.assertEqual(hoa, """HOA: v1
 States: 3
 Start: 0
 AP: 2 "a" "b"
@@ -232,7 +234,7 @@ State: 1 {0}
 [1] 2
 State: 2 {0}
 [1] 0
---END--"""
+--END--""")
 
 aut = spot.automaton("""HOA: v1
 States: 3
@@ -252,7 +254,7 @@ State: 2
 spot.simplify_acceptance_here(aut)
 hoa = aut.to_str('hoa')
 
-assert hoa == """HOA: v1
+tc.assertEqual(hoa, """HOA: v1
 States: 3
 Start: 0
 AP: 2 "a" "b"
@@ -267,7 +269,7 @@ State: 1 {0}
 [1] 2
 State: 2 {0}
 [1] 0
---END--"""
+--END--""")
 
 aut = spot.automaton("""HOA: v1
 States: 3
@@ -287,7 +289,7 @@ State: 2
 spot.simplify_acceptance_here(aut)
 hoa = aut.to_str('hoa')
 
-assert hoa == """HOA: v1
+tc.assertEqual(hoa, """HOA: v1
 States: 3
 Start: 0
 AP: 2 "a" "b"
@@ -301,7 +303,7 @@ State: 1 {1}
 [1] 2
 State: 2
 [1] 0
---END--"""
+--END--""")
 
 aut = spot.automaton("""HOA: v1
 States: 4
@@ -335,7 +337,7 @@ State: 3 {1 3}
 spot.simplify_acceptance_here(aut)
 hoa = aut.to_str('hoa')
 
-assert hoa == """HOA: v1
+tc.assertEqual(hoa, """HOA: v1
 States: 4
 Start: 0
 AP: 2 "a" "b"
@@ -364,7 +366,7 @@ State: 3 {1}
 [0&!1] 0
 [!0&1] 3
 [0&1] 2
---END--"""
+--END--""")
 
 aut = spot.automaton("""HOA: v1
 States: 3
@@ -388,7 +390,7 @@ State: 2
 out = spot.simplify_acceptance(aut)
 hoa = out.to_str('hoa')
 
-assert hoa == """HOA: v1
+tc.assertEqual(hoa, """HOA: v1
 States: 3
 Start: 0
 AP: 2 "p0" "p1"
@@ -406,8 +408,8 @@ State: 1
 State: 2
 [0] 2 {0}
 [!0] 1 {0}
---END--"""
-assert spot.are_equivalent(out, aut)
+--END--""")
+tc.assertTrue(spot.are_equivalent(out, aut))
 
 aut = spot.automaton("""HOA: v1
 States: 4
@@ -435,7 +437,7 @@ State: 3
 spot.simplify_acceptance_here(aut)
 hoa = aut.to_str('hoa')
 
-assert hoa == """HOA: v1
+tc.assertEqual(hoa, """HOA: v1
 States: 4
 Start: 0
 AP: 2 "p0" "p1"
@@ -457,7 +459,7 @@ State: 3
 [0&1] 0 {1}
 [0&!1] 3 {1 2}
 [!0] 1 {3}
---END--"""
+--END--""")
 
 aut = spot.automaton("""HOA: v1
 States: 1
@@ -475,7 +477,7 @@ State: 0 {1 2}
 spot.simplify_acceptance_here(aut)
 hoa = aut.to_str('hoa')
 
-assert hoa == """HOA: v1
+tc.assertEqual(hoa, """HOA: v1
 States: 1
 Start: 0
 AP: 2 "p0" "p1"
@@ -486,7 +488,7 @@ properties: deterministic
 --BODY--
 State: 0
 [t] 0
---END--"""
+--END--""")
 
 aut = spot.automaton("""HOA: v1
 States: 2
@@ -506,7 +508,7 @@ State: 1
 spot.simplify_acceptance_here(aut)
 hoa = aut.to_str('hoa')
 
-assert hoa == """HOA: v1
+tc.assertEqual(hoa, """HOA: v1
 States: 2
 Start: 0
 AP: 2 "p0" "p1"
@@ -519,7 +521,7 @@ State: 0
 [!0] 1 {2}
 State: 1
 [t] 1 {1 2}
---END--"""
+--END--""")
 
 aut = spot.automaton("""HOA: v1
 States: 1
@@ -536,7 +538,7 @@ State: 0 {0 1 3}
 spot.simplify_acceptance_here(aut)
 hoa = aut.to_str('hoa')
 
-assert hoa == """HOA: v1
+tc.assertEqual(hoa, """HOA: v1
 States: 1
 Start: 0
 AP: 2 "p0" "p1"
@@ -547,7 +549,7 @@ properties: deterministic
 --BODY--
 State: 0
 [t] 0
---END--"""
+--END--""")
 
 aut = spot.automaton("""HOA: v1
 States: 2
@@ -568,7 +570,7 @@ State: 1
 spot.simplify_acceptance_here(aut)
 hoa = aut.to_str('hoa')
 
-assert hoa == """HOA: v1
+tc.assertEqual(hoa, """HOA: v1
 States: 2
 Start: 0
 AP: 2 "p0" "p1"
@@ -583,7 +585,7 @@ State: 0
 State: 1
 [0] 1
 [!0] 0 {1}
---END--"""
+--END--""")
 
 aut = spot.automaton("""HOA: v1
 States: 2
@@ -602,7 +604,7 @@ State: 1 {1}
 spot.simplify_acceptance_here(aut)
 hoa = aut.to_str('hoa')
 
-assert hoa == """HOA: v1
+tc.assertEqual(hoa, """HOA: v1
 States: 2
 Start: 0
 AP: 2 "p0" "p1"
@@ -615,7 +617,7 @@ State: 0
 [t] 1
 State: 1
 [t] 0
---END--"""
+--END--""")
 
 aut = spot.automaton("""HOA: v1
 States: 3
@@ -636,7 +638,7 @@ State: 2 {2}
 spot.simplify_acceptance_here(aut)
 hoa = aut.to_str('hoa')
 
-assert hoa == """HOA: v1
+tc.assertEqual(hoa, """HOA: v1
 States: 3
 Start: 0
 AP: 2 "p0" "p1"
@@ -650,7 +652,7 @@ State: 1 {0}
 [t] 1
 State: 2 {2}
 [t] 1
---END--"""
+--END--""")
 
 aut = spot.automaton("""HOA: v1
 States: 3
@@ -672,7 +674,7 @@ State: 2 {1 2 3}
 out = spot.simplify_acceptance(aut)
 hoa = out.to_str('hoa')
 
-assert hoa == """HOA: v1
+tc.assertEqual(hoa, """HOA: v1
 States: 3
 Start: 0
 AP: 2 "p0" "p1"
@@ -687,8 +689,8 @@ State: 1 {1}
 [t] 2
 State: 2 {0 1}
 [t] 1
---END--"""
-assert spot.are_equivalent(out, aut)
+--END--""")
+tc.assertTrue(spot.are_equivalent(out, aut))
 
 aut = spot.automaton("""HOA: v1
 States: 2
@@ -708,7 +710,7 @@ State: 1
 spot.simplify_acceptance_here(aut)
 hoa = aut.to_str('hoa')
 
-assert hoa == """HOA: v1
+tc.assertEqual(hoa, """HOA: v1
 States: 2
 Start: 0
 AP: 2 "p0" "p1"
@@ -722,7 +724,7 @@ State: 0
 State: 1
 [0] 1
 [!0] 0
---END--"""
+--END--""")
 
 aut = spot.automaton("""HOA: v1
 States: 3
@@ -740,7 +742,7 @@ State: 2
 --END--""")
 spot.simplify_acceptance_here(aut)
 hoa = aut.to_str('hoa')
-assert hoa == """HOA: v1
+tc.assertEqual(hoa, """HOA: v1
 States: 3
 Start: 0
 AP: 2 "a" "b"
@@ -755,7 +757,7 @@ State: 1
 [1] 2
 State: 2
 [1] 0
---END--"""
+--END--""")
 
 aut = spot.automaton("""HOA: v1
 States: 3
@@ -773,7 +775,7 @@ State: 2
 --END--""")
 spot.simplify_acceptance_here(aut)
 hoa = aut.to_str('hoa')
-assert hoa == """HOA: v1
+tc.assertEqual(hoa, """HOA: v1
 States: 3
 Start: 0
 AP: 2 "a" "b"
@@ -788,4 +790,4 @@ State: 1
 [1] 2
 State: 2
 [1] 0
---END--"""
+--END--""")

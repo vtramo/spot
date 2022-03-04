@@ -1,6 +1,6 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2016-2017, 2019-2020 Laboratoire de Recherche et Développement
-# de l'Epita (LRDE).
+# Copyright (C) 2016-2017, 2019-2020, 2022 Laboratoire de Recherche et
+# Développement de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
 #
@@ -18,6 +18,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import spot
+from unittest import TestCase
+tc = TestCase()
 
 # make sure that we are not allowed to build the product of two automata with
 # different dictionaries.
@@ -94,14 +96,14 @@ State: 60 40 38 60 68 State: 61 40 41 57 61 State: 62 40 59 44 62 State:
 State: 70 40 59 57 70 State: 71 40 63 57 71 State: 72 40 69 57 72 --END--
 ''')
 res = spot.product(left, right)
-assert res.num_states() == 977
-assert res.num_edges() == 8554
+tc.assertEqual(res.num_states(), 977)
+tc.assertEqual(res.num_edges(), 8554)
 res = spot.product(left, right, spot.output_aborter(1000, 6000))
-assert res is None
+tc.assertIsNone(res)
 res = spot.product(left, right, spot.output_aborter(900, 9000))
-assert res is None
+tc.assertIsNone(res)
 res = spot.product(left, right, spot.output_aborter(1000, 9000))
-assert res is not None
+tc.assertIsNotNone(res)
 
 a, b = spot.automata("""HOA: v1 States: 1 Start: 0 AP: 0 acc-name: all
 Acceptance: 0 t properties: trans-labels explicit-labels state-acc complete
@@ -110,7 +112,7 @@ properties: deterministic stutter-invariant weak --BODY-- State: 0 [t] 0
 properties: trans-labels explicit-labels state-acc complete properties:
 deterministic stutter-invariant weak --BODY-- State: 0 [t] 0 --END--""")
 out = spot.product(a, b).to_str()
-assert out == """HOA: v1
+tc.assertEqual(out, """HOA: v1
 States: 1
 Start: 0
 AP: 0
@@ -120,9 +122,9 @@ properties: trans-labels explicit-labels state-acc deterministic
 properties: stutter-invariant terminal
 --BODY--
 State: 0
---END--"""
+--END--""")
 out = spot.product_susp(a, b).to_str()
-assert out == """HOA: v1
+tc.assertEqual(out, """HOA: v1
 States: 1
 Start: 0
 AP: 0
@@ -132,4 +134,4 @@ properties: trans-labels explicit-labels state-acc deterministic
 properties: stutter-invariant terminal
 --BODY--
 State: 0
---END--"""
+--END--""")

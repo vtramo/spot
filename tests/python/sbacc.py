@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2017-2018, 2021 Laboratoire de Recherche et
+# Copyright (C) 2017-2018, 2021, 2022 Laboratoire de Recherche et
 # Développement de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -18,13 +18,15 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import spot
-aut = spot.translate('GFa')
-assert aut.num_states() == 1
-assert not aut.prop_state_acc().is_true()
-aut = spot.sbacc(aut)
-assert aut.num_states() == 2
-assert aut.prop_state_acc().is_true()
+from unittest import TestCase
+tc = TestCase()
 
+aut = spot.translate('GFa')
+tc.assertEqual(aut.num_states(), 1)
+tc.assertFalse(aut.prop_state_acc().is_true())
+aut = spot.sbacc(aut)
+tc.assertEqual(aut.num_states(), 2)
+tc.assertTrue(aut.prop_state_acc().is_true())
 
 aut = spot.automaton("""HOA: v1
 States: 3
@@ -48,7 +50,7 @@ s = spot.sbacc(aut)
 s.copy_state_names_from(aut)
 h = s.to_str('hoa')
 
-assert h == """HOA: v1
+tc.assertEqual(h, """HOA: v1
 States: 2
 Start: 0
 AP: 2 "a" "b"
@@ -59,7 +61,7 @@ State: 0 "0"
 [0] 1
 State: 1 "2" {1}
 [t] 1
---END--"""
+--END--""")
 
 aut = spot.automaton("""HOA: v1
 States: 3
@@ -83,7 +85,7 @@ d = spot.degeneralize(aut)
 d.copy_state_names_from(aut)
 h = d.to_str('hoa')
 
-assert h == """HOA: v1
+tc.assertEqual(h, """HOA: v1
 States: 2
 Start: 0
 AP: 2 "a" "b"
@@ -95,4 +97,4 @@ State: 0 "0#0"
 [0] 1
 State: 1 "2#0" {0}
 [t] 1
---END--"""
+--END--""")

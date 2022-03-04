@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2016, 2017, 2021 Laboratoire de Recherche et Développement de
-# l'EPITA.
+# Copyright (C) 2016-2017, 2021-2022 Laboratoire de Recherche
+# et Développement de l'EPITA.
 #
 # This file is part of Spot, a model checking library.
 #
@@ -20,6 +20,8 @@
 
 import spot
 import buddy
+from unittest import TestCase
+tc = TestCase()
 
 aut = spot.make_twa_graph(spot._bdd_dict)
 
@@ -38,9 +40,8 @@ aut.new_edge(2, 2, p1 | p2)
 
 tr = [(s, [[x for x in aut.univ_dests(i)] for i in aut.out(s)])
       for s in range(3)]
-print(tr)
-assert [(0, [[1, 2], [0, 1]]), (1, [[0, 2, 1]]), (2, [[2]])] == tr
-assert not aut.is_existential()
+tc.assertEqual([(0, [[1, 2], [0, 1]]), (1, [[0, 2, 1]]), (2, [[2]])], tr)
+tc.assertFalse(aut.is_existential())
 
 received = False
 try:
@@ -49,11 +50,10 @@ try:
             pass
 except RuntimeError:
     received = True
-assert received
+tc.assertTrue(received)
 
 h = aut.to_str('hoa')
-print(h)
-assert h == """HOA: v1
+tc.assertEqual(h, """HOA: v1
 States: 3
 Start: 0
 AP: 2 "p1" "p2"
@@ -68,22 +68,20 @@ State: 1
 [0&1] 0&2&1
 State: 2
 [0 | 1] 2
---END--"""
+--END--""")
 
 aut2 = spot.automaton(h)
 h2 = aut2.to_str('hoa')
-print(h2)
-assert h != h2
+tc.assertNotEqual(h, h2)
 
 # This will sort destination groups
 aut.merge_univ_dests()
 h = aut.to_str('hoa')
-assert h == h2
+tc.assertEqual(h, h2)
 
 aut2.set_univ_init_state([0, 1])
 h3 = aut2.to_str('hoa')
-print(h3)
-assert h3 == """HOA: v1
+tc.assertEqual(h3, """HOA: v1
 States: 3
 Start: 0&1
 AP: 2 "p1" "p2"
@@ -98,23 +96,22 @@ State: 1
 [0&1] 0&1&2
 State: 2
 [0 | 1] 2
---END--"""
+--END--""")
 
 st = spot.states_and(aut, [0, 2])
 st2 = spot.states_and(aut, [1, st])
 st3 = spot.states_and(aut, [0, 1, 2])
-assert (st, st2, st3) == (3, 4, 5)
+tc.assertEqual((st, st2, st3), (3, 4, 5))
 
 received = False
 try:
     st4 = spot.states_and(aut, [])
 except RuntimeError:
     received = True
-assert received
+tc.assertTrue(received)
 
 h = aut.to_str('hoa')
-print(h)
-assert h == """HOA: v1
+tc.assertEqual(h, """HOA: v1
 States: 6
 Start: 0
 AP: 2 "p1" "p2"
@@ -136,11 +133,10 @@ State: 4
 [0&1] 0&1&2
 State: 5
 [0&1] 0&1&2
---END--"""
+--END--""")
 
 h = spot.split_edges(aut).to_str('hoa')
-print(h)
-assert h == """HOA: v1
+tc.assertEqual(h, """HOA: v1
 States: 6
 Start: 0
 AP: 2 "p1" "p2"
@@ -168,7 +164,7 @@ State: 4
 [0&1] 0&1&2
 State: 5
 [0&1] 0&1&2
---END--"""
+--END--""")
 
 
 # remove_univ_otf
@@ -206,11 +202,11 @@ State: 2
 --END--"""
 
 desalt = spot.remove_univ_otf(aut)
-assert(desalt.to_str('hoa') == out)
+tc.assertEqual(desalt.to_str('hoa'), out)
 
-assert aut.num_states() == 3
-assert aut.num_edges() == 3
+tc.assertEqual(aut.num_states(), 3)
+tc.assertEqual(aut.num_edges(), 3)
 aut.edge_storage(3).cond = buddy.bddfalse
 aut.purge_dead_states()
-assert aut.num_states() == 1
-assert aut.num_edges() == 0
+tc.assertEqual(aut.num_states(), 1)
+tc.assertEqual(aut.num_edges(), 0)

@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2012 Laboratoire de Recherche et Développement
+# Copyright (C) 2012, 2022 Laboratoire de Recherche et Développement
 # de l'EPITA.
 #
 # This file is part of Spot, a model checking library.
@@ -19,6 +19,8 @@
 
 import sys
 from buddy import *
+from unittest import TestCase
+tc = TestCase()
 
 bdd_init(10000, 10000)
 bdd_setvarnum(5)
@@ -33,26 +35,26 @@ e = V[1] & V[2] & -V[3] & V[4]
 f = V[0] & -V[3] & V[4]
 g = -V[0] | V[1]
 
-assert(bdd_implies(b, a))
-assert(not bdd_implies(a, b))
-assert(not bdd_implies(c, a))
-assert(bdd_implies(a, d))
-assert(bdd_implies(b, d))
-assert(bdd_implies(c, d))
-assert(bdd_implies(d, d))
-assert(not bdd_implies(e, d))
-assert(not bdd_implies(d, e))
-assert(not bdd_implies(f, e))
-assert(not bdd_implies(e, f))
-assert(bdd_implies(bddfalse, f))
-assert(not bdd_implies(bddtrue, f))
-assert(bdd_implies(f, bddtrue))
-assert(not bdd_implies(f, bddfalse))
-assert(bdd_implies(a, g))
+tc.assertTrue(bdd_implies(b, a))
+tc.assertFalse(bdd_implies(a, b))
+tc.assertFalse(bdd_implies(c, a))
+tc.assertTrue(bdd_implies(a, d))
+tc.assertTrue(bdd_implies(b, d))
+tc.assertTrue(bdd_implies(c, d))
+tc.assertTrue(bdd_implies(d, d))
+tc.assertFalse(bdd_implies(e, d))
+tc.assertFalse(bdd_implies(d, e))
+tc.assertFalse(bdd_implies(f, e))
+tc.assertFalse(bdd_implies(e, f))
+tc.assertTrue(bdd_implies(bddfalse, f))
+tc.assertFalse(bdd_implies(bddtrue, f))
+tc.assertTrue(bdd_implies(f, bddtrue))
+tc.assertFalse(bdd_implies(f, bddfalse))
+tc.assertTrue(bdd_implies(a, g))
 
 a = (-V[2] & (-V[1] | V[0])) | (-V[0] & V[1] & V[2])
 b = V[1] | -V[2]
-assert(bdd_implies(a, b))
+tc.assertTrue(bdd_implies(a, b))
 
 # Cleanup all BDD variables before calling bdd_done(), otherwise
 # bdd_delref will be called after bdd_done() and this is unsafe in

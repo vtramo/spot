@@ -1,6 +1,6 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2015 Laboratoire de Recherche et Développement de
-# l'Epita (LRDE).
+# Copyright (C) 2015, 2022 Laboratoire de Recherche et Développement
+# de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
 #
@@ -18,9 +18,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import spot
+from unittest import TestCase
+tc = TestCase()
 
 o = spot.option_map()
 g = spot.randltlgenerator(0, o)
-assert str(g.next()) == '1'
-assert str(g.next()) == '0'
-assert str(g.next()) == 'None'
+tc.assertEqual(str(g.next()), '1')
+tc.assertEqual(str(g.next()), '0')
+tc.assertEqual(str(g.next()), 'None')

@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2020 Laboratoire de Recherche et Développement de
+# Copyright (C) 2020, 2022 Laboratoire de Recherche et Développement de
 # l'EPITA.
 #
 # This file is part of Spot, a model checking library.
@@ -19,6 +19,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import spot
+from unittest import TestCase
+tc = TestCase()
 
 g = spot.automaton("""HOA: v1 States: 9 Start: 0 AP: 2 "a" "b"
 acc-name: Streett 1 Acceptance: 2 Fin(0) | Inf(1) properties:
@@ -27,10 +29,10 @@ trans-labels explicit-labels state-acc spot-state-player: 0 1 0 1 0 1
 {1} [0] 8 State: 3 {1} [1] 4 State: 4 {1} [0] 5 State: 5 {1} [0] 6
 State: 6 {1} [1] 7 State: 7 State: 8 {1} [0] 2 --END--""")
 
-assert spot.solve_parity_game(g) == False
+tc.assertFalse(spot.solve_parity_game(g))
 
 s = spot.highlight_strategy(g).to_str("HOA", "1.1")
-assert s == """HOA: v1.1
+tc.assertEqual(s, """HOA: v1.1
 States: 9
 Start: 0
 AP: 2 "a" "b"
@@ -60,4 +62,4 @@ State: 6 {1}
 State: 7
 State: 8 {1}
 [0] 2
---END--"""
+--END--""")

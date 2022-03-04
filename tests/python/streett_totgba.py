@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2017, 2018, 2021 Laboratoire de Recherche et Développement de
-# l'EPITA.
+# Copyright (C) 2017-2018, 2021-2022 Laboratoire de Recherche et
+# Développement de l'EPITA.
 #
 # This file is part of Spot, a model checking library.
 #
@@ -22,7 +22,8 @@ import spot
 import os
 import shutil
 import sys
-
+from unittest import TestCase
+tc = TestCase()
 
 def tgba(a):
     if not a.is_existential():
@@ -33,11 +34,11 @@ def tgba(a):
 
 def test_aut(aut):
     stgba = tgba(aut)
-    assert stgba.equivalent_to(aut)
+    tc.assertTrue(stgba.equivalent_to(aut))
     os.environ["SPOT_STREETT_CONV_MIN"] = '1'
     sftgba = tgba(aut)
     del os.environ["SPOT_STREETT_CONV_MIN"]
-    assert stgba.equivalent_to(sftgba)
+    tc.assertTrue(stgba.equivalent_to(sftgba))
 
     slike = spot.simplify_acceptance(aut)
 
@@ -45,8 +46,7 @@ def test_aut(aut):
     os.environ["SPOT_STREETT_CONV_MIN"] = "1"
     slftgba = tgba(slike)
     del os.environ["SPOT_STREETT_CONV_MIN"]
-    assert sltgba.equivalent_to(slftgba)
-
+    tc.assertTrue(sltgba.equivalent_to(slftgba))
 
 if shutil.which('ltl2dstar') is None:
     sys.exit(77)

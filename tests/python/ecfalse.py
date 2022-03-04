@@ -1,6 +1,6 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2020 Laboratoire de Recherche et Développement de l'Epita
-# (LRDE).
+# Copyright (C) 2020, 2022 Laboratoire de Recherche et Développement
+# de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
 #
@@ -19,6 +19,8 @@
 
 import spot
 from buddy import bddfalse, bddtrue
+from unittest import TestCase
+tc = TestCase()
 
 a = spot.automaton("""
 HOA: v1
@@ -43,8 +45,8 @@ for e in a.out(1):
     if e.dst == 0:
         e.cond = bddfalse
 
-assert a.accepting_run() is None
-assert a.is_empty()
+tc.assertIsNone(a.accepting_run())
+tc.assertTrue(a.is_empty())
 
 for name in ['SE05', 'CVWY90', 'GV04', 'Cou99(shy)', 'Cou99', 'Tau03']:
     print(name)
@@ -52,13 +54,13 @@ for name in ['SE05', 'CVWY90', 'GV04', 'Cou99(shy)', 'Cou99', 'Tau03']:
     res = ec.check()
     if res is not None:
         print(res.accepting_run())
-    assert res is None
+    tc.assertIsNone(res)
 
 si = spot.scc_info(a)
-assert si.scc_count() == 1 # only one accessible SCC
+tc.assertEqual(si.scc_count(), 1) # only one accessible SCC
 a.set_init_state(0)
 si = spot.scc_info(a)
-assert si.scc_count() == 2
+tc.assertEqual(si.scc_count(), 2)
 
 a = spot.automaton("""HOA: v1 States: 11 Start: 0 AP: 2 "a" "b" Acceptance: 8
 (Fin(0) | Inf(1)) & (Fin(2) | Inf(3)) & ((Fin(4) & Inf(5)) | (Fin(6) & Inf(7)))
@@ -71,16 +73,16 @@ State: 5 State: 6 State: 7 [!0&!1] 1 {4 6 7} [!0&!1] 2 {5 6} State: 8 [!0&!1] 2
 {4} State: 9 [!0&!1] 2 {0 4} [!0&!1] 4 {3 4} State: 10 --END-- """)
 
 r = a.accepting_run()
-assert r is not None
-assert r.replay(spot.get_cout())
+tc.assertIsNotNone(r)
+tc.assertTrue(r.replay(spot.get_cout()))
 for e in a.out(7):
     if e.dst == 2:
         e.cond = bddfalse
 s = a.accepting_run()
-assert s is not None
-assert s.replay(spot.get_cout())
+tc.assertIsNotNone(s)
+tc.assertTrue(s.replay(spot.get_cout()))
 for e in a.out(2):
     if e.dst == 1:
         e.cond = bddfalse
 s = a.accepting_run()
-assert s is None
+tc.assertIsNone(s)

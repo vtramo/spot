@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2015, 2017-2018, 2020-2021  Laboratoire de Recherche
+# Copyright (C) 2015, 2017-2018, 2020-2022  Laboratoire de Recherche
 # et Développement de l'Epita
 #
 # This file is part of Spot, a model checking library.
@@ -19,6 +19,8 @@
 
 import spot
 from sys import exit
+from unittest import TestCase
+tc = TestCase()
 
 # CPython use reference counting, so that automata are destructed
 # when we expect them to be.   However other implementations like
@@ -48,7 +50,7 @@ State: 1
 """)
 
 aut2 = spot.simulation(aut)
-assert aut2.to_str() == """HOA: v1
+tc.assertEqual(aut2.to_str(), """HOA: v1
 States: 1
 Start: 0
 AP: 2 "a" "b"
@@ -59,10 +61,10 @@ properties: deterministic
 --BODY--
 State: 0 {0}
 [t] 0
---END--"""
+--END--""")
 
 aut2.copy_state_names_from(aut)
-assert aut2.to_str() == """HOA: v1
+tc.assertEqual(aut2.to_str(), """HOA: v1
 States: 1
 Start: 0
 AP: 2 "a" "b"
@@ -73,7 +75,7 @@ properties: deterministic
 --BODY--
 State: 0 "[0,1]" {0}
 [t] 0
---END--"""
+--END--""")
 
 del aut
 del aut2
@@ -82,7 +84,7 @@ gcollect()
 aut = spot.translate('GF((p0 -> Gp0) R p1)')
 
 daut = spot.tgba_determinize(aut, True)
-assert daut.to_str() == """HOA: v1
+tc.assertEqual(daut.to_str(), """HOA: v1
 States: 3
 Start: 0
 AP: 2 "p1" "p0"
@@ -106,7 +108,7 @@ State: 2 "{₀[0]₀}{₁[1]₁}"
 [!0&1] 2
 [0&!1] 0 {0}
 [0&1] 1 {2}
---END--"""
+--END--""")
 
 del aut
 del daut
@@ -129,7 +131,7 @@ State: 1
 """)
 
 daut = spot.tgba_determinize(aut, True)
-assert daut.to_str() == """HOA: v1
+tc.assertEqual(daut.to_str(), """HOA: v1
 States: 12
 Start: 0
 AP: 2 "a" "b"
@@ -185,18 +187,18 @@ State: 11 "{₀[1#1]{₁[0#0,0#1]{₂[1#0]₂}₁}₀}"
 [!0&1] 2 {0}
 [0&!1] 6 {0}
 [0&1] 9 {0}
---END--"""
+--END--""")
 
 a = spot.translate('!Gp0 xor FG((p0 W Gp1) M p1)')
 a = spot.degeneralize_tba(a)
-assert a.num_states() == 8
+tc.assertEqual(a.num_states(), 8)
 b = spot.simulation(a)
-assert b.num_states() == 3
+tc.assertEqual(b.num_states(), 3)
 b.set_init_state(1)
 b.purge_unreachable_states()
 b.copy_state_names_from(a)
 
-assert b.to_str() == """HOA: v1
+tc.assertEqual(b.to_str(), """HOA: v1
 States: 1
 Start: 0
 AP: 2 "p0" "p1"
@@ -208,7 +210,7 @@ properties: deterministic stutter-invariant
 State: 0 "[1,7]"
 [1] 0
 [!1] 0 {0}
---END--"""
+--END--""")
 
 aut = spot.automaton('''HOA: v1
 States: 12
@@ -267,7 +269,7 @@ State: 11
 [0&!1] 6 {0}
 [0&1] 9 {0}
 --END--''')
-assert spot.reduce_iterated(aut).to_str() == '''HOA: v1
+tc.assertEqual(spot.reduce_iterated(aut).to_str(), '''HOA: v1
 States: 9
 Start: 0
 AP: 2 "a" "b"
@@ -308,7 +310,7 @@ State: 8
 [0&!1] 4 {0}
 [!0&1] 6
 [0&1] 7
---END--'''
+--END--''')
 
 aut = spot.automaton('''HOA: v1
 States: 6
@@ -332,7 +334,7 @@ State: 4
 State: 5
 [0] 5
 --END--''')
-assert spot.reduce_iterated(aut).to_str() == '''HOA: v1
+tc.assertEqual(spot.reduce_iterated(aut).to_str(), '''HOA: v1
 States: 3
 Start: 0
 AP: 2 "a" "b"
@@ -347,7 +349,7 @@ State: 1
 [0] 2
 State: 2
 [1] 2
---END--'''
+--END--''')
 
 aut = spot.automaton('''HOA: v1
 States: 5
@@ -374,7 +376,7 @@ State: 4
 [0&1&!2&3] 4 {0}
 --END--''')
 
-assert spot.reduce_direct_cosim(aut).to_str() == '''HOA: v1
+tc.assertEqual(spot.reduce_direct_cosim(aut).to_str(), '''HOA: v1
 States: 5
 Start: 0
 AP: 4 "p0" "p2" "p3" "p1"
@@ -395,7 +397,7 @@ State: 3
 [0&!1&2&3] 3 {1}
 State: 4
 [0&!1&2&3] 4 {0}
---END--'''
+--END--''')
 
 aut = spot.automaton('''HOA: v1
 States: 2
@@ -410,7 +412,7 @@ State: 0
 State: 1
 [0] 0
 --END--''')
-assert spot.reduce_direct_sim(aut).to_str() == '''HOA: v1
+tc.assertEqual(spot.reduce_direct_sim(aut).to_str(), '''HOA: v1
 States: 1
 Start: 0
 AP: 2 "a" "b"
@@ -418,7 +420,7 @@ Acceptance: 2 Fin(0) & Fin(1)
 properties: trans-labels explicit-labels state-acc deterministic
 --BODY--
 State: 0
---END--'''
+--END--''')
 
 aut = spot.automaton('''HOA: v1
 name: "(p1 U p2) U p3"
@@ -445,7 +447,7 @@ State: 3
 [1] 1
 [0&!1] 3
 --END--''')
-assert spot.reduce_direct_cosim_sba(aut).to_str() == '''HOA: v1
+tc.assertEqual(spot.reduce_direct_cosim_sba(aut).to_str(), '''HOA: v1
 States: 4
 Start: 0
 AP: 3 "p2" "p3" "p1"
@@ -468,7 +470,7 @@ State: 2
 State: 3
 [0] 1
 [!0&2] 3
---END--'''
+--END--''')
 
 aut = spot.automaton('''HOA: v1
 States: 4
@@ -488,7 +490,7 @@ State: 2
 State: 3 {0}
 [1] 3
 --END--''')
-assert spot.reduce_direct_cosim(aut).to_str() == '''HOA: v1
+tc.assertEqual(spot.reduce_direct_cosim(aut).to_str(), '''HOA: v1
 States: 3
 Start: 0
 AP: 2 "a" "b"
@@ -502,9 +504,9 @@ State: 1
 [1] 2
 State: 2 {0}
 [1] 2
---END--'''
+--END--''')
 
-assert spot.reduce_direct_sim_sba(aut).to_str() == '''HOA: v1
+tc.assertEqual(spot.reduce_direct_sim_sba(aut).to_str(), '''HOA: v1
 States: 2
 Start: 0
 AP: 2 "a" "b"
@@ -516,7 +518,7 @@ State: 0
 [0] 1
 State: 1 {0}
 [1] 1
---END--'''
+--END--''')
 
 aut = spot.automaton('''HOA: v1
 States: 3
@@ -532,7 +534,7 @@ State: 1
 State: 2 {0}
 [0] 2
 --END--''')
-assert spot.reduce_iterated_sba(aut).to_str() == '''HOA: v1
+tc.assertEqual(spot.reduce_iterated_sba(aut).to_str(), '''HOA: v1
 States: 1
 Start: 0
 AP: 1 "a"
@@ -542,7 +544,7 @@ properties: deterministic
 --BODY--
 State: 0 {0}
 [0] 0
---END--'''
+--END--''')
 
 aut = spot.automaton('''HOA: v1
 States: 30
@@ -630,7 +632,7 @@ State: 28
 State: 29
 [0&!1&!2&!3] 29
 --END--''')
-assert spot.reduce_iterated(a).to_str() == '''HOA: v1
+tc.assertEqual(spot.reduce_iterated(a).to_str(), '''HOA: v1
 States: 8
 Start: 0
 AP: 2 "p0" "p1"
@@ -669,7 +671,7 @@ State: 7
 [!1] 1 {0}
 [0&1] 5
 [1] 7
---END--'''
+--END--''')
 
 
 # issue #452
@@ -707,4 +709,4 @@ State: 8
 [@p] 3 {0 1}
 --END--""")
 aut = spot.simulation(aut)
-assert aut.num_states() == 1
+tc.assertEqual(aut.num_states(), 1)

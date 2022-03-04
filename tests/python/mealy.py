@@ -19,6 +19,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import spot, buddy
+from unittest import TestCase
+tc = TestCase()
 
 # Testing Sat-based approach
 
@@ -42,8 +44,8 @@ spot.set_state_players(a, [False,True,False,True,False,True])
 spot.set_synthesis_outputs(a, o1&o2)
 
 b = spot.minimize_mealy(a)
-assert(list(spot.get_state_players(b)).count(False) == 2)
-assert(spot.is_split_mealy_specialization(a, b))
+tc.assertEqual(list(spot.get_state_players(b)).count(False), 2)
+tc.assertTrue(spot.is_split_mealy_specialization(a, b))
 
 test_auts = [
 ("""HOA: v1
@@ -371,21 +373,21 @@ for (mealy_str, nenv_min) in test_auts:
         elif aap.ap_name().startswith("i"):
             ins = ins & buddy.bdd_ithvar(mealy.register_ap(aap.ap_name()))
         else:
-            assert("""Aps must start with either "i" or "o".""")
+            raise AssertionError("""Aps must start with either "i" or "o".""")
 
     spot.set_synthesis_outputs(mealy, outs)
 
     mealy_min_ks = spot.minimize_mealy(mealy, -1)
 
     n_e = sum([s == 0 for s in spot.get_state_players(mealy_min_ks)])
-    assert(n_e == nenv_min)
-    assert(spot.is_split_mealy_specialization(mealy, mealy_min_ks))
+    tc.assertEqual(n_e, nenv_min)
+    tc.assertTrue(spot.is_split_mealy_specialization(mealy, mealy_min_ks))
 
     # Test un- and resplit
     tmp = spot.unsplit_2step(mealy_min_ks)
     mealy_min_rs = spot.split_2step(tmp, spot.get_synthesis_outputs(tmp), False)
-    assert(spot.is_split_mealy_specialization(mealy, mealy_min_rs, True))
-    assert(spot.are_equivalent(mealy_min_ks, mealy_min_rs))
+    tc.assertTrue(spot.is_split_mealy_specialization(mealy, mealy_min_rs, True))
+    tc.assertTrue(spot.are_equivalent(mealy_min_ks, mealy_min_rs))
 
 
 # Testing bisimulation (with output assignment)
@@ -515,15 +517,15 @@ spot.set_synthesis_outputs(aut,
   & buddy.bdd_ithvar(
    aut.register_ap("u02alarm29control0f1d2alarm29turn2off1b")))
 min_equiv = spot.reduce_mealy(aut, False)
-assert min_equiv.num_states() == 6
-assert spot.are_equivalent(min_equiv, aut)
+tc.assertEqual(min_equiv.num_states(), 6)
+tc.assertTrue(spot.are_equivalent(min_equiv, aut))
 
 # Build an automaton that recognizes a subset of the language of the original
 # automaton
 min_sub = spot.reduce_mealy(aut, True)
-assert min_sub.num_states() == 5
+tc.assertEqual(min_sub.num_states(), 5)
 prod = spot.product(spot.complement(aut), min_sub)
-assert spot.generic_emptiness_check(prod)
+tc.assertTrue(spot.generic_emptiness_check(prod))
 
 aut = spot.automaton("""
 HOA: v1
@@ -564,7 +566,7 @@ State: 0
 
 # An example that shows that we should not build a tree when we use inclusion.
 res = spot.reduce_mealy(aut, True)
-assert res.to_str() == exp
+tc.assertEqual(res.to_str(), exp)
 
 aut = spot.automaton("""
 HOA: v1
@@ -608,4 +610,4 @@ State: 1
 --END--"""
 
 res = spot.reduce_mealy(aut, True)
-assert res.to_str() == exp
+tc.assertEqual(res.to_str(), exp)

@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2018 Laboratoire de Recherche et Développement de
-# l'EPITA.
+# Copyright (C) 2018, 2022 Laboratoire de Recherche et Développement
+# de l'EPITA.
 #
 # This file is part of Spot, a model checking library.
 #
@@ -19,6 +19,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import spot
+from unittest import TestCase
+tc = TestCase()
 
 # Issue 316
 a = spot.automaton("""
@@ -60,11 +62,11 @@ State: 7 {1 3 4}
 """)
 
 tgba = spot.streett_to_generalized_buchi(a)
-assert tgba.acc().is_generalized_buchi()
+tc.assertTrue(tgba.acc().is_generalized_buchi())
 ba = spot.simplify_acceptance(a)
-assert ba.acc().is_buchi()
+tc.assertTrue(ba.acc().is_buchi())
 
 nba = spot.dualize(ba.postprocess('generic', 'deterministic'))
 ntgba = spot.dualize(tgba.postprocess('generic', 'deterministic'))
-assert not ba.intersects(ntgba)
-assert not tgba.intersects(nba)
+tc.assertFalse(ba.intersects(ntgba))
+tc.assertFalse(tgba.intersects(nba))

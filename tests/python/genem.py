@@ -1,6 +1,6 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2018-2022 Laboratoire de Recherche et Développement de l'Epita
-# (LRDE).
+# Copyright (C) 2018-2022 Laboratoire de Recherche et Développement de
+# l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
 #
@@ -22,6 +22,8 @@
 # are usable with methods from the spot package.
 
 import spot
+from unittest import TestCase
+tc = TestCase()
 
 a1 = spot.automaton('''
 HOA: v1  name: "aut"  States: 4  Start: 0  AP: 0
@@ -179,7 +181,7 @@ def generic_emptiness2_rec(aut):
                 # Find some Fin set, we necessarily have one, otherwise the SCC
                 # would have been found to be either rejecting or accepting.
                 fo = acc.fin_one()
-                assert fo >= 0, acc
+                tc.assertTrue(fo >= 0, acc)
                 for part in si.split_on_sets(scc, [fo]):
                     if not generic_emptiness2(part):
                         return False
@@ -309,10 +311,10 @@ def run_bench(automata):
                + str(res3b)[0] + str(res3c)[0] + str(res3d)[0]
                + str(res4)[0] + str(res5)[0])
         print(res)
-        assert res in ('TTTTTTTT', 'FFFFFFFF')
+        tc.assertIn(res, ('TTTTTTTT', 'FFFFFFFF'))
         if res == 'FFFFFFFF':
             run3 = spot.generic_accepting_run(aut)
-            assert run3.replay(spot.get_cout()) is True
+            tc.assertTrue(run3.replay(spot.get_cout()))
 
 
 run_bench([a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a360, act])

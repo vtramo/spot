@@ -1,6 +1,6 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2019, 2020, 2021 Laboratoire de Recherche et Développement de
-# l'Epita (LRDE).
+# Copyright (C) 2019, 2020, 2021, 2022 Laboratoire de Recherche et
+# Développement de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
 #
@@ -23,6 +23,8 @@
 
 
 import spot
+from unittest import TestCase
+tc = TestCase()
 
 a, b, d, f = spot.automata("""
 HOA: v1
@@ -73,19 +75,19 @@ State: 1
 --END--
 """)
 
-assert spot.is_partially_degeneralizable(a) == [0, 1]
+tc.assertEqual(spot.is_partially_degeneralizable(a), [0, 1])
 da = spot.partial_degeneralize(a, [0, 1])
-assert da.equivalent_to(a)
-assert da.num_states() == 2
+tc.assertTrue(da.equivalent_to(a))
+tc.assertEqual(da.num_states(), 2)
 
-assert spot.is_partially_degeneralizable(b) == [0, 1]
+tc.assertEqual(spot.is_partially_degeneralizable(b), [0, 1])
 db = spot.partial_degeneralize(b, [0, 1])
-assert db.equivalent_to(b)
-assert db.num_states() == 3
+tc.assertTrue(db.equivalent_to(b))
+tc.assertEqual(db.num_states(), 3)
 
 db.copy_state_names_from(b)
 dbhoa = db.to_str('hoa')
-assert dbhoa == """HOA: v1
+tc.assertEqual(dbhoa, """HOA: v1
 States: 3
 Start: 0
 AP: 1 "p0"
@@ -99,28 +101,28 @@ State: 1 "0#0" {0 1}
 [0] 2
 State: 2 "1#0" {1}
 [0] 1
---END--"""
+--END--""")
 
 c = spot.automaton("randaut -A'(Fin(0)&Inf(1)&Inf(2))|Fin(2)' 1 |")
-assert spot.is_partially_degeneralizable(c) == [1, 2]
+tc.assertEqual(spot.is_partially_degeneralizable(c), [1, 2])
 dc = spot.partial_degeneralize(c, [1, 2])
-assert dc.equivalent_to(c)
-assert str(dc.get_acceptance()) == '(Fin(0) & Inf(2)) | Fin(1)'
+tc.assertTrue(dc.equivalent_to(c))
+tc.assertEqual(str(dc.get_acceptance()), '(Fin(0) & Inf(2)) | Fin(1)')
 
-assert spot.is_partially_degeneralizable(d) == []
+tc.assertEqual(spot.is_partially_degeneralizable(d), [])
 dd = spot.partial_degeneralize(d, [])
-assert dd.equivalent_to(d)
-assert dd.num_states() == 1
-assert str(dd.get_acceptance()) == 'Inf(1) & Fin(0)'
+tc.assertTrue(dd.equivalent_to(d))
+tc.assertEqual(dd.num_states(), 1)
+tc.assertEqual(str(dd.get_acceptance()), 'Inf(1) & Fin(0)')
 
 e = spot.dualize(b)
 de = spot.partial_degeneralize(e, [0, 1])
-assert de.equivalent_to(e)
-assert de.num_states() == 4
+tc.assertTrue(de.equivalent_to(e))
+tc.assertEqual(de.num_states(), 4)
 
 de.copy_state_names_from(e)
 dehoa = de.to_str('hoa')
-assert dehoa == """HOA: v1
+tc.assertEqual(dehoa, """HOA: v1
 States: 4
 Start: 0
 AP: 1 "p0"
@@ -140,18 +142,18 @@ State: 2 "3#0"
 State: 3 "2#0"
 [0] 1 {0}
 [!0] 2
---END--"""
+--END--""")
 
-assert spot.is_partially_degeneralizable(de) == []
+tc.assertEqual(spot.is_partially_degeneralizable(de), [])
 
 df = spot.partial_degeneralize(f, [0, 1])
 df.equivalent_to(f)
-assert str(df.acc()) == '(1, Fin(0))'
+tc.assertEqual(str(df.acc()), '(1, Fin(0))')
 
 try:
     df = spot.partial_degeneralize(f, [0, 1, 2])
 except RuntimeError as e:
-    assert 'partial_degeneralize(): {0,1,2} does not' in str(e)
+    tc.assertIn('partial_degeneralize(): {0,1,2} does not', str(e))
 else:
     raise RuntimeError("missing exception")
 
@@ -165,13 +167,13 @@ State: 2 [0&!1&2] 3 {1 4 9} State: 3 [0&!1&2] 4 {0 1 5 9} State: 4 [!0&!1&2] 1
 State: 7 [0&!1&!2] 0 {4 7} --END--""")
 
 daut5 = spot.degeneralize_tba(aut5)
-assert daut5.equivalent_to(aut5)
+tc.assertTrue(daut5.equivalent_to(aut5))
 sets = list(range(aut5.num_sets()))
-assert spot.is_partially_degeneralizable(aut5) == sets
+tc.assertEqual(spot.is_partially_degeneralizable(aut5), sets)
 pdaut5 = spot.partial_degeneralize(aut5, sets)
-assert pdaut5.equivalent_to(aut5)
-assert daut5.num_states() == 9
-assert pdaut5.num_states() == 8
+tc.assertTrue(pdaut5.equivalent_to(aut5))
+tc.assertEqual(daut5.num_states(), 9)
+tc.assertEqual(pdaut5.num_states(), 8)
 
 aut6 = spot.automaton("""HOA: v1 States: 6 Start: 0 AP: 3 "p0" "p1" "p2"
 acc-name: generalized-Buchi 3 Acceptance: 3 Inf(0)&Inf(1)&Inf(2) properties:
@@ -180,13 +182,13 @@ trans-labels explicit-labels trans-acc deterministic --BODY-- State: 0
 [0&1&!2] 5 {1} State: 4 [!0&1&!2] 0 {1 2} [0&!1&!2] 3 {0} State: 5 [!0&1&2] 1
 --END-- """)
 daut6 = spot.degeneralize_tba(aut6)
-assert daut6.equivalent_to(aut6)
+tc.assertTrue(daut6.equivalent_to(aut6))
 sets = list(range(aut6.num_sets()))
-assert spot.is_partially_degeneralizable(aut6) == sets
+tc.assertEqual(spot.is_partially_degeneralizable(aut6), sets)
 pdaut6 = spot.partial_degeneralize(aut6, sets)
-assert pdaut6.equivalent_to(aut6)
-assert daut6.num_states() == 8
-assert pdaut6.num_states() == 8
+tc.assertTrue(pdaut6.equivalent_to(aut6))
+tc.assertEqual(daut6.num_states(), 8)
+tc.assertEqual(pdaut6.num_states(), 8)
 
 
 aut7 = spot.automaton("""HOA: v1 States: 8 Start: 0 AP: 3 "p0" "p1" "p2"
@@ -197,13 +199,13 @@ State: 0 [0&!1&2] 1 {2 3} State: 1 [0&!1&2] 0 {0 2} [0&!1&!2] 6 State: 2
 [!0&!1&!2] 3 State: 5 [0&1&!2] 0 [!0&1&2] 7 State: 6 [0&1&2] 2 {1} State: 7
 [!0&!1&2] 0 {0} [!0&1&!2] 4 --END--""")
 daut7 = spot.degeneralize_tba(aut7)
-assert daut7.equivalent_to(aut7)
+tc.assertTrue(daut7.equivalent_to(aut7))
 sets = list(range(aut7.num_sets()))
-assert spot.is_partially_degeneralizable(aut7) == sets
+tc.assertEqual(spot.is_partially_degeneralizable(aut7), sets)
 pdaut7 = spot.partial_degeneralize(aut7, sets)
-assert pdaut7.equivalent_to(aut7)
-assert daut7.num_states() == 10
-assert pdaut7.num_states() == 10
+tc.assertTrue(pdaut7.equivalent_to(aut7))
+tc.assertEqual(daut7.num_states(), 10)
+tc.assertEqual(pdaut7.num_states(), 10)
 
 aut8 = spot.automaton("""HOA: v1 States: 8 Start: 0 AP: 3 "p0" "p1" "p2"
 acc-name: generalized-Buchi 5 Acceptance: 5 Inf(0)&Inf(1)&Inf(2)&Inf(3)&Inf(4)
@@ -213,19 +215,19 @@ State: 0 [!0&1&!2] 7 {0} State: 1 [!0&1&2] 1 {4} [0&!1&2] 6 {1 2} State: 2
 5 [!0&1&!2] 0 {1 3} State: 6 [0&1&2] 4 [0&1&!2] 6 State: 7 [!0&!1&!2] 1
 --END--""")
 daut8 = spot.degeneralize_tba(aut8)
-assert daut8.equivalent_to(aut8)
+tc.assertTrue(daut8.equivalent_to(aut8))
 sets = list(range(aut8.num_sets()))
-assert spot.is_partially_degeneralizable(aut8) == sets
+tc.assertEqual(spot.is_partially_degeneralizable(aut8), sets)
 pdaut8 = spot.partial_degeneralize(aut8, sets)
-assert pdaut8.equivalent_to(aut8)
-assert daut8.num_states() == 22
-assert pdaut8.num_states() == 9
+tc.assertTrue(pdaut8.equivalent_to(aut8))
+tc.assertEqual(daut8.num_states(), 22)
+tc.assertEqual(pdaut8.num_states(), 9)
 
 aut9 = spot.dualize(aut8)
 pdaut9 = spot.partial_degeneralize(aut9, sets)
-assert pdaut9.equivalent_to(aut9)
+tc.assertTrue(pdaut9.equivalent_to(aut9))
 # one more state than aut9, because dualize completed the automaton.
-assert pdaut9.num_states() == 10
+tc.assertEqual(pdaut9.num_states(), 10)
 
 aut10 = spot.automaton("""HOA: v1
 States: 3
@@ -242,10 +244,10 @@ State: 2
 [0] 0 {1}
 [!0] 1
 --END--""")
-assert spot.is_partially_degeneralizable(aut10) == [0, 1]
+tc.assertEqual(spot.is_partially_degeneralizable(aut10), [0, 1])
 pdaut10 = spot.partial_degeneralize(aut10, [0, 1])
-assert pdaut10.equivalent_to(aut10)
-assert pdaut10.to_str() ==  """HOA: v1
+tc.assertTrue(pdaut10.equivalent_to(aut10))
+tc.assertEqual(pdaut10.to_str(),  """HOA: v1
 States: 3
 Start: 0
 AP: 1 "p0"
@@ -260,7 +262,7 @@ State: 1
 State: 2
 [0] 0 {1}
 [!0] 1
---END--"""
+--END--""")
 
 aut11 = spot.automaton("""HOA: v1
 States: 3
@@ -277,10 +279,10 @@ State: 2
 [0] 0 {1}
 [!0] 1
 --END--""")
-assert spot.is_partially_degeneralizable(aut11) == [0, 1]
+tc.assertEqual(spot.is_partially_degeneralizable(aut11), [0, 1])
 pdaut11 = spot.partial_degeneralize(aut11, [0, 1])
-assert pdaut11.equivalent_to(aut11)
-assert pdaut11.to_str() ==  """HOA: v1
+tc.assertTrue(pdaut11.equivalent_to(aut11))
+tc.assertEqual(pdaut11.to_str(),  """HOA: v1
 States: 3
 Start: 0
 AP: 1 "p0"
@@ -295,7 +297,7 @@ State: 1
 State: 2
 [0] 0 {2}
 [!0] 1
---END--"""
+--END--""")
 
 aut12 = spot.automaton("""HOA: v1
 States: 3
@@ -313,24 +315,24 @@ State: 2
 [0] 0
 [!0] 1 {3}
 --END--""")
-assert spot.is_partially_degeneralizable(aut12) == [0,1]
+tc.assertEqual(spot.is_partially_degeneralizable(aut12), [0,1])
 aut12b = spot.partial_degeneralize(aut12, [0,1])
 aut12c = spot.partial_degeneralize(aut12b, [1,2])
-assert aut12c.equivalent_to(aut12)
-assert aut12c.num_states() == 9
+tc.assertTrue(aut12c.equivalent_to(aut12))
+tc.assertEqual(aut12c.num_states(), 9)
 
 aut12d = spot.partial_degeneralize(aut12, [0,1,3])
 aut12e = spot.partial_degeneralize(aut12d, [0,1])
-assert aut12e.equivalent_to(aut12)
-assert aut12e.num_states() == 9
+tc.assertTrue(aut12e.equivalent_to(aut12))
+tc.assertEqual(aut12e.num_states(), 9)
 
 aut12f = spot.partial_degeneralize(aut12)
-assert aut12f.equivalent_to(aut12)
-assert aut12f.num_states() == 9
+tc.assertTrue(aut12f.equivalent_to(aut12))
+tc.assertEqual(aut12f.num_states(), 9)
 
 # Check handling of original-states
 dot = aut12f.to_str('dot', 'd')
-assert dot == """digraph "" {
+tc.assertEqual(dot, """digraph "" {
   rankdir=LR
   label="Inf(2) | (Inf(1) & Fin(0))\\n[Rabin-like 2]"
   labelloc="t"
@@ -367,10 +369,10 @@ assert dot == """digraph "" {
   8 -> 4 [label="p0\\n{1,2}"]
   8 -> 7 [label="p0"]
 }
-"""
+""")
 
 aut12g = spot.partial_degeneralize(aut12f)
-assert aut12f == aut12g
+tc.assertEqual(aut12f, aut12g)
 
 aut13 = spot.automaton("""HOA: v1
 States: 2
@@ -390,8 +392,8 @@ State: 1
 [!0&!1&2&3] 1 {0 2}
 --END--""")
 aut13g = spot.partial_degeneralize(aut13)
-assert aut13g.equivalent_to(aut13)
-assert aut13g.num_states() == 3
+tc.assertTrue(aut13g.equivalent_to(aut13))
+tc.assertEqual(aut13g.num_states(), 3)
 
 
 aut14 = spot.automaton("""HOA: v1
@@ -412,8 +414,8 @@ State: 1
 --END--
 """)
 aut14g = spot.partial_degeneralize(aut14)
-assert aut14g.equivalent_to(aut14)
-assert aut14g.num_states() == 3
+tc.assertTrue(aut14g.equivalent_to(aut14))
+tc.assertEqual(aut14g.num_states(), 3)
 
 # Extracting an SCC from this large automaton will produce an automaton A in
 # which original-states refers to states larger than those in A.  Some version
@@ -439,4 +441,4 @@ State: 10 [!0&1] 4 [0&1] 8 [!0&!1] 10 {0 1 2 3 5} [0&!1] 13 {1 2 3} State: 11
 si = spot.scc_info(aut15)
 aut15b = si.split_on_sets(2, [])[0]; d
 aut15c = spot.partial_degeneralize(aut15b)
-assert aut15c.equivalent_to(aut15b)
+tc.assertTrue(aut15c.equivalent_to(aut15b))

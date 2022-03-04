@@ -1,6 +1,6 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2017, 2020 Laboratoire de Recherche et Développement de l'Epita
-# (LRDE).
+# Copyright (C) 2017, 2020, 2022 Laboratoire de Recherche et
+# Développement de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
 #
@@ -18,6 +18,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import spot
+from unittest import TestCase
+tc = TestCase()
+
 aut = spot.translate("G(p0 | (p0 R Xp0) | XF(!p0 & p1))", 'Buchi', 'SBAcc')
 ec = spot.make_emptiness_check_instantiator('SE05')[0].instantiate(aut)
 n = 0
@@ -27,7 +30,7 @@ while True:
         break
     print(res.accepting_run())
     n += 1
-assert n == 2
+tc.assertEqual(n, 2)
 
 for name in ['SE05', 'CVWY90', 'GV04']:
     aut = spot.translate("GFa && GFb")
@@ -35,13 +38,13 @@ for name in ['SE05', 'CVWY90', 'GV04']:
         ec = spot.make_emptiness_check_instantiator(name)[0].instantiate(aut)
         print(ec.check().accepting_run())
     except RuntimeError as e:
-        assert "Büchi or weak" in str(e)
+        tc.assertIn("Büchi or weak", str(e))
 
 aut = spot.translate("a", 'monitor')
 try:
     ec = spot.make_emptiness_check_instantiator('Tau03')[0].instantiate(aut)
 except RuntimeError as e:
-    assert "at least one" in str(e)
+    tc.assertIn("at least one", str(e))
 
 aut = spot.translate("a", 'ba')
 ec = spot.make_emptiness_check_instantiator('Tau03')[0].instantiate(aut)
