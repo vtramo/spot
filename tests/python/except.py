@@ -295,3 +295,39 @@ except RuntimeError as e:
     se = str(e)
     tc.assertIn("synthesis-outputs", se)
     tc.assertIn("unregistered proposition", se)
+else:
+    report_missing_exception()
+
+
+a = spot.make_twa_graph()
+s = a.new_state()
+b = spot.formula_to_bdd("a & b", a.get_dict(), a)
+a.new_edge(s, s, b, [])
+try:
+    print(a.to_str('hoa'))
+except RuntimeError as e:
+    tc.assertIn("unregistered atomic propositions", str(e))
+else:
+    report_missing_exception()
+
+a.register_aps_from_dict()
+tc.assertEqual(a.to_str('hoa'), """HOA: v1
+States: 1
+Start: 0
+AP: 2 "a" "b"
+acc-name: all
+Acceptance: 0 t
+properties: trans-labels explicit-labels state-acc deterministic
+--BODY--
+State: 0
+[0&1] 0
+--END--""")
+
+try:
+    a.register_aps_from_dict()
+except RuntimeError as e:
+    se = str(e)
+    tc.assertIn("register_aps_from_dict", se)
+    tc.assertIn("already registered", se)
+else:
+    report_missing_exception()
