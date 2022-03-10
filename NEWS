@@ -13,6 +13,9 @@ New in spot 2.10.4.dev  (net yet released)
   - Do not use the seq command in test cases, it is not available
     everywhere.
 
+  - Do not erase the previous contents of the PYTHONPATH environment
+    variable when running tests, prepend to it instead.
+
 New in spot 2.10.4  (2022-02-01)
 
   Bug fixed:
