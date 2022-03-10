@@ -22,6 +22,7 @@
 #include <spot/tl/print.hh>
 #include <spot/tl/apcollect.hh>
 #include <spot/tl/mark.hh>
+#include <spot/tl/nenoform.hh>
 #include <cassert>
 #include <memory>
 #include <utility>
@@ -2226,4 +2227,59 @@ namespace spot
     return a;
   }
 
+  twa_graph_ptr
+  sere_to_tgba(formula f, const bdd_dict_ptr& dict)
+  {
+    f = negative_normal_form(f);
+
+    tl_simplifier* s = new tl_simplifier(dict);
+    twa_graph_ptr a = make_twa_graph(dict);
+
+    translate_dict d(a, s, false, false, false);
+    ratexp_to_dfa sere2dfa(d);
+
+    auto [dfa, namer, state] = sere2dfa.succ(f);
+
+    // language was empty, build an automaton with one non accepting state
+    if (dfa == nullptr)
+      {
+        auto res = make_twa_graph(dict);
+        res->set_init_state(res->new_state());
+        res->prop_universal(true);
+        res->prop_complete(false);
+        res->prop_stutter_invariant(true);
+        res->prop_terminal(true);
+        res->prop_state_acc(true);
+        return res;
+      }
+
+    auto res = make_twa_graph(dfa, {false, false, true, false, false, false});
+
+    // HACK: translate_dict registers the atomic propositions in the "final"
+    // automaton that would be produced by a full translation, not in the
+    // intermediate automaton we're interested in. We can copy them from the
+    // resulting automaton.
+    res->copy_ap_of(a);
+
+    res->prop_state_acc(true);
+    const auto acc_mark = res->set_buchi();
+
+    size_t sn = namer->state_to_name.size();
+    for (size_t i = 0; i < sn; ++i)
+      {
+        formula g = namer->state_to_name[i];
+        if (g.accepts_eword())
+          {
+            if (res->get_graph().state_storage(i).succ == 0)
+              res->new_edge(i, i, bddfalse, acc_mark);
+            else
+              {
+                for (auto& e : res->out(i))
+                  e.acc = acc_mark;
+              }
+          }
+      }
+
+    return res;
+  }
 }

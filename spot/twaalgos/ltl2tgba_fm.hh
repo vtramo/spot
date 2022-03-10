@@ -89,4 +89,7 @@ namespace spot
                  bool unambiguous = false,
                  const output_aborter* aborter = nullptr,
                  bool label_with_ltl = false);
+
+  SPOT_API twa_graph_ptr
+  sere_to_tgba(formula f, const bdd_dict_ptr& dict);
 }
