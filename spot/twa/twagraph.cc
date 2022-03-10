@@ -230,11 +230,15 @@ namespace spot
         // them.
       });
 
+      bool is_state_acc = this->prop_state_acc().is_true();
+
       unsigned out = 0;
       unsigned in = 1;
 
       // Skip any leading false edge.
-      while (in < tend && trans[in].cond == bddfalse)
+      while (in < tend
+             && trans[in].cond == bddfalse
+             && (!is_state_acc || trans[in].src != trans[in].dst))
         ++in;
       if (in < tend)
         {
@@ -243,7 +247,9 @@ namespace spot
             trans[out] = trans[in];
           for (++in; in < tend; ++in)
             {
-              if (trans[in].cond == bddfalse) // Unusable edge
+              if (trans[in].cond == bddfalse
+                  && (!is_state_acc
+                      || trans[in].src != trans[in].dst)) // Unusable edge
                 continue;
               // Merge edges with the same source, destination, and
               // colors.  (We test the source last, because this is the
