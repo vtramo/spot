@@ -530,6 +530,8 @@ namespace std {
 %include <spot/twa/bdddict.hh>
 %include <spot/twa/bddprint.hh>
 %include <spot/twa/formula2bdd.hh>
+%template(formula_to_bdd) spot::formula_to_bdd<spot::twa_graph>;
+
 %include <spot/twa/fwd.hh>
  /* These operators may raise exceptions, and we do not
     want Swig4 to convert those exceptions to NotImplemented. */
