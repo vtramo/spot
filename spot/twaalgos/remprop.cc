@@ -242,4 +242,51 @@ namespace spot
 
   }
 
+  twa_graph_ptr from_finite(const_twa_graph_ptr aut, const char* alive)
+  {
+    twa_graph_ptr res =
+      make_twa_graph(aut,
+                     { true, false, true, false, false, false });
+
+    if (aut->get_named_prop<std::vector<std::string>>("state-names"))
+      res->copy_state_names_from(aut);
+    auto* names = res->get_named_prop<std::vector<std::string>>("state-names");
+
+    unsigned alive_sink = res->new_state();
+    if (names != nullptr)
+      names->push_back("sink");
+    auto acc = res->acc().all_sets();
+    auto alive_bdd = bdd_ithvar(res->register_ap(alive));
+    res->new_edge(alive_sink, alive_sink, !alive_bdd, acc);
+
+    unsigned ns = res->num_states();
+    for (unsigned s = 0; s < ns; ++s)
+      {
+        if (s == alive_sink)
+          continue;
+
+        bool was_acc = res->state_is_accepting(s);
+
+        // erase accepting marks, require alive on non-accepting transition,
+        // and remove self-loop edges used to mark acceptance
+        auto i = res->out_iteraser(s);
+        while (i)
+          {
+            if (i->src == i->dst && i->cond == bddfalse)
+              {
+                i.erase();
+                continue;
+              }
+
+            i->cond &= alive_bdd;
+            i->acc = {};
+            ++i;
+          }
+
+        if (was_acc)
+          res->new_edge(s, alive_sink, !alive_bdd);
+      }
+
+    return res;
+  }
 }

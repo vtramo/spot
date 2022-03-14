@@ -53,5 +53,8 @@ namespace spot
   SPOT_API twa_graph_ptr
   to_finite(const_twa_graph_ptr aut, const char* alive = "alive");
 
+  /// \brief The opposite of the to_finite operation
+  SPOT_API twa_graph_ptr
+  from_finite(const_twa_graph_ptr aut, const char* alive = "alive");
 
 }
