@@ -22,6 +22,7 @@
 #include <spot/tl/derive.hh>
 #include <spot/twa/bdddict.hh>
 #include <spot/twa/formula2bdd.hh>
+#include <spot/twaalgos/remprop.hh>
 
 namespace spot
 {
@@ -140,6 +141,12 @@ namespace spot
           aut->new_edge(curr_state, curr_state, bddfalse, acc_mark);
       }
 
+    // if we only have an initial state with no transitions, then our language
+    // is empty
+    if (aut->num_states() == 1
+        && aut->get_graph().state_storage(aut->get_init_state_number()).succ == 0)
+      return nullptr;
+
     aut->set_named_prop("state-names", state_names);
 
     aut->merge_edges();
@@ -150,103 +157,12 @@ namespace spot
   twa_graph_ptr
   derive_automaton(formula f, bool deterministic)
   {
-    auto bdd_dict = make_bdd_dict();
-    auto aut = make_twa_graph(bdd_dict);
+    auto finite = derive_finite_automaton(f, deterministic);
 
-    aut->prop_state_acc(true);
-    const auto acc_mark = aut->set_buchi();
+    if (finite == nullptr)
+      return nullptr;
 
-    auto formula2state = robin_hood::unordered_map<formula, unsigned>();
-
-    unsigned init_state = aut->new_state();
-    aut->set_init_state(init_state);
-
-    formula2state.insert({ f, init_state });
-
-    auto f_aps = formula_aps(f);
-    for (auto& ap : f_aps)
-        aut->register_ap(ap);
-    bdd all_aps = aut->ap_vars();
-    bdd alive = bdd_ithvar(aut->register_ap("alive"));
-
-    auto todo = std::vector<std::pair<formula, unsigned>>();
-    todo.push_back({f, init_state});
-
-    auto state_names = new std::vector<std::string>();
-    std::ostringstream ss;
-    ss << f;
-    state_names->push_back(ss.str());
-
-    auto find_dst = [&](formula derivative) -> unsigned
-      {
-        unsigned dst;
-        auto it = formula2state.find(derivative);
-        if (it != formula2state.end())
-        {
-          dst = it->second;
-        }
-        else
-        {
-          dst = aut->new_state();
-          todo.push_back({derivative, dst});
-          formula2state.insert({derivative, dst});
-          std::ostringstream ss;
-          ss << derivative;
-          state_names->push_back(ss.str());
-        }
-
-        return dst;
-      };
-
-    while (!todo.empty())
-      {
-        auto [curr_f, curr_state] = todo[todo.size() - 1];
-        todo.pop_back();
-
-        for (const bdd one : minterms_of(bddtrue, all_aps))
-          {
-            formula derivative =
-              partial_derivation(curr_f, one, bdd_dict, aut.get());
-
-            // no transition possible from this letter
-            if (derivative.is(op::ff))
-              continue;
-
-            // either the formula isn't an OrRat, or if it is we consider it as
-            // a whole to get a deterministic automaton
-            if (deterministic || !derivative.is(op::OrRat))
-              {
-                auto dst = find_dst(derivative);
-                aut->new_edge(curr_state, dst, one & alive);
-                continue;
-              }
-
-            // formula is an OrRat and we want a non deterministic automaton,
-            // so consider each child as a destination
-            for (const auto& subformula : derivative)
-              {
-                auto dst = find_dst(subformula);
-                aut->new_edge(curr_state, dst, one & alive);
-              }
-          }
-      }
-
-    unsigned end_state = aut->new_state();
-    state_names->push_back("end");
-
-    for (const auto& [state_formula, state] : formula2state)
-      {
-        if (!state_formula.accepts_eword())
-          continue;
-
-        aut->new_edge(state, end_state, !alive);
-      }
-
-    aut->new_edge(end_state, end_state, !alive, acc_mark);
-
-    aut->set_named_prop("state-names", state_names);
-
-    return aut;
+    return from_finite(finite);
   }
 
   formula
