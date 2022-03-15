@@ -65,7 +65,7 @@ static const argp_option options[] =
       "comma-separated list of controllable (a.k.a. output) atomic"
       " propositions", 0},
     { "ins", OPT_INPUT, "PROPS", 0,
-      "comma-separated list of controllable (a.k.a. output) atomic"
+      "comma-separated list of uncontrollable (a.k.a. input) atomic"
       " propositions", 0},
     /**************************************************/
     { nullptr, 0, nullptr, 0, "Fine tuning:", 10 },
