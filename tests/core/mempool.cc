@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2016, 2018 Laboratoire de Recherche et Développement
-// de l'Epita.
+// Copyright (C) 2016, 2018, 2022 Laboratoire de Recherche et
+// Développement de l'Epita.
 //
 // This file is part of Spot, a model checking library.
 //
@@ -103,7 +103,7 @@ namespace
 int main()
 {
 
-#ifndef HAVE_VALGRIND_MEMCHECK_H
+#if !__has_include(<valgrind/memcheck.h>)
   return 77;
 #endif
 
@@ -186,4 +186,3 @@ int main()
 
   return 0;
 }
-
