@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2013, 2015, 2016-2017 Laboratoire de Recherche et
-// Developpement de l'Epita (LRDE)
+// Copyright (C) 2013, 2015, 2016-2017, 2022 Laboratoire de Recherche
+// et Developpement de l'Epita (LRDE)
 // Copyright (C) 2005  Laboratoire d'Informatique de Paris 6 (LIP6),
 // département Systèmes Répartis Coopératifs (SRC), Université Pierre
 // et Marie Curie.
@@ -79,6 +79,9 @@ namespace spot
     /// \return The previous value associated to \a option if declared,
     /// or \a def otherwise.
     int set(const char* option, int val, int def = 0);
+
+    /// \brief Set the value of \a option to \a val if it is unset.
+    void set_if_unset(const char* option, int val);
 
     /// \brief Set the value of a string \a option to \a val.
     ///

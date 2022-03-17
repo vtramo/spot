@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2008, 2013-2016, 2018 Laboratoire de Recherche
+// Copyright (C) 2008, 2013-2016, 2018, 2022 Laboratoire de Recherche
 // et Développement de l'Epita (LRDE).
 // Copyright (C) 2005 Laboratoire d'Informatique de Paris 6 (LIP6),
 // département Systèmes Répartis Coopératifs (SRC), Université Pierre
@@ -158,17 +158,39 @@ namespace spot
   int
   option_map::set(const char* option, int val, int def)
   {
-    int old = get(option, def);
-    set_(option, val);
-    return old;
+    if (auto [p, b] = options_.emplace(option, val); b)
+      {
+        unused_.insert(option);
+        return def;
+      }
+    else
+      {
+        int old = p->second;
+        p->second = val;
+        return old;
+      }
+  }
+
+  void
+  option_map::set_if_unset(const char* option, int val)
+  {
+    if (options_.emplace(option, val).second)
+      unused_.insert(option);
   }
 
   std::string
   option_map::set_str(const char* option, std::string val, std::string def)
   {
-    std::string old = get_str(option, def);
-    set_str_(option, val);
-    return old;
+    if (auto [p, b] = options_str_.emplace(option, val); b)
+      {
+        unused_.insert(option);
+        return def;
+      }
+    else
+      {
+        std::swap(val, p->second);
+        return val;
+      }
   }
 
   void

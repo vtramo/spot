@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2020, 2021 Laboratoire de Recherche et
+// Copyright (C) 2020-2022 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -768,13 +768,9 @@ namespace spot
       auto sol = gi.s;
       const bdd_dict_ptr& dict = gi.dict;
 
-      for (auto&& p : std::vector<std::pair<const char*, int>>
-                        {{"simul", 0},
-                         {"ba-simul", 0},
-                         {"det-simul", 0},
-                         {"tls-impl", 1},
-                         {"wdba-minimize", 2}})
-        extra_options.set(p.first, extra_options.get(p.first, p.second));
+      extra_options.set_if_unset("simul", 0);
+      extra_options.set_if_unset("tls-impl", 1);
+      extra_options.set_if_unset("wdba-minimize", 2);
 
       translator trans(dict, &extra_options);
       switch (sol)
