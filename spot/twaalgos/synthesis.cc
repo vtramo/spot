@@ -974,16 +974,13 @@ namespace spot
         if (gi.s == algo::LAR)
           {
             dpa = to_parity(aut);
-            // reduce_parity is called by to_parity(),
-            // but with colorization turned off.
-            colorize_parity_here(dpa, true);
+            // reduce_parity is called by to_parity()
           }
         else
           {
             dpa = to_parity_old(aut);
             dpa = reduce_parity_here(dpa, true);
           }
-        change_parity_here(dpa, parity_kind_max, parity_style_odd);
         if (bv)
           bv->paritize_time += sw.stop();
         if (vs)
@@ -995,6 +992,7 @@ namespace spot
         if (bv)
           sw.start();
         dpa = split_2step(dpa, outs, true);
+        change_parity_here(dpa, parity_kind_max, parity_style_odd);
         colorize_parity_here(dpa, true);
         if (bv)
           bv->split_time += sw.stop();

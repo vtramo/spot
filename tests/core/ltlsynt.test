@@ -59,11 +59,11 @@ parity 13;
 1 1 1 6,3;
 parity 5;
 1 1 0 4,5 "INIT";
-5 4 1 1,1;
-4 5 1 0,1;
+5 2 1 1,1;
+4 3 1 0,1;
 0 1 0 2,3;
-3 5 1 1;
-2 3 1 0,0;
+3 3 1 1;
+2 1 1 0,0;
 EOF
 
 : > out
@@ -230,10 +230,10 @@ direct strategy might exist but was not found.
 translating formula done in X seconds
 automaton has 2 states and 3 colors
 LAR construction done in X seconds
-DPA has 4 states, 3 colors
+DPA has 4 states, 1 colors
 split inputs and outputs done in X seconds
 automaton has 12 states
-solving game with acceptance: parity max odd 5
+solving game with acceptance: parity max odd 3
 game solved in X seconds
 EOF
 ltlsynt -f "G(Fi0 && Fi1 && Fi2) -> G(i1 <-> o0)" --outs="o0" --algo=lar \
@@ -569,10 +569,10 @@ direct strategy might exist but was not found.
 translating formula done in X seconds
 automaton has 1 states and 1 colors
 LAR construction done in X seconds
-DPA has 1 states, 2 colors
+DPA has 1 states, 0 colors
 split inputs and outputs done in X seconds
 automaton has 2 states
-solving game with acceptance: parity max odd 4
+solving game with acceptance: Streett 1
 game solved in X seconds
 EOF
 ltlsynt -f '(GFa <-> GFb) && (Gc)' --outs=b,c --verbose 2> out
@@ -646,10 +646,10 @@ direct strategy might exist but was not found.
 translating formula done in X seconds
 automaton has 4 states and 1 colors
 LAR construction done in X seconds
-DPA has 4 states, 4 colors
+DPA has 4 states, 1 colors
 split inputs and outputs done in X seconds
 automaton has 9 states
-solving game with acceptance: parity max odd 6
+solving game with acceptance: Streett 1
 game solved in X seconds
 AIG circuit was created in X seconds and has 0 latches and 0 gates
 EOF
@@ -663,20 +663,20 @@ direct strategy might exist but was not found.
 translating formula done in X seconds
 automaton has 2 states and 1 colors
 LAR construction done in X seconds
-DPA has 2 states, 2 colors
+DPA has 2 states, 0 colors
 split inputs and outputs done in X seconds
 automaton has 4 states
-solving game with acceptance: parity max odd 4
+solving game with acceptance: Streett 1
 game solved in X seconds
 trying to create strategy directly for (a | x) -> x
 direct strategy might exist but was not found.
 translating formula done in X seconds
 automaton has 2 states and 1 colors
 LAR construction done in X seconds
-DPA has 2 states, 2 colors
+DPA has 2 states, 0 colors
 split inputs and outputs done in X seconds
 automaton has 4 states
-solving game with acceptance: parity max odd 4
+solving game with acceptance: Streett 1
 game solved in X seconds
 AIG circuit was created in X seconds and has 0 latches and 0 gates
 EOF
@@ -692,20 +692,20 @@ direct strategy might exist but was not found.
 translating formula done in X seconds
 automaton has 1 states and 1 colors
 LAR construction done in X seconds
-DPA has 1 states, 2 colors
+DPA has 1 states, 0 colors
 split inputs and outputs done in X seconds
 automaton has 2 states
-solving game with acceptance: parity max odd 4
+solving game with acceptance: Streett 1
 game solved in X seconds
 trying to create strategy directly for Gy
 direct strategy might exist but was not found.
 translating formula done in X seconds
 automaton has 1 states and 1 colors
 LAR construction done in X seconds
-DPA has 1 states, 2 colors
+DPA has 1 states, 0 colors
 split inputs and outputs done in X seconds
 automaton has 2 states
-solving game with acceptance: parity max odd 4
+solving game with acceptance: Streett 1
 game solved in X seconds
 AIG circuit was created in X seconds and has 0 latches and 0 gates
 EOF
@@ -720,10 +720,10 @@ direct strategy might exist but was not found.
 translating formula done in X seconds
 automaton has 1 states and 1 colors
 LAR construction done in X seconds
-DPA has 1 states, 2 colors
+DPA has 1 states, 0 colors
 split inputs and outputs done in X seconds
 automaton has 4 states
-solving game with acceptance: parity max odd 4
+solving game with acceptance: parity max odd 3
 game solved in X seconds
 EOF
 ltlsynt -f '!F(a|b)' --outs=b --decompose=yes --aiger --verbose 2> out || true
@@ -737,10 +737,10 @@ direct strategy might exist but was not found.
 translating formula done in X seconds
 automaton has 1 states and 1 colors
 LAR construction done in X seconds
-DPA has 1 states, 2 colors
+DPA has 1 states, 0 colors
 split inputs and outputs done in X seconds
 automaton has 4 states
-solving game with acceptance: parity max odd 4
+solving game with acceptance: parity max odd 3
 game solved in X seconds
 EOF
 ltlsynt -f 'G!(a -> b)' --outs=b --decompose=yes --aiger\
@@ -755,10 +755,10 @@ direct strategy might exist but was not found.
 translating formula done in X seconds
 automaton has 2 states and 1 colors
 LAR construction done in X seconds
-DPA has 2 states, 4 colors
+DPA has 2 states, 1 colors
 split inputs and outputs done in X seconds
 automaton has 5 states
-solving game with acceptance: parity max odd 6
+solving game with acceptance: Streett 1
 game solved in X seconds
 AIG circuit was created in X seconds and has 0 latches and 0 gates
 EOF
@@ -775,30 +775,30 @@ direct strategy might exist but was not found.
 translating formula done in X seconds
 automaton has 2 states and 1 colors
 LAR construction done in X seconds
-DPA has 2 states, 2 colors
+DPA has 2 states, 0 colors
 split inputs and outputs done in X seconds
 automaton has 4 states
-solving game with acceptance: parity max odd 4
+solving game with acceptance: Streett 1
 game solved in X seconds
 trying to create strategy directly for a -> c
 direct strategy might exist but was not found.
 translating formula done in X seconds
 automaton has 2 states and 1 colors
 LAR construction done in X seconds
-DPA has 2 states, 2 colors
+DPA has 2 states, 0 colors
 split inputs and outputs done in X seconds
 automaton has 4 states
-solving game with acceptance: parity max odd 4
+solving game with acceptance: Streett 1
 game solved in X seconds
 trying to create strategy directly for a -> d
 direct strategy might exist but was not found.
 translating formula done in X seconds
 automaton has 2 states and 1 colors
 LAR construction done in X seconds
-DPA has 2 states, 2 colors
+DPA has 2 states, 0 colors
 split inputs and outputs done in X seconds
 automaton has 4 states
-solving game with acceptance: parity max odd 4
+solving game with acceptance: Streett 1
 game solved in X seconds
 AIG circuit was created in X seconds and has 0 latches and 0 gates
 EOF
@@ -814,10 +814,10 @@ direct strategy might exist but was not found.
 translating formula done in X seconds
 automaton has 1 states and 1 colors
 LAR construction done in X seconds
-DPA has 1 states, 2 colors
+DPA has 1 states, 0 colors
 split inputs and outputs done in X seconds
 automaton has 4 states
-solving game with acceptance: parity max odd 4
+solving game with acceptance: parity max odd 3
 game solved in X seconds
 EOF
 ltlsynt -f '!(F(a | b))' --outs=b, --decompose=yes \

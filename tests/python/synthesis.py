@@ -35,18 +35,18 @@ tc.assertEqual(game.to_str(), """HOA: v1
 States: 3
 Start: 0
 AP: 1 "a"
-acc-name: parity max odd 6
-Acceptance: 6 Inf(5) | (Fin(4) & (Inf(3) | (Fin(2) & (Inf(1) | Fin(0)))))
+acc-name: Streett 1
+Acceptance: 2 Fin(0) | Inf(1)
 properties: trans-labels explicit-labels state-acc colored complete
 properties: deterministic
 spot-state-player: 0 1 1
 controllable-AP:
 --BODY--
-State: 0 {1}
+State: 0 {0}
 [!0] 1
 [0] 2
-State: 1 {4}
+State: 1 {0}
 [t] 0
-State: 2 {5}
+State: 2 {1}
 [t] 0
 --END--""")
