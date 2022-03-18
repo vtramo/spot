@@ -23,6 +23,9 @@
 
 namespace spot
 {
+  // Forward decl
+  struct synthesis_info;
+
   /// todo
   /// Comment je faire au mieux pour expliquer mealy dans les doc
 
@@ -104,7 +107,7 @@ namespace spot
                     bool output_assignment = false);
   /// @}
 
-  /// \brief Minimizes a split (in)completely specified mealy machine
+  /// \brief Minimizes an (in)completely specified mealy machine
   /// The approach is described in \todo TACAS
   /// \param premin Use reduce_mealy before applying the
   ///               main algorithm if demanded AND
@@ -138,4 +141,22 @@ namespace spot
   SPOT_API twa_graph_ptr
   mealy_product(const const_twa_graph_ptr& left,
                 const const_twa_graph_ptr& right);
+
+  /// \brief Convenience function to call minimize_mealy or reduce_mealy.
+  /// Uses the same convention as ltlsynt for \a minimize_lvl:
+  /// 0: no reduction
+  /// 1: bisimulation based reduction
+  /// 2: bisimulation with output assignment
+  /// 3: SAT minimization
+  /// 4: 1 then 3
+  /// 5: 2 then 3
+  /// Minimizes the given machine \a m inplace, the parameter
+  /// \a split_out defines whether it is split or not
+  SPOT_API void
+  simplify_mealy_here(twa_graph_ptr& m, int minimize_lvl,
+                      bool split_out);
+
+  SPOT_API void
+  simplify_mealy_here(twa_graph_ptr& m, synthesis_info& si,
+                      bool split_out);
 }

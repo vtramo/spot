@@ -96,11 +96,14 @@ namespace spot
       double paritize_time = 0.0;
       double solve_time = 0.0;
       double strat2aut_time = 0.0;
+      double simplify_strat_time = 0.0;
       double aig_time = 0.0;
       unsigned nb_states_arena = 0;
       unsigned nb_states_arena_env = 0;
       unsigned nb_strat_states = 0;
       unsigned nb_strat_edges = 0;
+      unsigned nb_simpl_strat_states = 0;
+      unsigned nb_simpl_strat_edges = 0;
       unsigned nb_latches = 0;
       unsigned nb_gates = 0;
       bool realizable = false;

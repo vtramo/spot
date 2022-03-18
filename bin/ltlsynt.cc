@@ -408,14 +408,13 @@ namespace
               spot::mealy_like ml;
               ml.success =
                 spot::mealy_like::realizability_code::REALIZABLE_REGULAR;
-              if (opt_print_aiger)
-                // we do not care about the type,
-                // machine to aiger can handle it
-                ml.mealy_like =
-                    spot::solved_game_to_mealy(arena, *gi);
-              else
-                ml.mealy_like =
-                    spot::solved_game_to_separated_mealy(arena, *gi);
+              // By default this produces a split machine
+              ml.mealy_like =
+                  spot::solved_game_to_mealy(arena, *gi);
+              // Keep the machine split for aiger
+              // else -> separated
+              spot::simplify_mealy_here(ml.mealy_like, *gi,
+                                        opt_print_aiger);
               ml.glob_cond = bddfalse;
               mealy_machines.push_back(ml);
             }
@@ -429,51 +428,10 @@ namespace
           assert(m_like.mealy_like && "Expected success but found no mealy!");
           if (!opt_real)
             {
-              spot::stopwatch sw_direct;
-              sw_direct.start();
-
-              if ((0 < gi->minimize_lvl) && (gi->minimize_lvl < 3))
-                // Uses reduction or not,
-                // both work with mealy machines (non-separated)
-                reduce_mealy_here(m_like.mealy_like, gi->minimize_lvl == 2);
-
-              auto delta = sw_direct.stop();
-
-              sw_direct.start();
-              // todo better algo here?
-              m_like.mealy_like =
-                  split_2step(m_like.mealy_like,
-                              spot::get_synthesis_outputs(m_like.mealy_like),
-                              false);
-              if (gi->bv)
-                gi->bv->split_time += sw_direct.stop();
-
-              sw_direct.start();
-              if (gi->minimize_lvl >= 3)
-                {
-                  sw_direct.start();
-                  // actual minimization, works on split mealy
-                  m_like.mealy_like = minimize_mealy(m_like.mealy_like,
-                                                     gi->minimize_lvl - 4);
-                  delta = sw_direct.stop();
-                }
-
-              // If our goal is to have an aiger,
-              // we can use split or separated machines
-              if (!opt_print_aiger)
-                // Unsplit to have separated mealy
-                m_like.mealy_like = unsplit_mealy(m_like.mealy_like);
-
-              if (gi->bv)
-                gi->bv->strat2aut_time += delta;
-              if (gi->verbose_stream)
-                *gi->verbose_stream << "final strategy has "
-                                    << m_like.mealy_like->num_states()
-                                    << " states and "
-                                    << m_like.mealy_like->num_edges()
-                                    << " edges\n"
-                                    << "minimization took " << delta
-                                    << " seconds\n";
+              // Keep the machine split for aiger
+              // else -> separated
+              spot::simplify_mealy_here(m_like.mealy_like, *gi,
+                                        opt_print_aiger);
             }
           SPOT_FALLTHROUGH;
         }

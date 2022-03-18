@@ -135,11 +135,12 @@ namespace spot
     if (!is_mealy(m))
       return false;
 
-    if (m->get_named_prop<region_t>("state-player") == nullptr)
+    if (!m->get_named_prop<region_t>("state-player"))
       {
         trace << "is_split_mealy(): Split mealy machine must define the named "
                  "property \"state-player\"!\n";
       }
+
     auto sp = get_state_players(m);
 
     if (sp.size() != m->num_states())
@@ -1027,6 +1028,28 @@ namespace
   std::pair<const_twa_graph_ptr, unsigned>
   reorganize_mm(const_twa_graph_ptr mm, const std::vector<bool>& sp)
   {
+    // Check if the twa_graph already has the correct form
+    {
+      auto sp = get_state_players(mm);
+      // All player states mus be at the end
+      bool is_ok = true;
+      bool seen_player = false;
+      for (const auto& p : sp)
+        {
+          if (seen_player & !p)
+            {
+              is_ok = false;
+              break;
+            }
+          seen_player |= p;
+        }
+      if (is_ok)
+        return {mm,
+                mm->num_states()
+                  - std::accumulate(sp.begin(), sp.end(), 0)};
+    }
+    // We actually need to generate a new graph with the correct
+    // form
     // Purge unreachable and reorganize the graph
     std::vector<unsigned> renamed(mm->num_states(), -1u);
     const unsigned n_old = mm->num_states();
@@ -3607,7 +3630,7 @@ namespace spot
   twa_graph_ptr minimize_mealy(const const_twa_graph_ptr& mm,
                                int premin)
   {
-    assert(is_split_mealy(mm));
+    assert(is_mealy(mm));
 
     stopwatch sw;
     sw.start();
@@ -3615,38 +3638,33 @@ namespace spot
     if ((premin < -1) || (premin > 1))
       throw std::runtime_error("premin has to be -1, 0 or 1");
 
-    auto orig_spref = get_state_players(mm);
-
-    // Check if finite traces exist
-    // If so, deactivate fast minimization
-    // todo : this is overly conservative
-    // If unreachable states have no outgoing edges we do not care
-    // but testing this as well starts to be expensive...
-    if (premin != -1
-        && [&]()
-           {
-             for (unsigned s = 0; s < mm->num_states(); ++s)
-               {
-                 auto eit = mm->out(s);
-                 if (eit.begin() == eit.end())
-                   return true;
-               }
-             return false;
-           }())
-      premin = -1;
-
     auto do_premin = [&]()->const_twa_graph_ptr
       {
         if (premin == -1)
-          return mm;
+          {
+            if (!mm->get_named_prop<region_t>("state-player"))
+              return split_2step(mm, false);
+            else
+              return mm;
+          }
         else
           {
+            bool is_split = mm->get_named_prop<region_t>("state-player");
             // We have a split machine -> unsplit then resplit,
             // as reduce mealy works on separated
-            auto mms = unsplit_mealy(mm);
-            reduce_mealy_here(mms, premin == 1);
-            split_separated_mealy_here(mms);
-            return mms;
+            twa_graph_ptr mms;
+            if (is_split)
+              {
+                auto mmi = unsplit_2step(mm);
+                reduce_mealy_here(mmi, premin == 1);
+                split_separated_mealy_here(mmi);
+                return mmi;
+              }
+            else
+              {
+                auto mms = reduce_mealy(mm, premin == 1);
+                return split_2step(mms, false);
+              }
           }
       };
 
@@ -3689,9 +3707,13 @@ namespace spot
     auto early_exit = [&]()
       {
         // Always keep machines split
-        assert(is_split_mealy_specialization(mm, mmw));
+        if (mm->get_named_prop<region_t>("state-player"))
+          assert(is_split_mealy_specialization(mm, mmw));
+        else
+          assert(is_split_mealy_specialization(split_2step(mm, false),
+                                               mmw));
         return std::const_pointer_cast<twa_graph>(mmw);
-    };
+      };
 
     // If the partial solution has the same number of
     // states as the original automaton -> we are done
@@ -3896,5 +3918,92 @@ namespace spot
 #endif
 
     return p;
+  }
+
+
+  void
+  simplify_mealy_here(twa_graph_ptr& m, int minimize_lvl,
+                      bool split_out)
+  {
+    auto si = synthesis_info();
+    si.minimize_lvl = minimize_lvl;
+    return simplify_mealy_here(m, si, split_out);
+  }
+
+  void
+  simplify_mealy_here(twa_graph_ptr& m, synthesis_info& si,
+                      bool split_out)
+  {
+    const auto minimize_lvl = si.minimize_lvl;
+    assert(is_mealy(m)
+           && "simplify_mealy_here(): m is not a mealy machine!");
+    if (minimize_lvl < 0 || 5 < minimize_lvl)
+      throw std::runtime_error("simplify_mealy_here(): minimize_lvl "
+                                "must be between 0 and 5.");
+
+    stopwatch sw;
+    if (si.bv)
+      sw.start();
+
+    bool is_separated = false;
+    if (0 < minimize_lvl && minimize_lvl < 3)
+      {
+        // unsplit if necessary
+        if (m->get_named_prop<region_t>("state-player"))
+          {
+            m = unsplit_mealy(m);
+            is_separated = true;
+          }
+        reduce_mealy_here(m, minimize_lvl == 2);
+      }
+    else if (3 <= minimize_lvl)
+      m = minimize_mealy(m, minimize_lvl - 4);
+
+    // Convert to demanded output format
+    bool is_split = m->get_named_prop<region_t>("state-player");
+    if (minimize_lvl == 0)
+      {
+        if (is_split && !split_out)
+          m = unsplit_mealy(m);
+        else if (!is_split && split_out)
+          m = split_2step(m, false);
+      }
+    else if (0 < minimize_lvl && minimize_lvl < 3 && split_out)
+      {
+      if (is_separated)
+        split_separated_mealy_here(m);
+      else
+        m = split_2step(m, false);
+      }
+    else if (3 <= minimize_lvl && !split_out)
+      m = unsplit_mealy(m);
+
+    if (si.bv)
+      {
+        if (si.verbose_stream)
+          *si.verbose_stream << "simplification took " << sw.stop()
+                             << " seconds\n";
+        si.bv->simplify_strat_time += sw.stop();
+        auto n_s_env = 0u;
+        auto n_e_env = 0u;
+        if (auto sp = m->get_named_prop<region_t>("state-player"))
+          {
+            n_s_env = sp->size() - std::accumulate(sp->begin(),
+                                                   sp->end(),
+                                                   0u);
+            std::for_each(m->edges().begin(), m->edges().end(),
+                          [&n_e_env, &sp](const auto& e)
+                            {
+                              n_e_env += (*sp)[e.src];
+                        });
+          }
+        else
+          {
+            n_s_env = m->num_states();
+            n_e_env = m->num_edges();
+          }
+        si.bv->nb_simpl_strat_states += n_s_env;
+        si.bv->nb_simpl_strat_edges += n_e_env;
+      }
   }
 }

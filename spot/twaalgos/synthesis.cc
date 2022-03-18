@@ -1051,22 +1051,25 @@ namespace spot
     if (!get_state_winner(arena, arena->get_init_state_number()))
       return nullptr;
 
-    // If we use minimizations 0,1 or 2 -> unsplit
-    const bool do_unsplit = gi.minimize_lvl < 3;
-    auto m = apply_strategy(arena, do_unsplit, false);
+    auto m = apply_strategy(arena, false, false);
 
     m->prop_universal(true);
 
-    if ((0 < gi.minimize_lvl) && (gi.minimize_lvl < 3))
-      reduce_mealy_here(m, gi.minimize_lvl == 2);
-    else if (gi.minimize_lvl >= 3)
-      m = minimize_mealy(m, gi.minimize_lvl - 4);
-
     if (gi.bv)
       {
+        auto sp = get_state_players(m);
+        auto n_s_env = sp.size() - std::accumulate(sp.begin(),
+                                                   sp.end(),
+                                                   0u);
+        auto n_e_env = 0u;
+        std::for_each(m->edges().begin(), m->edges().end(),
+                      [&n_e_env, &sp](const auto& e)
+                        {
+                          n_e_env += sp[e.src];
+                        });
         gi.bv->strat2aut_time += sw.stop();
-        gi.bv->nb_strat_states += m->num_states();
-        gi.bv->nb_strat_edges += m->num_edges();
+        gi.bv->nb_strat_states += n_s_env;
+        gi.bv->nb_strat_edges += n_e_env;
       }
 
     assert(is_mealy(m));
@@ -1200,7 +1203,8 @@ namespace spot
           {
             *vs << "direct strategy was found.\n"
                 << "direct strat has " << strat->num_states()
-                << " states and " << strat->num_sets() << " colors\n";
+                << " states, " << strat->num_edges()
+                << " edges and " << strat->num_sets() << " colors\n";
           }
         return mealy_like{
                   mealy_like::realizability_code::REALIZABLE_REGULAR,

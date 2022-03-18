@@ -195,7 +195,7 @@ cat >exp <<EOF
 trying to create strategy directly for GFa <-> GFb
 tanslating formula done in X seconds
 direct strategy was found.
-direct strat has 1 states and 0 colors
+direct strat has 1 states, 2 edges and 0 colors
 EOF
 ltlsynt --ins='a' --outs='b' -f 'GFa <-> GFb' --verbose --realizability 2> out
 sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
@@ -205,9 +205,8 @@ cat >exp <<EOF
 trying to create strategy directly for GFa <-> GFb
 tanslating formula done in X seconds
 direct strategy was found.
-direct strat has 1 states and 0 colors
-final strategy has 1 states and 2 edges
-minimization took X seconds
+direct strat has 1 states, 2 edges and 0 colors
+simplification took X seconds
 EOF
 ltlsynt --ins=a --outs=b -f 'GFa <-> GFb' --verbose --algo=ps 2> out
 sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
@@ -217,7 +216,7 @@ cat >exp <<EOF
 trying to create strategy directly for (Fa & Fb & Fc & Fd) <-> GFe
 tanslating formula done in X seconds
 direct strategy was found.
-direct strat has 16 states and 0 colors
+direct strat has 16 states, 81 edges and 0 colors
 EOF
 ltlsynt --ins='a,b,c,d' --outs='e' -f '(Fa & Fb & Fc & Fd) <-> GFe' \
         --verbose --realizability --algo=lar 2> out
@@ -561,9 +560,8 @@ cat >exp <<EOF
 trying to create strategy directly for GFa <-> GFb
 tanslating formula done in X seconds
 direct strategy was found.
-direct strat has 1 states and 0 colors
-final strategy has 1 states and 2 edges
-minimization took X seconds
+direct strat has 1 states, 2 edges and 0 colors
+simplification took X seconds
 trying to create strategy directly for Gc
 direct strategy might exist but was not found.
 translating formula done in X seconds
@@ -574,6 +572,7 @@ split inputs and outputs done in X seconds
 automaton has 2 states
 solving game with acceptance: Streett 1
 game solved in X seconds
+simplification took X seconds
 EOF
 ltlsynt -f '(GFa <-> GFb) && (Gc)' --outs=b,c --verbose 2> out
 sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
@@ -588,9 +587,8 @@ cat >exp <<EOF
 trying to create strategy directly for $f
 tanslating formula done in X seconds
 direct strategy was found.
-direct strat has 1 states and 0 colors
-final strategy has 1 states and 2 edges
-minimization took X seconds
+direct strat has 1 states, 2 edges and 0 colors
+simplification took X seconds
 EOF
   ltlsynt -f "$f" --outs=b,c --verbose --decompose=0 --verify 2> out
   sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
@@ -615,9 +613,8 @@ cat >exp <<EOF
 trying to create strategy directly for (GFb <-> GFa) & G((a & c) | (!a & !c))
 tanslating formula done in X seconds
 direct strategy was found.
-direct strat has 1 states and 0 colors
-final strategy has 1 states and 2 edges
-minimization took X seconds
+direct strat has 1 states, 2 edges and 0 colors
+simplification took X seconds
 EOF
 ltlsynt -f '(GFb <-> GFa) && (G((a&c)|(!a&!c)))' --outs=b,c --verbose\
                                                  --verify --decompose=0 2> out
@@ -630,9 +627,8 @@ cat >exp <<EOF
 trying to create strategy directly for Fa <-> FGb
 tanslating formula done in X seconds
 direct strategy was found.
-direct strat has 2 states and 0 colors
-final strategy has 2 states and 3 edges
-minimization took X seconds
+direct strat has 2 states, 3 edges and 0 colors
+simplification took X seconds
 EOF
 ltlsynt -f "Fa <-> FGb" --outs=b,c --verbose --decompose=0 --verify 2> out
 sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
@@ -651,6 +647,7 @@ split inputs and outputs done in X seconds
 automaton has 9 states
 solving game with acceptance: Streett 1
 game solved in X seconds
+simplification took X seconds
 AIG circuit was created in X seconds and has 0 latches and 0 gates
 EOF
 ltlsynt -f "Ga <-> Gb" --outs=b --verbose --decompose=0 --verify --aiger 2> out
@@ -668,6 +665,7 @@ split inputs and outputs done in X seconds
 automaton has 4 states
 solving game with acceptance: Streett 1
 game solved in X seconds
+simplification took X seconds
 trying to create strategy directly for (a | x) -> x
 direct strategy might exist but was not found.
 translating formula done in X seconds
@@ -678,6 +676,7 @@ split inputs and outputs done in X seconds
 automaton has 4 states
 solving game with acceptance: Streett 1
 game solved in X seconds
+simplification took X seconds
 AIG circuit was created in X seconds and has 0 latches and 0 gates
 EOF
 ltlsynt -f '((a|x) & (b | y) & b) => (x & y)' --outs="x,y" --aiger=ite\
@@ -697,6 +696,7 @@ split inputs and outputs done in X seconds
 automaton has 2 states
 solving game with acceptance: Streett 1
 game solved in X seconds
+simplification took X seconds
 trying to create strategy directly for Gy
 direct strategy might exist but was not found.
 translating formula done in X seconds
@@ -707,6 +707,7 @@ split inputs and outputs done in X seconds
 automaton has 2 states
 solving game with acceptance: Streett 1
 game solved in X seconds
+simplification took X seconds
 AIG circuit was created in X seconds and has 0 latches and 0 gates
 EOF
 ltlsynt -f 'G!(!x | !y)' --outs="x, y" --aiger=ite --verify --verbose 2> out
@@ -760,6 +761,7 @@ split inputs and outputs done in X seconds
 automaton has 5 states
 solving game with acceptance: Streett 1
 game solved in X seconds
+simplification took X seconds
 AIG circuit was created in X seconds and has 0 latches and 0 gates
 EOF
 ltlsynt -f '(a & b) U (b & c)' --outs=b,c --decompose=yes --aiger --verbose\
@@ -780,6 +782,7 @@ split inputs and outputs done in X seconds
 automaton has 4 states
 solving game with acceptance: Streett 1
 game solved in X seconds
+simplification took X seconds
 trying to create strategy directly for a -> c
 direct strategy might exist but was not found.
 translating formula done in X seconds
@@ -790,6 +793,7 @@ split inputs and outputs done in X seconds
 automaton has 4 states
 solving game with acceptance: Streett 1
 game solved in X seconds
+simplification took X seconds
 trying to create strategy directly for a -> d
 direct strategy might exist but was not found.
 translating formula done in X seconds
@@ -800,6 +804,7 @@ split inputs and outputs done in X seconds
 automaton has 4 states
 solving game with acceptance: Streett 1
 game solved in X seconds
+simplification took X seconds
 AIG circuit was created in X seconds and has 0 latches and 0 gates
 EOF
 ltlsynt -f 'a => (b & c & d)' --outs=b,c,d, --decompose=yes\
