@@ -141,12 +141,6 @@ namespace spot
           aut->new_edge(curr_state, curr_state, bddfalse, acc_mark);
       }
 
-    // if we only have an initial state with no transitions, then our language
-    // is empty
-    if (aut->num_states() == 1
-        && aut->get_graph().state_storage(aut->get_init_state_number()).succ == 0)
-      return nullptr;
-
     aut->set_named_prop("state-names", state_names);
 
     aut->merge_edges();
@@ -158,9 +152,6 @@ namespace spot
   derive_automaton(formula f, bool deterministic)
   {
     auto finite = derive_finite_automaton(f, deterministic);
-
-    if (finite == nullptr)
-      return nullptr;
 
     return from_finite(finite);
   }
