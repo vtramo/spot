@@ -310,6 +310,12 @@ namespace spot
             return formula::multop(f.kind(), std::move(subderivations));
           }
 
+        case op::AndNLM:
+          {
+            formula rewrite = rewrite_and_nlm(f);
+            return partial_derivation(rewrite, var, d, owner);
+          }
+
         // d(E:F) = {d(E):F} U {c(d(E)).d(F)}
         case op::Fusion:
           {
