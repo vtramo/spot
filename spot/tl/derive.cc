@@ -48,6 +48,61 @@ namespace spot
     }
   }
 
+  formula
+  rewrite_and_nlm(formula f)
+  {
+    unsigned s = f.size();
+    std::vector<formula> final;
+    std::vector<formula> non_final;
+
+    for (auto g: f)
+      if (g.accepts_eword())
+        final.emplace_back(g);
+      else
+        non_final.emplace_back(g);
+
+    if (non_final.empty())
+      // (a* & b*);c = (a*|b*);c
+      return formula::OrRat(std::move(final));
+    if (!final.empty())
+    {
+      // let F_i be final formulae
+      //     N_i be non final formula
+      // (F_1 & ... & F_n & N_1 & ... & N_m)
+      // =   (F_1 | ... | F_n);[*] && (N_1 & ... & N_m)
+      //   | (F_1 | ... | F_n) && (N_1 & ... & N_m);[*]
+      formula f = formula::OrRat(std::move(final));
+      formula n = formula::AndNLM(std::move(non_final));
+      formula t = formula::one_star();
+      formula ft = formula::Concat({f, t});
+      formula nt = formula::Concat({n, t});
+      formula ftn = formula::AndRat({ft, n});
+      formula fnt = formula::AndRat({f, nt});
+      return formula::OrRat({ftn, fnt});
+    }
+    // No final formula.
+    // Translate N_1 & N_2 & ... & N_n into
+    //   N_1 && (N_2;[*]) && ... && (N_n;[*])
+    // | (N_1;[*]) && N_2 && ... && (N_n;[*])
+    // | (N_1;[*]) && (N_2;[*]) && ... && N_n
+    formula star = formula::one_star();
+    std::vector<formula> disj;
+    for (unsigned n = 0; n < s; ++n)
+    {
+      std::vector<formula> conj;
+      for (unsigned m = 0; m < s; ++m)
+      {
+        formula g = f[m];
+        if (n != m)
+          g = formula::Concat({g, star});
+        conj.emplace_back(g);
+      }
+      disj.emplace_back(formula::AndRat(std::move(conj)));
+    }
+    return formula::OrRat(std::move(disj));
+  }
+
+
   twa_graph_ptr
   derive_finite_automaton(formula f, bool deterministic)
   {
