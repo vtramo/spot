@@ -331,3 +331,20 @@ except RuntimeError as e:
     tc.assertIn("already registered", se)
 else:
     report_missing_exception()
+
+
+si = spot.synthesis_info()
+si.s = spot.synthesis_info.algo_LAR
+g1 = spot.ltl_to_game("G((i0 xor i1) <-> o0)", ["o0"], si)
+g2 = spot.ltl_to_game("G((i0 xor i1) <-> (!o0 & !o1))", ["o0", "o1"], si)
+spot.solve_game(g1)
+spot.solve_game(g2)
+strat1 = spot.solved_game_to_separated_mealy(g1)
+strat2 = spot.solved_game_to_separated_mealy(g2)
+try:
+    stratcomp = spot.mealy_product(strat1, strat2)
+except RuntimeError as e:
+    se = str(e)
+    tc.assertIn("Incompatible", se)
+else:
+    report_missing_exception()

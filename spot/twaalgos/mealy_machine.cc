@@ -34,6 +34,7 @@
 #include <spot/misc/minato.hh>
 #include <spot/twaalgos/game.hh>
 #include <spot/twaalgos/hoa.hh>
+#include <spot/twaalgos/product.hh>
 #include <spot/twaalgos/synthesis.hh>
 
 #include <picosat/picosat.h>
@@ -55,6 +56,7 @@
 
 namespace
 {
+  using namespace spot;
   bool is_deterministic_(const std::vector<bdd>& ins)
   {
     const unsigned n_ins = ins.size();
@@ -62,6 +64,24 @@ namespace
       for (unsigned idx2 = idx1 + 1; idx2 < n_ins; ++idx2)
         if (bdd_have_common_assignment(ins[idx1], ins[idx2]))
           return false;
+    return true;
+  }
+
+  bool is_complete_(const const_twa_graph_ptr& m,
+                    const bdd& outs)
+  {
+    auto* sp = m->get_named_prop<region_t>("state-player");
+    const auto N = m->num_states();
+    for (auto s = 0u; s < N; ++s)
+      {
+        if (sp && sp->at(s))
+          continue; // No need tpo check player states
+        bdd all_cond = bddfalse;
+        for (const auto& e : m->out(s))
+          all_cond |= bdd_exist(e.cond, outs);
+        if (all_cond != bddtrue)
+          return false;
+      }
     return true;
   }
 }
@@ -3843,4 +3863,38 @@ namespace spot
     return true;
   }
 
+  twa_graph_ptr
+  mealy_product(const const_twa_graph_ptr& left,
+                const const_twa_graph_ptr& right)
+  {
+    bdd outs[] = {get_synthesis_outputs(left),
+                  get_synthesis_outputs(right)};
+
+#ifndef NDEBUG
+    for (const auto& [m, n, o] : {std::tuple{left, "left", outs[0]},
+                                            {right, "right", outs[1]}})
+      {
+        if (!is_mealy(m))
+          throw std::runtime_error(std::string("mealy_prod(): ") + n
+                                  + " is not a mealy machine");
+        if (!is_complete_(m, o))
+          throw std::runtime_error(std::string("mealy_prod(): ") + n
+                                   + " is not input complete");
+      }
+#endif
+
+    auto p = product(left, right);
+    bdd pouts = outs[0] & outs[1];
+    set_synthesis_outputs(p, pouts);
+
+#ifndef NDEBUG
+    if (!is_mealy(p))
+      throw std::runtime_error("mealy_prod(): Prooduct is not mealy");
+    if (!is_complete_(p, pouts))
+      throw std::runtime_error("mealy_prod(): Prooduct is not input complete. "
+                               "Incompatible machines?");
+#endif
+
+    return p;
+  }
 }

@@ -128,4 +128,14 @@ namespace spot
   is_split_mealy_specialization(const_twa_graph_ptr left,
                                 const_twa_graph_ptr right,
                                 bool verbose = false);
+
+  /// \brief Product between two mealy machines \a left and \a right.
+  /// \pre The machines have to be both either split or unsplit,
+  /// input complete and compatible. All of this is check by assertion
+  /// \result The mealy machine representing the shared behaviour.
+  /// The resulting machine has the same class (mealy/separated/split)
+  /// as the input machines
+  SPOT_API twa_graph_ptr
+  mealy_product(const const_twa_graph_ptr& left,
+                const const_twa_graph_ptr& right);
 }

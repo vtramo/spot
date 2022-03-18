@@ -545,7 +545,8 @@ namespace
                && "ltlsynt: Cannot handle TGBA as strategy.");
         tot_strat = mealy_machines.front().mealy_like;
         for (size_t i = 1; i < mealy_machines.size(); ++i)
-          tot_strat = spot::product(tot_strat, mealy_machines[i].mealy_like);
+          tot_strat = spot::mealy_product(tot_strat,
+                                          mealy_machines[i].mealy_like);
         printer.print(tot_strat, timer_printer_dummy);
       }
 
