@@ -40,4 +40,7 @@ namespace spot
 
   SPOT_API twa_graph_ptr
   derive_finite_automaton(formula f, bool deterministic = true);
+
+  SPOT_API formula
+  rewrite_and_nlm(formula f);
 }
