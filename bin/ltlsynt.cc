@@ -135,8 +135,8 @@ Exit status:\n\
   1   if the input problem is not realizable\n\
   2   if any error has been reported";
 
-static std::vector<std::string> all_output_aps;
-static std::vector<std::string> all_input_aps;
+static std::optional<std::vector<std::string>> all_output_aps;
+static std::optional<std::vector<std::string>> all_input_aps;
 
 static const char* opt_csv = nullptr;
 static bool opt_print_pg = false;
@@ -545,12 +545,12 @@ namespace
   class ltl_processor final : public job_processor
   {
   private:
-    std::vector<std::string> input_aps_;
-    std::vector<std::string> output_aps_;
+    std::optional<std::vector<std::string>> input_aps_;
+    std::optional<std::vector<std::string>> output_aps_;
 
   public:
-    ltl_processor(std::vector<std::string> input_aps_,
-                  std::vector<std::string> output_aps_)
+    ltl_processor(std::optional<std::vector<std::string>> input_aps_,
+                  std::optional<std::vector<std::string>> output_aps_)
         : input_aps_(std::move(input_aps_)),
           output_aps_(std::move(output_aps_))
     {
@@ -560,11 +560,13 @@ namespace
                         const char* filename, int linenum) override
     {
       auto unknown_aps = [](spot::formula f,
-                            const std::vector<std::string>& known,
-                            const std::vector<std::string>* known2 = nullptr)
+                    const std::optional<std::vector<std::string>>& known,
+                    const std::optional<std::vector<std::string>>& known2 = {})
       {
         std::vector<std::string> unknown;
         std::set<spot::formula> seen;
+        // If we don't have --ins and --outs, we must not find an AP.
+        bool can_have_ap = known.has_value();
         f.traverse([&](const spot::formula& s)
         {
           if (s.is(spot::op::ap))
@@ -572,10 +574,11 @@ namespace
               if (!seen.insert(s).second)
                 return false;
               const std::string& a = s.ap_name();
-              if (std::find(known.begin(), known.end(), a) == known.end()
-                  && (!known2
+              if (!can_have_ap
+                  || (std::find(known->begin(), known->end(), a) == known->end()
+                  && (!known2.has_value()
                       || std::find(known2->begin(),
-                                   known2->end(), a) == known2->end()))
+                                   known2->end(), a) == known2->end())))
                 unknown.push_back(a);
             }
           return false;
@@ -585,30 +588,30 @@ namespace
 
       // Decide which atomic propositions are input or output.
       int res;
-      if (input_aps_.empty() && !output_aps_.empty())
+      if (!input_aps_.has_value() && output_aps_.has_value())
         {
-          res = solve_formula(f, unknown_aps(f, output_aps_), output_aps_);
+          res = solve_formula(f, unknown_aps(f, output_aps_), *output_aps_);
         }
-      else if (output_aps_.empty() && !input_aps_.empty())
+      else if (!output_aps_.has_value() && input_aps_.has_value())
         {
-          res = solve_formula(f, input_aps_, unknown_aps(f, input_aps_));
+          res = solve_formula(f, *input_aps_, unknown_aps(f, input_aps_));
         }
-      else if (output_aps_.empty() && input_aps_.empty())
+      else if (!output_aps_.has_value() && !input_aps_.has_value())
         {
-          for (const std::string& ap: unknown_aps(f, input_aps_, &output_aps_))
+          for (const std::string& ap: unknown_aps(f, input_aps_, output_aps_))
             error_at_line(2, 0, filename, linenum,
                           "one of --ins or --outs should list '%s'",
                           ap.c_str());
-          res = solve_formula(f, input_aps_, output_aps_);
+          res = solve_formula(f, *input_aps_, *output_aps_);
         }
       else
         {
-          for (const std::string& ap: unknown_aps(f, input_aps_, &output_aps_))
+          for (const std::string& ap: unknown_aps(f, input_aps_, output_aps_))
             error_at_line(2, 0, filename, linenum,
                           "both --ins and --outs are specified, "
                           "but '%s' is unlisted",
                           ap.c_str());
-          res = solve_formula(f, input_aps_, output_aps_);
+          res = solve_formula(f, *input_aps_, *output_aps_);
         }
 
       if (opt_csv)
@@ -639,23 +642,25 @@ parse_opt(int key, char *arg, struct argp_state *)
       break;
     case OPT_INPUT:
       {
+        all_input_aps.emplace(std::vector<std::string>{});
         std::istringstream aps(arg);
         std::string ap;
         while (std::getline(aps, ap, ','))
           {
             ap.erase(remove_if(ap.begin(), ap.end(), isspace), ap.end());
-            all_input_aps.push_back(str_tolower(ap));
+            all_input_aps->push_back(str_tolower(ap));
           }
         break;
       }
     case OPT_OUTPUT:
       {
+        all_output_aps.emplace(std::vector<std::string>{});
         std::istringstream aps(arg);
         std::string ap;
         while (std::getline(aps, ap, ','))
           {
             ap.erase(remove_if(ap.begin(), ap.end(), isspace), ap.end());
-            all_output_aps.push_back(str_tolower(ap));
+            all_output_aps->push_back(str_tolower(ap));
           }
         break;
       }
@@ -716,10 +721,11 @@ main(int argc, char **argv)
     check_no_formula();
 
     // Check if inputs and outputs are distinct
-    for (const std::string& ai : all_input_aps)
-      if (std::find(all_output_aps.begin(), all_output_aps.end(), ai)
-          != all_output_aps.end())
-        error(2, 0, "'%s' appears both in --ins and --outs", ai.c_str());
+    if (all_input_aps.has_value() && all_output_aps.has_value())
+      for (const std::string& ai : *all_input_aps)
+        if (std::find(all_output_aps->begin(), all_output_aps->end(), ai)
+            != all_output_aps->end())
+          error(2, 0, "'%s' appears both in --ins and --outs", ai.c_str());
 
     ltl_processor processor(all_input_aps, all_output_aps);
     if (int res = processor.run(); res == 0 || res == 1)
