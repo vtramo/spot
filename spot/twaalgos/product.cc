@@ -23,6 +23,7 @@
 #include <spot/twaalgos/complete.hh>
 #include <spot/twaalgos/sccinfo.hh>
 #include <spot/twaalgos/isdet.hh>
+#include <spot/twaalgos/weights.hh>
 #include <deque>
 #include <unordered_map>
 #include <spot/misc/hash.hh>
@@ -42,9 +43,9 @@ namespace spot
       }
     };
 
-    template<typename T>
+    template<typename T, bool weighted>
     static
-    void product_main(const const_twa_graph_ptr& left,
+    void product_main_loop(const const_twa_graph_ptr& left,
                       const const_twa_graph_ptr& right,
                       unsigned left_state,
                       unsigned right_state,
@@ -93,11 +94,40 @@ namespace spot
                 if (cond == bddfalse)
                   continue;
                 auto dst = new_state(l.dst, r.dst);
-                res->new_edge(top.second, dst, cond,
-                              merge_acc(l.acc, r.acc));
+                unsigned edge = res->new_edge(top.second, dst, cond,
+                                       merge_acc(l.acc, r.acc));
                 // If right is deterministic, we can abort immediately!
+
+                if constexpr (weighted)
+                  {
+                    auto edge1 = left->get_graph().index_of_edge(l);
+                    auto edge2 = right->get_graph().index_of_edge(r);
+                    set_weight(res, edge,
+                               weights::mul(get_weight(left, edge1),
+                                            get_weight(right, edge2)));
+                  }
+                else
+                  (void)edge;
               }
         }
+    }
+
+    template<typename T>
+    static
+    void product_main(const const_twa_graph_ptr& left,
+                      const const_twa_graph_ptr& right,
+                      unsigned left_state,
+                      unsigned right_state,
+                      twa_graph_ptr& res, T merge_acc,
+                      const output_aborter* aborter)
+    {
+      if (left->get_named_prop<std::vector<int>>("weights") ||
+          right->get_named_prop<std::vector<int>>("weights"))
+        product_main_loop<T, true>(left, right, left_state, right_state,
+                                   res, merge_acc, aborter);
+      else
+        product_main_loop<T, false>(left, right, left_state, right_state,
+                                    res, merge_acc, aborter);
     }
 
     enum acc_op { and_acc, or_acc, xor_acc, xnor_acc };
