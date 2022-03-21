@@ -86,6 +86,7 @@ namespace spot
       DPA_SPLIT,
       LAR,
       LAR_OLD,
+      ACD,
     };
 
     struct bench_var

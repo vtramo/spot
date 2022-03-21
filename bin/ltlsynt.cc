@@ -69,7 +69,7 @@ static const argp_option options[] =
       " propositions", 0},
     /**************************************************/
     { nullptr, 0, nullptr, 0, "Fine tuning:", 10 },
-    { "algo", OPT_ALGO, "sd|ds|ps|lar|lar.old", 0,
+    { "algo", OPT_ALGO, "sd|ds|ps|lar|lar.old|acd", 0,
       "choose the algorithm for synthesis:"
       " \"sd\": translate to tgba, split, then determinize;"
       " \"ds\": translate to tgba, determinize, then split;"
@@ -77,7 +77,10 @@ static const argp_option options[] =
       " \"lar\": translate to a deterministic automaton with arbitrary"
       " acceptance condition, then use LAR to turn to parity,"
       " then split (default);"
-      " \"lar.old\": old version of LAR, for benchmarking.\n", 0 },
+      " \"lar.old\": old version of LAR, for benchmarking;"
+      " \"acd\": translate to a deterministic automaton with arbitrary"
+      " acceptance condition, then use ACD to turn to parity,"
+      " then split.\n", 0 },
     { "decompose", OPT_DECOMPOSE, "yes|no", 0,
       "whether to decompose the specification as multiple output-disjoint "
       "problems to solve independently (enabled by default)", 0 },
@@ -154,7 +157,8 @@ static char const *const algo_names[] =
    "sd",
    "ps",
    "lar",
-   "lar.old"
+   "lar.old",
+   "acd",
   };
 
 static char const *const algo_args[] =
@@ -164,6 +168,7 @@ static char const *const algo_args[] =
   "dpasplit", "ps",
   "lar",
   "lar.old",
+  "acd",
   nullptr
 };
 static spot::synthesis_info::algo const algo_types[] =
@@ -173,6 +178,7 @@ static spot::synthesis_info::algo const algo_types[] =
   spot::synthesis_info::algo::DPA_SPLIT, spot::synthesis_info::algo::DPA_SPLIT,
   spot::synthesis_info::algo::LAR,
   spot::synthesis_info::algo::LAR_OLD,
+  spot::synthesis_info::algo::ACD,
 };
 ARGMATCH_VERIFY(algo_args, algo_types);
 

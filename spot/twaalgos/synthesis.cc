@@ -29,6 +29,7 @@
 #include <spot/twaalgos/sbacc.hh>
 #include <spot/twaalgos/synthesis.hh>
 #include <spot/twaalgos/translate.hh>
+#include <spot/twaalgos/zlktree.hh>
 #include <spot/misc/minato.hh>
 #include <spot/twaalgos/totgba.hh>
 #include <spot/twaalgos/toparity.hh>
@@ -741,6 +742,9 @@ namespace spot
       case (algo::LAR_OLD):
         name = "lar.old";
         break;
+      case (algo::ACD):
+        name = "acd";
+        break;
     }
     return os << name;
 }
@@ -775,6 +779,8 @@ namespace spot
       translator trans(dict, &extra_options);
       switch (sol)
       {
+      case algo::ACD:
+        SPOT_FALLTHROUGH;
       case algo::LAR:
         SPOT_FALLTHROUGH;
       case algo::LAR_OLD:
@@ -965,6 +971,8 @@ namespace spot
         alternate_players(dpa);
         break;
       }
+      case algo::ACD:
+        SPOT_FALLTHROUGH;
       case algo::LAR:
         SPOT_FALLTHROUGH;
       case algo::LAR_OLD:
@@ -976,11 +984,13 @@ namespace spot
             dpa = to_parity(aut);
             // reduce_parity is called by to_parity()
           }
-        else
+        else if (gi.s == algo::LAR_OLD)
           {
             dpa = to_parity_old(aut);
-            dpa = reduce_parity_here(dpa, true);
+            reduce_parity_here(dpa, true);
           }
+        else
+          dpa = acd_transform(aut);
         if (bv)
           bv->paritize_time += sw.stop();
         if (vs)

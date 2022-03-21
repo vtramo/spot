@@ -837,3 +837,13 @@ ltlsynt --outs="" -f "1"
 
 ltlsynt --outs="" --ins="" -f "GFa" 2>&1 | \
   grep "both --ins and --outs are specified"
+
+LTL='(((((G (((((((g_0) && (G (! (r_0)))) -> (F (! (g_0)))) && (((g_0) &&
+(X ((! (r_0)) && (! (g_0))))) -> (X ((r_0) R (! (g_0)))))) && (((g_1) &&
+(G (! (r_1)))) -> (F (! (g_1))))) && (((g_1) && (X ((! (r_1)) && (! (g_1))))) ->
+(X ((r_1) R (! (g_1)))))) && (((! (g_0)) && (true)) || ((true) && (! (g_1))))))
+&& ((r_0) R (! (g_0)))) && (G ((r_0) -> (F (g_0))))) && ((r_1) R (! (g_1)))) &&
+(G ((r_1) -> (F (g_1)))))'
+OUT='g_0, g_1'
+ltlsynt --outs="$OUT" -f "$LTL" --aiger=both --algo=acd | grep "aag 8 2 2 2 4"
+ltlsynt --outs="$OUT" -f "$LTL" --aiger=both --algo=lar | grep "aag 34 2 3 2 29"
