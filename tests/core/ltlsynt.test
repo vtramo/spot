@@ -566,7 +566,7 @@ ltlsynt -f '(GFa <-> GFb) && (Gc)' --outs=b,c --verbose 2> out
 sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
 diff outx exp
 
-# Try to find a direct strategy for (GFa <-> GFb) & Gc. THe order should not
+# Try to find a direct strategy for (GFa <-> GFb) & Gc. The order should not
 # impact the result
 for f in "(GFa <-> GFb) & Gc" "(GFb <-> GFa) & Gc" \
          "Gc & (GFa <-> GFb)" "Gc & (GFb <-> GFa)"
@@ -594,7 +594,7 @@ ltlsynt -f '(GFb <-> GFa) && G(a&c)' --outs=b,c --verbose\
 sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
 diff outx exp
 
-# # Ltlsynt should be able to create a strategy when the last G
+# # ltlsynt should be able to create a strategy when the last G
 # is input-complete.
 cat >exp <<EOF
 trying to create strategy directly for (GFb <-> GFa) & G((a & c) | (!a & !c))
@@ -796,3 +796,37 @@ LTL='(((((G (((((((g_0) && (G (! (r_0)))) -> (F (! (g_0)))) && (((g_0) &&
 OUT='g_0, g_1'
 ltlsynt --outs="$OUT" -f "$LTL" --aiger=both --algo=acd | grep "aag 8 2 2 2 4"
 ltlsynt --outs="$OUT" -f "$LTL" --aiger=both --algo=lar | grep "aag 34 2 3 2 29"
+
+ltlsynt -f 'G(c) & (G(a) <-> GFb)' --outs=b,c --decompose=yes\
+                                   --verbose --realizability 2> out
+cat >exp <<EOF
+trying to create strategy directly for Gc
+direct strategy was found.
+trying to create strategy directly for Ga <-> GFb
+direct strategy was found.
+EOF
+diff out exp
+
+ltlsynt -f 'G(c) & (G(a) <-> GFb)' --outs=b,c --decompose=yes\
+                                   --verbose --realizability --bypass=no 2> out
+cat >exp <<EOF
+translating formula done in X seconds
+automaton has 1 states and 1 colors
+LAR construction done in X seconds
+DPA has 1 states, 0 colors
+split inputs and outputs done in X seconds
+automaton has 2 states
+solving game with acceptance: Streett 1
+game solved in X seconds
+translating formula done in X seconds
+automaton has 2 states and 2 colors
+LAR construction done in X seconds
+DPA has 2 states, 2 colors
+split inputs and outputs done in X seconds
+automaton has 5 states
+solving game with acceptance: parity max odd 4
+game solved in X seconds
+EOF
+
+sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
+diff outx exp

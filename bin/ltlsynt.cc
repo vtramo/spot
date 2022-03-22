@@ -44,6 +44,7 @@
 enum
 {
   OPT_ALGO = 256,
+  OPT_BYPASS,
   OPT_CSV,
   OPT_DECOMPOSE,
   OPT_INPUT,
@@ -81,6 +82,9 @@ static const argp_option options[] =
       " \"acd\": translate to a deterministic automaton with arbitrary"
       " acceptance condition, then use ACD to turn to parity,"
       " then split.\n", 0 },
+    { "bypass", OPT_BYPASS, "yes|no", 0,
+      "whether to try to avoid to construct a parity game "
+      "(enabled by default)", 0},
     { "decompose", OPT_DECOMPOSE, "yes|no", 0,
       "whether to decompose the specification as multiple output-disjoint "
       "problems to solve independently (enabled by default)", 0 },
@@ -181,6 +185,20 @@ static spot::synthesis_info::algo const algo_types[] =
   spot::synthesis_info::algo::ACD,
 };
 ARGMATCH_VERIFY(algo_args, algo_types);
+
+static const char* const bypass_args[] =
+  {
+    "yes", "true", "enabled", "1",
+    "no", "false", "disabled", "0",
+    nullptr
+  };
+static bool bypass_values[] =
+  {
+    true, true, true, true,
+    false, false, false, false,
+  };
+ARGMATCH_VERIFY(bypass_args, bypass_values);
+bool opt_bypass = true;
 
 static const char* const decompose_args[] =
   {
@@ -374,7 +392,7 @@ namespace
               };
       // If we want to print a game,
       // we never use the direct approach
-      if (!want_game)
+      if (!want_game && opt_bypass)
         m_like =
             spot::try_create_direct_strategy(*sub_f, *sub_o, *gi, !opt_real);
 
@@ -637,6 +655,9 @@ parse_opt(int key, char *arg, struct argp_state *)
     {
     case OPT_ALGO:
       gi->s = XARGMATCH("--algo", arg, algo_args, algo_types);
+      break;
+    case OPT_BYPASS:
+      opt_bypass = XARGMATCH("--bypass", arg, bypass_args, bypass_values);
       break;
     case OPT_CSV:
       opt_csv = arg ? arg : "-";
