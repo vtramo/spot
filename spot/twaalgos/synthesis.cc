@@ -1180,16 +1180,19 @@ namespace spot
   mealy_like
   try_create_direct_strategy(formula f,
                              const std::vector<std::string>& output_aps,
-                             synthesis_info &gi)
+                             synthesis_info &gi, bool want_strategy)
   {
     auto vs = gi.verbose_stream;
     auto& bv = gi.bv;
+    bdd_dict_ptr& dict = gi.dict;
+    int tmp;
 
     if (vs)
       *vs << "trying to create strategy directly for " << f << '\n';
 
-    auto ret_sol_maybe = [&vs]()
+    auto ret_sol_maybe = [&vs, &tmp, &dict]()
       {
+        dict->unregister_all_my_variables(&tmp);
         if (vs)
           *vs << "direct strategy might exist but was not found.\n";
         return mealy_like{
@@ -1197,8 +1200,9 @@ namespace spot
                   nullptr,
                   bddfalse};
       };
-    auto ret_sol_none = [&vs]()
+    auto ret_sol_none = [&vs, &tmp, &dict]()
       {
+        dict->unregister_all_my_variables(&tmp);
         if (vs)
           *vs << "no strategy exists.\n";
         return mealy_like{
@@ -1207,15 +1211,23 @@ namespace spot
                   bddfalse};
       };
 
-    auto ret_sol_exists = [&vs](auto strat)
+    auto ret_sol_exists =
+      [&vs, &want_strategy, &tmp, &dict](twa_graph_ptr strat)
       {
+        dict->unregister_all_my_variables(&tmp);
         if (vs)
           {
-            *vs << "direct strategy was found.\n"
-                << "direct strat has " << strat->num_states()
+            *vs << "direct strategy was found.\n";
+            if (want_strategy)
+            {
+                *vs << "direct strat has " << strat->num_states()
                 << " states, " << strat->num_edges()
                 << " edges and " << strat->num_sets() << " colors\n";
+
+            }
           }
+        if (strat)
+          strat->merge_edges();
         return mealy_like{
                   mealy_like::realizability_code::REALIZABLE_REGULAR,
                   strat,
@@ -1223,87 +1235,141 @@ namespace spot
       };
     formula_2_inout_props form2props(output_aps);
 
-    auto output_aps_set = std::set<std::string>(output_aps.begin(),
-                                                output_aps.end());
-
-    formula f_g = formula::tt(), f_left, f_right;
-
-    // If we have a formula like G(b₁) ∧ (φ ↔ GFb₂), we extract b₁ and
-    // continue the construction for (φ ↔ GFb₂).
+    formula f_g, f_other;
+    // If it is G(α) ∧ G(β) ∧ …
     if (f.is(op::And))
     {
-      if (f.size() != 2)
-        return ret_sol_maybe();
-      if (f[0].is(op::G) && f[0][0].is_boolean())
-      {
-        f_g = f[0];
-        f = f[1];
-      }
-      else if (f[1].is(op::G) && f[1][0].is_boolean())
-      {
-        f_g = f[1];
-        f = f[0];
-      }
-      else
-        return ret_sol_maybe();
-    }
-    if (f.is(op::Equiv))
-    {
-      auto [left_ins, left_outs] = form2props.aps_of(f[0]);
-      auto [right_ins, right_outs] = form2props.aps_of(f[1]);
+      std::vector<formula> gs;
+      std::vector<formula> others;
+      for (auto child : f)
+        if (child.is(op::G) && child[0].is_boolean())
+          gs.push_back(child[0]);
+        else
+          others.push_back(child);
 
-      auto properties_vector = [](const formula& f,
-                                  const std::set<formula>& ins,
-                                  const std::set<formula>& outs)
+      f_g = formula::And(gs);
+      f_other = formula::And(others);
+    }
+    else if (f.is(op::G) && f[0].is_boolean())
+    {
+      f_g = f[0];
+      f_other = formula::tt();
+    }
+    else
+    {
+      f_g = formula::tt();
+      f_other = f;
+    }
+
+    // We have to check if the content of G is realizable (input-complete)
+    bdd output_bdd_tmp = bddtrue;
+    for (auto& out : output_aps)
+      output_bdd_tmp &= bdd_ithvar(
+        dict->register_proposition(formula::ap(out), &tmp));
+
+    if (!f_g.is_tt())
+    {
+      auto g_bdd = formula_to_bdd(f_g, dict, &tmp);
+      if (bdd_exist(g_bdd, output_bdd_tmp) != bddtrue)
+        return ret_sol_none();
+    }
+
+    if (f_other.is(op::Equiv))
+    {
+      // Check if FG or GF
+      auto is_general = [&tmp, &output_bdd_tmp, &dict](const formula &f,
+                                                       op first, op second)
       {
-        return std::vector<bool>
-        {
-          f.is({op::G, op::F}) && f[0][0].is_boolean() && ins.empty(),
-          f.is_syntactic_recurrence() && outs.empty(),
-          // f is FG(bool)
-          f.is({op::F, op::G}) && f[0][0].is_boolean() && ins.empty(),
-          f.is_syntactic_persistence() && outs.empty()
-        };
+        if (!f.is({first, second}) || !f[0][0].is_boolean())
+          return false;
+        auto f_bdd = formula_to_bdd(f[0][0], dict, &tmp);
+        if (bdd_exist(f_bdd, output_bdd_tmp) != bddtrue)
+          return false;
+        f_bdd = formula_to_bdd(formula::Not(f[0][0]), dict, &tmp);
+        bool res = (bdd_exist(f_bdd, output_bdd_tmp) == bddtrue);
+        return res;
       };
-      // We need to detect
-      // GF(outs) ↔ recurrence(ins),
-      // recurrence(ins) ↔ GF(outs),
-      // FG(outs) ↔ persistence(ins),
-      // persistence(ins) ↔ FG(outs)
-      const auto left_properties = properties_vector(f[0], left_ins, left_outs),
-              right_properties = properties_vector(f[1], right_ins, right_outs);
+
+      auto is_gf = [is_general](const formula& f)
+      {
+        return is_general(f, op::G, op::F);
+      };
+
+      auto is_fg = [is_general](const formula& f)
+      {
+        return is_general(f, op::F, op::G);
+      };
+
+      auto is_co_bu = [](const formula &f, const std::set<formula>& outs)
+      {
+        return outs.empty() && f.is_syntactic_obligation();
+      };
+
+      auto is_buchi = [](const formula &f, const std::set<formula>& outs)
+      {
+        return outs.empty() && f.is_syntactic_recurrence();
+      };
+
+      auto properties_vector = [&](const formula &f,
+                            const std::set<formula> &outs)
+      {
+        auto is_lgf = is_gf(f);
+        auto is_lfg = is_fg(f);
+        return std::vector<bool>{
+            // f is GF(ins + outs) <-> buchi(ins)
+            is_lgf,
+            is_buchi(f, outs),
+            // f is FG(ins + outs) <-> co-buchi(ins)
+            is_lfg,
+            is_co_bu(f, outs)};
+      };
+
+
+      auto [left_ins, left_outs] = form2props.aps_of(f_other[0]);
+      auto [right_ins, right_outs] = form2props.aps_of(f_other[1]);
+
+      auto left_properties = properties_vector(f_other[0], left_outs);
+      auto right_properties = properties_vector(f_other[1], right_outs);
+
       unsigned combin = -1U;
       for (unsigned i = 0; i < 4; ++i)
-      {
-        if (left_properties[i] && right_properties[(i%2) ? (i-1) : (i+1)])
+        if (left_properties[i] && right_properties[(i % 2) ? (i - 1) : (i + 1)])
         {
           combin = i;
           break;
         }
-      }
+
+      // If we don't match, we don't know
       if (combin == -1U)
         return ret_sol_maybe();
 
-      // left is the recurrence (resp. persistence)
-      // right is GF(outs) (resp. GF(outs))
-      // If f[0] is GF or FG
-      f_left = f[(combin+1)%2];
-      f_right = f[combin%2];
-      if (!(combin%2))
+      // We know that a strategy exists and we don't want to construct it.
+      if (!want_strategy)
+        return ret_sol_exists(nullptr);
+
+      formula f_left = f_other[(combin + 1) % 2];
+      formula f_right = f_other[combin % 2];
+      if (!(combin % 2))
       {
         std::swap(left_ins, right_ins);
         std::swap(left_outs, right_outs);
       }
 
       auto trans = create_translator(gi);
-      trans.set_type(combin < 2 ? postprocessor::Buchi
-                                : postprocessor::CoBuchi);
+
       trans.set_pref(postprocessor::Deterministic | postprocessor::Complete);
+      if (combin < 2)
+        trans.set_type(postprocessor::Buchi);
+      else
+        trans.set_type(postprocessor::CoBuchi);
 
       stopwatch sw;
       if (bv)
         sw.start();
       auto res = trans.run(f_left);
+
+      if (!is_deterministic(res))
+        return ret_sol_maybe();
 
       if (bv)
       {
@@ -1312,79 +1378,76 @@ namespace spot
         if (vs)
           *vs << "tanslating formula done in " << delta << " seconds\n";
       }
-
-      if (!is_deterministic(res))
-        return ret_sol_maybe();
-      for (auto& out : right_outs)
-          res->register_ap(out.ap_name());
-
-      // The BDD that describes the content of the G in a conjunction
-      bdd g_bdd = bddtrue;
-
-      // Convert the set of outputs to a BDD
-      bdd output_bdd = bddtrue;
-      for (auto &out : output_aps_set)
-        output_bdd &= bdd_ithvar(res->register_ap(out));
-
-      if (!f_g.is_tt())
-      {
-        g_bdd = formula_to_bdd(f_g[0], res->get_dict(), res);
-        // If the content of G is not input-complete, a simple strategy for
-        // env is to play this missing value.
-        if (bdd_exist(g_bdd, output_bdd) != bddtrue)
-        {
-          return ret_sol_none();
-        }
-      }
-
-      // For the GF(outs) (resp. GF(outs)), the content and its negation can be
-      // converted to a BDD.
-      bdd right_bdd, neg_right_bdd;
-      if (combin < 2)
-      {
-        right_bdd = formula_to_bdd(f_right[0][0], res->get_dict(), res);
-        neg_right_bdd = bdd_not(right_bdd);
-      }
-      else
-      {
-        neg_right_bdd = formula_to_bdd(f_right[0][0], res->get_dict(), res);
-        right_bdd = bdd_not(neg_right_bdd);
-      }
-      // Monitor is a special case. As we color accepting transitions, if the
-      // acceptance is true, we cannot say that a transition is accepting if
-      // a color is seen.
-      const bool is_true = res->acc().is_t();
-      scc_info si(res, scc_info_options::NONE);
-      for (auto& e : res->edges())
-      {
-        // Here the part describing the outputs is based on the fact that
-        // they must be seen infinitely often. As these edges are seen
-        // finitely often, we can let the minimization choose the value.
-        if (si.scc_of(e.src) == si.scc_of(e.dst))
-          {
-            if (e.acc || is_true)
-              e.cond &= right_bdd;
-            else
-              e.cond &= neg_right_bdd;
-          }
-        // g_bdd has to be true all the time. So we cannot only do it
-        // between SCCs.
-        e.cond &= g_bdd;
-        if (e.cond == bddfalse)
-          return ret_sol_maybe();
-        // The recurrence is Büchi but the strategy is a monitor. We need
-        // to remove the color.
-        e.acc = {};
-      }
-
-      set_synthesis_outputs(res, output_bdd);
-      res->set_acceptance(acc_cond::acc_code::t());
-
       res->prop_complete(trival::maybe());
+
+      bdd output_bdd = bddtrue;
+      auto [is, os] = form2props.aps_of(f);
+      for (auto i : is)
+        res->register_ap(i);
+      for (auto o : os)
+        output_bdd &= bdd_ithvar(res->register_ap(o));
+
+      bdd right_bdd = formula_to_bdd(f_right[0][0], dict, res);
+      bdd neg_right_bdd = bdd_not(right_bdd);
+      bdd g_bdd = formula_to_bdd(f_g, dict, res);
+
+      if (combin > 1)
+        std::swap(right_bdd, neg_right_bdd);
+
+      right_bdd = bdd_and(right_bdd, g_bdd);
+      neg_right_bdd = bdd_and(neg_right_bdd, g_bdd);
+
+      scc_info si(res, scc_info_options::NONE);
+
+      bool is_true_acc = ((combin < 2) && res->acc().is_t())
+                || ((combin > 1) && res->acc().is_f());
+      auto prop_vector = propagate_marks_vector(res);
+      auto& ev = res->edge_vector();
+      for (unsigned i = 1; i < ev.size(); ++i)
+      {
+        auto &edge = ev[i];
+        if (si.scc_of(edge.src) == si.scc_of(edge.dst))
+        {
+          if (edge.acc || is_true_acc)
+            edge.cond &= right_bdd;
+          // If we have a GF and an edge is not colored but prop_vector says
+          // that this edge could be colored, it means that we can do what we
+          // want
+          else if (!prop_vector[i])
+            edge.cond &= neg_right_bdd;
+          else
+            edge.cond &= g_bdd;
+        }
+        else
+          edge.cond &= g_bdd;
+        edge.acc = {};
+      }
+      res->set_acceptance(acc_cond::acc_code::t());
+      res->set_named_prop<bdd>("synthesis-outputs", new bdd(output_bdd));
+
       return ret_sol_exists(res);
     }
-    else
-      return ret_sol_maybe();
+    else if (f_other.is_tt())
+    {
+      if (!want_strategy)
+        return ret_sol_exists(nullptr);
+      auto res = make_twa_graph(dict);
+
+      bdd output_bdd = bddtrue;
+      auto [ins_f, _] = form2props.aps_of(f_g);
+      for (auto &out : output_aps)
+        output_bdd &= bdd_ithvar(res->register_ap(out));
+
+      for (auto &in : ins_f)
+        res->register_ap(in);
+
+      res->set_named_prop<bdd>("synthesis-outputs", new bdd(output_bdd));
+      bdd g_bdd = formula_to_bdd(f_g, dict, res);
+      res->new_state();
+      res->new_edge(0, 0, g_bdd);
+      return ret_sol_exists(res);
+    }
+    return ret_sol_maybe();
   }
 
 } // spot

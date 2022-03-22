@@ -241,10 +241,12 @@ namespace spot
   /// \param f The formula to synthesize a strategy for
   /// \param output_aps A vector with the name of all output properties.
   ///                   All APs not named in this vector are treated as inputs
+  /// \param want_strategy Set to false if we don't want to construct the
+  /// strategy but only test realizability.
   SPOT_API mealy_like
   try_create_direct_strategy(formula f,
                              const std::vector<std::string>& output_aps,
-                             synthesis_info& gi);
+                             synthesis_info& gi, bool want_strategy = false);
 
   /// \ingroup synthesis
   /// \brief Solve a game, and update synthesis_info

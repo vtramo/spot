@@ -376,7 +376,7 @@ namespace
       // we never use the direct approach
       if (!want_game)
         m_like =
-            spot::try_create_direct_strategy(*sub_f, *sub_o, *gi);
+            spot::try_create_direct_strategy(*sub_f, *sub_o, *gi, !opt_real);
 
       switch (m_like.success)
       {
@@ -431,7 +431,8 @@ namespace
           // the direct approach yielded a strategy
           // which can now be minimized
           // We minimize only if we need it
-          assert(m_like.mealy_like && "Expected success but found no mealy!");
+          assert(opt_real ||
+            (m_like.mealy_like && "Expected success but found no mealy!"));
           if (!opt_real)
             {
               // Keep the machine split for aiger

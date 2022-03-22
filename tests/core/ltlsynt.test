@@ -193,9 +193,7 @@ diff out exp
 
 cat >exp <<EOF
 trying to create strategy directly for GFa <-> GFb
-tanslating formula done in X seconds
 direct strategy was found.
-direct strat has 1 states, 2 edges and 0 colors
 EOF
 ltlsynt --ins='a' --outs='b' -f 'GFa <-> GFb' --verbose --realizability 2> out
 sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
@@ -214,9 +212,7 @@ diff outx exp
 
 cat >exp <<EOF
 trying to create strategy directly for (Fa & Fb & Fc & Fd) <-> GFe
-tanslating formula done in X seconds
 direct strategy was found.
-direct strat has 16 states, 81 edges and 0 colors
 EOF
 ltlsynt --ins='a,b,c,d' --outs='e' -f '(Fa & Fb & Fc & Fd) <-> GFe' \
         --verbose --realizability --algo=lar 2> out
@@ -526,15 +522,14 @@ REALIZABLE
 HOA: v1
 States: 1
 Start: 0
-AP: 3 "a" "b" "c"
+AP: 3 "c" "a" "b"
 acc-name: all
 Acceptance: 0 t
 properties: trans-labels explicit-labels state-acc deterministic
-controllable-AP: 2
+controllable-AP: 0
 --BODY--
 State: 0
-[!0&!2 | !1&!2] 0
-[0&1&2] 0
+[!0&!1 | !0&!2 | 0&1&2] 0
 --END--
 EOF
 ltlsynt --ins=a,b -f 'G (a & b <=> c)' >stdout
@@ -563,15 +558,8 @@ direct strategy was found.
 direct strat has 1 states, 2 edges and 0 colors
 simplification took X seconds
 trying to create strategy directly for Gc
-direct strategy might exist but was not found.
-translating formula done in X seconds
-automaton has 1 states and 1 colors
-LAR construction done in X seconds
-DPA has 1 states, 0 colors
-split inputs and outputs done in X seconds
-automaton has 2 states
-solving game with acceptance: Streett 1
-game solved in X seconds
+direct strategy was found.
+direct strat has 1 states, 1 edges and 0 colors
 simplification took X seconds
 EOF
 ltlsynt -f '(GFa <-> GFb) && (Gc)' --outs=b,c --verbose 2> out
@@ -599,7 +587,6 @@ done
 # # impossible to find a strategy.
 cat >exp <<EOF
 trying to create strategy directly for (GFb <-> GFa) & G(a & c)
-tanslating formula done in X seconds
 no strategy exists.
 EOF
 ltlsynt -f '(GFb <-> GFa) && G(a&c)' --outs=b,c --verbose\
@@ -687,26 +674,12 @@ diff outx exp
 # Here, G!(!x | !y) should be Gx & Gy
 cat >exp <<EOF
 trying to create strategy directly for Gx
-direct strategy might exist but was not found.
-translating formula done in X seconds
-automaton has 1 states and 1 colors
-LAR construction done in X seconds
-DPA has 1 states, 0 colors
-split inputs and outputs done in X seconds
-automaton has 2 states
-solving game with acceptance: Streett 1
-game solved in X seconds
+direct strategy was found.
+direct strat has 1 states, 1 edges and 0 colors
 simplification took X seconds
 trying to create strategy directly for Gy
-direct strategy might exist but was not found.
-translating formula done in X seconds
-automaton has 1 states and 1 colors
-LAR construction done in X seconds
-DPA has 1 states, 0 colors
-split inputs and outputs done in X seconds
-automaton has 2 states
-solving game with acceptance: Streett 1
-game solved in X seconds
+direct strategy was found.
+direct strat has 1 states, 1 edges and 0 colors
 simplification took X seconds
 AIG circuit was created in X seconds and has 0 latches and 0 gates
 EOF
@@ -717,15 +690,7 @@ diff outx exp
 # Here, !F(a | b) should be G(!a) & G(!b)
 cat >exp <<EOF
 trying to create strategy directly for G!a
-direct strategy might exist but was not found.
-translating formula done in X seconds
-automaton has 1 states and 1 colors
-LAR construction done in X seconds
-DPA has 1 states, 0 colors
-split inputs and outputs done in X seconds
-automaton has 4 states
-solving game with acceptance: parity max odd 3
-game solved in X seconds
+no strategy exists.
 EOF
 ltlsynt -f '!F(a|b)' --outs=b --decompose=yes --aiger --verbose 2> out || true
 sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
@@ -734,15 +699,7 @@ diff outx exp
 # Here, G!(a -> b) should be G(a) & G(!b)
 cat >exp <<EOF
 trying to create strategy directly for Ga
-direct strategy might exist but was not found.
-translating formula done in X seconds
-automaton has 1 states and 1 colors
-LAR construction done in X seconds
-DPA has 1 states, 0 colors
-split inputs and outputs done in X seconds
-automaton has 4 states
-solving game with acceptance: parity max odd 3
-game solved in X seconds
+no strategy exists.
 EOF
 ltlsynt -f 'G!(a -> b)' --outs=b --decompose=yes --aiger\
                         --verbose 2> out || true
@@ -815,15 +772,7 @@ diff outx exp
 # Here, !(F(a | b)) should be G!a & G!b
 cat >exp <<EOF
 trying to create strategy directly for G!a
-direct strategy might exist but was not found.
-translating formula done in X seconds
-automaton has 1 states and 1 colors
-LAR construction done in X seconds
-DPA has 1 states, 0 colors
-split inputs and outputs done in X seconds
-automaton has 4 states
-solving game with acceptance: parity max odd 3
-game solved in X seconds
+no strategy exists.
 EOF
 ltlsynt -f '!(F(a | b))' --outs=b, --decompose=yes \
                          --verbose --aiger 2> out || true
