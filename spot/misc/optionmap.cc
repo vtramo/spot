@@ -130,6 +130,7 @@ namespace spot
   int
   option_map::get(const char* option, int def) const
   {
+    is_used_ = true;
     unused_.erase(option);
     auto it = options_.find(option);
     return (it == options_.end()) ? def : it->second;
@@ -138,6 +139,7 @@ namespace spot
   std::string
   option_map::get_str(const char* option, std::string def) const
   {
+    is_used_ = true;
     unused_.erase(option);
     auto it = options_str_.find(option);
     return (it == options_str_.end()) ? def : it->second;
@@ -226,21 +228,25 @@ namespace spot
 
   void option_map::report_unused_options() const
   {
-    auto s = unused_.size();
-    if (s == 0U)
-      return;
-    std::ostringstream os;
-    if (s == 1U)
-      {
-        os << "option '" << *unused_.begin()
-           << "' was not used (possible typo?)";
-      }
-    else
-      {
-        os << "the following options where not used (possible typos?):";
-        for (auto opt: unused_)
-          os << "\n\t- '" << opt << '\'';
-      }
-    throw std::runtime_error(os.str());
+    // We don't consider that an unused map has unused options.
+    if (is_used_)
+    {
+      auto s = unused_.size();
+      if (s == 0U)
+        return;
+      std::ostringstream os;
+      if (s == 1U)
+        {
+          os << "option '" << *unused_.begin()
+            << "' was not used (possible typo?)";
+        }
+      else
+        {
+          os << "the following options where not used (possible typos?):";
+          for (auto opt: unused_)
+            os << "\n\t- '" << opt << '\'';
+        }
+      throw std::runtime_error(os.str());
+    }
   }
 }

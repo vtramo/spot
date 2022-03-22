@@ -110,6 +110,7 @@ namespace spot
     // will be erased as they are used.  The resulting set can be used
     // for diagnosing errors.
     mutable std::set<std::string> unused_;
+    mutable bool is_used_ = false;
 
     void set_(const std::string&, int val);
     void set_str_(const std::string&, const std::string& val);
