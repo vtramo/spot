@@ -896,9 +896,18 @@ namespace spot
                 arena->new_edge(sink_con, sink_env, bddtrue, um.second);
                 arena->new_edge(sink_env, sink_con, bddtrue, um.second);
               }
-            arena->new_edge(src, sink_con, missing, um.second);
+            arena->new_edge(src, sink_env, missing, um.second);
+            assert(owner->at(src) != owner->at(sink_env));
           }
       }
+
+    assert([&]()
+      {
+        for (const auto& e : arena->edges())
+          if (owner->at(e.src) == owner->at(e.dst))
+            return false;
+        return true;
+      }() && "Not alternating");
 
     arena->set_named_prop("state-player", owner);
   }

@@ -958,6 +958,10 @@ namespace spot
           *vs << "determinization done\nDPA has "
               << dpa->num_states() << " states, "
               << dpa->num_sets() << " colors\n";
+        // The named property "state-player" is set in split_2step
+        // but not propagated by ntgba2dpa
+        alternate_players(dpa);
+        // Merge states knows about players
         dpa->merge_states();
         if (bv)
           bv->paritize_time += sw.stop();
@@ -966,9 +970,6 @@ namespace spot
               << dpa->num_states() << " states\n"
               << "determinization and simplification took "
               << bv->paritize_time << " seconds\n";
-        // The named property "state-player" is set in split_2step
-        // but not propagated by ntgba2dpa
-        alternate_players(dpa);
         break;
       }
       case algo::ACD:
