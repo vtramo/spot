@@ -26,14 +26,14 @@ ltl2tgba 'p | (!p & G(Fq & F!q & Fa))' >in
 test '3 3' = "`autfilt in --stats='%s %a'`"
 for i in restrict all; do
     test '2 3' = \
-         "`autfilt --given-f='F(Gq|G!q)' --given-s=$i in --stats='%s %a'`"
+         "`autfilt --given-fo='F(Gq|G!q)' --given-s=$i in --stats='%s %a'`"
 done
-res=`autfilt --given-f='F(Gq|G!q)' --given-s=rest in --small --stats='%s %a'`
+res=`autfilt --given-fo='F(Gq|G!q)' --given-s=rest in --small --stats='%s %a'`
 test '2 0' = "$res"
 
 ltl2tgba 'p | (!p & G(Fq & F!q & Fa))' >in
 while read opt exp; do
-    res=`autfilt --given-f=Gp in --given-s=$opt --stats='%s %e %a'`
+    res=`autfilt --given-fo=Gp in --given-s=$opt --stats='%s %e %a'`
     test "$res" = "$exp"
 done <<EOF
 restrict 2 2 3
@@ -42,7 +42,7 @@ all 2 2 3
 EOF
 
 while read opt exp; do
-    res=`autfilt --given-f=Gp in --given-s=$opt --small --stats='%s %e %x'`
+    res=`autfilt --given-fo=Gp in --given-s=$opt --small --stats='%s %e %x'`
     test "$res" = "$exp"
 done <<EOF
 restrict 1 1 1
@@ -51,17 +51,40 @@ all 1 1 0
 EOF
 
 for opt in restrict relax all; do
-    res=`ltl2tgba GFp | autfilt --given-s=$opt --given-f='G!p' --stats=%s%e%x`
+    res=`ltl2tgba GFp | autfilt --given-s=$opt --given-fo='G!p' --stats=%s%e%x`
     test "$res" = 100
 done
 
 ltl2tgba 'F(!p0 | X!p1)' >in
 while read opt exp; do
-    res=`autfilt --given-f='p0 & p1' in --given-s=$opt --small --stats='%s %e %x'`
+    res=`autfilt --given-fo='p0 & p1' in --given-s=$opt \
+                 --small --stats='%s %e %x'`
     test "$res" = "$exp"
 done <<EOF
 restrict 3 4 2
 relax 3 5 2
 stutter 2 3 2
 all 2 3 2
+EOF
+
+
+while read opt exp; do
+    res=`autfilt --given-fo='p0' --given-fo='p1' \
+         --given-s=$opt --small --stats='%s %e %x' in`
+    test "$res" = "$exp"
+done <<EOF
+restrict 3 4 2
+relax 3 5 2
+stutter 2 3 2
+all 3 4 2
+EOF
+
+while read opt exp; do
+    res=`autfilt --given-fo='p0' --given-fo='p1' \
+         --given-s=$opt --given-fixpoint --small --stats='%s %e %x' in`
+    test "$res" = "$exp"
+done <<EOF
+restrict 3 4 2
+relax 3 5 2
+stutter 2 3 2
 EOF

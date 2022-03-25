@@ -111,6 +111,7 @@ enum {
   OPT_GIVEN_AUTOMATON,
   OPT_GIVEN_FORMULA,
   OPT_GIVEN_STRAT,
+  OPT_GIVEN_FIXPOINT,
   OPT_HAS_EXIST_BRANCHING,
   OPT_HAS_UNIV_BRANCHING,
   OPT_HIGHLIGHT_NONDET,
@@ -413,6 +414,10 @@ static const argp_option options[] =
       "labels using impossible assignments if that reduce their support, "
       "(stutter) build a stutter-invariant results if the added words are "
       "outside the given knowledge, (all) do all [the default].", 0 },
+    { "given-fixpoint", OPT_GIVEN_FIXPOINT, nullptr, 0,
+      "If multiple knowledges have been given with --given-formula or "
+      "--given-automaton repeat their application until we reach a fixpoint.",
+      0 },
     { nullptr, 0, nullptr, 0, "Decorations (for -d and -H1.1 output):", 9 },
     { "highlight-accepting-run", OPT_HIGHLIGHT_ACCEPTING_RUN, "NUM",
       OPTION_ARG_OPTIONAL, "highlight one accepting run using color NUM", 0},
@@ -672,6 +677,7 @@ static bool opt_is_inherently_weak = false;
 static bool opt_is_very_weak = false;
 static bool opt_is_stutter_invariant = false;
 static spot::given_strategy opt_given_strat = spot::given_strategy::GIVEN_ALL;
+static bool opt_given_fixpoint = false;
 static bool opt_invert = false;
 static range opt_states = { 0, std::numeric_limits<int>::max() };
 static range opt_edges = { 0, std::numeric_limits<int>::max() };
@@ -956,6 +962,9 @@ parse_opt(int key, char* arg, struct argp_state*)
     case OPT_GIVEN_AUTOMATON:
       opt->given_automata.push_back(read_automaton(arg, opt->dict));
       break;
+    case OPT_GIVEN_FIXPOINT:
+      opt_given_fixpoint = true;
+      break;
     case OPT_GIVEN_FORMULA:
       {
         spot::translator t(opt->dict);
@@ -963,11 +972,9 @@ parse_opt(int key, char* arg, struct argp_state*)
         break;
       }
     case OPT_GIVEN_STRAT:
-      {
-        opt_given_strat = XARGMATCH("--given-strategy", arg,
-                                    given_args, given_types);
-        break;
-      }
+      opt_given_strat = XARGMATCH("--given-strategy", arg,
+                                  given_args, given_types);
+      break;
     case OPT_HAS_EXIST_BRANCHING:
       opt_has_exist_branching = true;
       break;
@@ -1618,8 +1625,11 @@ namespace
       if (!opt->rem_ap.empty())
         aut = opt->rem_ap.strip(aut);
 
-      for (spot::const_twa_graph_ptr knowledge: opt->given_automata)
-        aut = spot::given_here(aut, knowledge, opt_given_strat);
+      bool changed = false;
+      do
+        for (spot::const_twa_graph_ptr knowledge: opt->given_automata)
+          aut = spot::given_here(aut, knowledge, opt_given_strat, &changed);
+      while (changed && opt_given_fixpoint);
 
       // opt_simplify_exclusive_ap is handled only after
       // post-processing.
@@ -1798,6 +1808,9 @@ main(int argc, char** argv)
             (new spot::isomorphism_checker(opt->are_isomorphic));
         }
 
+      if (opt_given_strat == spot::GIVEN_ALL && opt_given_fixpoint)
+        error(2, 0,
+              "--given-strategy=all is incompatible with --given-fixpoint");
 
       spot::srand(opt_seed);
 

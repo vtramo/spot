@@ -54,10 +54,10 @@ namespace spot
   /// @{
   SPOT_API twa_graph_ptr
   given_here(twa_graph_ptr& aut, const_twa_graph_ptr& fact,
-             given_strategy = GIVEN_ALL);
+             given_strategy = GIVEN_ALL, bool* changed = nullptr);
   SPOT_API twa_graph_ptr
   given_here(twa_graph_ptr& aut, formula fact,
-             given_strategy = GIVEN_ALL);
+             given_strategy = GIVEN_ALL, bool* changed = nullptr);
   SPOT_API twa_graph_ptr
   given(const_twa_graph_ptr& aut, const_twa_graph_ptr& fact,
         given_strategy = GIVEN_ALL);

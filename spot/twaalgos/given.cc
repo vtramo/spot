@@ -29,7 +29,8 @@ namespace spot
 {
   twa_graph_ptr given_here(twa_graph_ptr& aut,
                            const_twa_graph_ptr& fact,
-                           given_strategy strat)
+                           given_strategy strat,
+                           bool* changed)
   {
     bdd aut_ap = aut->ap_vars();
     auto prod = product(aut, fact);
@@ -45,6 +46,8 @@ namespace spot
     // the false automaton.
     if (!si.is_useful_state(prod->get_init_state_number()))
       {
+        if (changed)
+          *changed = aut->num_edges() != 0;
         aut->set_init_state(aut->new_state());
         aut->purge_dead_states();
         aut->remove_unused_ap();
@@ -55,6 +58,8 @@ namespace spot
         aut->prop_stutter_invariant(true);
         return aut;
       }
+
+    bool changed_ = false; // did we modify the automaton
 
     if (strat & GIVEN_RESTRICT)
       {
@@ -76,7 +81,14 @@ namespace spot
                   }
             }
         for (auto& e: aut->edges())
-          e.cond &= edge_constraint[aut->edge_number(e)];
+          {
+            bdd nb = e.cond & edge_constraint[aut->edge_number(e)];
+            if (e.cond != nb)
+              {
+                e.cond = nb;
+                changed_ = true;
+              }
+          }
       }
     if (strat & GIVEN_RELAX)
       {
@@ -116,7 +128,10 @@ namespace spot
             if (max_cond != e.cond
                 && sup_orig != sup_new
                 && bdd_implies(sup_orig, sup_new))
-              e.cond = max_cond;
+              {
+                e.cond = max_cond;
+                changed_ = true;
+              }
           }
       }
 
@@ -126,17 +141,26 @@ namespace spot
         false, // det/semidet/unambig
         !(strat & GIVEN_RELAX), // improve det/semidet/unambig
         false, // complete
-        false, // stutter
+        !(strat & (GIVEN_RELAX | GIVEN_RESTRICT)), // stutter
       });
     aut->purge_dead_states();
 
     if (strat & GIVEN_STUTTER)
-      {
-        auto stut = sl2(closure(aut));
-        if (!product(stut, complement(aut))->intersects(fact))
-          return stut;
-      }
-
+      if (!aut->prop_stutter_invariant().is_true())
+        {
+          auto stut = sl2(closure(aut));
+          if (aut->num_states() != stut->num_states()
+              || aut->num_edges() != stut->num_edges())
+            if (!product(stut, complement(aut))->intersects(fact))
+              {
+                if (changed)
+                  *changed = true;
+                stut->prop_stutter_invariant(true);
+                return stut;
+              }
+        }
+    if (changed)
+      *changed = changed_;
     return aut;
   }
 
@@ -149,12 +173,13 @@ namespace spot
   }
 
   twa_graph_ptr given_here(twa_graph_ptr& aut,
-                            formula fact,
-                           given_strategy strat)
+                           formula fact,
+                           given_strategy strat,
+                           bool* changed)
   {
     translator trans(aut->get_dict());
     const_twa_graph_ptr aut_fact = trans.run(fact);
-    return given_here(aut, aut_fact, strat);
+    return given_here(aut, aut_fact, strat, changed);
   }
 
   twa_graph_ptr given(const_twa_graph_ptr& aut,
