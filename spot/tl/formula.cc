@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2015-2019, 2021 Laboratoire de Recherche et
+// Copyright (C) 2015-2019, 2021, 2022 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -136,7 +136,7 @@ namespace spot
       // - AndRat(Exps1...,Bool1,Exps2...,Bool2,Exps3...) =
       //    AndRat(And(Bool1,Bool2),Exps1...,Exps2...,Exps3...)
       // - OrRat(Exps1...,Bool1,Exps2...,Bool2,Exps3...) =
-      //    AndRat(Or(Bool1,Bool2),Exps1...,Exps2...,Exps3...)
+      //    OrRat(Or(Bool1,Bool2),Exps1...,Exps2...,Exps3...)
       if (!b.empty())
         v.insert(v.begin(), fnode::multop(o, std::move(b)));
     }
@@ -588,9 +588,9 @@ namespace spot
                     }
                   else if (min != unbounded())
                     {
-                      min += min2;
-                      if (SPOT_UNLIKELY(min >= unbounded()))
+                      if (SPOT_UNLIKELY(min + min2 >= unbounded()))
                         break;
+                      min += min2;
                     }
                   if (max2 == unbounded())
                     {
@@ -598,9 +598,9 @@ namespace spot
                     }
                   else if (max != unbounded())
                     {
-                      max += max2;
-                      if (SPOT_UNLIKELY(max >= unbounded()))
+                      if (SPOT_UNLIKELY(max + max2 >= unbounded()))
                         break;
+                      max += max2;
                     }
                   (*i)->destroy();
                   i = v.erase(i);

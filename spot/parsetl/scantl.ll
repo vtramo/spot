@@ -130,26 +130,26 @@ eol2        (\n\r)+|(\r\n)+
 				     recursively.  */
                                   BEGIN(in_par);
                                   parent_level = 1;
-				  yylval->str = new std::string();
+				  yylval->emplace<std::string>();
                                 }
 <in_par>{
 	 "("			{
 				  ++parent_level;
-				  yylval->str->append(yytext, yyleng);
+				  yylval->as<std::string>().append(yytext, yyleng);
 				}
 	 ")"			{
 				  if (--parent_level)
 				    {
-                                      yylval->str->append(yytext, yyleng);
+                                      yylval->as<std::string>().append(yytext, yyleng);
 				    }
 				  else
 				    {
                                       BEGIN(not_prop);
-				      spot::trim(*yylval->str);
+				      spot::trim(yylval->as<std::string>());
 				      return token::PAR_BLOCK;
 				    }
 				}
-         [^()]+			yylval->str->append(yytext, yyleng);
+         [^()]+			yylval->as<std::string>().append(yytext, yyleng);
 	 <<EOF>>		{
 				  unput(')');
 				  if (!missing_parent)
@@ -172,38 +172,38 @@ eol2        (\n\r)+|(\r\n)+
 				     recursively.  */
                                   BEGIN(in_bra);
                                   parent_level = 1;
-				  yylval->str = new std::string();
+				  yylval->emplace<std::string>();
                                 }
 <in_bra>{
 	 "{"			{
 				  ++parent_level;
-				  yylval->str->append(yytext, yyleng);
+				  yylval->as<std::string>().append(yytext, yyleng);
 				}
          "}"[ \t]*"!"           {
 				  if (--parent_level)
 				    {
-                                      yylval->str->append(yytext, yyleng);
+                                      yylval->as<std::string>().append(yytext, yyleng);
 				    }
 				  else
 				    {
                                       BEGIN(not_prop);
-				      spot::trim(*yylval->str);
+				      spot::trim(yylval->as<std::string>());
 				      return token::BRA_BANG_BLOCK;
 				    }
                                 }
 	 "}"			{
 				  if (--parent_level)
 				    {
-                                      yylval->str->append(yytext, yyleng);
+                                      yylval->as<std::string>().append(yytext, yyleng);
 				    }
 				  else
 				    {
                                       BEGIN(not_prop);
-				      spot::trim(*yylval->str);
+				      spot::trim(yylval->as<std::string>());
 				      return token::BRA_BLOCK;
 				    }
 				}
-         [^{}]+			yylval->str->append(yytext, yyleng);
+         [^{}]+			yylval->as<std::string>().append(yytext, yyleng);
 	 <<EOF>>		{
 				  unput('}');
 				  if (!missing_parent)
@@ -231,35 +231,36 @@ eol2        (\n\r)+|(\r\n)+
 
   /* SVA operators */
 "##"[0-9]                       {
-                                  yylval->num = yytext[2] - '0';
+                                  yylval->emplace<unsigned>(yytext[2] - '0');
                                   return token::OP_DELAY_N;
                                 }
 "##"[0-9][0-9]                  {
-                                  yylval->num =
-                                    yytext[2] * 10 + yytext[3] - '0' * 11;
+                                  yylval->emplace<unsigned>(yytext[2] * 10
+                                                            + yytext[3]
+                                                            - '0' * 11);
                                   return token::OP_DELAY_N;
                                 }
 "##"[0-9]{3,}                   {
 				  errno = 0;
 				  unsigned long n = strtoul(yytext + 2, 0, 10);
-                                  yylval->num = n;
-				  if (errno || yylval->num != n)
+                                  yylval->emplace<unsigned>(n);
+				  if (errno || yylval->as<unsigned>() != n)
 				    {
                                       error_list.push_back(
 				        spot::one_parse_error(*yylloc,
 					  "value too large ignored"));
-                                      yylval->num = 1;
+                                      yylval->emplace<unsigned>(1);
                                     }
-                                  if (yylval->num >= spot::fnode::unbounded())
+                                  if (yylval->as<unsigned>() >= spot::fnode::unbounded())
                                     {
                                       auto max = spot::fnode::unbounded() - 1;
                                       std::ostringstream s;
-                                      s << yylval->num
+                                      s << yylval->as<unsigned>()
                                         << (" exceeds maximum supported "
                                             "repetition (")
                                         << max << ")";
                                       error_list.emplace_back(*yylloc, s.str());
-                                      yylval->num = max;
+                                      yylval->emplace<unsigned>(max);
                                     }
                                   return token::OP_DELAY_N;
                                 }
@@ -288,8 +289,8 @@ eol2        (\n\r)+|(\r\n)+
 <sqbracket>[0-9]+		{
 				  errno = 0;
 				  unsigned long n = strtoul(yytext, 0, 10);
-                                  yylval->num = n;
-				  if (errno || yylval->num != n)
+                                  yylval->emplace<unsigned>(n);
+				  if (errno || yylval->as<unsigned>() != n)
 				    {
                                       error_list.push_back(
 				        spot::one_parse_error(*yylloc,
@@ -380,7 +381,7 @@ eol2        (\n\r)+|(\r\n)+
   */
 <not_prop>[a-zA-EH-LN-QSTYZ_.][a-zA-EH-WYZ0-9_.]* |
 <not_prop>[a-zA-EH-LN-QSTYZ_.][a-zA-EH-WYZ0-9_.][a-zA-Z0-9_.]* {
-			  yylval->str = new std::string(yytext, yyleng);
+			  yylval->emplace<std::string>(yytext, yyleng);
 			  BEGIN(not_prop);
 			  return token::ATOMIC_PROP;
 			}
@@ -401,7 +402,7 @@ eol2        (\n\r)+|(\r\n)+
 <in_STRING>{
   \"	                {
                            BEGIN(orig_cond);
-			   yylval->str = new std::string(s);
+			   yylval->emplace<std::string>(s);
 			   return token::ATOMIC_PROP;
  			}
   {eol}			{
@@ -419,7 +420,7 @@ eol2        (\n\r)+|(\r\n)+
 			     spot::one_parse_error(*yylloc,
 			       "unclosed string"));
                            BEGIN(orig_cond);
-			   yylval->str = new std::string(s);
+			   yylval->emplace<std::string>(s);
 			   return token::ATOMIC_PROP;
                         }
 }
@@ -430,7 +431,7 @@ eol2        (\n\r)+|(\r\n)+
      for compatibility with ltl2dstar we also accept any alphanumeric
      string that is not an operator. */
 <lbt>[a-zA-Z._][a-zA-Z0-9._]*            {
-			  yylval->str = new std::string(yytext, yyleng);
+			  yylval->emplace<std::string>(yytext, yyleng);
 			  return token::ATOMIC_PROP;
 			}
 

@@ -25,7 +25,7 @@ since the generated files they produce are distributed.)
   GNU Automake >= 1.11
   GNU Libtool >= 2.4
   GNU Flex >= 2.6
-  GNU Bison >= 3.0
+  GNU Bison >= 3.3
   GNU Emacs (preferably >= 24 but it may work with older versions)
   org-mode >= 9.1 (the version that comes bundled with your emacs
     version is likely out-of-date; but distribution often have

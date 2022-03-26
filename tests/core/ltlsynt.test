@@ -211,7 +211,7 @@ sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
 diff outx exp
 
 cat >exp <<EOF
-trying to create strategy directly for (Fa & Fb & Fc & Fd) <-> GFe
+trying to create strategy directly for GFe <-> (Fa & Fb & Fc & Fd)
 direct strategy was found.
 EOF
 ltlsynt --ins='a,b,c,d' --outs='e' -f '(Fa & Fb & Fc & Fd) <-> GFe' \

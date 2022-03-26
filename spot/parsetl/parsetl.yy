@@ -1,7 +1,6 @@
 /* -*- coding: utf-8 -*-
-
-** Copyright (C) 2009-2019, 2021 Laboratoire de Recherche et Développement
-** de l'Epita (LRDE).
+** Copyright (C) 2009-2019, 2021, 2022 Laboratoire de Recherche et
+** Développement de l'Epita (LRDE).
 ** Copyright (C) 2003-2006 Laboratoire d'Informatique de Paris 6
 ** (LIP6), département Systèmes Répartis Coopératifs (SRC), Université
 ** Pierre et Marie Curie.
@@ -21,11 +20,13 @@
 ** You should have received a copy of the GNU General Public License
 ** along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-%require "3.0"
+%require "3.3"
 %language "C++"
 %locations
 %defines
 %define api.prefix {tlyy}
+%define api.value.type variant
+%define api.value.automove true
 %debug
 %define parse.error verbose
 %expect 0
@@ -37,24 +38,163 @@
 #include "config.h"
 #include <string>
 #include <sstream>
+#include <variant>
 #include <spot/tl/parse.hh>
 #include <spot/tl/formula.hh>
 #include <spot/tl/print.hh>
 
   struct minmax_t { unsigned min, max; };
+
+  // pnode (parsing node) is simular to fnode (formula node) except
+  // that n-ary operators will delay their construction until all
+  // children are known; this is a hack to speedup the parsing,
+  // because n-ary operator usually do a lot of work on construction
+  // (sorting all children if the operator is commutative, removing
+  // duplicates if applicable, etc.).  Building n-ary nodes by
+  // repeatedly calling the binary constructor as we did in the past
+  // has a prohibitive cost.  See issue #500.
+
+  struct nary
+  {
+    std::vector<const spot::fnode*> children;
+    spot::op kind;
+  };
+
+  struct pnode
+  {
+    // Hold either a constructed formula, or an n-ary operator that we
+    // will construct only when it is combined with a different
+    // operator.
+    std::variant<const spot::fnode*, nary> data;
+    // Record whether this pnode has been transformed into a fnode( or
+    // moved to another pnode).  If that occurred, the ownership of
+    // any fnode we store has been transfered to the constructed fnode
+    // (or to the other pnode), and our destructor has nothing to do.
+    // This is the usual case while parsing a formula without error.
+    // However during error recovering, the parser may have to discard
+    // unused pnode, in which case we have to remember to free fnode
+    // during destruction.
+    //
+    // We have to track this used status because pnode are destructed
+    // whenever the parser pops a token, and as of Bison 3.7.6, the
+    // handling of "%destructor" is broken when
+    // "%define api.value.type variant" is used.  See
+    // https://lists.gnu.org/archive/html/bug-bison/2022-03/msg00000.html
+    bool used = false;
+
+    pnode()
+      : data(nullptr)
+    {
+    }
+
+    pnode(const spot::fnode* ltl)
+      : data(ltl)
+    {
+    }
+
+    // We only support move construction.
+    pnode(const pnode& other) = delete;
+    pnode& operator=(const pnode& other) = delete;
+
+    pnode(pnode&& other)
+      : data(std::move(other.data))
+    {
+      other.used = true;
+    }
+
+    pnode& operator=(pnode&& other)
+    {
+      data = std::move(other.data);
+      other.used = true;
+      return *this;
+    }
+
+    ~pnode()
+    {
+      if (used)
+        return;
+      if (auto* n = std::get_if<nary>(&data))
+        {
+          for (auto f: n->children)
+            f->destroy();
+        }
+      else
+        {
+          auto* f = std::get<const spot::fnode*>(data);
+          // The only case where we expect f to be nullptr, is if
+          // parse_ap() return nullptr: then $$ is unset when YYERROR
+          // is called.
+          if (f)
+            f->destroy();
+        }
+    }
+
+    // Create a new n-ary node from left and right.
+    // This will empty left and right so that their
+    // destructor do nothing.
+    pnode(spot::op o, pnode&& left, pnode&& right)
+      : data(nary{})
+    {
+      nary& n = std::get<nary>(data);
+      n.kind = o;
+      if (auto* nleft = std::get_if<nary>(&left.data);
+          nleft && nleft->kind == o)
+        std::swap(n.children, nleft->children);
+      else
+        n.children.push_back(left);
+      if (auto* nright = std::get_if<nary>(&right.data);
+          nright && nright->kind == o)
+        {
+          auto& rch = nright->children;
+          n.children.insert(n.children.end(), rch.begin(), rch.end());
+          rch.clear();
+        }
+      else
+        {
+          n.children.push_back(right);
+        }
+    }
+
+    operator const spot::fnode*()
+    {
+      used = true;
+      if (auto* n = std::get_if<nary>(&data))
+        {
+          return spot::fnode::multop(n->kind, n->children);
+        }
+      else
+        {
+          return std::get<const spot::fnode*>(data);
+        }
+    }
+
+    // Convert to a temporary formula, for printing, do not mark as
+    // used.
+    const spot::formula tmp() const
+    {
+      const spot::fnode* f;
+      if (auto* n = std::get_if<nary>(&data))
+        {
+          for (auto c: n->children)
+            c->clone();
+          f = spot::fnode::multop(n->kind, n->children);
+        }
+      else
+        {
+          f = std::get<const spot::fnode*>(data);
+          assert(f != nullptr);
+          f->clone();
+        }
+      return spot::formula(f);
+    }
+  };
+
+
 }
 
 %parse-param {spot::parse_error_list &error_list}
 %parse-param {spot::environment &parse_environment}
 %parse-param {spot::formula &result}
-
-%union
-{
-  std::string* str;
-  const spot::fnode* ltl;
-  unsigned num;
-  minmax_t minmax;
-}
 
 %code {
 /* parsetl.hh and parsedecl.hh include each other recursively.
@@ -84,28 +224,20 @@ using namespace spot;
     }						\
   while (0);
 
-// right is missing, so complain and use false.
-#define missing_right_binop_hard(res, left, op, str)	\
-  do							\
-    {							\
-      left->destroy();					\
-      missing_right_op(res, op, str);			\
-    }							\
-  while (0);
-
-  static bool
+  static const fnode*
   sere_ensure_bool(const fnode* f, const spot::location& loc,
                    const char* oper, spot::parse_error_list& error_list)
   {
     if (f->is_boolean())
-      return true;
+      return f;
+    f->destroy();
     std::string s;
     s.reserve(80);
     s = "not a Boolean expression: in a SERE ";
     s += oper;
     s += " can only be applied to a Boolean expression";
     error_list.emplace_back(loc, s);
-    return false;
+    return nullptr;
   }
 
   static const fnode*
@@ -196,9 +328,9 @@ using namespace spot;
 %token START_SERE "SERE start marker"
 %token START_BOOL "BOOLEAN start marker"
 %token PAR_OPEN "opening parenthesis" PAR_CLOSE "closing parenthesis"
-%token <str> PAR_BLOCK "(...) block"
-%token <str> BRA_BLOCK "{...} block"
-%token <str> BRA_BANG_BLOCK "{...}! block"
+%token <std::string> PAR_BLOCK "(...) block"
+%token <std::string> BRA_BLOCK "{...} block"
+%token <std::string> BRA_BANG_BLOCK "{...}! block"
 %token BRACE_OPEN "opening brace" BRACE_CLOSE "closing brace"
 %token BRACE_BANG_CLOSE "closing brace-bang"
 %token OP_OR "or operator" OP_XOR "xor operator"
@@ -221,7 +353,7 @@ using namespace spot;
 %token OP_GOTO_OPEN "opening bracket for goto operator"
 %token OP_SQBKT_CLOSE "closing bracket"
 %token OP_SQBKT_STRONG_CLOSE "closing !]"
-%token <num> OP_SQBKT_NUM "number for square bracket operator"
+%token <unsigned> OP_SQBKT_NUM "number for square bracket operator"
 %token OP_UNBOUNDED "unbounded mark"
 %token OP_SQBKT_SEP "separator for square bracket operator"
 %token OP_UCONCAT "universal concat operator"
@@ -229,12 +361,12 @@ using namespace spot;
 %token OP_UCONCAT_NONO "universal non-overlapping concat operator"
 %token OP_ECONCAT_NONO "existential non-overlapping concat operator"
 %token OP_FIRST_MATCH "first_match"
-%token <str> ATOMIC_PROP "atomic proposition"
+%token <std::string> ATOMIC_PROP "atomic proposition"
 %token OP_CONCAT "concat operator" OP_FUSION "fusion operator"
 %token CONST_TRUE "constant true" CONST_FALSE "constant false"
 %token END_OF_INPUT "end of formula"
 %token OP_POST_NEG "negative suffix" OP_POST_POS "positive suffix"
-%token <num> OP_DELAY_N "SVA delay operator"
+%token <unsigned> OP_DELAY_N "SVA delay operator"
 %token OP_DELAY_OPEN "opening bracket for SVA delay operator"
 %token OP_DELAY_PLUS "##[+] operator"
 %token OP_DELAY_STAR "##[*] operator"
@@ -276,19 +408,16 @@ using namespace spot;
    need any precedence).  */
 %precedence OP_NOT
 
-%type <ltl> subformula atomprop booleanatom sere lbtformula boolformula
-%type <ltl> bracedsere parenthesedsubformula
-%type <minmax> starargs fstarargs equalargs sqbracketargs gotoargs delayargs
-%type <num> sqbkt_num
+%type <pnode> subformula atomprop booleanatom sere lbtformula
+%type <pnode> boolformula bracedsere parenthesedsubformula
+%type <minmax_t> starargs fstarargs equalargs sqbracketargs gotoargs delayargs
+%type <unsigned> sqbkt_num
 
-%destructor { delete $$; } <str>
-%destructor { $$->destroy(); } <ltl>
-
-%printer { debug_stream() << *$$; } <str>
-%printer { print_psl(debug_stream(), formula($$->clone())); } <ltl>
-%printer { print_sere(debug_stream(), formula($$->clone())); } sere bracedsere
-%printer { debug_stream() << $$; } <num>
-%printer { debug_stream() << $$.min << ".." << $$.max; } <minmax>
+%printer { debug_stream() << $$; } <std::string>
+%printer { print_psl(debug_stream(), $$.tmp()); } <pnode>
+%printer { print_sere(debug_stream(), $$.tmp()); } sere bracedsere
+%printer { debug_stream() << $$; } <unsigned>
+%printer { debug_stream() << $$.min << ".." << $$.max; } <minmax_t>
 
 %%
 result:       START_LTL subformula END_OF_INPUT
@@ -380,18 +509,19 @@ error_opt: %empty
 
 sqbkt_num: OP_SQBKT_NUM
          {
-           if ($1 >= fnode::unbounded())
+           auto n = $1;
+           if (n >= fnode::unbounded())
              {
                auto max = fnode::unbounded() - 1;
                std::ostringstream s;
-               s << $1 << " exceeds maximum supported repetition ("
+               s << n << " exceeds maximum supported repetition ("
                  << max << ")";
                error_list.emplace_back(@1, s.str());
                $$ = max;
              }
            else
              {
-               $$ = $1;
+               $$ = n;
              }
          }
 
@@ -484,10 +614,10 @@ delayargs: OP_DELAY_OPEN sqbracketargs
 
 atomprop: ATOMIC_PROP
           {
-            $$ = parse_ap(*$1, @1, parse_environment, error_list);
-            delete $1;
-            if (!$$)
+            auto* f = parse_ap($1, @1, parse_environment, error_list);
+            if (!f)
               YYERROR;
+            $$ = f;
           }
 
 booleanatom: atomprop
@@ -504,13 +634,12 @@ booleanatom: atomprop
 sere: booleanatom
             | OP_NOT sere
 	      {
-		if (sere_ensure_bool($2, @2, "`!'", error_list))
+		if (auto f = sere_ensure_bool($2, @2, "`!'", error_list))
 		  {
-		    $$ = fnode::unop(op::Not, $2);
+		    $$ = fnode::unop(op::Not, f);
 		  }
 		else
 		  {
-		    $2->destroy();
 		    $$ = error_false_block(@$, error_list);
 		  }
 	      }
@@ -518,9 +647,8 @@ sere: booleanatom
 	    | PAR_BLOCK
               {
 		$$ =
-		  try_recursive_parse(*$1, @1, parse_environment,
+		  try_recursive_parse($1, @1, parse_environment,
 				      debug_level(), parser_sere, error_list);
-		delete $1;
 		if (!$$)
 		  YYERROR;
 	      }
@@ -543,134 +671,142 @@ sere: booleanatom
 		$$ = fnode::ff();
 	      }
 	    | sere OP_AND sere
-	      { $$ = fnode::multop(op::AndRat, {$1, $3}); }
+	      { $$ = pnode(op::AndRat, $1, $3); }
 	    | sere OP_AND error
 	      { missing_right_binop($$, $1, @2,
 				    "length-matching and operator"); }
 	    | sere OP_SHORT_AND sere
-	      { $$ = fnode::multop(op::AndNLM, {$1, $3}); }
+              { $$ = pnode(op::AndNLM, $1, $3); }
 	    | sere OP_SHORT_AND error
               { missing_right_binop($$, $1, @2,
                                     "non-length-matching and operator"); }
 	    | sere OP_OR sere
-	      { $$ = fnode::multop(op::OrRat, {$1, $3}); }
+            { $$ = pnode(op::OrRat, $1, $3); }
 	    | sere OP_OR error
               { missing_right_binop($$, $1, @2, "or operator"); }
 	    | sere OP_CONCAT sere
-	      { $$ = fnode::multop(op::Concat, {$1, $3}); }
+	      { $$ = pnode(op::Concat, $1, $3); }
 	    | sere OP_CONCAT error
               { missing_right_binop($$, $1, @2, "concat operator"); }
 	    | sere OP_FUSION sere
-	      { $$ = fnode::multop(op::Fusion, {$1, $3}); }
+	      { $$ = pnode(op::Fusion, $1, $3); }
 	    | sere OP_FUSION error
               { missing_right_binop($$, $1, @2, "fusion operator"); }
 	    | OP_DELAY_N sere
-              { $$ = formula::sugar_delay(formula($2), $1, $1).to_node_(); }
+              { unsigned n = $1; $$ = formula::sugar_delay(formula($2), n, n).to_node_(); }
 	    | OP_DELAY_N error
               { missing_right_binop($$, fnode::tt(), @1, "SVA delay operator"); }
 	    | sere OP_DELAY_N sere
-              { $$ = formula::sugar_delay(formula($1), formula($3),
-                                          $2, $2).to_node_(); }
+            { unsigned n = $2;
+              $$ = formula::sugar_delay(formula($1), formula($3),
+                                        n, n).to_node_(); }
 	    | sere OP_DELAY_N error
               { missing_right_binop($$, $1, @2, "SVA delay operator"); }
 	    | delayargs sere %prec OP_DELAY_OPEN
               {
-		if ($1.max < $1.min)
+                auto [min, max] = $1;
+		if (max < min)
 		  {
 		    error_list.emplace_back(@1, "reversed range");
-		    std::swap($1.max, $1.min);
+		    std::swap(max, min);
 		  }
                 $$ = formula::sugar_delay(formula($2),
-                                          $1.min, $1.max).to_node_();
+                                          min, max).to_node_();
               }
 	    | delayargs error
               { missing_right_binop($$, fnode::tt(), @1, "SVA delay operator"); }
 	    | sere delayargs sere %prec OP_DELAY_OPEN
               {
-		if ($2.max < $2.min)
+                auto [min, max] = $2;
+		if (max < min)
 		  {
 		    error_list.emplace_back(@1, "reversed range");
-		    std::swap($2.max, $2.min);
+		    std::swap(max, min);
 		  }
                 $$ = formula::sugar_delay(formula($1), formula($3),
-                                          $2.min, $2.max).to_node_();
+                                          min, max).to_node_();
               }
 	    | sere delayargs error
               { missing_right_binop($$, $1, @2, "SVA delay operator"); }
 	    | starargs
 	      {
-		if ($1.max < $1.min)
+                auto [min, max] = $1;
+		if (max < min)
 		  {
 		    error_list.emplace_back(@1, "reversed range");
-		    std::swap($1.max, $1.min);
+		    std::swap(max, min);
 		  }
-		$$ = fnode::bunop(op::Star, fnode::tt(), $1.min, $1.max);
+		$$ = fnode::bunop(op::Star, fnode::tt(), min, max);
 	      }
 	    | sere starargs
 	      {
-		if ($2.max < $2.min)
+                auto [min, max] = $2;
+		if (max < min)
 		  {
 		    error_list.emplace_back(@2, "reversed range");
-		    std::swap($2.max, $2.min);
+		    std::swap(max, min);
 		  }
-		$$ = fnode::bunop(op::Star, $1, $2.min, $2.max);
+		$$ = fnode::bunop(op::Star, $1, min, max);
 	      }
 	    | sere fstarargs
 	      {
-		if ($2.max < $2.min)
+                auto [min, max] = $2;
+		if (max < min)
 		  {
 		    error_list.emplace_back(@2, "reversed range");
-		    std::swap($2.max, $2.min);
+		    std::swap(max, min);
 		  }
-		$$ = fnode::bunop(op::FStar, $1, $2.min, $2.max);
+		$$ = fnode::bunop(op::FStar, $1, min, max);
 	      }
 	    | sere equalargs
 	      {
-		if ($2.max < $2.min)
+                auto [min, max] = $2;
+		if (max < min)
 		  {
 		    error_list.emplace_back(@2, "reversed range");
-		    std::swap($2.max, $2.min);
+		    std::swap(max, min);
 		  }
-		if (sere_ensure_bool($1, @1, "[=...]", error_list))
+		if (auto f = sere_ensure_bool($1, @1, "[=...]", error_list))
 		  {
-		    $$ = formula::sugar_equal(formula($1),
-					      $2.min, $2.max).to_node_();
+		    $$ = formula::sugar_equal(formula(f),
+					      min, max).to_node_();
 		  }
 		else
 		  {
-		    $1->destroy();
 		    $$ = error_false_block(@$, error_list);
 		  }
 	      }
 	    | sere gotoargs
 	      {
-		if ($2.max < $2.min)
+                auto [min, max] = $2;
+		if (max < min)
 		  {
 		    error_list.emplace_back(@2, "reversed range");
-		    std::swap($2.max, $2.min);
+		    std::swap(max, min);
 		  }
-		if (sere_ensure_bool($1, @1, "[->...]", error_list))
+		if (auto f = sere_ensure_bool($1, @1, "[->...]", error_list))
 		  {
-		    $$ = formula::sugar_goto(formula($1),
-					     $2.min, $2.max).to_node_();
+		    $$ = formula::sugar_goto(formula(f), min, max).to_node_();
 		  }
 		else
 		  {
-		    $1->destroy();
 		    $$ = error_false_block(@$, error_list);
 		  }
 	      }
 	    | sere OP_XOR sere
 	      {
-		if (sere_ensure_bool($1, @1, "`^'", error_list)
-                    && sere_ensure_bool($3, @3, "`^'", error_list))
+                auto left = sere_ensure_bool($1, @1, "`^'", error_list);
+                auto right = sere_ensure_bool($3, @3, "`^'", error_list);
+		if (left && right)
 		  {
-		    $$ = fnode::binop(op::Xor, $1, $3);
+		    $$ = fnode::binop(op::Xor, left, right);
 		  }
 		else
 		  {
-		    $1->destroy();
-		    $3->destroy();
+                    if (left)
+                      left->destroy();
+                    else if (right)
+                      right->destroy();
 		    $$ = error_false_block(@$, error_list);
 		  }
 	      }
@@ -678,14 +814,13 @@ sere: booleanatom
 	      { missing_right_binop($$, $1, @2, "xor operator"); }
 	    | sere OP_IMPLIES sere
 	      {
-		if (sere_ensure_bool($1, @1, "`->'", error_list))
+                auto left = sere_ensure_bool($1, @1, "`->'", error_list);
+		if (left)
 		  {
-		    $$ = fnode::binop(op::Implies, $1, $3);
+		    $$ = fnode::binop(op::Implies, left, $3);
 		  }
 		else
 		  {
-		    $1->destroy();
-		    $3->destroy();
 		    $$ = error_false_block(@$, error_list);
 		  }
 	      }
@@ -693,15 +828,18 @@ sere: booleanatom
 	      { missing_right_binop($$, $1, @2, "implication operator"); }
 	    | sere OP_EQUIV sere
 	      {
-		if (sere_ensure_bool($1, @1, "`<->'", error_list)
-                    && sere_ensure_bool($3, @3, "`<->'", error_list))
+                auto left = sere_ensure_bool($1, @1, "`<->'", error_list);
+                auto right = sere_ensure_bool($3, @3, "`<->'", error_list);
+                if (left && right)
 		  {
-		    $$ = fnode::binop(op::Equiv, $1, $3);
+		    $$ = fnode::binop(op::Equiv, left, right);
 		  }
 		else
 		  {
-		    $1->destroy();
-		    $3->destroy();
+                    if (left)
+                      left->destroy();
+                    else if (right)
+                      right->destroy();
 		    $$ = error_false_block(@$, error_list);
 		  }
 	      }
@@ -739,19 +877,17 @@ bracedsere: BRACE_OPEN sere BRACE_CLOSE
 	      }
             | BRA_BLOCK
               {
-		$$ = try_recursive_parse(*$1, @1, parse_environment,
+		$$ = try_recursive_parse($1, @1, parse_environment,
 					 debug_level(),
                                          parser_sere, error_list);
-		delete $1;
 		if (!$$)
 		  YYERROR;
 	      }
 
 parenthesedsubformula: PAR_BLOCK
               {
-		$$ = try_recursive_parse(*$1, @1, parse_environment,
+		$$ = try_recursive_parse($1, @1, parse_environment,
 					 debug_level(), parser_ltl, error_list);
-		delete $1;
 		if (!$$)
 		  YYERROR;
 	      }
@@ -786,10 +922,9 @@ parenthesedsubformula: PAR_BLOCK
 boolformula: booleanatom
             | PAR_BLOCK
               {
-		$$ = try_recursive_parse(*$1, @1, parse_environment,
+		$$ = try_recursive_parse($1, @1, parse_environment,
 					 debug_level(),
                                          parser_bool, error_list);
-		delete $1;
 		if (!$$)
 		  YYERROR;
 	      }
@@ -821,19 +956,19 @@ boolformula: booleanatom
 		$$ = fnode::ff();
 	      }
 	    | boolformula OP_AND boolformula
-	      { $$ = fnode::multop(op::And, {$1, $3}); }
+	      { $$ = pnode(op::And, $1, $3); }
 	    | boolformula OP_AND error
               { missing_right_binop($$, $1, @2, "and operator"); }
 	    | boolformula OP_SHORT_AND boolformula
-	      { $$ = fnode::multop(op::And, {$1, $3}); }
+              { $$ = pnode(op::And, $1, $3); }
 	    | boolformula OP_SHORT_AND error
               { missing_right_binop($$, $1, @2, "and operator"); }
 	    | boolformula OP_STAR boolformula
-	      { $$ = fnode::multop(op::And, {$1, $3}); }
+	      { $$ = pnode(op::And, $1, $3); }
 	    | boolformula OP_STAR error
               { missing_right_binop($$, $1, @2, "and operator"); }
 	    | boolformula OP_OR boolformula
-	      { $$ = fnode::multop(op::Or, {$1, $3}); }
+	      { $$ = pnode(op::Or, $1, $3); }
 	    | boolformula OP_OR error
               { missing_right_binop($$, $1, @2, "or operator"); }
 	    | boolformula OP_XOR boolformula
@@ -856,19 +991,19 @@ boolformula: booleanatom
 subformula: booleanatom
             | parenthesedsubformula
 	    | subformula OP_AND subformula
-              { $$ = fnode::multop(op::And, {$1, $3}); }
+              { $$ = pnode(op::And, $1, $3); }
 	    | subformula OP_AND error
               { missing_right_binop($$, $1, @2, "and operator"); }
 	    | subformula OP_SHORT_AND subformula
-	      { $$ = fnode::multop(op::And, {$1, $3}); }
+              { $$ = pnode(op::And, $1, $3); }
 	    | subformula OP_SHORT_AND error
               { missing_right_binop($$, $1, @2, "and operator"); }
 	    | subformula OP_STAR subformula
-	      { $$ = fnode::multop(op::And, {$1, $3}); }
+	      { $$ = pnode(op::And, $1, $3); }
 	    | subformula OP_STAR error
               { missing_right_binop($$, $1, @2, "and operator"); }
 	    | subformula OP_OR subformula
-	      { $$ = fnode::multop(op::Or, {$1, $3}); }
+	      { $$ = pnode(op::Or, $1, $3); }
 	    | subformula OP_OR error
               { missing_right_binop($$, $1, @2, "or operator"); }
 	    | subformula OP_XOR subformula
@@ -904,13 +1039,15 @@ subformula: booleanatom
 	    | OP_F error
 	      { missing_right_op($$, @1, "sometimes operator"); }
 	    | OP_FREP sqbkt_num OP_SQBKT_CLOSE subformula %prec OP_FREP
-              { $$ = fnode::nested_unop_range(op::X, op::Or, $2, $2, $4);
+              { unsigned n = $2;
+                $$ = fnode::nested_unop_range(op::X, op::Or, n, n, $4);
                 error_list.emplace_back(@1 + @3,
                                         "F[n:m] expects two parameters");
               }
 	    | OP_FREP sqbkt_num OP_SQBKT_STRONG_CLOSE subformula
               %prec OP_FREP
-              { $$ = fnode::nested_unop_range(op::strong_X, op::Or, $2, $2, $4);
+              { unsigned n = $2;
+                $$ = fnode::nested_unop_range(op::strong_X, op::Or, n, n, $4);
                 error_list.emplace_back(@1 + @3,
                                         "F[n:m!] expects two parameters");
               }
@@ -966,14 +1103,16 @@ subformula: booleanatom
             { $$ = fnode::nested_unop_range(op::strong_X, op::And, $2,
                                             fnode::unbounded(), $5); }
 	    | OP_GREP sqbkt_num OP_SQBKT_CLOSE subformula %prec OP_GREP
-              { $$ = fnode::nested_unop_range(op::X, op::And, $2, $2, $4);
+              { unsigned n = $2;
+                $$ = fnode::nested_unop_range(op::X, op::And, n, n, $4);
                 error_list.emplace_back(@1 + @3,
                                         "G[n:m] expects two parameters");
               }
 	    | OP_GREP sqbkt_num OP_SQBKT_STRONG_CLOSE subformula
               %prec OP_GREP
-              { $$ = fnode::nested_unop_range(op::strong_X, op::And,
-                                              $2, $2, $4);
+              { unsigned n = $2;
+                $$ = fnode::nested_unop_range(op::strong_X, op::And,
+                                              n, n, $4);
                 error_list.emplace_back(@1 + @3,
                                         "G[n:m!] expects two parameters");
               }
@@ -1003,7 +1142,8 @@ subformula: booleanatom
 	    | OP_STRONG_X error
 	      { missing_right_op($$, @1, "strong next operator"); }
 	    | OP_XREP sqbkt_num OP_SQBKT_CLOSE subformula %prec OP_XREP
-              { $$ = fnode::nested_unop_range(op::X, op::Or, $2, $2, $4); }
+              { unsigned n = $2;
+                $$ = fnode::nested_unop_range(op::X, op::Or, n, n, $4); }
 	    | OP_XREP sqbkt_num OP_SQBKT_CLOSE error
 	      { missing_right_op($$, @1 + @3, "X[.] operator"); }
             | OP_XREP error OP_SQBKT_CLOSE subformula %prec OP_XREP
@@ -1013,8 +1153,9 @@ subformula: booleanatom
               { $$ = fnode::unop(op::strong_X, $3); }
 	    | OP_XREP sqbkt_num OP_SQBKT_STRONG_CLOSE subformula
               %prec OP_XREP
-              { $$ = fnode::nested_unop_range(op::strong_X,
-                                              op::Or, $2, $2, $4); }
+              { unsigned n = $2;
+                $$ = fnode::nested_unop_range(op::strong_X,
+                                              op::Or, n, n, $4); }
             | OP_XREP error OP_SQBKT_STRONG_CLOSE subformula %prec OP_XREP
               { error_list.emplace_back(@$, "treating this X[.!] as a simple X[!]");
                 $$ = fnode::unop(op::strong_X, $4); }
@@ -1032,41 +1173,40 @@ subformula: booleanatom
             | bracedsere parenthesedsubformula
 	      { $$ = fnode::binop(op::UConcat, $1, $2); }
             | bracedsere OP_UCONCAT error
-	      { missing_right_binop_hard($$, $1, @2,
-				    "universal overlapping concat operator"); }
+              { missing_right_op($$, @2,
+                                 "universal overlapping concat operator"); }
             | bracedsere OP_ECONCAT subformula
 	      { $$ = fnode::binop(op::EConcat, $1, $3); }
             | bracedsere OP_ECONCAT error
-	      { missing_right_binop_hard($$, $1, @2,
-				    "existential overlapping concat operator");
+	      { missing_right_op($$, @2,
+                                 "existential overlapping concat operator");
 	      }
             | bracedsere OP_UCONCAT_NONO subformula
 	      /* {SERE}[]=>EXP = {SERE;1}[]->EXP */
 	      { $$ = fnode::binop(op::UConcat,
-				  fnode::multop(op::Concat, {$1, fnode::tt()}),
+				  pnode(op::Concat, $1, fnode::tt()),
 				  $3); }
             | bracedsere OP_UCONCAT_NONO error
-	      { missing_right_binop_hard($$, $1, @2,
-				  "universal non-overlapping concat operator");
+	      { missing_right_op($$, @2,
+                                 "universal non-overlapping concat operator");
 	      }
             | bracedsere OP_ECONCAT_NONO subformula
 	      /* {SERE}<>=>EXP = {SERE;1}<>->EXP */
 	      { $$ = fnode::binop(op::EConcat,
-				  fnode::multop(op::Concat, {$1, fnode::tt()}),
+				  pnode(op::Concat, $1, fnode::tt()),
 				  $3); }
             | bracedsere OP_ECONCAT_NONO error
-	      { missing_right_binop_hard($$, $1, @2,
-				"existential non-overlapping concat operator");
+	      { missing_right_op($$, @2,
+                                 "existential non-overlapping concat operator");
 	      }
             | BRACE_OPEN sere BRACE_BANG_CLOSE
 	      /* {SERE}! = {SERE} <>-> 1 */
 	      { $$ = fnode::binop(op::EConcat, $2, fnode::tt()); }
             | BRA_BANG_BLOCK
               {
-		$$ = try_recursive_parse(*$1, @1, parse_environment,
+		$$ = try_recursive_parse($1, @1, parse_environment,
 					 debug_level(),
                                          parser_sere, error_list);
-		delete $1;
 		if (!$$)
 		  YYERROR;
 		$$ = fnode::binop(op::EConcat, $$, fnode::tt());
@@ -1076,9 +1216,9 @@ lbtformula: atomprop
             | '!' lbtformula
 	      { $$ = fnode::unop(op::Not, $2); }
             | '&' lbtformula lbtformula
-	      { $$ = fnode::multop(op::And, {$2, $3}); }
+	      { $$ = pnode(op::And, $2, $3); }
             | '|' lbtformula lbtformula
-	      { $$ = fnode::multop(op::Or, {$2, $3}); }
+	      { $$ = pnode(op::Or, $2, $3); }
             | '^' lbtformula lbtformula
 	      { $$ = fnode::binop(op::Xor, $2, $3); }
             | 'i' lbtformula lbtformula

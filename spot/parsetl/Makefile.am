@@ -1,5 +1,5 @@
 ## -*- coding: utf-8 -*-
-## Copyright (C) 2008-2015, 2018 Laboratoire de Recherche et
+## Copyright (C) 2008-2015, 2018, 2022 Laboratoire de Recherche et
 ## Développement de l'Epita (LRDE).
 ## Copyright (C) 2003, 2004 Laboratoire d'Informatique de Paris
 ## 6 (LIP6), département Systèmes Répartis Coopératifs (SRC),
@@ -30,7 +30,6 @@ noinst_LTLIBRARIES = libparsetl.la
 PARSETL_YY = parsetl.yy
 FROM_PARSETL_YY_MAIN = parsetl.cc
 FROM_PARSETL_YY_OTHERS = \
-  stack.hh \
   parsetl.hh
 FROM_PARSETL_YY = $(FROM_PARSETL_YY_MAIN) $(FROM_PARSETL_YY_OTHERS)
 

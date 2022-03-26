@@ -165,6 +165,7 @@ TESTS_tl = \
   core/parse.test \
   core/parseerr.test \
   core/utf8.test \
+  core/500.test \
   core/length.test \
   core/equals.test \
   core/tostring.test \

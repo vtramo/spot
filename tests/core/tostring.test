@@ -1,7 +1,7 @@
 #! /bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2009, 2010, 2011, 2013, 2016 Laboratoire de Recherche et
-# Développement de l'Epita (LRDE).
+# Copyright (C) 2009-2011, 2013, 2016, 2022 Laboratoire de Recherche
+# et Développement de l'Epita (LRDE).
 # Copyright (C) 2003, 2004 Laboratoire d'Informatique de Paris 6 (LIP6),
 # département Systèmes Répartis Coopératifs (SRC), Université Pierre
 # et Marie Curie.
@@ -63,7 +63,7 @@ X"R"
 {a;b;{c && d[*]};[+]}[]-> G{a[*]:b[*]}
 GF!(b & (a | c))
 GF!({b && {a | c[*]}}<>-> {{!a}[*]})
-GF({{a | c[*]} & b[*]}[]-> d)
+GF({b[*] & {a | c[*]}}[]-> d)
 {a[*2..3]}
 {a[*0..1]}
 {a[*]}

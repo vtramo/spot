@@ -66,6 +66,15 @@ New in spot 2.10.4.dev  (net yet released)
   - purge_dead_states() will now also remove edges labeled by false
     (except self-loops).
 
+  - When parsing formulas with a huge number of operands for an n-ary
+    operator (for instance 'p1 | p2 | ... | p1000') the LTL parser
+    would construct that formula two operand at a time, and the
+    formula constructor for that operator would be responsible for
+    inlining, sorting, deduplicating, ... all operands at each step.
+    This resulted in a worst-than-quadratic slowdown.  This is now
+    averted in the parser by delaying the construction of such n-ary
+    nodes until all children are known.
+
   Bugs fixed:
 
   - reduce_parity() produced incorrect results when applied to
