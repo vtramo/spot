@@ -28,6 +28,106 @@ namespace spot
 {
   namespace
   {
+    static std::pair<bdd, bdd>
+    first(formula f, const bdd_dict_ptr& d, void* owner)
+    {
+      if (f.is_boolean())
+        {
+          bdd res = formula_to_bdd(f, d, owner);
+          return { res, bdd_support(res) };
+        }
+
+      switch (f.kind())
+      {
+        // handled by is_boolean above
+        case op::ff:
+        case op::tt:
+        case op::ap:
+        case op::And:
+        case op::Or:
+          SPOT_UNREACHABLE();
+
+        case op::eword:
+          return { bddfalse, bddtrue };
+
+        case op::OrRat:
+          {
+            bdd res = bddfalse;
+            bdd support = bddtrue;
+            for (auto subformula : f)
+              {
+                auto [r, sup] = first(subformula, d, owner);
+                res |= r;
+                support &= sup;
+              }
+            return { res, support };
+          }
+
+        case op::AndRat:
+          {
+            bdd res = bddtrue;
+            bdd support = bddtrue;
+            for (auto subformula : f)
+              {
+                auto [r, sup] = first(subformula, d, owner);
+                res &= r;
+                support &= sup;
+              }
+            return { res, support };
+          }
+
+        case op::AndNLM:
+          return first(rewrite_and_nlm(f), d, owner);
+
+        case op::Concat:
+          {
+            auto [res, support] = first(f[0], d, owner);
+
+            if (f[0].accepts_eword())
+              {
+                auto [r, sup] = first(f.all_but(0), d, owner);
+                res |= r;
+                support &= sup;
+              }
+
+            return { res, support };
+          }
+
+        case op::Fusion:
+          {
+            auto [res, support] = first(f[0], d, owner);
+
+            // this should be computed only if f[0] recognizes words of size 1
+            // or accepts eword ?
+            auto p = first(f.all_but(0), d, owner);
+
+            return { res, support & p.second };
+          }
+
+        case op::Star:
+        case op::first_match:
+          return first(f[0], d, owner);
+
+        case op::FStar:
+          {
+            auto [res, support] = first(f[0], d, owner);
+
+            if (f.min() == 0)
+              res = bddtrue;
+
+            return { res, support };
+          }
+
+        default:
+          std::cerr << "unimplemented kind "
+                    << static_cast<int>(f.kind())
+                    << std::endl;
+          SPOT_UNIMPLEMENTED();
+      }
+
+      return { bddfalse, bddtrue };
+    }
+
     static std::vector<std::string>
     formula_aps(formula f)
     {
@@ -102,6 +202,105 @@ namespace spot
     return formula::OrRat(std::move(disj));
   }
 
+  twa_graph_ptr
+  derive_finite_automaton_with_first(formula f, bool deterministic)
+  {
+    auto bdd_dict = make_bdd_dict();
+    auto aut = make_twa_graph(bdd_dict);
+
+    aut->prop_state_acc(true);
+    const auto acc_mark = aut->set_buchi();
+
+    auto formula2state = robin_hood::unordered_map<formula, unsigned>();
+
+    unsigned init_state = aut->new_state();
+    aut->set_init_state(init_state);
+
+    formula2state.insert({ f, init_state });
+
+    auto f_aps = formula_aps(f);
+    for (auto& ap : f_aps)
+        aut->register_ap(ap);
+
+    auto todo = std::vector<std::pair<formula, unsigned>>();
+    todo.push_back({f, init_state});
+
+    auto state_names = new std::vector<std::string>();
+    std::ostringstream ss;
+    ss << f;
+    state_names->push_back(ss.str());
+
+    auto find_dst = [&](formula derivative) -> unsigned
+      {
+        unsigned dst;
+        auto it = formula2state.find(derivative);
+        if (it != formula2state.end())
+        {
+          dst = it->second;
+        }
+        else
+        {
+          dst = aut->new_state();
+          todo.push_back({derivative, dst});
+          formula2state.insert({derivative, dst});
+          std::ostringstream ss;
+          ss << derivative;
+          state_names->push_back(ss.str());
+        }
+
+        return dst;
+      };
+
+    while (!todo.empty())
+      {
+        auto [curr_f, curr_state] = todo[todo.size() - 1];
+        todo.pop_back();
+
+        auto curr_acc_mark = curr_f.accepts_eword()
+          ? acc_mark
+          : acc_cond::mark_t();
+
+        auto [firsts, firsts_support] = first(curr_f, bdd_dict, aut.get());
+        for (const bdd one : minterms_of(firsts, firsts_support))
+          {
+            formula derivative =
+              partial_derivation(curr_f, one, bdd_dict, aut.get());
+
+            // no transition possible from this letter
+            if (derivative.is(op::ff))
+              continue;
+
+            // either the formula isn't an OrRat, or if it is we consider it as
+            // as a whole to get a deterministic automaton
+            if (deterministic || !derivative.is(op::OrRat))
+              {
+                auto dst = find_dst(derivative);
+                aut->new_edge(curr_state, dst, one, curr_acc_mark);
+                continue;
+              }
+
+            // formula is an OrRat and we want a non deterministic automaton,
+            // so consider each child as a destination
+            for (const auto& subformula : derivative)
+              {
+                auto dst = find_dst(subformula);
+                aut->new_edge(curr_state, dst, one, curr_acc_mark);
+              }
+          }
+
+        // if state has no transitions and should be accepting, create
+        // artificial transition
+        if (aut->get_graph().state_storage(curr_state).succ == 0
+            && curr_f.accepts_eword())
+          aut->new_edge(curr_state, curr_state, bddfalse, acc_mark);
+      }
+
+    aut->set_named_prop("state-names", state_names);
+
+    aut->merge_edges();
+
+    return aut;
+  }
 
   twa_graph_ptr
   derive_finite_automaton(formula f, bool deterministic)
@@ -201,6 +400,14 @@ namespace spot
     aut->merge_edges();
 
     return aut;
+  }
+
+  twa_graph_ptr
+  derive_automaton_with_first(formula f, bool deterministic)
+  {
+    auto finite = derive_finite_automaton_with_first(f, deterministic);
+
+    return from_finite(finite);
   }
 
   twa_graph_ptr
