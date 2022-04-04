@@ -867,7 +867,7 @@ namespace spot
         todo.pop_back();
         seen[src] = true;
         bdd missing = bddtrue;
-        for (const auto& e: arena->out(src))
+        for (auto& e: arena->out(src))
           {
             bool osrc = (*owner)[src];
             if (complete0 && !osrc)
@@ -877,6 +877,21 @@ namespace spot
               {
                 (*owner)[e.dst] = !osrc;
                 todo.push_back(e.dst);
+              }
+            else if (e.src == e.dst)
+              {
+                if (e.cond == bddtrue)
+                  {
+                    // Fix trivial self-loop
+                    // No need to add it to seen
+                    auto inter = arena->new_state();
+                    owner->push_back(!osrc);
+                    e.dst = inter;
+                    arena->new_edge(inter, src, bddtrue, e.acc);
+                  }
+                else
+                  throw std::runtime_error("alternate_players(): "
+                                            "Nontrivial selfloop");
               }
             else if ((*owner)[e.dst] == osrc)
               {

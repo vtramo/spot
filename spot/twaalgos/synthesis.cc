@@ -447,9 +447,13 @@ namespace spot
   split_2step(const const_twa_graph_ptr& aut,
               const bdd& output_bdd, bool complete_env)
   {
+    assert(!aut->get_named_prop<region_t>("state-player")
+           && "aut is already split!");
     auto split = make_twa_graph(aut->get_dict());
 
     auto [has_unsat, unsat_mark] = aut->acc().unsat_mark();
+    bool max_par, odd_par, color_env;
+    color_env = aut->acc().is_parity(max_par, odd_par, true);
 
     split->copy_ap_of(aut);
     split->new_states(aut->num_states());
@@ -457,6 +461,7 @@ namespace spot
     set_synthesis_outputs(split, output_bdd);
 
     const auto use_color = has_unsat;
+    color_env &= use_color;
     if (has_unsat)
       split->copy_acceptance_of(aut);
     else
@@ -490,8 +495,10 @@ namespace spot
     // So we can first loop over the aut
     // and then deduce the owner
 
-    // a sort of hash-map for all new intermediate states
-    std::unordered_multimap<size_t, unsigned> env_hash;
+    // a sort of hash-map for all new intermediate stat
+    // second is the color of the incoming env trans
+    std::unordered_multimap<size_t,
+                            std::pair<unsigned, acc_cond::mark_t>> env_hash;
     env_hash.reserve((int) (1.5 * aut->num_states()));
     // a local map for edges leaving the current src
     // this avoids creating and then combining edges for each minterm
@@ -590,7 +597,7 @@ namespace spot
             auto range_h = env_hash.equal_range(h);
             for (auto it_h = range_h.first; it_h != range_h.second; ++it_h)
               {
-                unsigned i = it_h->second;
+                const auto& [i, this_color] = it_h->second;
                 auto out = split->out(i);
                 if (std::equal(out.begin(), out.end(),
                                dests.begin(), dests.end(),
@@ -612,9 +619,10 @@ namespace spot
                     if (it != env_edge_hash.end())
                       it->second.second |= one_letter;
                     else
-                      // Uncolored
                       env_edge_hash.emplace(i,
-                          eeh_t(split->new_edge(src, i, bddtrue), one_letter));
+                        eeh_t(split->new_edge(src, i, bddtrue,
+                                              this_color),
+                              one_letter));
                     break;
                   }
               }
@@ -622,12 +630,31 @@ namespace spot
             if (to_add)
               {
                 unsigned d = split->new_state();
-                unsigned n_e = split->new_edge(src, d, bddtrue);
-                env_hash.emplace(h, d);
+                auto this_color = acc_cond::mark_t({});
+                bool has_uncolored = false;
+                 for (const auto &t: dests)
+                  {
+                    split->new_edge(d, t->dst, t->econdout,
+                                    use_color ? t->acc
+                                              : acc_cond::mark_t({}));
+                    this_color |= t->acc;
+                    has_uncolored |= !t->acc;
+                  }
+
+                if (!color_env | has_uncolored)
+                  this_color = acc_cond::mark_t({});
+                else if (max_par)
+                  this_color =
+                    acc_cond::mark_t({this_color.min_set()-1});
+                else // min_par
+                  this_color =
+                    acc_cond::mark_t({this_color.max_set()-1});
+
+                unsigned n_e = split->new_edge(src, d, bddtrue, this_color);
+                env_hash.emplace(std::piecewise_construct,
+                                 std::forward_as_tuple(h),
+                                 std::forward_as_tuple(d, this_color));
                 env_edge_hash.emplace(d, eeh_t(n_e, one_letter));
-                for (const auto &t: dests)
-                  split->new_edge(d, t->dst, t->econdout,
-                                  use_color ? t->acc : acc_cond::mark_t({}));
               }
           } // letters
         // save locally stored condition
