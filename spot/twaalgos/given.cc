@@ -24,6 +24,7 @@
 #include "spot/twaalgos/mask.hh"
 #include "spot/twaalgos/stutter.hh"
 #include "spot/twaalgos/complement.hh"
+#include "spot/misc/minato.hh"
 
 namespace spot
 {
@@ -112,9 +113,8 @@ namespace spot
                 edge_freedom[aut_edge_num] = c;
               }
           }
-        // Add edge_freedom only if it reduces the number of atomic
-        // propositions.  Ideally we could select any assignment between
-        // e.cond and max_cond.
+        // replace each e.cond by an irredundant sum-of-products that
+        // is between e.cond and e.cond|edge_freedom(e)
         for (auto& e: aut->edges())
           {
             if (e.cond == bddfalse)
@@ -123,15 +123,20 @@ namespace spot
             bdd max_cond = e.cond | freedom;
             if (max_cond == e.cond)
               continue;
+            minato_isop isop(e.cond, max_cond, true);
+            bdd res = bddfalse;
+            bdd cube = bddfalse;
+            while ((cube = isop.next()) != bddfalse)
+              res |= cube;
+            if (e.cond == res)
+              continue;
+#ifndef NDEBUG
             bdd sup_orig = bdd_support(e.cond);
             bdd sup_new = bdd_support(max_cond);
-            if (max_cond != e.cond
-                && sup_orig != sup_new
-                && bdd_implies(sup_orig, sup_new))
-              {
-                e.cond = max_cond;
-                changed_ = true;
-              }
+            assert(bdd_implies(sup_orig, sup_new));
+#endif
+            e.cond = res;
+            changed_ = true;
           }
       }
 

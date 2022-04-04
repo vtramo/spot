@@ -88,3 +88,9 @@ restrict 3 4 2
 relax 3 5 2
 stutter 2 3 2
 EOF
+
+# Test case from Yann's 2022-03-29 email.
+ltl2tgba 'p0&p1&p2&XXGp2' >in
+autfilt --given-formula=p0 --given-formula=p1 --given-formula=p2 --small in >out
+ltl2tgba 'XXGp2' >ref
+autfilt -q --equivalent-to=ref out
