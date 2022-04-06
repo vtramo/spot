@@ -14,6 +14,9 @@ New in spot 2.10.4.dev  (net yet released)
     associated option --sonf-aps allows listing the newly introduced
     atomic propositions.
 
+  - autcross learned a --language-complemented option to assist in the
+    case one is testing tools that complement automata.  (issue #504).
+
   Library:
 
   - The new function suffix_operator_normal_form() implements

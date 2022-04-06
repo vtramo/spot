@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2017-2020 Laboratoire de Recherche et Développement de
+// Copyright (C) 2017-2020, 2022 Laboratoire de Recherche et Développement de
 // l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -64,6 +64,7 @@ Exit status:\n\
 
 enum {
   OPT_BOGUS = 256,
+  OPT_COMPLEMENTED,
   OPT_CSV,
   OPT_HIGH,
   OPT_FAIL_ON_TIMEOUT,
@@ -94,6 +95,8 @@ static const argp_option options[] =
       "consider timeouts as errors", 0 },
     { "language-preserved", OPT_LANG, nullptr, 0,
       "expect that each tool preserves the input language", 0 },
+    { "language-complemented", OPT_COMPLEMENTED, nullptr, 0,
+      "expect that each tool complements the input language", 0 },
     { "no-checks", OPT_NOCHECKS, nullptr, 0,
       "do not perform any sanity checks", 0 },
     /**************************************************/
@@ -144,6 +147,7 @@ static bool fail_on_timeout = false;
 static bool stop_on_error = false;
 static bool no_checks = false;
 static bool opt_language_preserved = false;
+static bool opt_language_complemented = false;
 static bool opt_omit = false;
 static const char* csv_output = nullptr;
 static unsigned round_num = 0;
@@ -170,6 +174,9 @@ parse_opt(int key, char* arg, struct argp_state*)
         bogus_output_filename = arg;
         break;
       }
+    case OPT_COMPLEMENTED:
+      opt_language_complemented = true;
+      break;
     case OPT_CSV:
       csv_output = arg ? arg : "-";
       break;
@@ -533,25 +540,32 @@ namespace
                    const spot::const_twa_graph_ptr& aut_j,
                    size_t i, size_t j)
   {
+    auto is_really_comp = [lc = opt_language_complemented,
+                           ts = tools.size()](unsigned i) {
+        return lc && i == ts;
+    };
+
     if (aut_i->num_sets() + aut_j->num_sets() >
         spot::acc_cond::mark_t::max_accsets())
       {
         if (!quiet)
-          std::cerr << "info: building " << autname(i)
-                    << '*' << autname(j, true)
+          std::cerr << "info: building " << autname(i, is_really_comp(i))
+                    << '*' << autname(j, true ^ is_really_comp(j))
                     << " requires more acceptance sets than supported\n";
         return false;
       }
 
     if (verbose)
       std::cerr << "info: check_empty "
-                << autname(i) << '*' << autname(j, true) << '\n';
+                << autname(i, is_really_comp(i))
+                << '*' << autname(j, true ^ is_really_comp(j)) << '\n';
 
     auto w = aut_i->intersecting_word(aut_j);
     if (w)
       {
         std::ostream& err = global_error();
-        err << "error: " << autname(i) << '*' << autname(j, true)
+        err << "error: " << autname(i, is_really_comp(i))
+            << '*' << autname(j, true ^ is_really_comp(j))
             << (" is nonempty; both automata accept the infinite word:\n"
                 "       ");
         example() << *w << '\n';
@@ -621,12 +635,15 @@ namespace
 
       int problems = 0;
       size_t m = tools.size();
-      size_t mi = m + opt_language_preserved;
+      size_t mi = m + opt_language_preserved + opt_language_complemented;
       std::vector<spot::twa_graph_ptr> pos(mi);
       std::vector<spot::twa_graph_ptr> neg(mi);
       vector_tool_statistics stats(m);
 
-      if (opt_language_preserved)
+      // For --language-complemented, we store the input automata in
+      // pos and will compute its complement in neg.  Before running
+      // checks we will swap both automata.
+      if (opt_language_preserved || opt_language_complemented)
         pos[mi - 1] = input;
 
       if (verbose)
@@ -717,6 +734,9 @@ namespace
                   }
               };
           }
+
+          if (opt_language_complemented)
+            std::swap(pos[mi - 1], neg[mi - 1]);
 
           // Just make a circular implication check
           // A0 <= A1, A1 <= A2, ..., AN <= A0
@@ -824,10 +844,15 @@ main(int argc, char** argv)
 
       check_no_automaton();
 
-      if (s == 1 && !opt_language_preserved && !no_checks)
-        error(2, 0, "Since --language-preserved is not used, you need "
-              "at least two tools to compare.");
+      if (s == 1 && !no_checks
+          && !opt_language_preserved
+          && !opt_language_complemented)
+        error(2, 0, "Since --language-preserved and --language-complemented "
+              "are not used, you need at least two tools to compare.");
 
+      if (opt_language_preserved && opt_language_complemented)
+        error(2, 0, "Options --language-preserved and --language-complemented "
+              "are incompatible.");
 
       setup_color();
       setup_sig_handler();
