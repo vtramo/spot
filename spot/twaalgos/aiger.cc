@@ -30,6 +30,7 @@
 #include <fstream>
 #include <string>
 #include <sstream>
+#include <initializer_list>
 
 #include <spot/twa/twagraph.hh>
 #include <spot/misc/bddlt.hh>
@@ -40,6 +41,13 @@
 #define STR(x) #x
 #define STR_(x) STR(x)
 #define STR_LINE STR_(__LINE__)
+
+//#define TRACE
+#ifdef TRACE
+#  define trace std::cerr
+#else
+#  define trace while (0) std::cerr
+#endif
 
 namespace
 {
@@ -459,6 +467,7 @@ namespace spot
   aig::roll_back_(safe_point sf, bool do_stash)
   {
     // todo specialise for safe_all?
+    trace << "Roll back to sf: " << sf.first << "; " << sf.second << '\n';
     safe_stash ss;
     auto& [gates, vardict, negs] = ss;
     if (do_stash)
@@ -480,6 +489,7 @@ namespace spot
         // Copy the gates
         std::copy(and_gates_.begin()+sf.second, and_gates_.end(),
                   gates.begin());
+        trace << "Safed " << gates.size() << '\n';
       }
     // 1. Delete all literals
     // max_var_old was used before
@@ -489,6 +499,8 @@ namespace spot
     // 2. Set back the gates
     and_gates_.erase(and_gates_.begin() + sf.second, and_gates_.end());
     max_var_ = sf.first;
+    trace << "After rollback: \n" << and_gates_.size() << " gates and\n"
+          << max_var_ << " variables\n\n";
     return ss;
   }
 
@@ -497,6 +509,8 @@ namespace spot
   {
     // Do some check_ups
     auto& [gates, vardict, _] = ss;
+    trace << "Reapplying sf: " << sf.first << "; " << sf.second
+          << "\nwith " << gates.size() << " additional gates.\n\n";
     assert(gates.size() == vardict.size());
     assert(sf.first == max_var_);
     assert(sf.second == and_gates_.size());
@@ -511,6 +525,7 @@ namespace spot
     and_gates_.insert(and_gates_.end(),
                       gates.begin(), gates.end());
     max_var_ = new_max_var_;
+    trace << "New Ngates: " << num_gates() << '\n';
   }
 
   void aig::set_output(unsigned i, unsigned v)
@@ -698,7 +713,6 @@ namespace spot
     while ((prod = cond.next()) != bddfalse)
       plus_vars_.push_back(cube2var_(prod,
                                      use_split_off == 2 ? 0 : use_split_off));
-
     // Done building -> sum them
     return aig_or(plus_vars_);
   }
@@ -709,11 +723,20 @@ namespace spot
   {
     // Before doing anything else, let us check if one the variables
     // already exists in which case we are done
+#ifdef TRACE
+    trace << "encoding one of \n";
+    for (const auto& c: c_alt)
+      trace << c << '\n';
+#endif
+
     for (const bdd& cond : c_alt)
       {
         auto it = bdd2var_.find(cond.id());
         if (it != bdd2var_.end())
-          return it->second;
+          {
+            trace << "Condition already encoded -> Direct return\n\n";
+            return it->second;
+          }
       }
 
     safe_point sf = get_safe_point_();
@@ -732,9 +755,6 @@ namespace spot
            && "Cannot convert the given method. "
               "Only 0,1 and 2 are currently supported");
 
-    const auto negate = use_dual ? std::vector<bool>{false}
-                                 : std::vector<bool>{false, true};
-
     auto enc_1 = [&](const bdd& b,
                      const char m)
       {
@@ -751,41 +771,60 @@ namespace spot
 
     std::vector<bdd> cond_parts;
     std::vector<unsigned> cond_vars;
-    for (bool do_negate : negate)
-      for (const bdd& b : c_alt)
-        {
-          bdd b_used = do_negate ? bdd_not(b) : b;
-          cond_parts.clear();
-          split_cond_(b_used,
-                      use_split_off != 1 ?  use_split_off : 0, cond_parts);
+    //for (bool do_negate : (use_dual ? std::initializer_list<bool>{false, true}
+    //                                : std::initializer_list<bool>{false}))
+    for (unsigned neg_counter = 0; neg_counter <= 0 + use_dual; ++neg_counter)
+      {
+        bool do_negate = neg_counter;
+        for (const bdd& b : c_alt)
+          {
+            bdd b_used = do_negate ? bdd_not(b) : b;
+            cond_parts.clear();
+            split_cond_(b_used,
+                        use_split_off != 1 ?  use_split_off : 0, cond_parts);
 
-          for (auto m : used_m)
-            {
-              cond_vars.clear();
-              for (const bdd& cpart : cond_parts)
-                {
-                  cond_vars.push_back(enc_1(cpart, m));
-                  if (num_gates() >= ngates_min)
-                    break; // Cannot be optimal
-                }
-              // Compute the and if there is still hope
-              unsigned this_res = -1u;
-              if (num_gates() < ngates_min)
-                this_res = aig_and(cond_vars);
-
-              if (num_gates() < ngates_min)
-                {
-                  // This is the new best
-                  res_var = do_negate ? aig_not(this_res) : this_res;
-                  ngates_min = num_gates();
-                  ss_min = roll_back_(sf, true);
-                }
-              else
-                // Reset the computations
-                roll_back_(sf, false);
-            } // Encoding styles
-        } // alternatives
-    // end do_negate
+            for (auto m : used_m)
+              {
+                cond_vars.clear();
+                for (const bdd& cpart : cond_parts)
+                  {
+                    cond_vars.push_back(enc_1(cpart, m));
+                    if (num_gates() >= ngates_min)
+                      break; // Cannot be optimal
+                  }
+                // Compute the and if there is still hope
+                auto this_res = -1u;
+                if (num_gates() < ngates_min)
+                  this_res = aig_and(cond_vars);
+                // Check if after adding these gates
+                // the circuit is still smaller
+                if (num_gates() < ngates_min)
+                  {
+                    // This is the new best
+                    assert(this_res != -1u);
+                    res_var = do_negate ? aig_not(this_res) : this_res;
+                    ngates_min = num_gates();
+                    trace << "Found new best encoding with\nneg: "
+                          << do_negate << "\nmethod: " << (m == 0 ? "INF"
+                                                                  : "ISOP")
+                          << "\nalt: " << b
+                          << "\nNgates: " << num_gates() << "\n\n";
+                    ss_min = roll_back_(sf, true);
+                  }
+                else
+                  // Reset the computations
+                  {
+                    trace << "Method \nneg: "
+                          << do_negate << "\nmethod: " << (m == 0 ? "INF"
+                                                                  : "ISOP")
+                          << "\nalt: " << b
+                          << "\nNgates: " << num_gates()
+                          << " discarded.\n\n";
+                    roll_back_(sf, false);
+                  }
+              } // Encoding styles
+          } // alternatives
+      } // end do_negate
 
     // Reapply the best result
     reapply_(sf, ss_min);
@@ -1753,6 +1792,7 @@ namespace
       bool use_dual = false;
       bool use_dontcare = false;
       int use_split_off = 0;
+      std::string s;
     };
 
     auto to_treat = [&mode]()
@@ -1766,6 +1806,8 @@ namespace
         while (std::getline(s, buffer, ','))
           {
             tr_opt this_opt;
+            // Store raw info
+            this_opt.s = buffer;
             std::stringstream s2;
             s2 << buffer;
             std::getline(s2, buffer2, '+');
@@ -1865,15 +1907,16 @@ namespace
               };
 
             // Create the vars
-            std::vector<bdd> alt_conds(amodedescr.use_dontcare ? 1 : 2);
             for (unsigned i = 0; i < n_outs; ++i)
               {
+                trace << "Assign out " << i << '\n';
                 if (circuit.num_gates() > min_gates)
                   break;
                 circuit.set_output(i, bdd2var(out[i], out_dc[i]));
               }
             for (unsigned i = 0; i < n_latches; ++i)
               {
+                trace << "Assign latch " << i << '\n';
                 if (circuit.num_gates() > min_gates)
                   break;
                 circuit.set_next_latch(i, bdd2var(latch[i], bddfalse));
@@ -1883,6 +1926,8 @@ namespace
         // Overwrite the stash if we generated less gates
         if (circuit.num_gates() < min_gates)
           {
+            trace << "New best mode: " << amodedescr.s
+                  << " with Ngates: " << circuit.num_gates() << '\n';
             min_gates = circuit.num_gates();
             ss = circuit.roll_back_(sf, true);
             bdd2var_min = bdd2var;
@@ -1892,6 +1937,8 @@ namespace
       }
     //Use the best sol
     circuit.reapply_(sf, ss);
+    trace << "Finished encoding, reasssigning\n"
+          << "Final gate count is " << circuit.num_gates() << '\n';
     // Reset them
     for (unsigned i = 0; i < n_outs; ++i)
       circuit.set_output(i, bdd2var_min(out[i], out_dc[i]));

@@ -471,8 +471,79 @@ o0 o0
 o1 o1
 EOF
 ltlsynt -f "G((i0 && i1)<->X(o0)) && G((i2|i3)<->X(o1))" --outs="o0,o1"\
+        --aiger=isop+ud --algo=lar --decompose=no --simpl=no >out
+diff out exp
+
+cat >exp <<EOF
+REALIZABLE
+aag 54 4 3 2 47
+2
+4
+6
+8
+10 39
+12 87
+14 109
+25
+31
+16 11 13
+18 14 16
+20 10 12
+22 15 20
+24 19 23
+26 11 12
+28 15 26
+30 19 29
+32 7 9
+34 16 32
+36 15 32
+38 35 37
+40 3 6
+42 16 40
+44 15 40
+46 3 8
+48 16 46
+50 15 46
+52 2 4
+54 34 52
+56 36 52
+58 5 6
+60 16 58
+62 15 58
+64 5 8
+66 16 64
+68 15 64
+70 43 45
+72 49 51
+74 55 57
+76 61 63
+78 67 69
+80 70 72
+82 74 76
+84 78 80
+86 82 84
+88 6 16
+90 52 88
+92 6 15
+94 52 92
+96 8 16
+98 52 96
+100 8 15
+102 52 100
+104 91 95
+106 99 103
+108 104 106
+i0 i0
+i1 i1
+i2 i2
+i3 i3
+o0 o0
+o1 o1
+EOF
+ltlsynt -f "G((i0 && i1)<->X(o0)) && G((i2|i3)<->X(o1))" --outs="o0,o1"\
         --aiger=isop --algo=lar --decompose=no --simpl=no >out
 diff out exp
+
 
 cat >exp <<EOF
 REALIZABLE
@@ -505,10 +576,10 @@ o0 o0
 o1 o1
 EOF
 ltlsynt -f "G((i0 && i1)<->X(o0)) && G((i2|i3)<->X(o1))" --outs="o0,o1"\
-  --aiger=isop --algo=lar --decompose=yes --simpl=no >out
+  --aiger=isop+ud --algo=lar --decompose=yes --simpl=no >out
 diff out exp
 ltlsynt -f "G((i0 && i1)<->X(o0)) && G((i2|i3)<->X(o1))" --outs="o0,o1"\
-  --aiger=isop --algo=lar --simpl=no  >out
+  --aiger=isop+ud --algo=lar --simpl=no  >out
 diff out exp
 
 # Issue #477
@@ -794,8 +865,10 @@ LTL='(((((G (((((((g_0) && (G (! (r_0)))) -> (F (! (g_0)))) && (((g_0) &&
 && ((r_0) R (! (g_0)))) && (G ((r_0) -> (F (g_0))))) && ((r_1) R (! (g_1)))) &&
 (G ((r_1) -> (F (g_1)))))'
 OUT='g_0, g_1'
-ltlsynt --outs="$OUT" -f "$LTL" --aiger=both --algo=acd | grep "aag 8 2 2 2 4"
-ltlsynt --outs="$OUT" -f "$LTL" --aiger=both --algo=lar | grep "aag 34 2 3 2 29"
+ltlsynt --outs="$OUT" -f "$LTL" --aiger=both+ud\
+  --algo=acd | grep "aag 8 2 2 2 4"
+ltlsynt --outs="$OUT" -f "$LTL" --aiger=both+ud\
+  --algo=lar | grep "aag 34 2 3 2 29"
 
 ltlsynt -f 'G(c) & (G(a) <-> GFb)' --outs=b,c --decompose=yes\
                                    --verbose --realizability 2> out
