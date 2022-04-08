@@ -104,14 +104,20 @@ specification language created for the purpose of this competition.
 Fortunately, the SYNTCOMP organizers also provide a tool called
 [[https://github.com/reactive-systems/syfco][=syfco=]] which can translate a TLSF specification to an LTL formula.
 
-The following four steps show you how a TLSF specification called =FILE= can
+The following line shows how a TLSF specification called =FILE= can
 be synthesized using =syfco= and =ltlsynt=:
 
 #+BEGIN_SRC sh :export code
-LTL=$(syfco FILE -f ltlxba -m fully)
-IN=$(syfco FILE --print-input-signals)
-OUT=$(syfco FILE --print-output-signals)
-ltlsynt --formula="$LTL" --ins="$IN" --outs="$OUT"
+ltlsynt --tlsf FILE
+#+END_SRC
+
+The above =--tlsf= option will call =syfco= to perform the conversion
+and extract output signals, as if you had used:
+
+#+BEGIN_SRC sh :export code
+LTL=$(syfco -f ltlxba -m fully FILE)
+OUT=$(syfco --print-output-signals FILE)
+ltlsynt --formula="$LTL" --outs="$OUT"
 #+END_SRC
 
 * Internal details

@@ -27,6 +27,7 @@
 #include <sys/wait.h>
 #include <fcntl.h>
 #include <iomanip>
+#include <fstream>
 #if __has_include(<spawn.h>)
 #define HAVE_SPAWN_H 1
 #include <spawn.h>
@@ -461,6 +462,93 @@ autproc_runner::round_automaton(spot::const_twa_graph_ptr aut, unsigned serial)
   filename_automaton.new_round(aut, serial);
 }
 
+
+std::string
+read_stdout_of_command(char* const* args)
+{
+#if HAVE_SPAWN_H
+  int cout_pipe[2];
+  if (int err = pipe(cout_pipe))
+    error(2, err, "pipe() failed");
+
+  posix_spawn_file_actions_t actions;
+  if (int err = posix_spawn_file_actions_init(&actions))
+    error(2, err, "posix_spawn_file_actions_init() failed");
+
+  posix_spawn_file_actions_addclose(&actions, STDIN_FILENO);
+  posix_spawn_file_actions_addclose(&actions, cout_pipe[0]);
+  posix_spawn_file_actions_adddup2(&actions, cout_pipe[1], STDOUT_FILENO);
+  posix_spawn_file_actions_addclose(&actions, cout_pipe[1]);
+
+  pid_t pid;
+  if (int err = posix_spawnp(&pid, args[0], &actions, nullptr, args, environ))
+    error(2, err, "failed to run '%s'", args[0]);
+
+  if (int err = posix_spawn_file_actions_destroy(&actions))
+    error(2, err, "posix_spawn_file_actions_destroy() failed");
+
+  if (close(cout_pipe[1]) < 0)
+    error(2, errno, "closing write-side of pipe failed");
+
+  std::string buffer(32, 0);
+  std::string results;
+  int bytes_read;
+  for (;;)
+    {
+      static char buffer[512];
+      bytes_read = read(cout_pipe[0], buffer, sizeof(buffer));
+      if (bytes_read > 0)
+        results.insert(results.end(), buffer, buffer + bytes_read);
+      else
+        break;
+    }
+  if (bytes_read < 0)
+    error(2, bytes_read, "failed to read from pipe");
+
+  if (cout_pipe[0] < 0)
+    error(2, errno, "closing read-side of pipe failed");
+
+  int exit_code = 0;
+  if (waitpid(pid, &exit_code, 0) == -1)
+    error(2, errno, "waitpid() failed");
+
+  if (exit_code)
+    error(2, 0, "'%s' exited with status %d", args[0], exit_code);
+
+  return results;
+#else
+  // We could provide a pipe+fork+exec alternative implementation, but
+  // systems without posix_spawn() might also not have fork and exec.
+  // For instance MinGW does not.  So let's fallback to system+tmpfile
+  // instead for maximum portability.
+  char prefix[30];
+  snprintf(prefix, sizeof prefix, "spot-tmp");
+  spot::temporary_file* tmpfile = spot::create_tmpfile(prefix);
+  std::string tmpname = tmpfile->name();
+  std::ostringstream cmd;
+  for (auto t = args; *t != nullptr; ++t)
+    spot::quote_shell_string(cmd, *t) << ' ';
+  cmd << '>';
+  spot::quote_shell_string(cmd, tmpfile->name());
+  std::string cmdstr = cmd.str();
+  int exit_code = system(cmdstr.c_str());
+  if (exit_code < 0)
+    error(2, errno, "failed to execute %s", cmdstr.c_str());
+  if (exit_code > 0)
+    error(2, 0, "'%s' exited with status %d", args[0], exit_code);
+
+  std::ifstream ifs(tmpname,  std::ifstream::in);
+  if (!ifs)
+    error(2, 0, "failed to open %s (output of %s)", tmpname.c_str(), args[0]);
+  ifs.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+  std::stringstream buffer;
+  buffer << ifs.rdbuf();
+  delete tmpfile;
+  return buffer.str();
+#endif
+}
+
+
 std::atomic<bool> timed_out{false};
 unsigned timeout_count = 0;
 
@@ -705,6 +793,7 @@ parse_simple_command(const char* cmd)
   res.clear();
   return res;
 }
+
 
 #ifndef HAVE_SPAWN_H
 static void
