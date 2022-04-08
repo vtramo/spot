@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2015-2018, 2020 Laboratoire de Recherche et
+// Copyright (C) 2015-2018, 2020, 2022 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -175,3 +175,9 @@ int exec_with_timeout(const char* cmd);
 #define exec_with_timeout(cmd) system(cmd)
 #define setup_sig_handler() while (0);
 #endif // !ENABLE_TIMEOUT
+
+// Run a command (whose args[0], args[1], etc. are given by args), and
+// return its captured stdout.  Stderr is not captured.  Will abort
+// with an error message if the command is not found, or if it exit
+// with a non-zero status code.
+std::string read_stdout_of_command(char* const* args);

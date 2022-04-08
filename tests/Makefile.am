@@ -342,6 +342,7 @@ TESTS_twa = \
   core/parity.test \
   core/parity2.test \
   core/ltlsynt.test \
+  core/syfco.test \
   core/rabin2parity.test \
   core/twacube.test
 

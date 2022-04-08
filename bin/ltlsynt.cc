@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2017-2021 Laboratoire de Recherche et Développement
+// Copyright (C) 2017-2022 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -25,6 +25,7 @@
 #include "common_finput.hh"
 #include "common_setup.hh"
 #include "common_sys.hh"
+#include "common_trans.hh"
 
 #include <spot/misc/bddlt.hh>
 #include <spot/misc/escape.hh>
@@ -54,6 +55,7 @@ enum
   OPT_PRINT_HOA,
   OPT_REAL,
   OPT_SIMPLIFY,
+  OPT_TLSF,
   OPT_VERBOSE,
   OPT_VERIFY
 };
@@ -64,10 +66,13 @@ static const argp_option options[] =
     { nullptr, 0, nullptr, 0, "Input options:", 1 },
     { "outs", OPT_OUTPUT, "PROPS", 0,
       "comma-separated list of controllable (a.k.a. output) atomic"
-      " propositions", 0},
+      " propositions", 0 },
     { "ins", OPT_INPUT, "PROPS", 0,
       "comma-separated list of uncontrollable (a.k.a. input) atomic"
-      " propositions", 0},
+      " propositions", 0 },
+    { "tlsf", OPT_TLSF, "FILENAME", 0,
+      "Read a TLSF specification from FILENAME, and call syfco to "
+      "convert it into LTL", 0 },
     /**************************************************/
     { nullptr, 0, nullptr, 0, "Fine tuning:", 10 },
     { "algo", OPT_ALGO, "sd|ds|ps|lar|lar.old|acd", 0,
@@ -152,6 +157,8 @@ static const char* opt_print_hoa_args = nullptr;
 static bool opt_real = false;
 static bool opt_do_verify = false;
 static const char* opt_print_aiger = nullptr;
+static char* opt_tlsf = nullptr;
+static std::string opt_tlsf_string;
 
 static spot::synthesis_info* gi;
 
@@ -486,8 +493,8 @@ namespace
     // If we reach this line
     // a strategy was found for each subformula
     assert(mealy_machines.size() == sub_form.size()
-           && "There are subformula for which no mealy like object"
-                "has been created.");
+           && ("There are subformula for which no mealy like object"
+               " has been created."));
 
     spot::aig_ptr saig = nullptr;
     spot::twa_graph_ptr tot_strat = nullptr;
@@ -646,6 +653,18 @@ namespace
   };
 }
 
+static void
+split_aps(std::string arg, std::vector<std::string>& where)
+{
+  std::istringstream aps(arg);
+  std::string ap;
+  while (std::getline(aps, ap, ','))
+    {
+      ap.erase(remove_if(ap.begin(), ap.end(), isspace), ap.end());
+      where.push_back(str_tolower(ap));
+    }
+}
+
 static int
 parse_opt(int key, char *arg, struct argp_state *)
 {
@@ -671,25 +690,13 @@ parse_opt(int key, char *arg, struct argp_state *)
     case OPT_INPUT:
       {
         all_input_aps.emplace(std::vector<std::string>{});
-        std::istringstream aps(arg);
-        std::string ap;
-        while (std::getline(aps, ap, ','))
-          {
-            ap.erase(remove_if(ap.begin(), ap.end(), isspace), ap.end());
-            all_input_aps->push_back(str_tolower(ap));
-          }
+        split_aps(arg, *all_input_aps);
         break;
       }
     case OPT_OUTPUT:
       {
         all_output_aps.emplace(std::vector<std::string>{});
-        std::istringstream aps(arg);
-        std::string ap;
-        while (std::getline(aps, ap, ','))
-          {
-            ap.erase(remove_if(ap.begin(), ap.end(), isspace), ap.end());
-            all_output_aps->push_back(str_tolower(ap));
-          }
+        split_aps(arg, *all_output_aps);
         break;
       }
     case OPT_PRINT:
@@ -709,6 +716,11 @@ parse_opt(int key, char *arg, struct argp_state *)
     case OPT_SIMPLIFY:
       gi->minimize_lvl = XARGMATCH("--simplify", arg,
                                    simplify_args, simplify_values);
+      break;
+    case OPT_TLSF:
+      if (opt_tlsf)
+        error(2, 0, "option --tlsf may only be used once");
+      opt_tlsf = arg;
       break;
     case OPT_VERBOSE:
       gi->verbose_stream = &std::cerr;
@@ -746,6 +758,29 @@ main(int argc, char **argv)
                       argp_program_doc, children, nullptr, nullptr };
     if (int err = argp_parse(&ap, argc, argv, ARGP_NO_HELP, nullptr, nullptr))
       exit(err);
+
+    if (opt_tlsf)
+      {
+        static char arg0[] = "syfco";
+        static char arg1[] = "-f";
+        static char arg2[] = "ltlxba";
+        static char arg3[] = "-m";
+        static char arg4[] = "fully";
+        char* command[] = { arg0, arg1, arg2, arg3, arg4, opt_tlsf, nullptr };
+        opt_tlsf_string = read_stdout_of_command(command);
+        jobs.emplace_back(opt_tlsf_string.c_str(), false);
+
+        if (!all_input_aps.has_value() && !all_output_aps.has_value())
+          {
+            static char arg5[] = "--print-output-signals";
+            char* command[] = { arg0, arg5, opt_tlsf, nullptr };
+            std::string res = read_stdout_of_command(command);
+
+            all_output_aps.emplace(std::vector<std::string>{});
+            split_aps(res, *all_output_aps);
+          }
+      }
+
     check_no_formula();
 
     // Check if inputs and outputs are distinct
