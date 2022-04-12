@@ -395,6 +395,8 @@ namespace
                      && "Env needs first turn");
             }
           print_game(arena);
+          if (want_game)
+            continue;
           if (!spot::solve_game(arena, *gi))
             {
               std::cout << "UNREALIZABLE" << std::endl;
