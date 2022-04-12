@@ -903,3 +903,29 @@ EOF
 
 sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
 diff outx exp
+
+# ACD verbose
+cat >exp <<EOF
+translating formula done in X seconds
+automaton has 1 states and 2 colors
+ACD construction done in X seconds
+DPA has 2 states, 2 colors
+split inputs and outputs done in X seconds
+automaton has 6 states
+solving game with acceptance: parity max odd 4
+game solved in X seconds
+simplification took X seconds
+translating formula done in X seconds
+automaton has 1 states and 1 colors
+ACD construction done in X seconds
+DPA has 1 states, 0 colors
+split inputs and outputs done in X seconds
+automaton has 2 states
+solving game with acceptance: Streett 1
+game solved in X seconds
+simplification took X seconds
+EOF
+ltlsynt -f '(GFa <-> GFb) && (Gc)' --outs=b,c --verbose --bypass=no\
+                                   --algo=acd 2> out
+sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
+diff outx exp

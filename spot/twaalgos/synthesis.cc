@@ -1022,7 +1022,8 @@ namespace spot
         if (bv)
           bv->paritize_time += sw.stop();
         if (vs)
-          *vs << "LAR construction done in " << bv->paritize_time
+          *vs << (gi.s == algo::ACD ? "ACD" : "LAR")
+              << " construction done in " << bv->paritize_time
               << " seconds\nDPA has "
               << dpa->num_states() << " states, "
               << dpa->num_sets() << " colors\n";
