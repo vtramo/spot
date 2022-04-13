@@ -192,6 +192,7 @@ ltlsynt --ins=a --outs=b,c -f 'GFa <-> (GFb & GFc)' \
 diff out exp
 
 cat >exp <<EOF
+there are 1 subformulas
 trying to create strategy directly for GFa <-> GFb
 direct strategy was found.
 EOF
@@ -200,6 +201,7 @@ sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
 diff outx exp
 
 cat >exp <<EOF
+there are 1 subformulas
 trying to create strategy directly for GFa <-> GFb
 tanslating formula done in X seconds
 direct strategy was found.
@@ -211,6 +213,7 @@ sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
 diff outx exp
 
 cat >exp <<EOF
+there are 1 subformulas
 trying to create strategy directly for GFe <-> (Fa & Fb & Fc & Fd)
 direct strategy was found.
 EOF
@@ -220,6 +223,7 @@ sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
 diff outx exp
 
 cat >exp <<EOF
+there are 1 subformulas
 trying to create strategy directly for G(Fi0 & Fi1 & Fi2) -> G(i1 <-> o0)
 direct strategy might exist but was not found.
 translating formula done in X seconds
@@ -623,6 +627,7 @@ grep "one of --ins or --outs" stderr
 # Try to find a direct strategy for GFa <-> GFb and a direct strategy for
 # Gc
 cat >exp <<EOF
+there are 2 subformulas
 trying to create strategy directly for GFa <-> GFb
 tanslating formula done in X seconds
 direct strategy was found.
@@ -713,6 +718,7 @@ sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
 diff outx exp
 
 cat >exp <<EOF
+there are 2 subformulas
 trying to create strategy directly for (b & (b | y)) -> y
 direct strategy might exist but was not found.
 translating formula done in X seconds
@@ -744,6 +750,7 @@ diff outx exp
 
 # Here, G!(!x | !y) should be Gx & Gy
 cat >exp <<EOF
+there are 2 subformulas
 trying to create strategy directly for Gx
 direct strategy was found.
 direct strat has 1 states, 1 edges and 0 colors
@@ -760,6 +767,7 @@ diff outx exp
 
 # Here, !F(a | b) should be G(!a) & G(!b)
 cat >exp <<EOF
+there are 2 subformulas
 trying to create strategy directly for G!a
 no strategy exists.
 EOF
@@ -769,6 +777,7 @@ diff outx exp
 
 # Here, G!(a -> b) should be G(a) & G(!b)
 cat >exp <<EOF
+there are 2 subformulas
 trying to create strategy directly for Ga
 no strategy exists.
 EOF
@@ -779,6 +788,7 @@ diff outx exp
 
 # Here, (a & b) U (b & c) should be (a U (b & c)) & (b U (b & c))
 cat >exp <<EOF
+there are 1 subformulas
 trying to create strategy directly for (a & b) U (b & c)
 direct strategy might exist but was not found.
 translating formula done in X seconds
@@ -800,6 +810,7 @@ diff outx exp
 # Here, a => (b & c & d) should be
 # (a => b) & (a => c) & (a => d)
 cat >exp <<EOF
+there are 3 subformulas
 trying to create strategy directly for a -> b
 direct strategy might exist but was not found.
 translating formula done in X seconds
@@ -842,6 +853,7 @@ diff outx exp
 
 # Here, !(F(a | b)) should be G!a & G!b
 cat >exp <<EOF
+there are 2 subformulas
 trying to create strategy directly for G!a
 no strategy exists.
 EOF
@@ -873,6 +885,7 @@ ltlsynt --outs="$OUT" -f "$LTL" --aiger=both+ud\
 ltlsynt -f 'G(c) & (G(a) <-> GFb)' --outs=b,c --decompose=yes\
                                    --verbose --realizability 2> out
 cat >exp <<EOF
+there are 2 subformulas
 trying to create strategy directly for Gc
 direct strategy was found.
 trying to create strategy directly for Ga <-> GFb
@@ -883,6 +896,7 @@ diff out exp
 ltlsynt -f 'G(c) & (G(a) <-> GFb)' --outs=b,c --decompose=yes\
                                    --verbose --realizability --bypass=no 2> out
 cat >exp <<EOF
+there are 2 subformulas
 translating formula done in X seconds
 automaton has 1 states and 1 colors
 LAR construction done in X seconds
@@ -906,6 +920,7 @@ diff outx exp
 
 # ACD verbose
 cat >exp <<EOF
+there are 2 subformulas
 translating formula done in X seconds
 automaton has 1 states and 2 colors
 ACD construction done in X seconds

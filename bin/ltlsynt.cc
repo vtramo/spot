@@ -336,6 +336,12 @@ namespace
     if (opt_decompose_ltl)
     {
       auto subs = split_independant_formulas(f, output_aps);
+      if (gi->verbose_stream)
+      {
+        *gi->verbose_stream << "there are "
+                            << subs.first.size()
+                            << " subformulas\n";
+      }
       if (subs.first.size() > 1)
       {
         sub_form = subs.first;
