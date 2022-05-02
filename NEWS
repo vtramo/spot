@@ -1,13 +1,20 @@
 New in spot 2.10.4.dev  (net yet released)
 
-  Nothing yet.
-
   Bugs fixed:
 
   - reduce_parity() produced incorrect results when applied to
     automata with deleted edges.
 
-  - work around a portability issue in Flex 2.6.4 preventing
+  - An optimization of Zielonka could result in incorrect results
+    in some cases.
+
+  - ltlsynt --print-pg incorrectly solved the game in addition to
+    printing it.
+
+  - ltlsynt would fail if only one of --ins or --outs was set, and
+    if it was set empty.
+
+  - Work around a portability issue in Flex 2.6.4 preventing
     compilation on OpenBSD.
 
   - Do not use the seq command in test cases, it is not available
@@ -15,6 +22,12 @@ New in spot 2.10.4.dev  (net yet released)
 
   - Do not erase the previous contents of the PYTHONPATH environment
     variable when running tests, prepend to it instead.
+
+  - Simplify Debian instructions for LTO build to work around newer
+    libtool version.
+
+  - Fix invalid read in digraph::sort_edges_of_(), currently unused in
+    Spot.
 
 New in spot 2.10.4  (2022-02-01)
 
