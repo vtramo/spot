@@ -28,6 +28,7 @@
 #include <algorithm>
 #include <map>
 #include <iostream>
+#include <thread>
 
 namespace spot
 {
@@ -1224,6 +1225,75 @@ namespace spot
       //std::cerr << "\nbefore\n";
       //dump_storage(std::cerr);
       std::stable_sort(edges_.begin() + 1, edges_.end(), p);
+    }
+
+    /// \brief Sort all edges by src first, then, within edges of the same
+    /// source use the predicate
+    ///
+    /// This will invalidate all iterators, and also destroy edge
+    /// chains.  Call chain_edges_() immediately afterwards unless you
+    /// know what you are doing.
+    /// \note: for performance this will work in parallel (if enabled)
+    /// and make a temporary copy of the edges (needs more ram)
+    /// \pre This needs the edge_vector to be in a coherent state when called
+    template<class Predicate = std::less<edge_storage_t>>
+    void sort_edges_srcfirst_(Predicate p = Predicate())
+    {
+      //std::cerr << "\nbefore\n";
+      //dump_storage(std::cerr);
+      const auto N = num_states();
+      // Read threads once
+      const unsigned nthreads = get_nthreads();
+
+      auto idx_list = std::vector<unsigned>(N+1);
+      auto new_edges = edge_vector_t();
+      new_edges.reserve(edges_.size());
+      if (SPOT_UNLIKELY(edges_.empty()))
+        throw std::runtime_error("Empty edge vector!");
+      new_edges.resize(1);
+      // This causes edge 0 to be considered as dead.
+      new_edges[0].next_succ = 0;
+      // Copy the edges such that they are sorted by src
+      for (auto s = 0u; s < N; ++s)
+        {
+          idx_list[s] = new_edges.size();
+          for (const auto& e : out(s))
+            new_edges.push_back(e);
+        }
+      idx_list[N] = new_edges.size();
+      // New edge sorted by source
+      // If we have few edge or only one threads
+      // Benchmark few?
+      auto bne = new_edges.begin();
+      if (nthreads == 1 || edges_.size() < 1000)
+        {
+          for (auto s = 0u; s < N; ++s)
+            std::stable_sort(bne + idx_list[s],
+                             bne + idx_list[s+1],
+                             p);
+        }
+      else
+        {
+          static auto tv = std::vector<std::thread>();
+          SPOT_ASSERT(tv.empty());
+          tv.resize(nthreads);
+          for (unsigned id = 0; id < nthreads; ++id)
+            tv[id] = std::thread(
+              [bne, id, N, &idx_list, p, nthreads]()
+              {
+                for (auto s = id; s < N; s+=nthreads)
+                  std::stable_sort(bne + idx_list[s],
+                                   bne + idx_list[s+1],
+                                   p);
+                return;
+              });
+          for (auto& t : tv)
+            t.join();
+          tv.clear();
+        }
+      // Done
+      std::swap(edges_, new_edges);
+      // Like after normal sort_edges, they need to be chained before usage
     }
 
     /// \brief Sort edges of the given states
