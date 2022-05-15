@@ -23,6 +23,9 @@ New in spot 2.10.6.dev  (not yet released)
 
   Library:
 
+  - A global variable, together with its setters and getters to define the
+    maximal number of threads is added to common.hh/common.cc
+
   - The new function suffix_operator_normal_form() implements
     transformation of formulas to Suffix Operator Normal Form,
     described in [cimatti.06.fmcad].

@@ -63,6 +63,7 @@ libmisc_la_SOURCES = \
   bareword.cc \
   bitset.cc \
   bitvect.cc \
+  common.cc \
   escape.cc \
   formater.cc \
   intvcomp.cc \

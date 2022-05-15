@@ -169,3 +169,11 @@ namespace spot
 #  define SPOT_make_shared_enabled__(TYPE, ...)  \
    std::make_shared<TYPE>(__VA_ARGS__)
 #endif
+
+
+// Global variable to determine the maximal number of threads
+SPOT_API void
+set_nthreads(unsigned nthreads);
+
+SPOT_API unsigned
+get_nthreads();
