@@ -345,7 +345,6 @@ struct in_statistics
 
 struct out_statistics
 {
-
   // If OK is false, output statistics are not available.
   bool ok;
   const char* status_str;
@@ -353,7 +352,7 @@ struct out_statistics
   double time;
   aut_statistics output;
 
-  out_statistics()
+  out_statistics() noexcept
     : ok(false),
       status_str(nullptr),
       status_code(0),
