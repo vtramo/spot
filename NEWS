@@ -7,9 +7,12 @@ New in spot 2.10.5.dev  (not yet released)
     print_hoa() will now use state numbers matching those of the
     kripke_graph (issue #505).
 
-  Bug fixed:
+  Bugs fixed:
 
   - Fix compilation error on MacOS X.
+
+  - Using -Ffile/N to read column N of a CSV file would not reset the
+    /N specification for the next file.
 
 New in spot 2.10.5  (2022-05-03)
 
