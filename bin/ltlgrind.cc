@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2014, 2015, 2016, 2017, 2018, 2019 Laboratoire de Recherche et
+// Copyright (C) 2014-2019, 2022 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -143,7 +143,7 @@ parse_opt(int key, char* arg, struct argp_state*)
       break;
     case ARGP_KEY_ARG:
       // FIXME: use stat() to distinguish filename from string?
-      jobs.emplace_back(arg, true);
+      jobs.emplace_back(arg, job_type::LTL_FILENAME);
       break;
     case OPT_AP2CONST:
       opt_all = 0;

@@ -162,7 +162,7 @@ parse_opt(int key, char* arg, struct argp_state*)
   switch (key)
     {
     case 'F':
-      jobs.emplace_back(arg, true);
+      jobs.emplace_back(arg, job_type::AUT_FILENAME);
       break;
     case 'q':
       quiet = true;
@@ -216,7 +216,7 @@ parse_opt(int key, char* arg, struct argp_state*)
       break;
     case ARGP_KEY_ARG:
       if (arg[0] == '-' && !arg[1])
-        jobs.emplace_back(arg, true);
+        jobs.emplace_back(arg, job_type::AUT_FILENAME);
       else
         tools_push_autproc(arg);
       break;

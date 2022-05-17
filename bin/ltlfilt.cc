@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2012-2021 Laboratoire de Recherche et Développement
+// Copyright (C) 2012-2022 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -387,7 +387,7 @@ parse_opt(int key, char* arg, struct argp_state*)
       break;
     case ARGP_KEY_ARG:
       // FIXME: use stat() to distinguish filename from string?
-      jobs.emplace_back(arg, true);
+      jobs.emplace_back(arg, job_type::LTL_FILENAME);
       break;
     case OPT_ACCEPT_WORD:
       try
@@ -876,7 +876,7 @@ main(int argc, char** argv)
         exit(err);
 
       if (jobs.empty())
-        jobs.emplace_back("-", 1);
+        jobs.emplace_back("-", job_type::LTL_FILENAME);
 
       if (boolean_to_isop && simplification_level == 0)
         simplification_level = 1;

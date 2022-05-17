@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2012-2017 Laboratoire de Recherche et Développement
-// de l'Epita (LRDE).
+// Copyright (C) 2012-2017, 2022 Laboratoire de Recherche et
+// Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
 //
@@ -25,13 +25,17 @@
 #include <vector>
 #include <spot/tl/parse.hh>
 
+enum class job_type : char { LTL_STRING,
+                             LTL_FILENAME,
+                             AUT_FILENAME };
+
 struct job
 {
   const char* str;
-  bool file_p;        // true if str is a filename, false if it is a formula
+  job_type type;
 
-  job(const char* str, bool file_p) noexcept
-    : str(str), file_p(file_p)
+  job(const char* str, job_type type) noexcept
+    : str(str), type(type)
   {
   }
 };

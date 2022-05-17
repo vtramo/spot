@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2013-2019 Laboratoire de Recherche et Développement
+// Copyright (C) 2013-2019, 2022 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -89,7 +89,7 @@ parse_opt(int key, char* arg, struct argp_state*)
   switch (key)
     {
     case 'F':
-      jobs.emplace_back(arg, true);
+      jobs.emplace_back(arg, job_type::AUT_FILENAME);
       break;
     case 'x':
       {
@@ -99,7 +99,7 @@ parse_opt(int key, char* arg, struct argp_state*)
       }
       break;
     case ARGP_KEY_ARG:
-      jobs.emplace_back(arg, true);
+      jobs.emplace_back(arg, job_type::AUT_FILENAME);
       break;
     default:
       return ARGP_ERR_UNKNOWN;

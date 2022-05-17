@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2012-2020 Laboratoire de Recherche et Développement
+// Copyright (C) 2012-2020, 2022 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -484,7 +484,7 @@ parse_opt(int key, char* arg, struct argp_state*)
       break;
     case ARGP_KEY_ARG:
       if (arg[0] == '-' && !arg[1])
-        jobs.emplace_back(arg, true);
+        jobs.emplace_back(arg, job_type::LTL_FILENAME);
       else
         tools_push_trans(arg);
       break;

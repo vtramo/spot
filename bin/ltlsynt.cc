@@ -776,7 +776,7 @@ main(int argc, char **argv)
         static char arg4[] = "fully";
         char* command[] = { arg0, arg1, arg2, arg3, arg4, opt_tlsf, nullptr };
         opt_tlsf_string = read_stdout_of_command(command);
-        jobs.emplace_back(opt_tlsf_string.c_str(), false);
+        jobs.emplace_back(opt_tlsf_string.c_str(), job_type::LTL_STRING);
 
         if (!all_input_aps.has_value() && !all_output_aps.has_value())
           {

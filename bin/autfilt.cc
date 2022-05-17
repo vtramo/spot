@@ -761,7 +761,7 @@ parse_opt(int key, char* arg, struct argp_state*)
       automaton_format = Count;
       break;
     case 'F':
-      jobs.emplace_back(arg, true);
+      jobs.emplace_back(arg, job_type::AUT_FILENAME);
       break;
     case 'n':
       opt_max_count = to_pos_int(arg, "-n/--max-count");
@@ -1252,7 +1252,7 @@ parse_opt(int key, char* arg, struct argp_state*)
       opt_art_sccs_set = true;
       break;
     case ARGP_KEY_ARG:
-      jobs.emplace_back(arg, true);
+      jobs.emplace_back(arg, job_type::AUT_FILENAME);
       break;
 
     default:

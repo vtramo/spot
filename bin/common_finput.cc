@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2012-2017, 2019, 2021 Laboratoire de Recherche et
-// Développement de l'Epita (LRDE).
+// Copyright (C) 2012-2017, 2019, 2021, 2022 Laboratoire de Recherche
+// et Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
 //
@@ -68,10 +68,10 @@ parse_opt_finput(int key, char* arg, struct argp_state*)
   switch (key)
     {
     case 'f':
-      jobs.emplace_back(arg, false);
+      jobs.emplace_back(arg, job_type::LTL_STRING);
       break;
     case 'F':
-      jobs.emplace_back(arg, true);
+      jobs.emplace_back(arg, job_type::LTL_FILENAME);
       break;
     case OPT_LBT:
       lbt_input = true;
@@ -358,10 +358,18 @@ job_processor::run()
   int error = 0;
   for (auto& j: jobs)
     {
-      if (!j.file_p)
-        error |= process_string(j.str);
-      else
-        error |= process_file(j.str);
+      switch (j.type)
+        {
+        case job_type::LTL_STRING:
+          error |= process_string(j.str);
+          break;
+        case job_type::LTL_FILENAME:
+        case job_type::AUT_FILENAME:
+          error |= process_file(j.str);
+          break;
+        default:
+          throw std::runtime_error("unexpected job type");
+        }
       if (abort_run)
         break;
     }
@@ -376,7 +384,7 @@ void check_no_formula()
     error(2, 0, "No formula to translate?  Run '%s --help' for help.\n"
           "Use '%s -' to force reading formulas from the standard "
           "input.", program_name, program_name);
-  jobs.emplace_back("-", true);
+  jobs.emplace_back("-", job_type::LTL_FILENAME);
 }
 
 void check_no_automaton()
@@ -387,5 +395,5 @@ void check_no_automaton()
     error(2, 0, "No automaton to process?  Run '%s --help' for help.\n"
           "Use '%s -' to force reading automata from the standard "
           "input.", program_name, program_name);
-  jobs.emplace_back("-", true);
+  jobs.emplace_back("-", job_type::AUT_FILENAME);
 }
