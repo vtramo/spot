@@ -1,4 +1,4 @@
-New in spot 2.10.5.dev  (not yet released)
+New in spot 2.10.6.dev  (not yet released)
 
   Command-line tools:
 
@@ -82,10 +82,7 @@ New in spot 2.10.5.dev  (not yet released)
     averted in the parser by delaying the construction of such n-ary
     nodes until all children are known.
 
-  - make_twa_graph() will now preserve state number when copying a
-    kripke_graph object.  As a consequence, print_dot() and
-    print_hoa() will now use state numbers matching those of the
-    kripke_graph (issue #505).
+New in spot 2.10.6  (2022-05-18)
 
   Bugs fixed:
 
@@ -93,6 +90,14 @@ New in spot 2.10.5.dev  (not yet released)
 
   - Using -Ffile/N to read column N of a CSV file would not reset the
     /N specification for the next file.
+
+  - make_twa_graph() will now preserve state number when copying a
+    kripke_graph object.  As a consequence, print_dot() and
+    print_hoa() will now use state numbers matching those of the
+    kripke_graph (issue #505).
+
+  - Fix several compilation warning introduced by newer versions
+    of GCC and Clang.
 
 New in spot 2.10.5  (2022-05-03)
 

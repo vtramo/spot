@@ -76,6 +76,24 @@ State: [!0&!1] 2 "s2"
 --END--"""
 tc.assertEqual(hoa, k.to_str('HOA'))
 
+k.set_state_names(["s0", "s1", "s2"])
+hoa = """HOA: v1
+States: 3
+Start: 1
+AP: 2 "p1" "p2"
+acc-name: all
+Acceptance: 0 t
+properties: state-labels explicit-labels state-acc
+--BODY--
+State: [0&1] 0 "s0"
+0
+State: [0&!1] 1 "s1"
+0 2
+State: [!0&!1] 2 "s2"
+2 0
+--END--"""
+tc.assertEqual(hoa, k.to_str('HOA'))
+
 res = []
 for e in k.out(s1):
     res.append((e.src, e.dst))
