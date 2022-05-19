@@ -82,6 +82,9 @@ New in spot 2.10.6.dev  (not yet released)
     averted in the parser by delaying the construction of such n-ary
     nodes until all children are known.
 
+  - complement() used to always turn tautological acceptance conditions
+    into Büchi.  It now only does that if the automaton is modified.
+
 New in spot 2.10.6  (2022-05-18)
 
   Bugs fixed:

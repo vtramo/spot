@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2013-2018 Laboratoire de Recherche et Développement
+// Copyright (C) 2013-2018, 2022 Laboratoire de Recherche et Développement
 // de l'Epita.
 //
 // This file is part of Spot, a model checking library.
@@ -29,6 +29,8 @@ namespace spot
       return;
     unsigned n = aut->num_states();
 
+    bool need_acc_fix = false;
+
     // UM is a pair (bool, mark).  If the Boolean is false, the
     // acceptance is always satisfiable.  Otherwise, MARK is an
     // example of unsatisfiable mark.
@@ -36,10 +38,11 @@ namespace spot
     if (!um.first)
       {
         // We cannot safely complete an automaton if its
-        // acceptance is always satisfiable.
-        auto acc = aut->set_buchi();
-        for (auto& t: aut->edge_vector())
-          t.acc = acc;
+        // acceptance is always satisfiable, so we will
+        // have to fix the acceptance automaton.  However
+        // postpone that until we are sure that the
+        // automaton really need to be completed.
+        need_acc_fix = true;
       }
     else
       {
@@ -129,6 +132,8 @@ namespace spot
             // acceptance sets as the last outgoing edge of the
             // state.
             acc = t.acc;
+            // If a state already has a edge to a sink, remember it
+            // so we can add the missing conditions to it.
             if (t.dst == sink)
               edge_to_sink = aut->edge_number(t);
           }
@@ -136,6 +141,15 @@ namespace spot
         // edge to some sink state.
         if (missingcond != bddfalse)
           {
+            if (need_acc_fix)
+              {
+                auto a = aut->set_buchi();
+                for (auto& t: aut->edge_vector())
+                  t.acc = a;
+                if (aut->num_edges())
+                  acc = a;
+                need_acc_fix = false;
+              }
             // If we haven't found any sink, simply add one.
             if (sink == -1U)
               {

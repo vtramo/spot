@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2013, 2014, 2015, 2017 Laboratoire de Recherche et
+// Copyright (C) 2013-2015, 2017, 2022 Laboratoire de Recherche et
 // Développement de l'Epita.
 //
 // This file is part of Spot, a model checking library.
@@ -25,12 +25,13 @@ namespace spot
 {
   /// \brief Complete a twa_graph in place.
   ///
-  /// If the TωA has an acceptance condition that is a tautology,
-  /// it will be changed into a Büchi automaton.
+  /// If the TωA is incomplete and has an acceptance condition that is
+  /// a tautology, it will be changed into a Büchi automaton.
   SPOT_API void complete_here(twa_graph_ptr aut);
 
   /// \brief Clone a twa and complete it.
   ///
-  /// If the twa has no acceptance set, one will be added.
+  /// If the TωA is incomplete and has an acceptance condition that is
+  /// a tautology, it will be changed into a Büchi automaton.
   SPOT_API twa_graph_ptr complete(const const_twa_ptr& aut);
 }
