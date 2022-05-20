@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2021 Laboratoire de Recherche et Developpement de
+// Copyright (C) 2021, 2022 Laboratoire de Recherche et Developpement de
 // l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -29,6 +29,68 @@
 namespace spot
 {
   /// \ingroup twa_acc_transform
+  /// \brief Options to alter the behavior of acd
+  enum class zielonka_tree_options
+  {
+    /// Build the ZlkTree, without checking its shape.
+    NONE = 0,
+    /// Check if the ZlkTree has Rabin shape.
+    /// This actually has no effect unless ABORT_WRONG_SHAPE is set,
+    /// because zielonka_tree always check the shape.
+    CHECK_RABIN = 1,
+    /// Check if the ZlkTree has Streett shape.
+    /// This actually has no effect unless ABORT_WRONG_SHAPE is set,
+    /// because zielonka_tree always check the shape.
+    CHECK_STREETT = 2,
+    /// Check if the ZlkTree has Parity shape
+    /// This actually has no effect unless ABORT_WRONG_SHAPE is set,
+    /// because zielonka_tree always check the shape.
+    CHECK_PARITY = CHECK_RABIN | CHECK_STREETT,
+    /// Abort the construction of the ZlkTree if it does not have the
+    /// shape that is tested.  When that happens, num_branches() is set
+    /// to 0.
+    ABORT_WRONG_SHAPE = 4,
+    /// Fuse identical substree.  This cannot be used with
+    /// zielonka_tree_transform().  However it saves memory if the
+    /// only use of the zielonka_tree to check the shape.
+    MERGE_SUBTREES = 8,
+  };
+
+#ifndef SWIG
+  inline
+  bool operator!(zielonka_tree_options me)
+  {
+    return me == zielonka_tree_options::NONE;
+  }
+
+  inline
+  zielonka_tree_options operator&(zielonka_tree_options left,
+                                  zielonka_tree_options right)
+  {
+    typedef std::underlying_type_t<zielonka_tree_options> ut;
+    return static_cast<zielonka_tree_options>(static_cast<ut>(left)
+                                              & static_cast<ut>(right));
+  }
+
+  inline
+  zielonka_tree_options operator|(zielonka_tree_options left,
+                                  zielonka_tree_options right)
+  {
+    typedef std::underlying_type_t<zielonka_tree_options> ut;
+    return static_cast<zielonka_tree_options>(static_cast<ut>(left)
+                                              | static_cast<ut>(right));
+  }
+
+  inline
+  zielonka_tree_options operator-(zielonka_tree_options left,
+                                  zielonka_tree_options right)
+  {
+    typedef std::underlying_type_t<zielonka_tree_options> ut;
+    return static_cast<zielonka_tree_options>(static_cast<ut>(left)
+                                              & ~static_cast<ut>(right));
+  }
+#endif
+  /// \ingroup twa_acc_transform
   /// \brief Zielonka Tree implementation
   ///
   /// This class implements a Zielonka Tree, using
@@ -41,7 +103,8 @@ namespace spot
   {
   public:
     /// \brief Build a Zielonka tree from the acceptance condition.
-    zielonka_tree(const acc_cond& cond);
+    zielonka_tree(const acc_cond& cond,
+                  zielonka_tree_options opt = zielonka_tree_options::NONE);
 
     /// \brief The number of branches in the Zielonka tree.
     ///

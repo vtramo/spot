@@ -85,6 +85,11 @@ New in spot 2.10.6.dev  (not yet released)
   - complement() used to always turn tautological acceptance conditions
     into Büchi.  It now only does that if the automaton is modified.
 
+  - The zielonka_tree construction was optimized using the same
+    memoization trick that is used in ACD.  Additionally it can now be
+    run with additional option to abort when the tree as an unwanted
+    shape, or to turn the tree into a DAG.
+
 New in spot 2.10.6  (2022-05-18)
 
   Bugs fixed:

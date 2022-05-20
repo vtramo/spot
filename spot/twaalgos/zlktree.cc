@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2021 Laboratoire de Recherche et Developpement de
+// Copyright (C) 2021, 2022 Laboratoire de Recherche et Developpement de
 // l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -109,7 +109,8 @@ namespace spot
     }
   }
 
-  zielonka_tree::zielonka_tree(const acc_cond& cond)
+  zielonka_tree::zielonka_tree(const acc_cond& cond,
+                               zielonka_tree_options opt)
   {
     const acc_cond::acc_code& code = cond.get_acceptance();
     auto all = cond.all_sets();
@@ -120,11 +121,47 @@ namespace spot
     nodes_[0].colors = all;
     nodes_[0].level = 0;
 
+    robin_hood::unordered_node_map<acc_cond::mark_t, unsigned> nmap;
+
     std::vector<size_model> models;
     // This loop is a BFS over the increasing set of nodes.
     for (unsigned node = 0; node < nodes_.size(); ++node)
     {
       acc_cond::mark_t colors = nodes_[node].colors;
+      unsigned nextlvl = nodes_[node].level + 1;
+
+      // Have we already seen this combination of colors previously?
+      // If yes, simply copy the children.
+      if (auto p = nmap.emplace(colors, node); !p.second)
+        {
+          unsigned fc = nodes_[p.first->second].first_child;
+          if (!fc)              // this is a leaf
+            {
+              ++num_branches_;
+              continue;
+            }
+          if (!!(opt & zielonka_tree_options::MERGE_SUBTREES))
+            {
+              nodes_[node].first_child = fc;
+              continue;
+            }
+          unsigned child = fc;
+          unsigned first = nodes_.size();
+          nodes_[node].first_child = first;
+          do
+            {
+              auto& c = nodes_[child];
+              child = c.next_sibling;
+              nodes_.push_back({node, static_cast<unsigned>(nodes_.size() + 1),
+                                0, nextlvl, c.colors});
+            }
+          while (child != fc);
+          nodes_.back().next_sibling = first;
+          // We do not have to test the shape since this is the second time
+          // we see these colors;
+          continue;
+        }
+
       bool is_accepting = code.accepting(colors);
       if (node == 0)
         is_even_ = is_accepting;
@@ -145,15 +182,32 @@ namespace spot
       nodes_.reserve(first + num_children);
       for (auto& m: models)
         nodes_.push_back({node, static_cast<unsigned>(nodes_.size() + 1),
-                          0, nodes_[node].level + 1, m.model});
+                          0, nextlvl, m.model});
       nodes_.back().next_sibling = first;
 
       if (num_children > 1)
         {
+          bool abort = false;
           if (is_accepting)
-            has_rabin_shape_ = false;
+            {
+              has_rabin_shape_ = false;
+              if (!!(opt & zielonka_tree_options::ABORT_WRONG_SHAPE)
+                  && !!(opt & zielonka_tree_options::CHECK_RABIN))
+                abort = true;
+            }
           else
-            has_streett_shape_ = false;
+            {
+              has_streett_shape_ = false;
+              if (!!(opt & zielonka_tree_options::ABORT_WRONG_SHAPE)
+                  && !!(opt & zielonka_tree_options::CHECK_STREETT))
+                abort = true;
+            }
+          if (abort)
+            {
+              nodes_.clear();
+              num_branches_ = 0;
+              return;
+            }
         }
     }
 
@@ -523,14 +577,18 @@ namespace spot
           do
             {
               auto& c = nodes_[child];
+              // We have to read anything we need from C
+              // before emplace_back, which may reallocate.
+              acc_cond::mark_t colors = c.colors;
+              unsigned minstate = c.minstate;
+              child = c.next_sibling;
               nodes_.emplace_back(c.edges, c.states);
               auto& n = nodes_.back();
               n.parent = node;
               n.level = lvl + 1;
               n.scc = ref.scc;
-              n.colors = c.colors;
-              n.minstate = c.minstate;
-              child = c.next_sibling;
+              n.colors = colors;
+              n.minstate = minstate;
             }
           while (child != fc);
           chain_children(node, before, nodes_.size());

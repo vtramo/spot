@@ -152,3 +152,12 @@ tc.assertTrue(a.equivalent_to(b))
 b = spot.acd_transform_sbacc(a, False)
 tc.assertEqual(str(b.acc()), '(2, Fin(0) & Inf(1))')
 tc.assertTrue(a.equivalent_to(b))
+
+
+# This used to be very slow.
+c = spot.acc_cond("Rabin 9")
+n = spot.zielonka_tree(c).num_branches()
+tc.assertEqual(n, 362880)
+opt = spot.zielonka_tree_options_MERGE_SUBTREES;
+n = spot.zielonka_tree(c, opt).num_branches()
+tc.assertEqual(n, 9)
