@@ -391,6 +391,7 @@ TESTS_python = \
   python/_altscc.ipynb \
   python/_autparserr.ipynb \
   python/_aux.ipynb \
+  python/acc.py \
   python/accparse2.py \
   python/alarm.py \
   python/aliases.py \

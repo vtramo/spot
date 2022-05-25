@@ -551,6 +551,17 @@ namespace std {
 }
 %apply std::vector<unsigned> &OUTPUT {std::vector<unsigned>& pairs}
 %apply std::vector<spot::acc_cond::rs_pair> &OUTPUT {std::vector<spot::acc_cond::rs_pair>& pairs}
+// Must occur before the twa declaration
+%typemap(out) SWIGTYPE spot::acc_cond::fin_unit_one_split %{
+  {
+      auto& v = static_cast<const std::tuple<int, spot::acc_cond, spot::acc_cond>>($1);
+      $result = PyTuple_Pack(3,
+                             swig::from(std::get<0>(v)),
+                             swig::from(std::get<1>(v)),
+                             swig::from(std::get<2>(v)));
+  }
+%}
+
 %include <spot/twa/acc.hh>
 %template(pair_bool_mark) std::pair<bool, spot::acc_cond::mark_t>;
 

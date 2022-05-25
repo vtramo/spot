@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2017-2021 Laboratoire de Recherche et Developpement
+// Copyright (C) 2017-2022 Laboratoire de Recherche et Developpement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -100,7 +100,13 @@ namespace spot
   /// - "spot29" improves upon the worst case of atva19.  This is
   ///   the default.
   /// - "spot210" improves upon "spot29" in a few cases where a Fin
-  ///   is shared by multiple disjuncts.
+  ///   is shared by multiple disjuncts.  This improve the worst
+  ///   case complexity of EL-automata in the general case, but worsen
+  ///   the complexity of Hyper-Rabin in particular.
+  /// - "spot211" is another attempt at fixing worst case complexities.
+  ///    Compared to atva19, this improves the complexities for Rabin,
+  ///    GeneralizedRabin, and EL without worsening the complexity of
+  ///    Hyper-Rabin.
   SPOT_API void
   generic_emptiness_check_select_version(const char* emversion = nullptr);
 

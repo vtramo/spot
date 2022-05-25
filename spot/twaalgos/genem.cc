@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2017-2021 Laboratoire de Recherche et Developpement
+// Copyright (C) 2017-2022 Laboratoire de Recherche et Developpement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -25,7 +25,7 @@ namespace spot
 {
   namespace
   {
-    enum genem_version_t { spot28, atva19, spot29, spot210 };
+    enum genem_version_t { spot28, atva19, spot29, spot210, spot211 };
     static genem_version_t genem_version = spot29;
   }
 
@@ -33,6 +33,8 @@ namespace spot
   {
     if (emversion == nullptr || !strcasecmp(emversion, "spot29"))
       genem_version = spot29;
+    else if (!strcasecmp(emversion, "spot211"))
+      genem_version = spot211;
     else if (!strcasecmp(emversion, "spot210"))
       genem_version = spot210;
     else if (!strcasecmp(emversion, "spot28"))
@@ -41,7 +43,8 @@ namespace spot
       genem_version = atva19;
     else
       throw std::invalid_argument("generic_emptiness_check version should be "
-                                  "one of {spot28, atva19, spot29, spot210}");
+                                  "one of {spot28, atva19, spot29, spot210, "
+                                  "spot211}");
   }
 
   namespace
@@ -84,6 +87,8 @@ namespace spot
     scc_split_check(const scc_info& si, unsigned scc, const acc_cond& acc,
                     Extra extra, acc_cond::mark_t tocut)
     {
+      if (genem_version == spot211 || genem_version == spot210)
+        tocut |= acc.fin_unit();
       scc_and_mark_filter filt(si, scc, tocut);
       filt.override_acceptance(acc);
       scc_info upper_si(filt, EarlyStop
@@ -118,13 +123,27 @@ namespace spot
             // Try to accept when Fin(fo) == true
             acc_cond::mark_t fo_m = {(unsigned) fo};
             if (!scc_split_check<EarlyStop, Extra>
-                (si, scc, fpart.remove(fo_m, true), extra, fo_m))
+                (si, scc, fpart, extra, fo_m))
               if constexpr (EarlyStop)
                 return false;
             // Try to accept when Fin(fo) == false
             acc = acc.force_inf(fo_m);
           }
         while (!acc.is_f());
+      else if (genem_version == spot211)
+        {
+          do
+            {
+              auto [fo, fpart, rest] = acc.fin_unit_one_split();
+              acc_cond::mark_t fo_m = {(unsigned) fo};
+              if (!scc_split_check<EarlyStop, Extra>
+                  (si, scc, fpart, extra, fo_m))
+                if constexpr (EarlyStop)
+                  return false;
+              acc = rest;
+            }
+          while (!acc.is_f());
+        }
       else if (genem_version == spot29)
         do
           {

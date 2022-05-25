@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2014-2021 Laboratoire de Recherche et Développement
+// Copyright (C) 2014-2022 Laboratoire de Recherche et Développement
 // de l'Epita.
 //
 // This file is part of Spot, a model checking library.
@@ -26,6 +26,7 @@
 #include <algorithm>
 #include <numeric>
 #include <bddx.h>
+#include <tuple>
 #include <spot/misc/_config.h>
 #include <spot/misc/bitset.hh>
 #include <spot/misc/trival.hh>
@@ -1271,7 +1272,8 @@ namespace spot
       int fin_one() const;
 
       /// \brief Return one acceptance set i that appears as `Fin(i)`
-      /// in the condition, and all disjuncts containing it.
+      /// in the condition, and all disjuncts containing it with
+      /// Fin(i) changed to true and Inf(i) to false.
       ///
       /// If the condition is a disjunction and one of the disjunct
       /// has the shape `...&Fin(i)&...`, then `i` will be prefered
@@ -1282,12 +1284,33 @@ namespace spot
       /// `Fin(i)` have been removed.
       ///
       /// For example on
-      /// `Fin(1)&Inf(2)|Inf(3)&Inf(4)|Inf(5)&(Fin(1)|Fin(7))`
-      /// the output would be the pair
-      /// `(1, Fin(1)&Inf(2)|Inf(5)&(Fin(1)|Fin(7)))`.
-      /// On that example `Fin(1)` is prefered to `Fin(7)` because
-      /// it appears at the top-level.
+      /// `Fin(1)&Inf(2)|Inf(3)&Inf(4)|Inf(5)&(Fin(1)|Fin(7))` the
+      /// output would be the pair, we would select `Fin(1)` over
+      /// `Fin(7)` because it appears at the top-level.  Then we would
+      /// collect the disjuncts containing `Fin(1)`, that is,
+      /// `Fin(1)&Inf(2)|Inf(5)&(Fin(1)|Fin(7)))`.  Finally we would
+      /// replace `Fin(1)` by true and `Inf(1)` by false.  The return
+      /// value would then be `(1, Inf(2)|Inf(5))`.
       std::pair<int, acc_code> fin_one_extract() const;
+
+      /// \brief Split an acceptance condition, trying to select one
+      /// unit-Fin.
+      ///
+      /// If the condition is a disjunction and one of the disjunct as
+      /// has the shape `...&Fin(i)&...`, then this will return
+      /// (i, left, right), where left is all disjunct of this form, and
+      /// right are all the others.
+      ///
+      /// If the input formula has the shape `...&Fin(i)&...` then left
+      /// is set to the entire formula, and right is empty.
+      ///
+      /// If no disjunct has the right shape, then a random Fin(i) is
+      /// searched in the formula, and the output (i, left, right).
+      /// is such that left contains all disjuncts containing Fin(i)
+      /// (at any depth), and right contains the original formlula
+      /// where Fin(i) has been replaced by false.
+      std::tuple<int, acc_cond::acc_code, acc_cond::acc_code>
+      fin_unit_one_split() const;
 
       /// \brief Help closing accepting or rejecting cycle.
       ///
@@ -2203,7 +2226,8 @@ namespace spot
     }
 
     /// \brief Return one acceptance set i that appears as `Fin(i)`
-    /// in the condition, and all disjuncts containing it.
+    /// in the condition, and all disjuncts containing it with
+    /// Fin(i) changed to true and Inf(i) to false.
     ///
     /// If the condition is a disjunction and one of the disjunct
     /// has the shape `...&Fin(i)&...`, then `i` will be prefered
@@ -2214,15 +2238,40 @@ namespace spot
     /// `Fin(i)` have been removed.
     ///
     /// For example on
-    /// `Fin(1)&Inf(2)|Inf(3)&Inf(4)|Inf(5)&(Fin(1)|Fin(7))`
-    /// the output would be the pair
-    /// `(1, Fin(1)&Inf(2)|Inf(5)&(Fin(1)|Fin(7)))`.
-    /// On that example `Fin(1)` is prefered to `Fin(7)` because
-    /// it appears at the top-level.
+    /// `Fin(1)&Inf(2)|Inf(3)&Inf(4)|Inf(5)&(Fin(1)|Fin(7))` the
+    /// output would be the pair, we would select `Fin(1)` over
+    /// `Fin(7)` because it appears at the top-level.  Then we would
+    /// collect the disjuncts containing `Fin(1)`, that is,
+    /// `Fin(1)&Inf(2)|Inf(5)&(Fin(1)|Fin(7)))`.  Finally we would
+    /// replace `Fin(1)` by true and `Inf(1)` by false.  The return
+    /// value would then be `(1, Inf(2)|Inf(5))`.
     std::pair<int, acc_cond> fin_one_extract() const
     {
       auto [f, c] = code_.fin_one_extract();
       return {f, {num_sets(), std::move(c)}};
+    }
+
+    /// \brief Split an acceptance condition, trying to select one
+    /// unit-Fin.
+    ///
+    /// If the condition is a disjunction and one of the disjunct as
+    /// has the shape `...&Fin(i)&...`, then this will return
+    /// (i, left, right), where left is all disjunct of this form, and
+    /// right are all the others.
+    ///
+    /// If the input formula has the shape `...&Fin(i)&...` then left
+    /// is set to the entire formula, and right is empty.
+    ///
+    /// If no disjunct has the right shape, then a random Fin(i) is
+    /// searched in the formula, and the output (i, left, right).
+    /// is such that left contains all disjuncts containing Fin(i)
+    /// (at any depth), and right contains the original formlula
+    /// where Fin(i) has been replaced by false.
+    std::tuple<int, acc_cond, acc_cond>
+    fin_unit_one_split() const
+    {
+      auto [f, l, r] = code_.fin_unit_one_split();
+      return {f, {num_sets(), std::move(l)}, {num_sets(), std::move(r)}};
     }
 
     /// \brief Return the top-level disjuncts.

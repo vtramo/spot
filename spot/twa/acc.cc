@@ -2707,6 +2707,35 @@ namespace spot
       return false;
     }
 
+    // Check wheter pos looks like Fin(f) or Fin(f)&rest
+    bool is_conj_fin(const acc_cond::acc_word* pos, acc_cond::mark_t f)
+    {
+      auto sub = pos - pos->sub.size;
+      do
+        {
+          switch (pos->sub.op)
+            {
+            case acc_cond::acc_op::And:
+              --pos;
+              break;
+            case acc_cond::acc_op::Or:
+              pos -= pos->sub.size + 1;
+              break;
+            case acc_cond::acc_op::Fin:
+              if (pos[-1].mark & f)
+                return true;
+              SPOT_FALLTHROUGH;
+            case acc_cond::acc_op::Inf:
+            case acc_cond::acc_op::InfNeg:
+            case acc_cond::acc_op::FinNeg:
+              pos -= 2;
+              break;
+            }
+        }
+      while (sub < pos);
+      return false;
+    }
+
     acc_cond::acc_code extract_fin(const acc_cond::acc_word* pos,
                                    acc_cond::mark_t f)
     {
@@ -2716,7 +2745,7 @@ namespace spot
         case acc_cond::acc_op::And:
         case acc_cond::acc_op::Fin:
         case acc_cond::acc_op::Inf:
-          return pos;
+          return strip_rec(pos, f, true, false);
         case acc_cond::acc_op::Or:
           {
             --pos;
@@ -2725,7 +2754,7 @@ namespace spot
               {
                 if (uses_fin(pos, f))
                   {
-                    acc_cond::acc_code tmp(pos);
+                    auto tmp = strip_rec(pos, f, true, false);
                     tmp |= std::move(res);
                     std::swap(tmp, res);
                   }
@@ -2742,6 +2771,52 @@ namespace spot
       SPOT_UNREACHABLE();
       return {};
     }
+
+    std::pair<acc_cond::acc_code, acc_cond::acc_code>
+    split_top_fin(const acc_cond::acc_word* pos, acc_cond::mark_t f)
+    {
+      auto start = pos - pos->sub.size;
+      switch (pos->sub.op)
+        {
+        case acc_cond::acc_op::And:
+        case acc_cond::acc_op::Fin:
+          if (is_conj_fin(pos, f))
+            return {pos, acc_cond::acc_code::f()};
+          SPOT_FALLTHROUGH;
+        case acc_cond::acc_op::Inf:
+          return {acc_cond::acc_code::f(), pos};
+        case acc_cond::acc_op::Or:
+          {
+            --pos;
+            auto left = acc_cond::acc_code::f();
+            auto right = acc_cond::acc_code::f();
+            do
+              {
+                if (is_conj_fin(pos, f))
+                  {
+                    auto tmp = strip_rec(pos, f, true, false);
+                    tmp |= std::move(left);
+                    std::swap(tmp, left);
+                  }
+                else
+                  {
+                    acc_cond::acc_code tmp(pos);
+                    tmp |= std::move(right);
+                    std::swap(tmp, right);
+                  }
+                pos -= pos->sub.size + 1;
+              }
+            while (pos > start);
+            return {std::move(left), std::move(right)};
+          }
+        case acc_cond::acc_op::FinNeg:
+        case acc_cond::acc_op::InfNeg:
+          SPOT_UNREACHABLE();
+          return {acc_cond::acc_code::f(), acc_cond::acc_code::f()};
+        }
+      SPOT_UNREACHABLE();
+      return {acc_cond::acc_code::f(), acc_cond::acc_code::f()};
+    }
   }
 
   std::pair<int, acc_cond::acc_code>
@@ -2754,6 +2829,26 @@ namespace spot
     if (selected_fin < 0)
       selected_fin = fin_one();
     return {selected_fin, extract_fin(pos, {(unsigned) selected_fin})};
+  }
+
+  std::tuple<int, acc_cond::acc_code, acc_cond::acc_code>
+  acc_cond::acc_code::fin_unit_one_split() const
+  {
+    if (SPOT_UNLIKELY(is_t() || is_f()))
+    err:
+      throw std::runtime_error("fin_unit_one_split(): no Fin");
+    const acc_cond::acc_word* pos = &back();
+    int selected_fin = has_top_fin(pos);
+    if (selected_fin >= 0)
+      {
+        auto [left, right] = split_top_fin(pos, {(unsigned) selected_fin});
+        return {selected_fin, std::move(left), std::move(right)};
+      }
+    selected_fin = fin_one();
+    if (selected_fin < 0)
+      goto err;
+    acc_cond::mark_t fo_m = {(unsigned) selected_fin};
+    return {selected_fin, extract_fin(pos, fo_m), force_inf(fo_m)};
   }
 
   namespace
