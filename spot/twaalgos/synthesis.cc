@@ -1168,6 +1168,27 @@ namespace spot
   //Anonymous for try_create_strat
   namespace
   {
+    // Checks that 2 sets have a common element. Use it instead
+    // of set_intersection when we just want to check if they have a common
+    // element because it avoids going through the rest of the sets after an
+    // element is found.
+    static bool
+    are_intersecting(const std::set<formula> &v1,
+                    const std::set<formula> &v2)
+    {
+      auto v1_pos = v1.begin(), v2_pos = v2.begin(), v1_end = v1.end(),
+          v2_end = v2.end();
+      while (v1_pos != v1_end && v2_pos != v2_end)
+        {
+          if (*v1_pos < *v2_pos)
+            ++v1_pos;
+          else if (*v2_pos < *v1_pos)
+            ++v2_pos;
+          else
+            return true;
+        }
+      return false;
+    }
     class formula_2_inout_props
     {
     private:
@@ -1372,10 +1393,6 @@ namespace spot
       if (combin == -1U)
         return ret_sol_maybe();
 
-      // We know that a strategy exists and we don't want to construct it.
-      if (!want_strategy)
-        return ret_sol_exists(nullptr);
-
       formula f_left = f_other[(combin + 1) % 2];
       formula f_right = f_other[combin % 2];
       if (!(combin % 2))
@@ -1383,6 +1400,14 @@ namespace spot
         std::swap(left_ins, right_ins);
         std::swap(left_outs, right_outs);
       }
+
+      auto [_, g_outs] = form2props.aps_of(f_g);
+      if (are_intersecting(g_outs, right_outs))
+        return ret_sol_maybe();
+
+      // We know that a strategy exists and we don't want to construct it.
+      if (!want_strategy)
+        return ret_sol_exists(nullptr);
 
       auto trans = create_translator(gi);
 
@@ -1484,28 +1509,6 @@ namespace spot
 namespace // anonymous for subsformula
 {
   using namespace spot;
-  // Checks that 2 sets have a common element. Use it instead
-  // of set_intersection when we just want to check if they have a common
-  // element because it avoids going through the rest of the sets after an
-  // element is found.
-  static bool
-  are_intersecting(const std::set<formula> &v1,
-                   const std::set<formula> &v2)
-  {
-    auto v1_pos = v1.begin(), v2_pos = v2.begin(), v1_end = v1.end(),
-         v2_end = v2.end();
-    while (v1_pos != v1_end && v2_pos != v2_end)
-      {
-        if (*v1_pos < *v2_pos)
-          ++v1_pos;
-        else if (*v2_pos < *v1_pos)
-          ++v2_pos;
-        else
-          return true;
-      }
-    return false;
-  }
-
   static std::pair<std::set<formula>, std::set<formula>>
   algo4(const std::vector<formula> &assumptions,
         const std::set<std::string> &outs,

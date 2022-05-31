@@ -944,3 +944,44 @@ ltlsynt -f '(GFa <-> GFb) && (Gc)' --outs=b,c --verbose --bypass=no\
                                    --algo=acd 2> out
 sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
 diff outx exp
+
+# Bypass: check that in G(b1) ∧ (Büchi ↔ GF(b2)), b1 and b2 don't share an AP.
+# We do it because  G(o1 ∨ o2) ∧ (GFi ↔ GFo1) is realizable while
+# G(o1) ∧ (GFi ↔ GFo1) is not realizable. So we cannot conclude if
+# they share an AP.
+cat >exp <<EOF
+there are 1 subformulas
+trying to create strategy directly for Go1 & (GFi <-> GFo1)
+direct strategy might exist but was not found.
+translating formula done in X seconds
+automaton has 1 states and 1 colors
+LAR construction done in X seconds
+DPA has 1 states, 1 colors
+split inputs and outputs done in X seconds
+automaton has 3 states
+solving game with acceptance: Streett 1
+game solved in X seconds
+EOF
+ltlsynt -f "G(o1) & (GFi <-> GFo1)" --outs="o1" --verbose\
+                                    --bypass=yes 2> out || true
+sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
+diff outx exp
+
+cat >exp <<EOF
+there are 1 subformulas
+trying to create strategy directly for G(o1 | o2) & (GFi <-> GFo1)
+direct strategy might exist but was not found.
+translating formula done in X seconds
+automaton has 1 states and 2 colors
+LAR construction done in X seconds
+DPA has 2 states, 2 colors
+split inputs and outputs done in X seconds
+automaton has 6 states
+solving game with acceptance: parity max odd 4
+game solved in X seconds
+simplification took X seconds
+EOF
+ltlsynt -f "G(o1|o2) & (GFi <-> GFo1)" --outs="o1,o2" --verbose\
+                                       --bypass=yes 2> out
+sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
+diff outx exp
