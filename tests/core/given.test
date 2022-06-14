@@ -24,20 +24,22 @@ set -e
 
 ltl2tgba 'p | (!p & G(Fq & F!q & Fa))' >in
 test '3 3' = "`autfilt in --stats='%s %a'`"
-for i in restrict all; do
+for i in minato all; do
     test '2 3' = \
          "`autfilt --given-fo='F(Gq|G!q)' --given-s=$i in --stats='%s %a'`"
 done
-res=`autfilt --given-fo='F(Gq|G!q)' --given-s=rest in --small --stats='%s %a'`
+res=`autfilt --given-fo='F(Gq|G!q)' --given-s=minato in --small --stats='%s %a'`
 test '2 0' = "$res"
+
 
 ltl2tgba 'p | (!p & G(Fq & F!q & Fa))' >in
 while read opt exp; do
     res=`autfilt --given-fo=Gp in --given-s=$opt --stats='%s %e %a'`
     test "$res" = "$exp"
 done <<EOF
-restrict 2 2 3
-relax 3 7 3
+none 3 7 3
+minato 2 2 3
+stutter 2 2 3
 all 2 2 3
 EOF
 
@@ -45,13 +47,15 @@ while read opt exp; do
     res=`autfilt --given-fo=Gp in --given-s=$opt --small --stats='%s %e %x'`
     test "$res" = "$exp"
 done <<EOF
-restrict 1 1 1
-relax 1 1 0
+none 1 1 1
+minato 1 1 0
+stutter 1 1 1
 all 1 1 0
 EOF
 
-for opt in restrict relax all; do
-    res=`ltl2tgba GFp | autfilt --given-s=$opt --given-fo='G!p' --stats=%s%e%x`
+for opt in minato all; do
+    res=`ltl2tgba GFp |
+         autfilt --given-s=$opt --given-fo='G!p' --small --stats=%s%e%x`
     test "$res" = 100
 done
 
@@ -61,9 +65,9 @@ while read opt exp; do
                  --small --stats='%s %e %x'`
     test "$res" = "$exp"
 done <<EOF
-restrict 3 4 2
-relax 3 5 2
-stutter 2 3 2
+none 3 4 2
+minato 3 4 2
+stutter 3 4 2
 all 2 3 2
 EOF
 
@@ -73,20 +77,22 @@ while read opt exp; do
          --given-s=$opt --small --stats='%s %e %x' in`
     test "$res" = "$exp"
 done <<EOF
-restrict 3 4 2
-relax 3 5 2
-stutter 2 3 2
+none 3 4 2
+minato 3 4 2
+stutter 3 4 2
 all 3 4 2
 EOF
 
+# We could hope for a better reduction on this case
 while read opt exp; do
     res=`autfilt --given-fo='p0' --given-fo='p1' \
          --given-s=$opt --given-fixpoint --small --stats='%s %e %x' in`
     test "$res" = "$exp"
 done <<EOF
-restrict 3 4 2
-relax 3 5 2
-stutter 2 3 2
+none 3 4 2
+minato 3 4 2
+stutter 3 4 2
+all 3 4 2
 EOF
 
 # Test case from Yann's 2022-03-29 email.

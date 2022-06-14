@@ -314,6 +314,7 @@ namespace spot
     COPY_PROP(aliasvect, "aliases");
     COPY_PROP(std::string, "automaton-name");
     COPY_PROP(std::vector<unsigned>, "degen-levels");
+    COPY_PROP(std::vector<bdd>, "upper-cond");
     typedef std::map<unsigned, unsigned> hlmap;
     COPY_PROP(hlmap, "highlight-edges");
     COPY_PROP(hlmap, "highlight-states");

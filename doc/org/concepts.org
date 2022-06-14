@@ -1120,7 +1120,7 @@ Here is a list of named properties currently used inside Spot:
 | key name            | (pointed) value type                      | description                                                                                                                                           |
 |---------------------+-------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------|
 | ~accepted-word~     | ~std::string~                             | a word accepted by the automaton                                                                                                                      |
-| ~aliases~           | ~std::vector<std::pair<std::string,bdd>>~ | a set of aliases to use when printing edge labels                                                                               |
+| ~aliases~           | ~std::vector<std::pair<std::string,bdd>>~ | a set of aliases to use when printing edge labels                                                                                                     |
 | ~automaton-name~    | ~std::string~                             | name for the automaton, for instance to display in the HOA format                                                                                     |
 | ~degen-levels~      | ~std::vector<unsigned>~                   | level associated to each state by the degeneralization algorithm                                                                                      |
 | ~highlight-edges~   | ~std::map<unsigned, unsigned>~            | map of (edge number, color number) for highlighting the output                                                                                        |
@@ -1137,6 +1137,7 @@ Here is a list of named properties currently used inside Spot:
 | ~state-winner~      | ~std::vector<bool>~                       | vector indicating the player (0 or 1) winning from this state                                                                                         |
 | ~strategy~          | ~std::vector<unsigned>~                   | vector representing the memoryless strategy of the players in a parity game. The value corrsponds to the edge number of the transition to take.       |
 | ~synthesis-outputs~ | ~bdd~                                     | conjunction of controllable atomic propositions (used by ~print_aiger()~ to determine which propositions should be encoded as outputs of the circuit) |
+| ~upper-cond~        | ~std::vector<bdd>~                        | vector representing the upper bound of the label of each edge (the actual label should be interpreted as lower-bound)                                 |
 
 Objects referenced via named properties are automatically destroyed
 when the automaton is destroyed, but this can be altered by passing a

@@ -1079,16 +1079,19 @@ namespace spot
           {
             auto t = g_.out_iteraser(s);
             bool useless = true;
+            bool first = true;
             while (t)
               {
                 // Erase any false edge, except self-loops (which can
                 // be used to store colors on state without successor
                 // with state-based acceptance).
-                if (t->cond == bddfalse && t->src != t->dst)
+                if (t->cond == bddfalse &&
+                    (t->src != t->dst || !first || t->next_succ))
                   {
                     t.erase();
                     continue;
                   }
+                 first = false;
                 // A non-false edge is useful if all its destinations
                 // are useful.
                 bool usefuledge = true;

@@ -126,6 +126,7 @@ namespace spot
 
       bool opt_shared_univ_dest_ = true;
       bool opt_mealy_ = false;
+      std::vector<bdd>* upper_bound_ = nullptr;
       bdd opt_mealy_output_;
 
     public:
@@ -502,6 +503,25 @@ namespace spot
             && incomplete_ && incomplete_->find(s) != incomplete_->end())
             return os << "...";
         return format_label(os, label);
+      }
+
+      std::ostream&
+      format_bounded(std::ostream& os,
+                     bdd low, bdd high)
+      {
+        if (opt_html_labels_)
+          os << ("<TABLE BORDER=\"0\"><TR><TD ALIGN=\"RIGHT\">"
+                 "<FONT COLOR=\"#008040\">");
+        format_label(os, low);
+        if (opt_html_labels_)
+          os << ("</FONT></TD><TD>…</TD><TD ALIGN=\"LEFT\">"
+                 "<FONT COLOR=\"#A00030\">");
+        else
+          os << " … ";
+        format_label(os, high);
+        if (opt_html_labels_)
+          os << "</FONT>";
+        return os;
       }
 
       std::ostream&
@@ -916,26 +936,46 @@ namespace spot
                   os_ << '.' << iter->second % palette_mod;
               }
             os_ << " [" << label_pre_;
+            bool html_table = false;
             if (!opt_state_labels_ && opt_showlabel_)
               {
                 if (opt_mealy_)
-                  format_mealy(os_, t.cond);
+                  {
+                    html_table = true;
+                    format_mealy(os_, t.cond);
+                  }
+                else if (upper_bound_)
+                  {
+                    auto idx = aut_->get_graph().index_of_edge(t);
+                    bdd high = (*upper_bound_)[idx];
+                    if (t.cond != high)
+                      {
+                        format_bounded(os_, t.cond, high);
+                        html_table = true;
+                      }
+                    else
+                      {
+                        format_label(os_, t.cond);
+                      }
+                  }
                 else
-                  format_label(os_, t.cond);
+                  {
+                    format_label(os_, t.cond);
+                  }
               }
             if (!mark_states_)
               if (auto a = t.acc)
                 {
                   if (!opt_state_labels_ && opt_showlabel_)
                     {
-                      if (opt_mealy_ && opt_html_labels_)
+                      if (opt_html_labels_ && html_table)
                         os_ << "</TD></TR><TR><TD COLSPAN=\"3\">";
                       else
                         os_ << nl_;
                     }
                   output_mark(a);
                 }
-            if (opt_mealy_ && opt_html_labels_)
+            if (opt_html_labels_ && html_table)
               os_ << "</TD></TR></TABLE>>";
             else
               os_ << label_post_;
@@ -1087,6 +1127,7 @@ namespace spot
                 opt_mealy_ = true;
               }
             }
+        upper_bound_ = aut->get_named_prop<std::vector<bdd>>("upper-cond");
         incomplete_ =
           aut->get_named_prop<std::set<unsigned>>("incomplete-states");
         state_player_ =

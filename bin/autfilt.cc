@@ -408,12 +408,11 @@ static const argp_option options[] =
     { "given-formula", OPT_GIVEN_FORMULA, "FORMULA", 0,
       "simplify input automata assuming they are only used in a context where "
       "FORMULA holds", 0 },
-    { "given-strategy", OPT_GIVEN_STRAT, "restrict|relax|stutter|all", 0,
+    { "given-strategy", OPT_GIVEN_STRAT, "none|minato|stutter|all", 0,
       "strategy to use to simplify input automata based on given knowledge: "
-      "(restrict) restrict edge labels to their useful subset, (relax) relax "
-      "labels using impossible assignments if that reduce their support, "
+      "(minato) simplify edge labels based on knowledge [the default], "
       "(stutter) build a stutter-invariant results if the added words are "
-      "outside the given knowledge, (all) do all [the default].", 0 },
+      "outside the given knowledge, (all) do both.", 0 },
     { "given-fixpoint", OPT_GIVEN_FIXPOINT, nullptr, 0,
       "If multiple knowledges have been given with --given-formula or "
       "--given-automaton repeat their application until we reach a fixpoint.",
@@ -520,13 +519,19 @@ static bool const aliases_types[] =
 };
 ARGMATCH_VERIFY(aliases_args, aliases_types);
 
+enum given_strategy {
+  GIVEN_NONE = 0,
+  GIVEN_MINATO = 1,
+  GIVEN_STUTTER = 2,
+  GIVEN_ALL = 3,
+};
 static char const *const given_args[] =
 {
-  "restrict", "relax", "stutter", "all", nullptr
+  "none", "minato", "stutter", "all", nullptr
 };
-static spot::given_strategy const given_types[] =
+static given_strategy const given_types[] =
 {
-  spot::GIVEN_RESTRICT, spot::GIVEN_RELAX, spot::GIVEN_STUTTER, spot::GIVEN_ALL
+  GIVEN_NONE, GIVEN_MINATO, GIVEN_STUTTER, GIVEN_ALL,
 };
 ARGMATCH_VERIFY(given_args, given_types);
 
@@ -654,7 +659,7 @@ static struct opt_t
   std::unique_ptr<spot::isomorphism_checker>
                          isomorphism_checker = nullptr;
   std::unique_ptr<unique_aut_t> uniq = nullptr;
-  std::vector<spot::twa_graph_ptr> given_automata;
+  std::vector<spot::const_twa_graph_ptr> given_automata;
   spot::exclusive_ap excl_ap;
   spot::remove_ap rem_ap;
   std::vector<spot::twa_graph_ptr> acc_words;
@@ -676,7 +681,7 @@ static bool opt_is_weak = false;
 static bool opt_is_inherently_weak = false;
 static bool opt_is_very_weak = false;
 static bool opt_is_stutter_invariant = false;
-static spot::given_strategy opt_given_strat = spot::given_strategy::GIVEN_ALL;
+static given_strategy opt_given_strat = GIVEN_MINATO;
 static bool opt_given_fixpoint = false;
 static bool opt_invert = false;
 static range opt_states = { 0, std::numeric_limits<int>::max() };
@@ -1628,9 +1633,15 @@ namespace
       bool changed = false;
       do
         for (spot::const_twa_graph_ptr knowledge: opt->given_automata)
-          aut = spot::given_here(aut, knowledge, opt_given_strat, &changed);
+          aut = spot::update_bounds_given_here(aut, knowledge, &changed);
       while (changed && opt_given_fixpoint);
-
+      if (!opt->given_automata.empty())
+        {
+          if (opt_given_strat & GIVEN_MINATO)
+            aut = spot::bounds_simplify_here(aut);
+          if (opt_given_strat & GIVEN_STUTTER)
+            aut = spot::stutterize_given(aut, opt->given_automata);
+        }
       // opt_simplify_exclusive_ap is handled only after
       // post-processing.
       if (!opt->excl_ap.empty())
@@ -1807,10 +1818,6 @@ main(int argc, char** argv)
           opt->isomorphism_checker = std::unique_ptr<spot::isomorphism_checker>
             (new spot::isomorphism_checker(opt->are_isomorphic));
         }
-
-      if (opt_given_strat == spot::GIVEN_ALL && opt_given_fixpoint)
-        error(2, 0,
-              "--given-strategy=all is incompatible with --given-fixpoint");
 
       spot::srand(opt_seed);
 

@@ -370,6 +370,7 @@ TESTS_ipython = \
   python/formulas.ipynb \
   python/games.ipynb \
   python/gen.ipynb \
+  python/given.ipynb \
   python/highlighting.ipynb \
   python/ltsmin-dve.ipynb \
   python/ltsmin-pml.ipynb \

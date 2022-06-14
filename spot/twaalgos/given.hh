@@ -22,14 +22,6 @@
 
 namespace spot
 {
-  enum given_strategy
-    {
-      GIVEN_RESTRICT = 1,
-      GIVEN_RELAX = 2,
-      GIVEN_STUTTER = 4,
-      GIVEN_ALL = GIVEN_RESTRICT | GIVEN_RELAX | GIVEN_STUTTER,
-    };
-
   /// \ingroup twa_algorithms
   /// \brief simplify an automaton given some a priori knowledge
   ///
@@ -52,17 +44,26 @@ namespace spot
   /// in the process are outside the knowledge, they can be kept.
   /// Doing so may add many more arcs to the automaton.
   /// @{
-  SPOT_API twa_graph_ptr
-  given_here(twa_graph_ptr& aut, const_twa_graph_ptr& fact,
-             given_strategy = GIVEN_ALL, bool* changed = nullptr);
-  SPOT_API twa_graph_ptr
-  given_here(twa_graph_ptr& aut, formula fact,
-             given_strategy = GIVEN_ALL, bool* changed = nullptr);
-  SPOT_API twa_graph_ptr
-  given(const_twa_graph_ptr& aut, const_twa_graph_ptr& fact,
-        given_strategy = GIVEN_ALL);
-  SPOT_API twa_graph_ptr
-  given(const_twa_graph_ptr& aut, formula fact,
-        given_strategy = GIVEN_ALL);
+  SPOT_API
+  twa_graph_ptr update_bounds_given_here(twa_graph_ptr& aut,
+                                         const_twa_graph_ptr& fact,
+                                         bool* changed = nullptr);
+  SPOT_API
+  twa_graph_ptr bounds_simplify_here(twa_graph_ptr& aut);
+  SPOT_API
+  twa_graph_ptr bounds_simplify(const_twa_graph_ptr& aut);
+  SPOT_API
+  twa_graph_ptr stutterize_given(twa_graph_ptr& aut,
+                                 std::vector<const_twa_graph_ptr>& facts);
+  SPOT_API
+  twa_graph_ptr update_bounds_given(const_twa_graph_ptr& aut,
+                                    const_twa_graph_ptr& fact);
+  SPOT_API
+  twa_graph_ptr update_bounds_given_here(twa_graph_ptr& aut,
+                                         formula fact,
+                                         bool* changed = nullptr);
+  SPOT_API
+  twa_graph_ptr update_bounds_given(const_twa_graph_ptr& aut,
+                                    formula fact);
   /// @}
 }
