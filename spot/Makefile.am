@@ -1,5 +1,5 @@
 ## -*- coding: utf-8 -*-
-## Copyright (C) 2009, 2010, 2012, 2013, 2014, 2015, 2016, 2017, 2020
+## Copyright (C) 2009, 2010, 2012, 2013, 2014, 2015, 2016, 2017, 2020, 2022
 ## Laboratoire de Recherche et Développement de l'Epita (LRDE).
 ## Copyright (C) 2003, 2004 Laboratoire d'Informatique de Paris 6 (LIP6),
 ## département Systèmes Répartis Coopératifs (SRC), Université Pierre
@@ -35,7 +35,7 @@ SUBDIRS = misc priv tl graph twa twacube twaalgos ta taalgos kripke \
 
 lib_LTLIBRARIES = libspot.la
 libspot_la_SOURCES =
-libspot_la_LDFLAGS = $(BUDDY_LDFLAGS) -no-undefined -pthread $(SYMBOLIC_LDFLAGS)
+libspot_la_LDFLAGS = $(BUDDY_LDFLAGS) -no-undefined @LIBSPOT_PTHREAD@ $(SYMBOLIC_LDFLAGS)
 libspot_la_LIBADD =  \
   kripke/libkripke.la \
   misc/libmisc.la \

@@ -1,5 +1,17 @@
 New in spot 2.10.6.dev  (not yet released)
 
+  Build:
+
+  - A new configure option --enable-pthread enable the compilation of
+    Spot with -pthread, and activate the parallel version of some
+    algorithms.  If Spot is compiled with -pthread enabled, any user
+    linking with Spot should also link with the pthread library.  In
+    order to not break existing build setups using Spot, this option
+    is currently disabled by default in this release.  We plan to turn
+    it on by default in some future release.  Third-party project
+    using Spot may want to start linking with -pthread in prevision
+    for this change.
+
   Command-line tools:
 
   - autfilt has a new options --aliases=drop|keep to specify

@@ -53,6 +53,15 @@ AC_ARG_ENABLE([c++20],
                               [Compile in C++20 mode.])],
               [enable_20=$enableval], [enable_20=no])
 
+AC_ARG_ENABLE([pthread],
+              [AS_HELP_STRING([--enable-pthread],
+                              [Allow libspot to use POSIX threads.])],
+              [enable_pthread=$enableval], [enable_pthread=no])
+if test "$enable_pthread" = yes; then
+  AC_DEFINE([ENABLE_PTHREAD], [1], [Whether Spot is compiled with -pthread.])
+  AC_SUBST([LIBSPOT_PTHREAD], [-pthread])
+fi
+
 AC_ARG_ENABLE([doxygen],
               [AS_HELP_STRING([--enable-doxygen],
   [enable generation of Doxygen documentation (requires Doxygen)])],
@@ -150,7 +159,7 @@ AX_CHECK_BUDDY
 AC_CHECK_FUNCS([times kill alarm sigaction sched_getcpu])
 
 oLIBS=$LIBS
-LIBS="$LIBS -lpthread"
+LIBS="$LIBS -pthread"
 AC_CHECK_FUNCS([pthread_setaffinity_np])
 LIBS=$oLIBS
 

@@ -372,7 +372,11 @@ namespace spot
       throw std::runtime_error(
           "twa_graph::merge_states() does not work on alternating automata");
 
+#ifdef ENABLE_PTHREAD
     const unsigned nthreads = get_nthreads();
+#else
+    constexpr unsigned nthreads = 1;
+#endif
 
     typedef graph_t::edge_storage_t tr_t;
     g_.sort_edges_srcfirst_([](const tr_t& lhs, const tr_t& rhs)
@@ -511,9 +515,12 @@ namespace spot
     //          << ((env_map.size()+player_map.size())/((float)n_states))
     //          << '\n';
 
+
     // Check whether we can merge two states
     // and takes into account the self-loops
-    auto state_equal = [&](unsigned s1, unsigned s2)
+    auto state_equal = [&e_vec, &e_chain, &e_idx](unsigned s1, unsigned s2,
+                                                  std::vector<char>& checked1,
+                                                  std::vector<char>& checked2)
       {
         auto edge_data_comp = [](const auto& lhs,
                                  const auto& rhs)
@@ -527,10 +534,6 @@ namespace spot
               return true;
             return false;
           };
-
-
-        thread_local auto checked1 = std::vector<char>();
-        thread_local auto checked2 = std::vector<char>();
 
         auto [i1, nsl1, sl1, e1] = e_idx[s1];
         auto [i2, nsl2, sl2, e2] = e_idx[s2];
@@ -612,10 +615,10 @@ namespace spot
     std::vector<unsigned> remap(nb_states, -1U);
 
     // Check each hash
-    auto check_ix = [&](unsigned ix)
+    auto check_ix = [&](unsigned ix, std::vector<unsigned>& v,
+                        std::vector<char>& checked1,
+                        std::vector<char>& checked2)
       {
-        // Reduce cache miss
-        thread_local auto v = std::vector<unsigned>();
         v.clear();
         for (auto i = ix; i != -1U; i = hash_linked_list[i])
           v.push_back(i);
@@ -627,7 +630,7 @@ namespace spot
             for (unsigned jdx = 0; jdx < idx; ++jdx)
               {
                 auto j = v[jdx];
-                if (state_equal(j, i))
+                if (state_equal(j, i, checked1, checked2))
                   {
                     remap[i] = (remap[j] != -1U) ? remap[j] : j;
 
@@ -675,13 +678,19 @@ namespace spot
 
     auto worker = [&upd, check_ix, nthreads](unsigned pid, auto begp, auto endp,
                                              auto bege, auto ende)
-      {
-        upd(begp, endp, pid);
-        upd(bege, ende, pid);
-        for (; begp != endp; upd(begp, endp, nthreads))
-          check_ix(begp->second.first);
-        for (; bege != ende; upd(bege, ende, nthreads))
-          check_ix(bege->second.first);
+    {
+      // Temporary storage for list of edges to reduce cache misses
+      std::vector<unsigned> v;
+      // Vector reused by all invocations of state_equal to mark edges
+      // that have been matched already.
+      std::vector<char> checked1;
+      std::vector<char> checked2;
+      upd(begp, endp, pid);
+      upd(bege, ende, pid);
+      for (; begp != endp; upd(begp, endp, nthreads))
+        check_ix(begp->second.first, v, checked1, checked2);
+      for (; bege != ende; upd(bege, ende, nthreads))
+        check_ix(bege->second.first, v, checked1, checked2);
       };
 
     {
@@ -690,10 +699,12 @@ namespace spot
       auto bege = env_map.begin();
       auto ende = env_map.end();
 
-
+#ifdef ENABLE_PTHREAD
       if ((nthreads == 1) & (num_states() > 1000)) // Bound?
         {
+#endif // ENABLE_PTHREAD
           worker(0, begp, endp, bege, ende);
+#ifdef ENABLE_PTHREAD
         }
       else
         {
@@ -711,6 +722,7 @@ namespace spot
             t.join();
           tv.clear();
         }
+#endif // ENABLE_PTHREAD
     }
 
     for (auto& e: edges())

@@ -20,6 +20,7 @@
 #pragma once
 
 #include <spot/misc/common.hh>
+#include <spot/misc/_config.h>
 #include <vector>
 #include <type_traits>
 #include <tuple>
@@ -28,7 +29,9 @@
 #include <algorithm>
 #include <map>
 #include <iostream>
-#include <thread>
+#ifdef SPOT_ENABLE_PTHREAD
+#  include <thread>
+#endif // SPOT_ENABLE_PTHREAD
 
 namespace spot
 {
@@ -1242,8 +1245,6 @@ namespace spot
       //std::cerr << "\nbefore\n";
       //dump_storage(std::cerr);
       const auto N = num_states();
-      // Read threads once
-      const unsigned nthreads = get_nthreads();
 
       auto idx_list = std::vector<unsigned>(N+1);
       auto new_edges = edge_vector_t();
@@ -1265,13 +1266,17 @@ namespace spot
       // If we have few edge or only one threads
       // Benchmark few?
       auto bne = new_edges.begin();
+#ifdef SPOT_ENABLE_PTHREAD
+      const unsigned nthreads = get_nthreads();
       if (nthreads == 1 || edges_.size() < 1000)
+#endif
         {
           for (auto s = 0u; s < N; ++s)
             std::stable_sort(bne + idx_list[s],
                              bne + idx_list[s+1],
                              p);
         }
+#ifdef SPOT_ENABLE_PTHREAD
       else
         {
           static auto tv = std::vector<std::thread>();
@@ -1291,7 +1296,7 @@ namespace spot
             t.join();
           tv.clear();
         }
-      // Done
+#endif
       std::swap(edges_, new_edges);
       // Like after normal sort_edges, they need to be chained before usage
     }

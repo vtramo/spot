@@ -210,11 +210,14 @@ one library requiring another, you will need to link with the =bddx=
 library.  This should be as simple as adding =-lbddx= after =-lspot=
 in the first three cases.
 
+Similarly, if Spot has been configured with =--enable-pthread=, you
+will need to add =-pthread= to the compiler flags.
+
 In the fourth case where =libtool= is used to link against
 =libspot.la= linking against =libbddx.la= should not be necessary because
 Libtool already handles such dependencies.  However the version of =libtool=
 distributed with Debian is patched to ignore those dependencies, so in this
-case you 2
+case you have to list all dependencies.
 
 * Additional suggestions
 

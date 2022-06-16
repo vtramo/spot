@@ -22,9 +22,9 @@ debian-stable-gcc:
   image: gitlab-registry.lrde.epita.fr/spot/buildenv/debian:stable
   script:
     - autoreconf -vfi
-    - ./configure --enable-max-accsets=256
+    - ./configure --enable-max-accsets=256 --enable-pthread
     - make
-    - make distcheck
+    - make distcheck DISTCHECK_CONFIGURE_FLAGS='--enable-max-accsets=256 --enable-pthread'
   artifacts:
     when: always
     paths:
@@ -89,7 +89,7 @@ debian-gcc-snapshot:
     - autoreconf -vfi
     - ./configure --with-included-ltdl CXX='g++'
     - make
-    - make distcheck  DISTCHECK_CONFIGURE_FLAGS='--with-included-ltdl'
+    - make distcheck DISTCHECK_CONFIGURE_FLAGS='--with-included-ltdl'
   allow_failure: true
   artifacts:
     when: always
@@ -111,7 +111,7 @@ alpine-gcc:
     - autoreconf -vfi
     - ./configure
     - make
-    - make distcheck || { chmod -R u+w ./spot-*; false; }
+    - make distcheck DISTCHECK_CONFIGURE_FLAGS='--enable-pthread' || { chmod -R u+w ./spot-*; false; }
   artifacts:
     when: always
     paths:

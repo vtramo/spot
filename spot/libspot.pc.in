@@ -8,5 +8,5 @@ Description: A library of LTL and omega-automata algorithms for model checking
 URL: https://spot.lrde.epita.fr/
 Version: @PACKAGE_VERSION@
 Cflags: -I${includedir}
-Libs: -L${libdir} -lspot
+Libs: -L${libdir} -lspot @LIBSPOT_PTHREAD@
 Requires: libbddx

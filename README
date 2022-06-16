@@ -173,6 +173,12 @@ flags specific to Spot:
      client code should be compiled with -D_GLIBCXX_DEBUG as well.  This
      options should normally only be useful to run Spot's test-suite.
 
+   --enable-pthread
+     Build and link with the -pthread option, and activate a few
+     parallel variants of the algorithms.  This is currently disabled
+     by default, as it require all third-party tools using Spot to
+     build with -pthread as well.
+
    --enable-c++20
      Build everything in C++20 mode.  We use that in our build farm to
      ensure that Spot can be used in C++20 projects as well.
