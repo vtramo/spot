@@ -160,6 +160,7 @@
 #include <spot/twaalgos/stutter.hh>
 #include <spot/twaalgos/synthesis.hh>
 #include <spot/twaalgos/translate.hh>
+#include <spot/twaalgos/translate_aa.hh>
 #include <spot/twaalgos/toweak.hh>
 #include <spot/twaalgos/hoa.hh>
 #include <spot/twaalgos/dtwasat.hh>
@@ -741,6 +742,7 @@ def state_is_accepting(self, src) -> "bool":
 %include <spot/twaalgos/stutter.hh>
 %include <spot/twaalgos/synthesis.hh>
 %include <spot/twaalgos/translate.hh>
+%include <spot/twaalgos/translate_aa.hh>
 %include <spot/twaalgos/toweak.hh>
 %include <spot/twaalgos/hoa.hh>
 %include <spot/twaalgos/dtwasat.hh>
