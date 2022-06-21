@@ -32,8 +32,10 @@ for i in *.hoa; do
   shift
 done
 shift
-autfilt "$@" 2> error && exit 1
-grep 'Too many acceptance sets used' error
+if $MAX_ACCSETS -eq 32; then
+  autfilt "$@" 2> error && exit 1
+  grep 'Too many acceptance sets used' error
+fi
 autfilt -B "$@" > result
 test "127,253,508,1" = `autfilt --stats=%s,%e,%t,%a result`
 
@@ -44,7 +46,9 @@ for i in *.hoa; do
   shift
 done
 shift
-autfilt "$@" 2> error && exit 1
-grep 'Too many acceptance sets used' error
+if $MAX_ACCSETS -eq 32; then
+  autfilt "$@" 2> error && exit 1
+  grep 'Too many acceptance sets used' error
+fi
 autfilt -B "$@" > result
 test "45,89,180,1" = `autfilt --stats=%s,%e,%t,%a result`

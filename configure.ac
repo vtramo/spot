@@ -79,6 +79,7 @@ if test 0 -eq `expr $enable_max_accsets % $default_max_accsets`
 then
   AC_DEFINE_UNQUOTED([MAX_ACCSETS], [$enable_max_accsets],
     [The maximal number of acceptance sets supported (also known as acceptance marks)])
+  AC_SUBST([MAX_ACCSETS], [$enable_max_accsets])
 else
   AC_MSG_ERROR([The argument of --enable-max-accsets must be a multiple of $default_max_accsets])
 fi
