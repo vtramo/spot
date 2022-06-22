@@ -27,7 +27,8 @@
 
 enum class job_type : char { LTL_STRING,
                              LTL_FILENAME,
-                             AUT_FILENAME };
+                             AUT_FILENAME,
+                             TLSF_FILENAME };
 
 struct job
 {
@@ -76,6 +77,9 @@ public:
 
   virtual int
   process_aut_file(const char* filename);
+
+  virtual int
+  process_tlsf_file(const char* filename);
 
   virtual int
   run();

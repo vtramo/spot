@@ -44,5 +44,8 @@ test REALIZABLE = `ltlsynt --tlsf test.tlsf --realizability`
 test UNREALIZABLE = `ltlsynt --tlsf test.tlsf --outs=foo --realizability`
 test UNREALIZABLE = `ltlsynt --outs=foo --tlsf test.tlsf --realizability`
 
-ltlsynt --tlsf test.tlsf  --tlsf test.tlsf 2>stderr && exit 0
-grep 'option --tlsf may only be used once' stderr
+# --tlsf can be used several time
+ltlsynt --tlsf test.tlsf > out1
+ltlsynt --tlsf test.tlsf --tlsf test.tlsf > out2
+cat out1 out1 > out11
+diff out11 out2

@@ -309,6 +309,12 @@ job_processor::process_aut_file(const char*)
 }
 
 int
+job_processor::process_tlsf_file(const char*)
+{
+  throw std::runtime_error("process_tlsf_file not defined for this tool");
+}
+
+int
 job_processor::process_ltl_file(const char* filename)
 {
   col_to_read = 0;
@@ -376,6 +382,9 @@ job_processor::run()
           break;
         case job_type::AUT_FILENAME:
           error |= process_aut_file(j.str);
+          break;
+        case job_type::TLSF_FILENAME:
+          error |= process_tlsf_file(j.str);
           break;
         default:
           throw std::runtime_error("unexpected job type");

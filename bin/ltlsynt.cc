@@ -157,8 +157,6 @@ static const char* opt_print_hoa_args = nullptr;
 static bool opt_real = false;
 static bool opt_do_verify = false;
 static const char* opt_print_aiger = nullptr;
-static char* opt_tlsf = nullptr;
-static std::string opt_tlsf_string;
 
 static spot::synthesis_info* gi;
 
@@ -582,6 +580,18 @@ namespace
     return 0;
   }
 
+  static void
+  split_aps(std::string arg, std::vector<std::string>& where)
+  {
+    std::istringstream aps(arg);
+    std::string ap;
+    while (std::getline(aps, ap, ','))
+      {
+        ap.erase(remove_if(ap.begin(), ap.end(), isspace), ap.end());
+        where.push_back(str_tolower(ap));
+      }
+  }
+
   class ltl_processor final : public job_processor
   {
   private:
@@ -658,19 +668,40 @@ namespace
         print_csv(f);
       return res;
     }
-  };
-}
 
-static void
-split_aps(std::string arg, std::vector<std::string>& where)
-{
-  std::istringstream aps(arg);
-  std::string ap;
-  while (std::getline(aps, ap, ','))
+    int
+    process_tlsf_file(const char* filename) override
     {
-      ap.erase(remove_if(ap.begin(), ap.end(), isspace), ap.end());
-      where.push_back(str_tolower(ap));
+      static char arg0[] = "syfco";
+      static char arg1[] = "-f";
+      static char arg2[] = "ltlxba";
+      static char arg3[] = "-m";
+      static char arg4[] = "fully";
+      char* command[] = { arg0, arg1, arg2, arg3, arg4,
+                          const_cast<char*>(filename), nullptr };
+      std::string tlsf_string = read_stdout_of_command(command);
+
+      // The set of atomic proposition will be temporary set to those
+      // given by syfco, unless they were forced from the command-line.
+      bool reset_aps = false;
+      if (!input_aps_.has_value() && !output_aps_.has_value())
+        {
+          reset_aps = true;
+          static char arg5[] = "--print-output-signals";
+          char* command[] = { arg0, arg5,
+                              const_cast<char*>(filename), nullptr };
+          std::string res = read_stdout_of_command(command);
+
+          output_aps_.emplace(std::vector<std::string>{});
+          split_aps(res, *output_aps_);
+        }
+      int res = process_string(tlsf_string, filename);
+      if (reset_aps)
+        output_aps_.reset();
+      return res;
     }
+
+  };
 }
 
 static int
@@ -726,9 +757,7 @@ parse_opt(int key, char *arg, struct argp_state *)
                                    simplify_args, simplify_values);
       break;
     case OPT_TLSF:
-      if (opt_tlsf)
-        error(2, 0, "option --tlsf may only be used once");
-      opt_tlsf = arg;
+      jobs.emplace_back(arg, job_type::TLSF_FILENAME);
       break;
     case OPT_VERBOSE:
       gi->verbose_stream = &std::cerr;
@@ -766,28 +795,6 @@ main(int argc, char **argv)
                       argp_program_doc, children, nullptr, nullptr };
     if (int err = argp_parse(&ap, argc, argv, ARGP_NO_HELP, nullptr, nullptr))
       exit(err);
-
-    if (opt_tlsf)
-      {
-        static char arg0[] = "syfco";
-        static char arg1[] = "-f";
-        static char arg2[] = "ltlxba";
-        static char arg3[] = "-m";
-        static char arg4[] = "fully";
-        char* command[] = { arg0, arg1, arg2, arg3, arg4, opt_tlsf, nullptr };
-        opt_tlsf_string = read_stdout_of_command(command);
-        jobs.emplace_back(opt_tlsf_string.c_str(), job_type::LTL_STRING);
-
-        if (!all_input_aps.has_value() && !all_output_aps.has_value())
-          {
-            static char arg5[] = "--print-output-signals";
-            char* command[] = { arg0, arg5, opt_tlsf, nullptr };
-            std::string res = read_stdout_of_command(command);
-
-            all_output_aps.emplace(std::vector<std::string>{});
-            split_aps(res, *all_output_aps);
-          }
-      }
 
     check_no_formula();
 
