@@ -108,6 +108,11 @@ New in spot 2.10.6.dev  (not yet released)
     run with additional option to abort when the tree as an unwanted
     shape, or to turn the tree into a DAG.
 
+  - contains() can now take a twa as a second argument, not just a
+    twa_graph.  This allows for instance to do contains(ltl, kripke)
+    to obtain a simple model checker (that returns true or false,
+    without counterexample).
+
 New in spot 2.10.6  (2022-05-18)
 
   Bugs fixed:

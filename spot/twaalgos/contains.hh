@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2018 Laboratoire de Recherche et Développement de
+// Copyright (C) 2018, 2022 Laboratoire de Recherche et Développement de
 // l'Epita.
 //
 // This file is part of Spot, a model checking library.
@@ -38,10 +38,15 @@ namespace spot
   /// associated to the complement of \a left.  It helps if \a left
   /// is a deterministic automaton or a formula (because in both cases
   /// complementation is easier).
+  ///
+  /// Complementation is only supported on twa_graph automata, so that
+  /// is the reason \a left must be a twa_graph.  Right will be
+  /// explored on-the-fly if it is not a twa_graph.
+  ///
   /// @{
-  SPOT_API bool contains(const_twa_graph_ptr left, const_twa_graph_ptr right);
+  SPOT_API bool contains(const_twa_graph_ptr left, const_twa_ptr right);
   SPOT_API bool contains(const_twa_graph_ptr left, formula right);
-  SPOT_API bool contains(formula left, const_twa_graph_ptr right);
+  SPOT_API bool contains(formula left, const_twa_ptr right);
   SPOT_API bool contains(formula left, formula right);
   /// @}
 

@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2018, 2019 Laboratoire de Recherche et Développement de
+// Copyright (C) 2018, 2019, 2022 Laboratoire de Recherche et Développement de
 // l'Epita.
 //
 // This file is part of Spot, a model checking library.
@@ -34,7 +34,7 @@ namespace spot
     }
   }
 
-  bool contains(const_twa_graph_ptr left, const_twa_graph_ptr right)
+  bool contains(const_twa_graph_ptr left, const_twa_ptr right)
   {
     return !complement(left)->intersects(right);
   }
@@ -44,7 +44,7 @@ namespace spot
     return contains(left, translate(right, left->get_dict()));
   }
 
-  bool contains(formula left, const_twa_graph_ptr right)
+  bool contains(formula left, const_twa_ptr right)
   {
     return !translate(formula::Not(left), right->get_dict())->intersects(right);
   }
