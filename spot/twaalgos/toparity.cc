@@ -26,6 +26,7 @@
 #include <spot/twa/twa.hh>
 #include <spot/twaalgos/cleanacc.hh>
 #include <spot/twaalgos/degen.hh>
+#include <spot/twaalgos/genem.hh>
 #include <spot/twaalgos/toparity.hh>
 #include <spot/twaalgos/dualize.hh>
 #include <spot/twaalgos/isdet.hh>
@@ -38,6 +39,281 @@
 #include <unistd.h>
 namespace spot
 {
+
+  inline void
+  assign_color(acc_cond::mark_t &mark, unsigned col)
+  {
+    if (col < SPOT_MAX_ACCSETS)
+      mark.set(col);
+    else
+      acc_cond::mark_t{SPOT_MAX_ACCSETS};
+  }
+
+  // Describes if we want to test if it is a Büchi, co-Büchi,… type automaton.
+  enum cond_kind
+  {
+    BUCHI,
+    CO_BUCHI,
+    // A parity condition with a Inf as outermost term
+    INF_PARITY,
+    // A parity condition with a Fin as outermost term
+    FIN_PARITY
+  };
+
+  // This enum describes the status of an edge
+  enum edge_status
+  {
+    NOT_MARKED,
+    MARKED,
+    IMPOSSIBLE,
+    LINK_SCC
+  };
+
+  static bool
+  cond_type_main_aux(const twa_graph_ptr &aut, const cond_kind kind,
+                     const bool need_equivalent,
+                     std::vector<edge_status> &status,
+                     std::vector<acc_cond::mark_t> &res_colors,
+                     acc_cond &new_cond, bool &was_able_to_color)
+  {
+    auto &ev = aut->edge_vector();
+    const auto ev_size = ev.size();
+    const auto aut_init = aut->get_init_state_number();
+    was_able_to_color = false;
+    status = std::vector<edge_status>(ev_size, NOT_MARKED);
+    res_colors = std::vector<acc_cond::mark_t>(ev_size);
+    // Used by accepting_transitions_scc.
+    auto keep = std::unique_ptr<bitvect>(make_bitvect(ev_size));
+    keep->set_all();
+
+    // Number of edges colored by the procedure, used to test equivalence for
+    // parity
+    unsigned nb_colored = 0;
+
+    // We need to say that a transition between 2 SCC doesn't have to get a
+    // color.
+    scc_info si(aut, aut_init, nullptr, nullptr, scc_info_options::NONE);
+    status[0] = LINK_SCC;
+    if (si.scc_count() > 1)
+    {
+      for (unsigned edge_number = 1; edge_number < ev_size; ++edge_number)
+      {
+        auto &e = ev[edge_number];
+        if (si.scc_of(e.src) != si.scc_of(e.dst))
+        {
+          status[edge_number] = LINK_SCC;
+          ++nb_colored;
+        }
+      }
+    }
+
+    // If we need to convert to (co-)Büchi, we have to search one accepting
+    // set. With parity there is no limit.
+    bool want_parity = kind == cond_kind::FIN_PARITY ||
+                       kind == cond_kind::INF_PARITY;
+    unsigned max_iter = want_parity ? -1U : 1;
+
+    unsigned color = want_parity ? SPOT_MAX_ACCSETS - 1 : 0;
+    // Do we want always accepting transitions?
+    // Don't consider CO_BUCHI as it is done by Büchi
+    bool search_inf = kind != cond_kind::FIN_PARITY;
+
+    using filter_data_t = std::pair<const_twa_graph_ptr,
+                                    std::vector<edge_status> &>;
+
+    scc_info::edge_filter filter =
+        [](const twa_graph::edge_storage_t &t, unsigned, void *data)
+        -> scc_info::edge_filter_choice
+    {
+      auto &d = *static_cast<filter_data_t *>(data);
+      // We only keep transitions that can be marked
+      if (d.second[d.first->edge_number(t)] == NOT_MARKED)
+        return scc_info::edge_filter_choice::keep;
+      else
+        return scc_info::edge_filter_choice::cut;
+    };
+    std::vector<bool> not_decidable_transitions(ev_size, false);
+    auto aut_acc = aut->get_acceptance();
+    auto aut_acc_comp = aut_acc.complement();
+    for (unsigned iter = 0; iter < max_iter; ++iter)
+    {
+      // Share the code with Büchi-type
+      if (kind == CO_BUCHI)
+        std::swap(aut_acc, aut_acc_comp);
+      std::fill(not_decidable_transitions.begin(),
+                not_decidable_transitions.end(), false);
+      auto cond = acc_cond(search_inf ? aut_acc_comp : aut_acc);
+      auto filter_data = filter_data_t{aut, status};
+      scc_info si(aut, aut_init, filter, &filter_data,
+                  scc_info_options::TRACK_STATES);
+      bool worked = false;
+      unsigned ssc_size = si.scc_count();
+      for (unsigned scc = 0; scc < ssc_size; ++scc)
+      {
+        // scc_info can detect that we will not be able to find an
+        // accepting/rejecting cycle.
+        if (!((search_inf && !si.is_accepting_scc(scc)) ||
+              (!search_inf && !si.is_rejecting_scc(scc))))
+        {
+          accepting_transitions_scc(si, scc, cond, {},
+                                    not_decidable_transitions, *keep);
+          for (auto &e : si.inner_edges_of(scc))
+          {
+            auto edge_number = aut->edge_number(e);
+            if (!not_decidable_transitions[edge_number])
+            {
+              assert(!res_colors[edge_number]);
+              if (color != -1U)
+                assign_color(res_colors[edge_number], color);
+              was_able_to_color = true;
+              status[edge_number] = MARKED;
+              ++nb_colored;
+              keep->clear(edge_number);
+              worked = true;
+            }
+          }
+        }
+      }
+
+      if (color-- == -1U)
+        break;
+      search_inf = !search_inf;
+      // If we were not able to add color, we have to add status 2 to
+      // remaining transitions.
+      if (!worked && !need_equivalent)
+      {
+        std::replace(status.begin(), status.end(), NOT_MARKED, IMPOSSIBLE);
+        break;
+      }
+    }
+
+    acc_cond::acc_code new_code;
+    switch (kind)
+    {
+    case cond_kind::BUCHI:
+      new_code = acc_cond::acc_code::buchi();
+      break;
+    case cond_kind::CO_BUCHI:
+      new_code = acc_cond::acc_code::cobuchi();
+      break;
+    case cond_kind::INF_PARITY:
+    case cond_kind::FIN_PARITY:
+      new_code = acc_cond::acc_code::parity_max(
+          kind == cond_kind::INF_PARITY, SPOT_MAX_ACCSETS);
+      break;
+    }
+
+    // We check parity
+    if (need_equivalent)
+    {
+      // For parity, it's equivalent if every transition has a color
+      // (status 1) or links 2 SCCs.
+      if (kind == cond_kind::INF_PARITY || kind == cond_kind::FIN_PARITY)
+        return nb_colored == ev_size - 1;
+      else
+      {
+        // For Büchi, we remove the transitions that have {0} in the
+        // result from aut and if there is an accepting cycle, res is not
+        // equivalent to aut.
+        // For co-Büchi, it's the same but we don't want to find a
+        // rejecting cycle.
+        using filter_data_t = std::pair<const_twa_graph_ptr, bitvect &>;
+
+        scc_info::edge_filter filter =
+            [](const twa_graph::edge_storage_t &t, unsigned, void *data)
+            -> scc_info::edge_filter_choice
+        {
+          auto &d = *static_cast<filter_data_t *>(data);
+          if (d.second.get(d.first->edge_number(t)))
+            return scc_info::edge_filter_choice::keep;
+          else
+            return scc_info::edge_filter_choice::cut;
+        };
+
+        if (kind == CO_BUCHI)
+          aut->set_acceptance(acc_cond(aut_acc));
+
+        filter_data_t filter_data = {aut, *keep};
+        scc_info si(aut, aut_init, filter, &filter_data);
+        si.determine_unknown_acceptance();
+        const auto num_scc = si.scc_count();
+        for (unsigned scc = 0; scc < num_scc; ++scc)
+          if (si.is_accepting_scc(scc))
+          {
+            if (kind == CO_BUCHI)
+              aut->set_acceptance(acc_cond(aut_acc_comp));
+            return false;
+          }
+        if (kind == CO_BUCHI)
+          aut->set_acceptance(acc_cond(aut_acc_comp));
+      }
+    }
+    new_cond = acc_cond(new_code);
+    return true;
+  }
+
+  static twa_graph_ptr
+  cond_type_main(const twa_graph_ptr &aut, const cond_kind kind,
+                 bool &was_able_to_color)
+  {
+    std::vector<acc_cond::mark_t> res_colors;
+    std::vector<edge_status> status;
+    acc_cond new_cond;
+    if (cond_type_main_aux(aut, kind, true, status, res_colors, new_cond,
+                           was_able_to_color))
+    {
+      auto res = make_twa_graph(aut, twa::prop_set::all());
+      auto &res_vector = res->edge_vector();
+      unsigned rv_size = res_vector.size();
+      for (unsigned i = 1; i < rv_size; ++i)
+        res_vector[i].acc = res_colors[i];
+      res->set_acceptance(new_cond);
+      return res;
+    }
+    return nullptr;
+  }
+
+  twa_graph_ptr
+  parity_type_to_parity(const twa_graph_ptr &aut)
+  {
+    bool odd_cond, max_cond;
+    bool parit = aut->acc().is_parity(max_cond, odd_cond);
+    // If it is parity, we just copy
+    if (parit)
+    {
+      if (!max_cond)
+        return change_parity(aut, parity_kind_max, parity_style_any);
+      auto res = make_twa_graph(aut, twa::prop_set::all());
+      res->copy_acceptance_of(aut);
+      return res;
+    }
+    bool was_able_to_color;
+    // If the automaton is parity-type with a condition that has Inf as
+    // outermost term
+    auto res = cond_type_main(aut, cond_kind::INF_PARITY, was_able_to_color);
+
+    // If it was impossible to find an accepting edge, it is perhaps possible
+    // to find a rejecting transition
+    if (res == nullptr && !was_able_to_color)
+      res = cond_type_main(aut, cond_kind::FIN_PARITY, was_able_to_color);
+    if (res)
+      reduce_parity_here(res);
+    return res;
+  }
+
+  twa_graph_ptr
+  buchi_type_to_buchi(const twa_graph_ptr &aut)
+  {
+    bool useless;
+    return cond_type_main(aut, cond_kind::BUCHI, useless);
+  }
+
+  twa_graph_ptr
+  co_buchi_type_to_co_buchi(const twa_graph_ptr &aut)
+  {
+    bool useless;
+    return cond_type_main(aut, cond_kind::CO_BUCHI, useless);
+  }
 
   // Old version of IAR.
   namespace
