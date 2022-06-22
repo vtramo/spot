@@ -19,10 +19,18 @@
 
 #pragma once
 
-#include <spot/twa/twagraph.hh>
+#include <spot/twa/fwd.hh>
+#include <spot/misc/common.hh>
+#include <vector>
 
 namespace spot
 {
+  struct to_parity_data
+  {
+    unsigned nb_states_created = 0;
+    unsigned nb_edges_created = 0;
+    std::vector<std::string> algorithms_used;
+  };
   /// \ingroup twa_acc_transform
   /// \brief Options to control various optimizations of to_parity().
   struct to_parity_options
@@ -35,6 +43,9 @@ namespace spot
     /// most recent state when we find multiple existing state
     /// compatible with the current move.
     bool use_last = true;
+    /// If \c use_last_post_process is true, then when LAR ends, it tries to
+    /// replace the destination of an edge by the newest compatible state.
+    bool use_last_post_process = false;
     /// If \c force_order is true, we force to use an order when CAR or IAR is
     /// applied. Given a state s and a set E ({0}, {0 1}, {2} for example) we
     /// construct an order on colors. With the given example, we ask to have
@@ -45,16 +56,26 @@ namespace spot
     /// degeneralization to remove occurrences of acceptance
     /// subformulas such as `Fin(x) | Fin(y)` or `Inf(x) & Inf(y)`.
     bool partial_degen = true;
-    /// If \c force_degen is false, to_parity will checks if we can
-    /// get a better result if we don't apply partial_degeneralize.
-    bool force_degen = true;
     /// If \c scc_acc_clean is true, to_parity() will ignore colors
     /// not occurring in an SCC while processing this SCC.
     bool acc_clean = true;
     /// If \c parity_equiv is true, to_parity() will check if there
-    /// exists a permutations of colors such that the acceptance
-    /// condition is a parity condition.
+    /// exists a way to see the acceptance condition as a parity max one.
     bool parity_equiv = true;
+    /// If \c Car is true, to_parity will try to apply CAR. It is a version of
+    /// LAR that tracks colors.
+    bool car = true;
+    /// If \c tar is true, to_parity will try to apply TAR. It is a version of
+    /// LAR that tracks transitions instead of colors.
+    bool tar = false;
+    /// If \c iar is true, to_parity will try to apply IAR.
+    bool iar = true;
+    /// if \c lar_dfs is true, then when LAR is used the next state of the
+    /// result that will be processed is the last created state.
+    bool lar_dfs = true;
+    /// If \c bscc is true, to_parity() will only keep the bottommost automaton
+    /// when it applies LAR.
+    bool bscc = true;
     /// If \c parity_prefix is true, to_parity() will use a special
     /// handling for acceptance conditions of the form `Inf(m0) |
     /// (Fin(m1) & (Inf(m2) | (… β)))` that start as a parity
@@ -62,29 +83,41 @@ namespace spot
     /// `β` can be an arbitrary formula.  In this case, the paritization
     /// algorithm is really applied only to `β`, and the marks of the
     /// prefix are appended after a suitable renumbering.
-    ///
-    /// For technical reasons, activating this option (and this is the
-    /// default) causes reduce_parity() to be called at the end to
-    /// minimize the number of colors used.  It is therefore
-    /// recommended to disable this option when one wants to follow
-    /// the output CAR/IAR constructions.
     bool parity_prefix = true;
+    /// If \c parity_prefix_general is true, to_parity() will rewrite the
+    /// acceptance condition as `Inf(m0) | (Fin(m1) & (Inf(m2) | (… β)))` before
+    /// applying the same construction as with the option \c parity_prefix.
+    bool parity_prefix_general = false;
+    /// If \c generic_emptiness is true, to_parity() will check if the automaton
+    /// does not accept any word with an emptiness check algorithm.
+    bool generic_emptiness = false;
     /// If \c rabin_to_buchi is true, to_parity() tries to convert a Rabin or
     /// Streett condition to Büchi or co-Büchi with
     /// rabin_to_buchi_if_realizable().
     bool rabin_to_buchi = true;
-    /// Only allow degeneralization if it reduces the number of colors in the
-    /// acceptance condition.
+    /// If \c buchi_type_to_buchi is true, to_parity converts a
+    /// (co-)Büchi type automaton to a (co-)Büchi automaton.
+    bool buchi_type_to_buchi = false;
+    /// If \c parity_type_to_parity is true, to_parity converts a
+    /// parity type automaton to a parity automaton.
+    bool parity_type_to_parity = false;
+    /// Only allow partial degeneralization if it reduces the number of colors
+    /// in the acceptance condition or if it implies to apply IAR instead of
+    /// CAR.
     bool reduce_col_deg = false;
     /// Use propagate_marks_here to increase the number of marks on transition
     /// in order to move more colors (and increase the number of
     /// compatible states) when we apply LAR.
     bool propagate_col = true;
+    /// If \c use_generalized_buchi is true, each SCC will use a generalized
+    /// Rabin acceptance in order to avoid CAR.
+    bool use_generalized_rabin = false;
     /// If \c pretty_print is true, states of the output automaton are
     /// named to help debugging.
     bool pretty_print = false;
-  };
 
+    to_parity_data* datas = nullptr;
+  };
 
   /// \ingroup twa_acc_transform
   /// \brief Take an automaton with any acceptance condition and return an

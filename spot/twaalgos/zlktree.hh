@@ -181,7 +181,6 @@ namespace spot
     /// \brief Render the tree as in GraphViz format.
     void dot(std::ostream&) const;
 
-  private:
     struct zielonka_node
     {
       unsigned parent;
@@ -191,6 +190,7 @@ namespace spot
       acc_cond::mark_t colors;
     };
     std::vector<zielonka_node> nodes_;
+  private:
     unsigned one_branch_ = 0;
     unsigned num_branches_ = 0;
     bool is_even_;

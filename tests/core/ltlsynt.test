@@ -58,11 +58,11 @@ parity 13;
 13 1 1 6,10;
 1 1 1 6,3;
 parity 5;
-1 1 0 4,5 "INIT";
+0 1 0 2,3 "INIT";
+3 3 1 1;
+1 1 0 4,5;
 5 2 1 1,1;
 4 3 1 0,1;
-0 1 0 2,3;
-3 3 1 1;
 2 1 1 0,0;
 EOF
 
@@ -414,13 +414,13 @@ grep 'DPA has 29 states' err
 ltlsynt --verbose -x wdba-minimize=1 --algo=ps --outs=p1 --ins=p0 -f "$f" 2>err
 grep 'DPA has 12 states' err
 
-ltlsynt --outs=p1 -f "$f" -x"dpa-simul=1" --simpl=no | grep 'States: 5'
-ltlsynt --outs=p1 -f "$f" -x"dpa-simul=1" --simpl=bisim | grep 'States: 5'
-ltlsynt --outs=p1 -f "$f" -x"dpa-simul=1" --simpl=bwoa | grep 'States: 4'
-ltlsynt --outs=p1 -f "$f" -x"dpa-simul=1" | grep 'States: 4'
-ltlsynt --outs=p1 -f "$f" -x"dpa-simul=1" --simpl=sat | grep 'States: 2'
-ltlsynt --outs=p1 -f "$f" -x"dpa-simul=1" --simpl=bisim-sat | grep 'States: 2'
-ltlsynt --outs=p1 -f "$f" -x"dpa-simul=1" --simpl=bwoa-sat | grep 'States: 4'
+ltlsynt --outs=p1 -f "$f" -x"dpa-simul=1" --simpl=no | grep 'States: 7'
+ltlsynt --outs=p1 -f "$f" -x"dpa-simul=1" --simpl=bisim | grep 'States: 7'
+ltlsynt --outs=p1 -f "$f" -x"dpa-simul=1" --simpl=bwoa | grep 'States: 6'
+ltlsynt --outs=p1 -f "$f" -x"dpa-simul=1" | grep 'States: 6'
+ltlsynt --outs=p1 -f "$f" -x"dpa-simul=1" --simpl=sat | grep 'States: 3'
+ltlsynt --outs=p1 -f "$f" -x"dpa-simul=1" --simpl=bisim-sat | grep 'States: 3'
+ltlsynt --outs=p1 -f "$f" -x"dpa-simul=1" --simpl=bwoa-sat | grep 'States: 6'
 
 # The following used to raise an exception because of a bug in
 # split_2step_fast_here().
@@ -707,7 +707,7 @@ automaton has 4 states and 1 colors
 LAR construction done in X seconds
 DPA has 4 states, 1 colors
 split inputs and outputs done in X seconds
-automaton has 9 states
+automaton has 10 states
 solving game with acceptance: Büchi
 game solved in X seconds
 simplification took X seconds

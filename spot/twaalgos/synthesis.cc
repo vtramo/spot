@@ -1005,7 +1005,7 @@ namespace spot
         if (gi.s == algo::LAR)
           {
             dpa = to_parity(aut);
-            // reduce_parity is called by to_parity()
+            reduce_parity_here(dpa, false);
           }
         else if (gi.s == algo::LAR_OLD)
           {
