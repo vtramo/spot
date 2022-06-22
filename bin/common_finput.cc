@@ -303,7 +303,13 @@ job_processor::process_stream(std::istream& is,
 }
 
 int
-job_processor::process_file(const char* filename)
+job_processor::process_aut_file(const char*)
+{
+  throw std::runtime_error("process_aut_file not defined for this tool");
+}
+
+int
+job_processor::process_ltl_file(const char* filename)
 {
   col_to_read = 0;
 
@@ -366,8 +372,10 @@ job_processor::run()
           error |= process_string(j.str);
           break;
         case job_type::LTL_FILENAME:
+          error |= process_ltl_file(j.str);
+          break;
         case job_type::AUT_FILENAME:
-          error |= process_file(j.str);
+          error |= process_aut_file(j.str);
           break;
         default:
           throw std::runtime_error("unexpected job type");

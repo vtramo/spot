@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2015, 2017, 2018 Laboratoire de Recherche et Développement de
-// l'Epita (LRDE).
+// Copyright (C) 2015, 2017, 2018, 2022 Laboratoire de Recherche et
+// Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
 //
@@ -80,8 +80,10 @@ public:
   }
 
   int
-  process_file(const char* filename) override
+  process_aut_file(const char* filename) override
   {
+    col_to_read = 0;
+
     // If we have a filename like "foo/NN" such
     // that:
     // ① foo/NN is not a file,

@@ -72,7 +72,10 @@ public:
   process_stream(std::istream& is, const char* filename);
 
   virtual int
-  process_file(const char* filename);
+  process_ltl_file(const char* filename);
+
+  virtual int
+  process_aut_file(const char* filename);
 
   virtual int
   run();
