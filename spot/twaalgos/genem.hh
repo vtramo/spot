@@ -110,4 +110,34 @@ namespace spot
   SPOT_API void
   generic_emptiness_check_select_version(const char* emversion = nullptr);
 
+  /// \ingroup emptiness_check_algorithms
+  ///
+  /// Give the set of transitions contained in
+  /// an accepting cycle of the SCC \a scc of \a aut.
+  ///
+  /// \param si scc_info used to describle the automaton
+  /// \param scc SCC to consider
+  /// \param aut_acc Acceptance condition used for this SCC
+  /// \param removed_colors A set of colors that can't appear on a transition
+  /// \param accepting_transitions The result. Must be a vector of size at least
+  /// the max index + 1 of a transition of the SCC scc and the value of each
+  /// index of a transition of this SCC must be set to false
+  /// \param kept A list of booleans that say if a transition is kept even if
+  /// it does not have an element of removed_colors
+  /// \return True if there is an accepting transition
+  SPOT_API bool
+  accepting_transitions_scc(const scc_info &si, unsigned scc,
+                            const acc_cond aut_acc,
+                            acc_cond::mark_t removed_colors,
+                            std::vector<bool>& accepting_transitions,
+                            const bitvect& kept);
+
+  /// \ingroup emptiness_check_algorithms
+  ///
+  /// Give the set of transitions contained in an accepting cycle of \a aut.
+  /// \param aut Automaton to process
+  /// \param cond Acceptance condition associated
+  SPOT_API std::vector<bool>
+  accepting_transitions(const const_twa_graph_ptr aut, acc_cond cond);
+
 }
