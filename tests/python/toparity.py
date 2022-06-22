@@ -26,57 +26,135 @@ tc = TestCase()
 
 # Tests for the new version of to_parity
 
+# It is no more a no_option as we now have more options (like iar, bscc, …)
 no_option = spot.to_parity_options()
 no_option.search_ex = False
 no_option.use_last = False
-no_option.force_order = False
+no_option.use_last_post_process = False
 no_option.partial_degen = False
 no_option.acc_clean = False
 no_option.parity_equiv = False
+no_option.tar = False
+no_option.iar = True
+no_option.lar_dfs = True
+no_option.bscc = True
 no_option.parity_prefix = False
+no_option.parity_prefix_general = False
+no_option.generic_emptiness = False
 no_option.rabin_to_buchi = False
+no_option.buchi_type_to_buchi = False
+no_option.parity_type_to_parity = False
+no_option.reduce_col_deg = False
 no_option.propagate_col = False
+no_option.use_generalized_rabin = False
 
 acc_clean_search_opt = spot.to_parity_options()
-acc_clean_search_opt.force_order = False
-acc_clean_search_opt.partial_degen = False
-acc_clean_search_opt.parity_equiv = False
-acc_clean_search_opt.parity_prefix = False
-acc_clean_search_opt.rabin_to_buchi = False
-acc_clean_search_opt.propagate_col = False
+no_option.search_ex = False
+no_option.use_last = False
+no_option.use_last_post_process = False
+no_option.force_order = False
+no_option.partial_degen = False
+no_option.acc_clean = True
+no_option.parity_equiv = False
+no_option.tar = False
+no_option.iar = True
+no_option.lar_dfs = True
+no_option.bscc = True
+no_option.parity_prefix = False
+no_option.parity_prefix_general = False
+no_option.generic_emptiness = False
+no_option.rabin_to_buchi = False
+no_option.buchi_type_to_buchi = False
+no_option.parity_type_to_parity = False
+no_option.reduce_col_deg = False
+no_option.propagate_col = False
+no_option.use_generalized_rabin = False
 
 partial_degen_opt = spot.to_parity_options()
 partial_degen_opt.search_ex = False
+partial_degen_opt.use_last = False
+partial_degen_opt.use_last_post_process = False
 partial_degen_opt.force_order = False
+partial_degen_opt.partial_degen = True
+partial_degen_opt.acc_clean = False
 partial_degen_opt.parity_equiv = False
+partial_degen_opt.tar = False
+partial_degen_opt.iar = True
+partial_degen_opt.lar_dfs = True
+partial_degen_opt.bscc = True
 partial_degen_opt.parity_prefix = False
+partial_degen_opt.parity_prefix_general = False
+partial_degen_opt.generic_emptiness = False
 partial_degen_opt.rabin_to_buchi = False
+partial_degen_opt.buchi_type_to_buchi = False
+partial_degen_opt.parity_type_to_parity = False
+partial_degen_opt.reduce_col_deg = False
 partial_degen_opt.propagate_col = False
+partial_degen_opt.use_generalized_rabin = False
 
 parity_equiv_opt = spot.to_parity_options()
 parity_equiv_opt.search_ex = False
 parity_equiv_opt.use_last = False
-parity_equiv_opt.force_order = False
+parity_equiv_opt.use_last_post_process = False
 parity_equiv_opt.partial_degen = False
+parity_equiv_opt.acc_clean = False
+parity_equiv_opt.parity_equiv = True
+parity_equiv_opt.tar = False
+parity_equiv_opt.iar = True
+parity_equiv_opt.lar_dfs = True
+parity_equiv_opt.bscc = True
 parity_equiv_opt.parity_prefix = False
+parity_equiv_opt.parity_prefix_general = False
+parity_equiv_opt.generic_emptiness = False
 parity_equiv_opt.rabin_to_buchi = False
+parity_equiv_opt.buchi_type_to_buchi = False
+parity_equiv_opt.parity_type_to_parity = False
+parity_equiv_opt.reduce_col_deg = False
 parity_equiv_opt.propagate_col = False
+parity_equiv_opt.use_generalized_rabin = False
 
 rab_to_buchi_opt = spot.to_parity_options()
+rab_to_buchi_opt.search_ex = False
 rab_to_buchi_opt.use_last = False
-rab_to_buchi_opt.force_order = False
+rab_to_buchi_opt.use_last_post_process = False
 rab_to_buchi_opt.partial_degen = False
-rab_to_buchi_opt.parity_equiv = False
+rab_to_buchi_opt.acc_clean = False
+rab_to_buchi_opt.parity_equiv = True
+rab_to_buchi_opt.tar = False
+rab_to_buchi_opt.iar = True
+rab_to_buchi_opt.lar_dfs = False
+rab_to_buchi_opt.bscc = False
 rab_to_buchi_opt.parity_prefix = False
+rab_to_buchi_opt.parity_prefix_general = False
+rab_to_buchi_opt.generic_emptiness = False
+rab_to_buchi_opt.rabin_to_buchi = True
+rab_to_buchi_opt.buchi_type_to_buchi = False
+rab_to_buchi_opt.parity_type_to_parity = False
+rab_to_buchi_opt.reduce_col_deg = False
 rab_to_buchi_opt.propagate_col = False
+rab_to_buchi_opt.use_generalized_rabin = False
 
-# Force to use CAR or IAR for each SCC
+# Force to use CAR, IAR or TAR for each SCC
 use_car_opt = spot.to_parity_options()
+use_car_opt.search_ex = True
+use_car_opt.use_last = True
+use_car_opt.use_last_post_process = True
 use_car_opt.partial_degen = False
+use_car_opt.acc_clean = False
 use_car_opt.parity_equiv = False
+use_car_opt.tar = True
+use_car_opt.iar = True
+use_car_opt.lar_dfs = True
+use_car_opt.bscc = True
 use_car_opt.parity_prefix = False
+use_car_opt.parity_prefix_general = False
+use_car_opt.generic_emptiness = False
 use_car_opt.rabin_to_buchi = False
+use_car_opt.buchi_type_to_buchi = False
+use_car_opt.parity_type_to_parity = False
+use_car_opt.reduce_col_deg = False
 use_car_opt.propagate_col = False
+use_car_opt.use_generalized_rabin = False
 
 all_opt = spot.to_parity_options()
 all_opt.pretty_print = True
@@ -100,15 +178,28 @@ def test(aut, expected_num_states=[], full=True):
             p1 = spot.to_parity(aut,
                                 search_ex = opt.search_ex,
                                 use_last = opt.use_last,
+                                use_last_post_process = \
+                                    opt.use_last_post_process,
                                 force_order = opt.force_order,
                                 partial_degen = opt.partial_degen,
                                 acc_clean = opt.acc_clean,
                                 parity_equiv = opt.parity_equiv,
+                                tar = opt.tar,
+                                iar = opt.iar,
+                                lar_dfs = opt.lar_dfs,
+                                bscc = opt.bscc,
                                 parity_prefix = opt.parity_prefix,
+                                parity_prefix_general = \
+                                    opt.parity_prefix_general,
+                                generic_emptiness = opt.generic_emptiness,
                                 rabin_to_buchi = opt.rabin_to_buchi,
+                                buchi_type_to_buchi = opt.buchi_type_to_buchi,
+                                parity_type_to_parity = \
+                                    opt.parity_type_to_parity,
                                 reduce_col_deg = opt.reduce_col_deg,
                                 propagate_col = opt.propagate_col,
-                                pretty_print = opt.pretty_print,
+                                use_generalized_rabin = \
+                                    opt.use_generalized_rabin
                                 )
         else:
             p1 = spot.acd_transform(aut)
@@ -205,7 +296,7 @@ State: 13
 [0&1] 5
 [!0&!1] 10 {0 1 3 5}
 [0&!1] 13 {1 3}
---END--"""), [35, 30, 23, 32, 31, 28, 22, 21])
+--END--"""), [32, 22, 23, 30, 33, 45, 22, 21])
 
 test(spot.automaton("""
 HOA: v1
@@ -223,7 +314,7 @@ State: 1
 [0&!1] 1 {4}
 [!0&1] 1 {0 1 2 3}
 [!0&!1] 1 {0 3}
---END--"""), [7, 5, 3, 6, 5, 5, 3, 3])
+--END--"""), [6, 3, 3, 5, 5, 26, 3, 3])
 
 test(spot.automaton("""HOA: v1
 States: 2
@@ -239,7 +330,7 @@ State: 0
 State: 1
 [0&1] 1 {2 3 4}
 [!0&!1] 0 {1 2}
---END--"""), [9, 3, 2, 3, 3, 3, 2, 2])
+--END--"""), [3, 2, 2, 9, 9, 10, 2, 2])
 
 for i,f in enumerate(spot.randltl(10, 200)):
     test(spot.translate(f, "det", "G"), full=(i<50))
@@ -279,7 +370,7 @@ State: 3
 [!0&1] 2 {1 4}
 [0&1] 3 {0}
 --END--
-"""), [80, 47, 104, 104, 102, 29, 6, 5])
+"""), [104, 6, 80, 23, 27, 17, 6, 5])
 
 test(spot.automaton("""
 HOA: v1
@@ -313,7 +404,7 @@ State: 4
 [0&!1] 4
 [0&1] 4 {1 2 4}
 --END--
-"""), [9, 6, 7, 7, 6, 6, 6, 6])
+"""), [6, 6, 7, 9, 9, 10, 6, 6])
 
 test(spot.automaton("""
 HOA: v1
@@ -335,7 +426,7 @@ State: 1
 [0&!1] 1 {2 3}
 [0&1] 1 {1 2 4}
 --END--
-"""), [11, 3, 2, 3, 3, 3, 2, 2])
+"""), [3, 2, 2, 6, 6, 6, 2, 2])
 
 
 # Tests both the old and new version of to_parity
@@ -366,7 +457,7 @@ explicit-labels trans-acc --BODY-- State: 0 [0&1] 2 {4 5} [0&1] 4 {0 4}
 p = spot.to_parity_old(a, True)
 tc.assertEqual(p.num_states(), 22)
 tc.assertTrue(spot.are_equivalent(a, p))
-test(a, [8, 6, 6, 6, 6, 6, 6, 6])
+test(a, [6, 6, 7, 8, 6, 7, 6, 6])
 
 # Force a few edges to false, to make sure to_parity() is OK with that.
 for e in a.out(2):
@@ -380,7 +471,7 @@ for e in a.out(3):
 p = spot.to_parity_old(a, True)
 tc.assertEqual(p.num_states(), 22)
 tc.assertTrue(spot.are_equivalent(a, p))
-test(a, [7, 6, 6, 6, 6, 6, 6, 6])
+test(a, [6, 6, 7, 8, 6, 7, 6, 6])
 
 for f in spot.randltl(4, 400):
     d = spot.translate(f, "det", "G")
@@ -396,4 +487,4 @@ for f in spot.randltl(5, 2000):
 a = spot.translate('!(GFa -> (GFb & GF(!b & !Xb)))', 'gen', 'det')
 b = spot.to_parity_old(a, True)
 tc.assertTrue(a.equivalent_to(b))
-test(a, [7, 7, 3, 7, 7, 7, 3, 3])
+test(a, [7, 3, 3, 8, 8, 7, 3, 3])
