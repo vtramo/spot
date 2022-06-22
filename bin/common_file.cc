@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2015, 2016 Laboratoire de Recherche et Développement de
-// l'Epita (LRDE).
+// Copyright (C) 2015, 2016, 2022 Laboratoire de Recherche et
+// Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
 //
@@ -22,15 +22,18 @@
 #include <iostream>
 
 
-output_file::output_file(const char* name)
+output_file::output_file(const char* name, bool force_append)
 {
   std::ios_base::openmode mode = std::ios_base::trunc;
   if (name[0] == '>' && name[1] == '>')
     {
-      mode = std::ios_base::app;
       append_ = true;
       name += 2;
     }
+  if (force_append)
+    append_ = true;
+  if (append_)
+    mode = std::ios_base::app;
   if (name[0] == '-' && name[1] == 0)
     {
       os_ = &std::cout;

@@ -23,6 +23,7 @@
 
 #include "common_aoutput.hh"
 #include "common_finput.hh"
+#include "common_hoaread.hh"
 #include "common_setup.hh"
 #include "common_sys.hh"
 #include "common_trans.hh"
@@ -48,6 +49,7 @@ enum
   OPT_BYPASS,
   OPT_CSV,
   OPT_DECOMPOSE,
+  OPT_FROM_PGAME,
   OPT_INPUT,
   OPT_OUTPUT,
   OPT_PRINT,
@@ -73,6 +75,9 @@ static const argp_option options[] =
     { "tlsf", OPT_TLSF, "FILENAME", 0,
       "Read a TLSF specification from FILENAME, and call syfco to "
       "convert it into LTL", 0 },
+    { "from-pgame", OPT_FROM_PGAME, "FILENAME", 0,
+      "Read a parity game in Extended HOA format instead of building it.",
+      0 },
     /**************************************************/
     { nullptr, 0, nullptr, 0, "Fine tuning:", 10 },
     { "algo", OPT_ALGO, "sd|ds|ps|lar|lar.old|acd", 0,
@@ -250,7 +255,7 @@ namespace
     };
 
   static void
-  print_csv(const spot::formula& f)
+  print_csv(const spot::formula& f, const char* filename = nullptr)
   {
     auto& vs = gi->verbose_stream;
     auto& bv = gi->bv;
@@ -259,7 +264,9 @@ namespace
     if (vs)
       *vs << "writing CSV to " << opt_csv << '\n';
 
-    output_file outf(opt_csv);
+    static bool not_first_time = false;
+    output_file outf(opt_csv, not_first_time);
+    not_first_time = true;      // force append on next print.
     std::ostream& out = outf.ostream();
 
     // Do not output the header line if we append to a file.
@@ -284,10 +291,15 @@ namespace
         out << '\n';
       }
     std::ostringstream os;
-    os << f;
-    spot::escape_rfc4180(out << '"', os.str());
-    out << "\",\"" << algo_names[(int) gi->s]
-        << "\"," << bv->total_time
+    if (filename)
+      os << filename;
+    else
+      os << f;
+    spot::escape_rfc4180(out << '"', os.str()) << "\",";
+     // if a filename was given, assume the game has been read directly
+    if (!filename)
+      out << '"' << algo_names[(int) gi->s] << '"';
+    out << ',' << bv->total_time
         << ',' << bv->trans_time
         << ',' << bv->split_time
         << ',' << bv->paritize_time;
@@ -319,6 +331,8 @@ namespace
                 const std::vector<std::string>& input_aps,
                 const std::vector<std::string>& output_aps)
   {
+    if (opt_csv)              // reset benchmark data
+      gi->bv = spot::synthesis_info::bench_var();
     spot::stopwatch sw;
     if (gi->bv)
       sw.start();
@@ -386,7 +400,7 @@ namespace
       [](const spot::twa_graph_ptr& game)->void
         {
           if (opt_print_pg)
-            pg_print(std::cout, game);
+            spot::pg_print(std::cout, game);
           else
             spot::print_hoa(std::cout, game, opt_print_hoa_args) << '\n';
         }
@@ -438,6 +452,8 @@ namespace
               safe_tot_time();
               return 1;
             }
+          if (gi->bv)
+            gi->bv->realizable = true;
           // Create the (partial) strategy
           // only if we need it
           if (!opt_real)
@@ -701,6 +717,141 @@ namespace
       return res;
     }
 
+    int process_pgame(spot::twa_graph_ptr arena,
+                      const std::string& location)
+    {
+      if (opt_csv)              // reset benchmark data
+        gi->bv = spot::synthesis_info::bench_var();
+      spot::stopwatch sw_global;
+      spot::stopwatch sw_local;
+      if (gi->bv)
+        {
+          sw_global.start();
+          sw_local.start();
+        }
+      if (!arena->get_named_prop<bdd>("synthesis-outputs"))
+        {
+          std::cerr << location << ": controllable-AP is not specified\n";
+          return 2;
+        }
+      if (!arena->get_named_prop<std::vector<bool>>("state-player"))
+        arena = spot::split_2step(arena, true);
+      // FIXME: If we do not split the game, we should check that it is
+      // alternating.
+      spot::change_parity_here(arena,
+                               spot::parity_kind_max,
+                               spot::parity_style_odd);
+      spot::colorize_parity_here(arena, true);
+      if (gi->bv)
+        {
+          gi->bv->split_time += sw_local.stop();
+          gi->bv->nb_states_arena += arena->num_states();
+          auto spptr =
+            arena->get_named_prop<std::vector<bool>>("state-player");
+          assert(spptr);
+          gi->bv->nb_states_arena_env +=
+            std::count(spptr->cbegin(), spptr->cend(), false);
+        }
+      if (opt_print_pg || opt_print_hoa)
+        {
+          if (opt_print_pg)
+            spot::pg_print(std::cout, arena);
+          else
+            spot::print_hoa(std::cout, arena, opt_print_hoa_args) << '\n';
+          return 0;
+        }
+      auto safe_tot_time = [&]() {
+        if (gi->bv)
+          gi->bv->total_time = sw_global.stop();
+      };
+      if (!spot::solve_game(arena, *gi))
+        {
+          std::cout << "UNREALIZABLE" << std::endl;
+          safe_tot_time();
+          return 1;
+        }
+      if (gi->bv)
+        gi->bv->realizable = true;
+      std::cout << "REALIZABLE" << std::endl;
+      if (opt_real)
+        {
+          safe_tot_time();
+          return 0;
+        }
+      sw_local.start();
+      spot::twa_graph_ptr mealy_like =
+        spot::solved_game_to_mealy(arena, *gi);
+      // Keep the machine split for aiger otherwise, separate it.
+      spot::simplify_mealy_here(mealy_like, *gi, opt_print_aiger);
+
+      automaton_printer printer;
+      spot::process_timer timer_printer_dummy;
+      if (opt_print_aiger)
+        {
+          if (gi->bv)
+            sw_local.start();
+          spot::aig_ptr saig =
+            spot::mealy_machine_to_aig(mealy_like, opt_print_aiger);
+          if (gi->bv)
+            {
+              gi->bv->aig_time = sw_local.stop();
+              gi->bv->nb_latches = saig->num_latches();
+              gi->bv->nb_gates = saig->num_gates();
+            }
+          if (gi->verbose_stream)
+            {
+              *gi->verbose_stream << "AIG circuit was created in "
+                                  << gi->bv->aig_time
+                                  << " seconds and has " << saig->num_latches()
+                                  << " latches and "
+                                  << saig->num_gates() << " gates\n";
+            }
+          spot::print_aiger(std::cout, saig) << '\n';
+        }
+      else
+        {
+          printer.print(mealy_like, timer_printer_dummy);
+        }
+      safe_tot_time();
+      return 0;
+    }
+
+    int
+    process_aut_file(const char* filename) override
+    {
+      spot::automaton_stream_parser hp(filename);
+      int err = 0;
+      while (!abort_run)
+        {
+          spot::parsed_aut_ptr haut = hp.parse(spot::make_bdd_dict());
+          if (!haut->aut && haut->errors.empty())
+            break;
+          if (haut->format_errors(std::cerr))
+            err = 2;
+          if (!haut->aut /*|| (err && abort_on_error_)*/)
+            {
+              error(2, 0, "failed to read automaton from %s",
+                    haut->filename.c_str());
+            }
+          else if (haut->aborted)
+            {
+              std::cerr << haut->filename << ':' << haut->loc
+                        << ": aborted input automaton\n";
+              err = std::max(err, 2);
+            }
+          else
+            {
+              std::ostringstream os;
+              os << haut->filename << ':' << haut->loc;
+              std::string loc = os.str();
+              int res = process_pgame(haut->aut, loc);
+              if (res < 2 && opt_csv)
+                print_csv(nullptr, loc.c_str());
+              err = std::max(err, res);
+            }
+        }
+      return err;
+    }
   };
 }
 
@@ -719,12 +870,13 @@ parse_opt(int key, char *arg, struct argp_state *)
       break;
     case OPT_CSV:
       opt_csv = arg ? arg : "-";
-      if (not gi->bv)
-        gi->bv = spot::synthesis_info::bench_var();
       break;
     case OPT_DECOMPOSE:
       opt_decompose_ltl = XARGMATCH("--decompose", arg,
                                     decompose_args, decompose_values);
+      break;
+    case OPT_FROM_PGAME:
+      jobs.emplace_back(arg, job_type::AUT_FILENAME);
       break;
     case OPT_INPUT:
       {

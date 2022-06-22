@@ -49,3 +49,7 @@ ltlsynt --tlsf test.tlsf > out1
 ltlsynt --tlsf test.tlsf --tlsf test.tlsf > out2
 cat out1 out1 > out11
 diff out11 out2
+
+ltlsynt --tlsf test.tlsf --tlsf test.tlsf --print-game > pgame.hoa
+ltlsynt --from-pgame pgame.hoa > out3
+diff out2 out3
