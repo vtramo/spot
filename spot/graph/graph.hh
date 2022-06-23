@@ -804,8 +804,23 @@ namespace spot
         return *dst_begin;
       SPOT_ASSERT(sz > 1);
       unsigned d = dests_.size();
-      dests_.emplace_back(sz);
-      dests_.insert(dests_.end(), dst_begin, dst_end);
+      if (!dests_.empty()
+          && &*dst_begin >= &dests_.front()
+          && &*dst_begin <= &dests_.back()
+          && (dests_.capacity() - dests_.size()) < (sz + 1))
+        {
+          // If dst_begin...dst_end points into dests_ and dests_ risk
+          // being reallocated, we have to savea the destination
+          // states before we lose them.
+          std::vector<unsigned> tmp(dst_begin, dst_end);
+          dests_.emplace_back(sz);
+          dests_.insert(dests_.end(), tmp.begin(), tmp.end());
+        }
+      else
+        {
+          dests_.emplace_back(sz);
+          dests_.insert(dests_.end(), dst_begin, dst_end);
+        }
       return ~d;
     }
 

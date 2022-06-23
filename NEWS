@@ -113,6 +113,13 @@ New in spot 2.10.6.dev  (not yet released)
     to obtain a simple model checker (that returns true or false,
     without counterexample).
 
+  Bugs fixed:
+
+  - calling twa_graph::new_univ_edge(src, begin, end, cond, acc) could
+    produce unexpected result if begin and end where already pointing
+    into the universal edge vector, since the later can be
+    reallocated during that process.
+
 New in spot 2.10.6  (2022-05-18)
 
   Bugs fixed:
