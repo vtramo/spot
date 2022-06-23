@@ -578,10 +578,27 @@ namespace spot
         return tmp_dst.str();
       }
 
-      template<typename U, typename V>
-      void print_true_state(U to, V from) const
+      void print_hidden_true_name(unsigned to, unsigned from) const
       {
-        os_ << "  T" << to << 'T' << from << " [label=\"\", style=invis, ";
+        os_ << 'T' << to << 'T' << from;
+      }
+
+      void print_hidden_true_name(unsigned to, const std::string& from) const
+      {
+        bool neg = from[0] == '-';
+        if (neg)
+          os_ << '"';
+        os_ << 'T' << to << 'T' << from;
+        if (neg)
+          os_ << '"';
+      }
+
+      template <typename F>
+      void print_true_state(unsigned to, F from) const
+      {
+        os_ << "  ";
+        print_hidden_true_name(to, from);
+        os_ << " [label=\"\", style=invis, ";
         os_ << (opt_vertical_ ? "height=0]\n" : "width=0]\n");
       }
 
@@ -606,7 +623,7 @@ namespace spot
                   print_true_state(d, dest);
                 os_ << "  " << dest << " -> ";
                 if (dst_is_hidden_true_state)
-                  os_ << 'T' << d << 'T' << dest;
+                  print_hidden_true_name(d, dest);
                 else
                   os_ << d;
                 if ((style && *style) || opt_id_)

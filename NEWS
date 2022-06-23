@@ -120,6 +120,10 @@ New in spot 2.10.6.dev  (not yet released)
     into the universal edge vector, since the later can be
     reallocated during that process.
 
+  - Printing an alternating automaton with print_dot() using 'u' to
+    hide true state could produce some incorrect GraphViz output if
+    the automaton as a true state as part of a universal group.
+
 New in spot 2.10.6  (2022-05-18)
 
   Bugs fixed:
