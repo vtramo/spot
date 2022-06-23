@@ -124,6 +124,10 @@ New in spot 2.10.6.dev  (not yet released)
     hide true state could produce some incorrect GraphViz output if
     the automaton as a true state as part of a universal group.
 
+  - Due to an optimization introduces in 2.10 to parse HOA label more
+    efficiently, the automaton parser could crash when parsing random
+    input (not HOA) containing '[' (issue #509).
+
 New in spot 2.10.6  (2022-05-18)
 
   Bugs fixed:

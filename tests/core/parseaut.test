@@ -2961,3 +2961,13 @@ EOF
 # At some point, this crashed with
 # input buffer overflow, can't enlarge buffer because scanner uses REJECT
 run 0 autfilt -q bigaut
+
+
+# This issued to segfault, because the parser assumed a '[' token was
+# always attached to a string, while that was only true in HOA mode.
+cat >input  <<EOF
+"foo" [t] --END--
+EOF
+autfilt -q input && exit 1
+test $? -eq 2
+:

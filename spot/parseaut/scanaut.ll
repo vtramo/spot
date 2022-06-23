@@ -454,6 +454,11 @@ identifier  [[:alpha:]_][[:alnum:]_.-]*
 			}
 }
 
+"["                     {
+                          yylval->str = nullptr;
+                          return *yytext;
+                        }
+
 .			return *yytext;
 
 %{
