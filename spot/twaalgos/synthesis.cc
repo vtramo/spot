@@ -837,13 +837,10 @@ namespace spot
       if (force_sbacc)
         dpa = sbacc(dpa);
       reduce_parity_here(dpa, true);
-      change_parity_here(dpa, parity_kind_max,
-                               parity_style_odd);
       assert((
                  [&dpa]() -> bool {
                    bool max, odd;
-                   dpa->acc().is_parity(max, odd);
-                   return max && odd;
+                   return dpa->acc().is_parity(max, odd);
                  }()));
       assert(is_deterministic(dpa));
       return dpa;
@@ -936,7 +933,6 @@ namespace spot
         if (bv)
           sw.start();
         dpa = split_2step(tmp, outs, true);
-        colorize_parity_here(dpa, true);
         if (bv)
           bv->split_time += sw.stop();
         if (vs)
@@ -959,7 +955,6 @@ namespace spot
         if (bv)
           sw.start();
         dpa = split_2step(aut, outs, true);
-        colorize_parity_here(dpa, true);
         if (bv)
           bv->split_time += sw.stop();
         if (vs)
@@ -1031,8 +1026,6 @@ namespace spot
         if (bv)
           sw.start();
         dpa = split_2step(dpa, outs, true);
-        change_parity_here(dpa, parity_kind_max, parity_style_odd);
-        colorize_parity_here(dpa, true);
         if (bv)
           bv->split_time += sw.stop();
         if (vs)

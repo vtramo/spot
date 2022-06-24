@@ -836,54 +836,63 @@ namespace spot
 
   void pg_print(std::ostream& os, const const_twa_graph_ptr& arena)
   {
-    auto owner = ensure_parity_game(arena, "pg_print");
-    // Ensure coloring
-    assert([&]()
-            {
-              bool max;
-              bool odd;
-              arena->acc().is_parity(max, odd, true);
-              return max && odd;
-            }() && "pg_printer needs max-odd parity");
-    assert([&]()
-           {
-             for (unsigned ie = 0; ie < arena->num_edges(); ++ie)
-               {
-                  const auto& es = arena->edge_storage(ie+1);
-                  if (!es.acc)
-                    return false;
-               }
-             return true;
-           }() && "Arena must be colorized");
+    ensure_parity_game(arena, "pg_print");
 
-    unsigned ns = arena->num_states();
-    unsigned init = arena->get_init_state_number();
-    os << "parity " << ns - 1 << ";\n";
-    std::vector<bool> seen(ns, false);
-    std::vector<unsigned> todo({init});
-    while (!todo.empty())
+    auto do_print = [&os](const const_twa_graph_ptr& arena)
       {
-        unsigned src = todo.back();
-        todo.pop_back();
-        if (seen[src])
-          continue;
-        seen[src] = true;
-        os << src << ' ';
-        os << arena->out(src).begin()->acc.max_set() - 1 << ' ';
-        os << (*owner)[src] << ' ';
-        bool first = true;
-        for (auto& e: arena->out(src))
+        const region_t& owner = get_state_players(arena);
+
+        unsigned ns = arena->num_states();
+        unsigned init = arena->get_init_state_number();
+        os << "parity " << ns - 1 << ";\n";
+        std::vector<bool> seen(ns, false);
+        std::vector<unsigned> todo({init});
+        while (!todo.empty())
           {
-            if (!first)
-              os << ',';
-            first = false;
-            os << e.dst;
-            if (!seen[e.dst])
-              todo.push_back(e.dst);
+            unsigned src = todo.back();
+            todo.pop_back();
+            if (seen[src])
+              continue;
+            seen[src] = true;
+            os << src << ' ';
+            os << arena->out(src).begin()->acc.max_set() - 1 << ' ';
+            os << owner[src] << ' ';
+            bool first = true;
+            for (auto& e: arena->out(src))
+              {
+                if (!first)
+                  os << ',';
+                first = false;
+                os << e.dst;
+                if (!seen[e.dst])
+                  todo.push_back(e.dst);
+              }
+            if (src == init)
+              os << " \"INIT\"";
+            os << ";\n";
           }
-        if (src == init)
-          os << " \"INIT\"";
-        os << ";\n";
+      };
+    // Ensure coloring
+    // PGSolver format expects max odd and colored
+    bool is_par, max, odd;
+    is_par = arena->acc().is_parity(max, odd, true);
+    assert(is_par && "pg_printer needs parity condition");
+    bool is_colored = (max & odd) ? std::all_of(arena->edges().begin(),
+                                              arena->edges().end(),
+                                              [](const auto& e)
+                                                {
+                                                  return (bool) e.acc;
+                                                })
+                                  : false;
+    if (is_colored)
+      do_print(arena);
+    else
+      {
+        auto arena2 = change_parity(arena, parity_kind_max, parity_style_odd);
+        colorize_parity_here(arena2, true);
+        set_state_players(arena2,
+                          get_state_players(arena));
+        do_print(arena2);
       }
   }
 

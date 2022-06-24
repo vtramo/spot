@@ -232,7 +232,7 @@ LAR construction done in X seconds
 DPA has 4 states, 1 colors
 split inputs and outputs done in X seconds
 automaton has 12 states
-solving game with acceptance: parity max odd 3
+solving game with acceptance: co-Büchi
 game solved in X seconds
 EOF
 ltlsynt -f "G(Fi0 && Fi1 && Fi2) -> G(i1 <-> o0)" --outs="o0" --algo=lar \
@@ -708,7 +708,7 @@ LAR construction done in X seconds
 DPA has 4 states, 1 colors
 split inputs and outputs done in X seconds
 automaton has 9 states
-solving game with acceptance: Streett 1
+solving game with acceptance: Büchi
 game solved in X seconds
 simplification took X seconds
 AIG circuit was created in X seconds and has 0 latches and 0 gates
@@ -727,7 +727,7 @@ LAR construction done in X seconds
 DPA has 2 states, 0 colors
 split inputs and outputs done in X seconds
 automaton has 4 states
-solving game with acceptance: Streett 1
+solving game with acceptance: all
 game solved in X seconds
 simplification took X seconds
 trying to create strategy directly for (a | x) -> x
@@ -738,7 +738,7 @@ LAR construction done in X seconds
 DPA has 2 states, 0 colors
 split inputs and outputs done in X seconds
 automaton has 4 states
-solving game with acceptance: Streett 1
+solving game with acceptance: all
 game solved in X seconds
 simplification took X seconds
 AIG circuit was created in X seconds and has 0 latches and 0 gates
@@ -797,7 +797,7 @@ LAR construction done in X seconds
 DPA has 2 states, 1 colors
 split inputs and outputs done in X seconds
 automaton has 5 states
-solving game with acceptance: Streett 1
+solving game with acceptance: Büchi
 game solved in X seconds
 simplification took X seconds
 AIG circuit was created in X seconds and has 0 latches and 0 gates
@@ -819,7 +819,7 @@ LAR construction done in X seconds
 DPA has 2 states, 0 colors
 split inputs and outputs done in X seconds
 automaton has 4 states
-solving game with acceptance: Streett 1
+solving game with acceptance: all
 game solved in X seconds
 simplification took X seconds
 trying to create strategy directly for a -> c
@@ -830,7 +830,7 @@ LAR construction done in X seconds
 DPA has 2 states, 0 colors
 split inputs and outputs done in X seconds
 automaton has 4 states
-solving game with acceptance: Streett 1
+solving game with acceptance: all
 game solved in X seconds
 simplification took X seconds
 trying to create strategy directly for a -> d
@@ -841,7 +841,7 @@ LAR construction done in X seconds
 DPA has 2 states, 0 colors
 split inputs and outputs done in X seconds
 automaton has 4 states
-solving game with acceptance: Streett 1
+solving game with acceptance: all
 game solved in X seconds
 simplification took X seconds
 AIG circuit was created in X seconds and has 0 latches and 0 gates
@@ -903,7 +903,7 @@ LAR construction done in X seconds
 DPA has 1 states, 0 colors
 split inputs and outputs done in X seconds
 automaton has 2 states
-solving game with acceptance: Streett 1
+solving game with acceptance: all
 game solved in X seconds
 translating formula done in X seconds
 automaton has 2 states and 2 colors
@@ -911,7 +911,7 @@ LAR construction done in X seconds
 DPA has 2 states, 2 colors
 split inputs and outputs done in X seconds
 automaton has 5 states
-solving game with acceptance: parity max odd 4
+solving game with acceptance: Streett 1
 game solved in X seconds
 EOF
 
@@ -927,7 +927,7 @@ ACD construction done in X seconds
 DPA has 2 states, 2 colors
 split inputs and outputs done in X seconds
 automaton has 6 states
-solving game with acceptance: parity max odd 4
+solving game with acceptance: generalized-Streett 1 1
 game solved in X seconds
 simplification took X seconds
 translating formula done in X seconds
@@ -936,7 +936,7 @@ ACD construction done in X seconds
 DPA has 1 states, 0 colors
 split inputs and outputs done in X seconds
 automaton has 2 states
-solving game with acceptance: Streett 1
+solving game with acceptance: all
 game solved in X seconds
 simplification took X seconds
 EOF
@@ -959,7 +959,7 @@ LAR construction done in X seconds
 DPA has 1 states, 1 colors
 split inputs and outputs done in X seconds
 automaton has 3 states
-solving game with acceptance: Streett 1
+solving game with acceptance: Büchi
 game solved in X seconds
 EOF
 ltlsynt -f "G(o1) & (GFi <-> GFo1)" --outs="o1" --verbose\
@@ -977,7 +977,7 @@ LAR construction done in X seconds
 DPA has 2 states, 2 colors
 split inputs and outputs done in X seconds
 automaton has 6 states
-solving game with acceptance: parity max odd 4
+solving game with acceptance: Streett 1
 game solved in X seconds
 simplification took X seconds
 EOF
