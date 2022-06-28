@@ -736,12 +736,42 @@ namespace
         }
       if (!arena->get_named_prop<std::vector<bool>>("state-player"))
         arena = spot::split_2step(arena, true);
-      // FIXME: If we do not split the game, we should check that it is
-      // alternating.
-      spot::change_parity_here(arena,
-                               spot::parity_kind_max,
-                               spot::parity_style_odd);
-      spot::colorize_parity_here(arena, true);
+      else
+        {
+          // Check if the game is alternating and fix trivial cases
+          const unsigned N = arena->num_states();
+          // Can not use get_state_players because we need a non-const version
+          auto spptr =
+            arena->get_named_prop<std::vector<bool>>("state-player");
+          assert(spptr);
+          const bdd& outs = get_synthesis_outputs(arena);
+          for (unsigned n = 0; n < N; ++n)
+            {
+              const bool p = (*spptr)[n];
+              for (auto& e : arena->out(n))
+                {
+                  if (p != (*spptr)[e.dst])
+                    continue; // All good
+                  // Check if the condition is a simply conjunction of input and
+                  // output. If so insert an intermediate state
+                  // This also covers trivial self-loops
+                  bdd cond = e.cond;
+                  bdd i_cond = bdd_exist(cond, outs);
+                  bdd o_cond = bdd_existcomp(cond, outs);
+                  if ((i_cond & o_cond) == cond)
+                    {
+                      unsigned inter = arena->new_state();
+                      spptr->push_back(!p);
+                      e.cond = p ? o_cond : i_cond;
+                      e.dst = inter;
+                      arena->new_edge(inter, e.dst, !p ? o_cond : i_cond);
+                    }
+                  else
+                    throw std::runtime_error("ltlsynt: given parity game is not"
+                      "alternating and not trivially fixable!");
+                }
+            }
+        }
       if (gi->bv)
         {
           gi->bv->split_time += sw_local.stop();
