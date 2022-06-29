@@ -442,3 +442,44 @@ si = spot.scc_info(aut15)
 aut15b = si.split_on_sets(2, [])[0]; d
 aut15c = spot.partial_degeneralize(aut15b)
 tc.assertTrue(aut15c.equivalent_to(aut15b))
+
+
+# Testing property propagation/update
+# for propagate_marks_here
+
+s = """HOA: v1
+States: 3
+Start: 0
+AP: 1 "a"
+acc-name: Buchi
+Acceptance: 1 Inf(0)
+properties: trans-labels explicit-labels state-acc
+--BODY--
+State: 0
+[0] 1
+[!0] 2
+State: 1 {0}
+[0] 0
+State: 2
+[!0] 0
+--END--"""
+aut = spot.automaton(s)
+spot.propagate_marks_here(aut)
+s2 = aut.to_str("hoa")
+
+tc.assertEqual(s2, """HOA: v1
+States: 3
+Start: 0
+AP: 1 "a"
+acc-name: Buchi
+Acceptance: 1 Inf(0)
+properties: trans-labels explicit-labels trans-acc deterministic
+--BODY--
+State: 0
+[0] 1 {0}
+[!0] 2
+State: 1
+[0] 0 {0}
+State: 2
+[!0] 0
+--END--""")

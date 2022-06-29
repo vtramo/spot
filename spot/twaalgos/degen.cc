@@ -1168,5 +1168,9 @@ namespace spot
         unsigned idx = aut->edge_number(e);
         e.acc = marks[idx];
       }
+    // If aut was state-based acc before, this might no longer
+    // this might no longer be the case
+    if (aut->prop_state_acc() == 1)
+      aut->prop_state_acc(0);
   }
 }
