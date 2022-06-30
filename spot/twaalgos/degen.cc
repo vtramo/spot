@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2012-2020 Laboratoire de Recherche
-// et Développement de l'Epita (LRDE).
+// Copyright (C) 2012-2020, 2022 Laboratoire de Recherche et
+// Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
 //
@@ -1170,7 +1170,7 @@ namespace spot
       }
     // If aut was state-based acc before, this might no longer
     // this might no longer be the case
-    if (aut->prop_state_acc() == 1)
-      aut->prop_state_acc(0);
+    if (aut->prop_state_acc().is_true())
+      aut->prop_state_acc(false);
   }
 }
