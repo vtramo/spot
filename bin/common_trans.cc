@@ -840,8 +840,6 @@ exec_command(const char* cmd)
   SPOT_UNREACHABLE();
   return;
 }
-#else
-extern char **environ;
 #endif
 
 int

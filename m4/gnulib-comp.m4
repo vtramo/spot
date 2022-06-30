@@ -1,5 +1,5 @@
 # DO NOT EDIT! GENERATED AUTOMATICALLY!
-# Copyright (C) 2002-2020 Free Software Foundation, Inc.
+# Copyright (C) 2002-2020, 2022 Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -246,6 +246,8 @@ AC_SUBST([LTALLOCA])
     AC_LIBOBJ([lstat])
     gl_PREREQ_LSTAT
   fi
+  gl_ENVIRON
+  gl_UNISTD_MODULE_INDICATOR([environ])
   gl_SYS_STAT_MODULE_INDICATOR([lstat])
   gl_FUNC_MALLOC_GNU
   if test $REPLACE_MALLOC = 1; then
