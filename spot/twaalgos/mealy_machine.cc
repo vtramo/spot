@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2021 Laboratoire de Recherche et Développement
+// Copyright (C) 2021, 2022 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -67,6 +67,7 @@ namespace
     return true;
   }
 
+#ifndef NDEBUG
   bool is_complete_(const const_twa_graph_ptr& m,
                     const bdd& outs)
   {
@@ -84,6 +85,7 @@ namespace
       }
     return true;
   }
+#endif
 }
 
 
