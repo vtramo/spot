@@ -22,6 +22,13 @@ AC_DEFUN([CF_GXX_WARNINGS],
 #line __oline__ "configure"
 #include <string>
 #include <regex>
+
+// From GCC bug 106159
+// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=106159
+struct left {  virtual ~left() {} };
+struct right { virtual ~right() {} };
+struct both: public left, public right {};
+
 int main(int argc, char *argv[[]])
 {
   // This string comparison is here to detect superfluous
