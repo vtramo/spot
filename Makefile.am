@@ -1,5 +1,5 @@
 ## -*- coding: utf-8 -*-
-## Copyright (C) 2011-2017, 2020 Laboratoire de Recherche et Développement
+## Copyright (C) 2011-2017, 2020, 2022 Laboratoire de Recherche et Développement
 ## de l'Epita (LRDE).
 ## Copyright (C) 2003, 2005  Laboratoire d'Informatique de Paris 6 (LIP6),
 ## département Systèmes Répartis Coopératifs (SRC), Université Pierre
@@ -36,8 +36,9 @@ DOC_SUBDIR = doc
 SUBDIRS = picosat buddy lib ltdl spot bin tests $(PYTHON_SUBDIR) $(DOC_SUBDIR) \
 					$(NEVER_SUBDIRS)
 
-UTF8 = utf8/README.md utf8/utf8.h	\
-  utf8/utf8/checked.h utf8/utf8/core.h utf8/utf8/unchecked.h
+UTF8 = utf8/README.md utf8/LICENSE utf8/utf8.h	\
+  utf8/utf8/checked.h utf8/utf8/core.h utf8/utf8/unchecked.h \
+  utf8/utf8/cpp11.h utf8/utf8/cpp17.h
 
 DEBIAN =					\
   debian/changelog				\
