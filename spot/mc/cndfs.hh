@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2015, 2016, 2017, 2018, 2019, 2020 Laboratoire de Recherche et
+// Copyright (C) 2015-2020, 2022 Laboratoire de Recherche et
 // Developpement de l'Epita
 //
 // This file is part of Spot, a model checking library.
@@ -191,9 +191,7 @@ namespace spot
     {
       // Try to insert the new state in the shared map.
       auto it = map_.insert(s);
-      bool b = it.isnew();
-
-      SPOT_ASSERT(!b); // should never be new in a red DFS
+      SPOT_ASSERT(!it.isnew()); // should never be new in a red DFS
       bool red = ((*it)).colors->red.load();
       bool cyan = ((*it)).colors->l[tid_].cyan;
       bool in_Rp = ((*it)).colors->l[tid_].is_in_Rp;
