@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2012-2019 Laboratoire de Recherche et Developpement
+// Copyright (C) 2012-2019, 2022 Laboratoire de Recherche et Developpement
 // de l'EPITA (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -1198,13 +1198,13 @@ namespace spot
     }
 
     static formula
-    pps_arbiter(std::string r_, std::string g_, int n, bool strict_)
+    pps_arbiter(std::string r_, std::string g_, unsigned n, bool strict_)
     {
       formula* r = new formula[n];
       formula* g = new formula[n];
       std::vector<formula> res;
 
-      for (int i = 0; i < n; ++i)
+      for (unsigned i = 0; i < n; ++i)
         {
           r[i] = formula::ap(r_ + std::to_string(i + 1));
           g[i] = formula::ap(g_ + std::to_string(i + 1));
@@ -1218,17 +1218,17 @@ namespace spot
       formula phi_s;
       {
         std::vector<formula> res;
-        for (int i = 0; i < n; ++i)
+        for (unsigned i = 0; i < n; ++i)
           res.push_back(formula::Not(r[i]));
         theta_e = formula::And(res);
 
         res.clear();
-        for (int i = 0; i < n; ++i)
+        for (unsigned i = 0; i < n; ++i)
           res.push_back(formula::Not(g[i]));
         theta_s = formula::And(res);
 
         res.clear();
-        for (int i = 0; i < n; ++i)
+        for (unsigned i = 0; i < n; ++i)
           {
             formula left = formula::Xor(r[i], g[i]);
             formula right = formula::Equiv(r[i], formula::X(r[i]));
@@ -1237,9 +1237,9 @@ namespace spot
         psi_e = formula::And(res);
 
         res.clear();
-        for (int i = 0; i < n; ++i)
+        for (unsigned i = 0; i < n; ++i)
           {
-            for (int j = 0; j < i; ++j)
+            for (unsigned j = 0; j < i; ++j)
               res.push_back(formula::Not(formula::And({g[i], g[j]})));
             formula left = formula::Equiv(r[i], g[i]);
             formula right = formula::Equiv(g[i], formula::X(g[i]));
@@ -1248,7 +1248,7 @@ namespace spot
         psi_s = formula::And(res);
 
         res.clear();
-        for (int i = 0; i < n; ++i)
+        for (unsigned i = 0; i < n; ++i)
           {
             formula f = formula::Not(formula::And({r[i], g[i]}));
             res.push_back(formula::G(formula::F(f)));
@@ -1256,7 +1256,7 @@ namespace spot
         phi_e = formula::And(res);
 
         res.clear();
-        for (int i = 0; i < n; ++i)
+        for (unsigned i = 0; i < n; ++i)
           {
             res.push_back(formula::G(formula::F(formula::Equiv(r[i], g[i]))));
           }
@@ -1267,9 +1267,9 @@ namespace spot
 
       if (!strict_)
         {
+          formula left = formula::And({formula::G(psi_e), phi_e});
           formula imp =
-            formula::Implies(formula::And({formula::G(psi_e), phi_e}),
-                             formula::And({formula::G(psi_s), phi_s}));
+            formula::Implies(left, formula::And({formula::G(psi_s), phi_s}));
           return formula::Implies(theta_e, formula::And({theta_s, imp}));
         }
       else
