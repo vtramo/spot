@@ -251,7 +251,7 @@ namespace spot
       uf_element* q;
       uf_element* r;
 
-      while (true)
+      do
         {
           a_root = find(a);
           b_root = find(b);
@@ -261,28 +261,24 @@ namespace spot
               // Update acceptance condition
               {
                 std::lock_guard<std::mutex> rlock(a_root->acc_mutex_);
-                a_root->acc |= acc;
                 acc |= a_root->acc;
+                a_root->acc = acc;
               }
 
               while (a_root->parent.load() != a_root)
                 {
                   a_root = find(a_root);
                   std::lock_guard<std::mutex> rlock(a_root->acc_mutex_);
-                  a_root->acc |= acc;
                   acc |= a_root->acc;
+                  a_root->acc = acc;
                 }
               return acc;
             }
 
           r = std::max(a_root, b_root);
           q = std::min(a_root, b_root);
-
-          if (!lock_root(q))
-            continue;
-
-          break;
         }
+      while (!lock_root(q));
 
       uf_element* a_list = lock_list(a);
       if (a_list == nullptr)
@@ -329,9 +325,8 @@ namespace spot
       {
         std::lock_guard<std::mutex> rlock(r->acc_mutex_);
         std::lock_guard<std::mutex> qlock(q->acc_mutex_);
-        q->acc |= acc;
-        r->acc |= q->acc;
-        acc |= r->acc;
+        acc |= r->acc | q->acc;
+        r->acc = q->acc = acc;
       }
 
       while (r->parent.load() != r)
@@ -339,8 +334,8 @@ namespace spot
           r = find(r);
           std::lock_guard<std::mutex> rlock(r->acc_mutex_);
           std::lock_guard<std::mutex> qlock(q->acc_mutex_);
-          r->acc |= q->acc;
-          acc |= r->acc;
+          acc |= r->acc | q->acc;
+          r->acc = acc;
         }
 
       unlock_list(a_list);
@@ -360,9 +355,7 @@ namespace spot
               a_status = a->list_status_.load();
 
               if (a_status == list_status::BUSY)
-                {
-                  return a;
-                }
+                return a;
 
               if (a_status == list_status::DONE)
                 break;
@@ -407,9 +400,7 @@ namespace spot
               b_status = b->list_status_.load();
 
               if (b_status == list_status::BUSY)
-                {
-                  return b;
-                }
+                return b;
 
               if (b_status == list_status::DONE)
                 break;
