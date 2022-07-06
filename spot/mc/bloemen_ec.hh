@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2015, 2016, 2017, 2018, 2019, 2020 Laboratoire de Recherche et
+// Copyright (C) 2015-2020, 2022 Laboratoire de Recherche et
 // Developpement de l'Epita
 //
 // This file is part of Spot, a model checking library.
@@ -556,8 +556,8 @@ namespace spot
 
                       {
                         auto root = uf_.find(w.second);
-                        std::lock_guard<std::mutex> lock(w.second->acc_mutex_);
-                        scc_acc = w.second->acc;
+                        std::lock_guard<std::mutex> lock(root->acc_mutex_);
+                        scc_acc = root->acc;
                       }
 
                       // cycle found in SCC and it contains acceptance condition
