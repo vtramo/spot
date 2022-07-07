@@ -557,10 +557,11 @@ namespace spot
     {
       std::map<std::vector<unsigned>, unsigned> uniq_;
       G& g_;
+      unsigned acc_sink_;
     public:
 
-      univ_dest_mapper(G& graph)
-        : g_(graph)
+      univ_dest_mapper(G& graph, unsigned sink = -1u)
+        : g_(graph), acc_sink_(sink)
       {
       }
 
@@ -570,6 +571,9 @@ namespace spot
         std::vector<unsigned> tmp(begin, end);
         std::sort(tmp.begin(), tmp.end());
         tmp.erase(std::unique(tmp.begin(), tmp.end()), tmp.end());
+        if (acc_sink_ != -1u && tmp.size() > 1)
+          tmp.erase(std::remove(tmp.begin(), tmp.end(), acc_sink_),
+                    tmp.end());
         auto p = uniq_.emplace(tmp, 0);
         if (p.second)
           p.first->second = g_.new_univ_dests(tmp.begin(), tmp.end());
