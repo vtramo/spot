@@ -43,6 +43,29 @@ namespace spot
       internal::univ_dest_mapper<twa_graph::graph_t> uniq_;
       outedge_combiner oe_;
 
+      void add_self_loop(twa_graph::edge_storage_t const& e,
+                         unsigned init_state,
+                         acc_cond::mark_t acc)
+      {
+        if (e.dst == accepting_sink_)
+          {
+            // avoid creating a univ_dests vector if the only dest is an
+            // accepting sink, which can be simplified, only keeping the self
+            // loop
+            aut_->new_edge(init_state, init_state, e.cond, acc);
+            return;
+          }
+
+        auto dests = aut_->univ_dests(e);
+        std::vector<unsigned> new_dests(dests.begin(), dests.end());
+        new_dests.push_back(init_state);
+
+        unsigned dst = uniq_.new_univ_dests(new_dests.begin(),
+                                            new_dests.end());
+        aut_->new_edge(init_state, dst, e.cond, acc);
+      }
+
+
       unsigned recurse(formula f)
       {
         switch (f.kind())
@@ -134,18 +157,7 @@ namespace spot
 
             std::vector<unsigned> new_dests;
             for (auto& e : aut_->out(lhs_init))
-              {
-                auto dests = aut_->univ_dests(e);
-                std::copy(dests.begin(), dests.end(),
-                          std::back_inserter(new_dests));
-                new_dests.push_back(init_state);
-
-                unsigned dest = uniq_.new_univ_dests(new_dests.begin(),
-                                                     new_dests.end());
-                aut_->new_edge(init_state, dest, e.cond, acc);
-
-                new_dests.clear();
-              }
+              add_self_loop(e, init_state, acc);
 
             for (auto& e : aut_->out(rhs_init))
               {
@@ -173,20 +185,8 @@ namespace spot
             unsigned lhs_init = recurse(f[0]);
             unsigned rhs_init = recurse(f[1]);
 
-            std::vector<unsigned> new_dests;
             for (auto& e : aut_->out(rhs_init))
-              {
-                auto dests = aut_->univ_dests(e);
-                std::copy(dests.begin(), dests.end(),
-                          std::back_inserter(new_dests));
-                new_dests.push_back(init_state);
-
-                unsigned dst = uniq_.new_univ_dests(new_dests.begin(),
-                                                    new_dests.end());
-                aut_->new_edge(init_state, dst, e.cond, acc);
-
-                new_dests.clear();
-              }
+              add_self_loop(e, init_state, acc);
 
             std::vector<unsigned> dsts;
             for (const auto& lhs_e : aut_->out(lhs_init))
@@ -253,18 +253,7 @@ namespace spot
             // the product of edges
             std::vector<unsigned> new_dests;
             for (auto& e : aut_->out(sub_init))
-              {
-                auto dests = aut_->univ_dests(e);
-                std::copy(dests.begin(), dests.end(),
-                          std::back_inserter(new_dests));
-                new_dests.push_back(init_state);
-
-                unsigned dst = uniq_.new_univ_dests(new_dests.begin(),
-                                                    new_dests.end());
-                aut_->new_edge(init_state, dst, e.cond, {});
-
-                new_dests.clear();
-              }
+              add_self_loop(e, init_state, {});
 
             return init_state;
           }
