@@ -28,8 +28,8 @@
 
 namespace spot
 {
-  outedge_combiner::outedge_combiner(const twa_graph_ptr& aut)
-    : aut_(aut), vars_(bddtrue)
+  outedge_combiner::outedge_combiner(const twa_graph_ptr& aut, unsigned sink)
+    : aut_(aut), vars_(bddtrue), acc_sink_(sink)
   {
   }
 
@@ -50,6 +50,9 @@ namespace spot
             bdd out = bddtrue;
             for (unsigned d: aut_->univ_dests(e.dst))
               {
+                if (d == acc_sink_)
+                  continue;
+
                 auto p = state_to_var.emplace(d, 0);
                 if (p.second)
                   {
@@ -78,7 +81,17 @@ namespace spot
       {
         bdd cond = bdd_exist(cube, vars_);
         bdd dest = bdd_existcomp(cube, vars_);
-        while (dest != bddtrue)
+
+        if (dest == bddtrue)
+          {
+            // if dest is bddtrue then the accepting sink is the only
+            // destination for this edge, in that case don't filter it out
+            assert(acc_sink_ != -1u);
+            aut_->new_edge(st, acc_sink_, cond);
+            continue;
+          }
+
+        do
           {
             assert(bdd_low(dest) == bddfalse);
             auto it = var_to_state.find(bdd_var(dest));
@@ -86,6 +99,8 @@ namespace spot
             univ_dest.push_back(it->second);
             dest = bdd_high(dest);
           }
+        while  (dest != bddtrue);
+
         std::sort(univ_dest.begin(), univ_dest.end());
         aut_->new_univ_edge(st, univ_dest.begin(), univ_dest.end(), cond);
         univ_dest.clear();
