@@ -49,8 +49,9 @@ namespace spot
     std::map<unsigned, int> state_to_var;
     std::map<int, unsigned> var_to_state;
     bdd vars_;
+    unsigned acc_sink_;
   public:
-    outedge_combiner(const twa_graph_ptr& aut);
+    outedge_combiner(const twa_graph_ptr& aut, unsigned sink = -1u);
     ~outedge_combiner();
     bdd operator()(unsigned st);
     void new_dests(unsigned st, bdd out) const;
