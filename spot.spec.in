@@ -71,16 +71,16 @@ logic (LTL & PSL).
 
 %files -n libspot
 %{_libdir}/libbddx.a
-%{_libdir}/libbddx.la
+%exclude %{_libdir}/libbddx.la
 %{_libdir}/libbddx.so*
 %{_libdir}/libspot.a
-%{_libdir}/libspot.la
+%exclude %{_libdir}/libspot.la
 %{_libdir}/libspot.so*
 %{_libdir}/libspotgen.a
-%{_libdir}/libspotgen.la
+%exclude %{_libdir}/libspotgen.la
 %{_libdir}/libspotgen.so*
 %{_libdir}/libspotltsmin.a
-%{_libdir}/libspotltsmin.la
+%exclude %{_libdir}/libspotltsmin.la
 %{_libdir}/libspotltsmin.so*
 %license COPYING
 %doc AUTHORS COPYING NEWS README THANKS
@@ -121,7 +121,7 @@ temporal logic (LTL & PSL).
 %dir %{python3_sitearch}/spot
 %{python3_sitearch}/spot/*
 %{python3_sitearch}/_buddy.*.a
-%{python3_sitearch}/_buddy.*.la
+%exclude %{python3_sitearch}/_buddy.*.la
 %{python3_sitearch}/_buddy.*.so
 %license COPYING
 %doc AUTHORS COPYING NEWS README THANKS
