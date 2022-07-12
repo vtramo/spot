@@ -89,6 +89,7 @@ real notebooks instead.
   automata.
 - [[https://spot.lrde.epita.fr/ipynb/atva16-fig2a.html][=atva16-fig2a.ipynb=]] first example from our [[https://www.lrde.epita.fr/~adl/dl/adl/duret.16.atva2.pdf][ATVA'16 tool paper]].
 - [[https://spot.lrde.epita.fr/ipynb/atva16-fig2b.html][=atva16-fig2b.ipynb=]] second example from our [[https://www.lrde.epita.fr/~adl/dl/adl/duret.16.atva2.pdf][ATVA'16 tool paper]].
+- [[https://spot.lrde.epita.fr/ipynb/cav22-figs.html][=cav22-figs.ipynb=]] figures from our [[https://www.lrde.epita.fr/~adl/dl/adl/duret.22.cav.pdf][CAV'22 tool paper]].
 - [[https://spot.lrde.epita.fr/ipynb/alternation.html][=alternation.ipynb=]] examples of alternating automata.
 - [[https://spot.lrde.epita.fr/ipynb/stutter-inv.html][=stutter-inv.ipynb=]] working with stutter-invariant formulas properties.
 - [[https://spot.lrde.epita.fr/ipynb/satmin.html][=satmin.ipynb=]] Python interface for [[file:satmin.org][SAT-based minimization of deterministic ω-automata]].
