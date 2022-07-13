@@ -20,6 +20,7 @@
 #include "config.h"
 #include <spot/twaalgos/alternation.hh>
 #include <spot/twaalgos/translate_aa.hh>
+#include <spot/tl/derive.hh>
 #include <spot/tl/nenoform.hh>
 
 #include <iostream>
@@ -258,6 +259,81 @@ namespace spot
             return init_state;
           }
 
+          case op::UConcat:
+          {
+            // FIXME: combine out edges with rhs !
+            //unsigned rhs_init = recurse(f[1]);
+            twa_graph_ptr sere_aut = derive_finite_automaton_with_first(f[0]);
+
+            const auto& dict = sere_aut->get_dict();
+
+            std::map<unsigned, unsigned> old_to_new;
+            std::map<unsigned, int> state_to_var;
+            std::map<int, unsigned> var_to_state;
+            bdd vars = bddtrue;
+            bdd aps = sere_aut->ap_vars();
+            std::vector<unsigned> univ_dest;
+
+            // registers a state in various maps and returns the index of the
+            // anonymous bdd var representing that state
+            auto register_state = [&](unsigned st) -> int {
+              auto p = state_to_var.emplace(st, 0);
+              if (p.second)
+              {
+                int v = dict->register_anonymous_variables(1, this);
+                p.first->second = v;
+                var_to_state.emplace(v, st);
+
+                unsigned new_st = aut_->new_state();
+                old_to_new.emplace(st, new_st);
+
+                vars &= bdd_ithvar(v);
+              }
+
+              return p.first->second;
+            };
+
+            unsigned ns = sere_aut->num_states();
+            for (unsigned st = 0; st < ns; ++st)
+              {
+                register_state(st);
+
+                bdd sig = bddfalse;
+                for (const auto& e : sere_aut->out(st))
+                  {
+                    int st_bddi = register_state(e.dst);
+                    sig |= e.cond & bdd_ithvar(st_bddi);
+                  }
+
+                for (bdd cond : minterms_of(bddtrue, aps))
+                  {
+                    bdd dest = bdd_appex(sig, cond, bddop_and, aps);
+                    while (dest != bddtrue)
+                      {
+                        assert(bdd_low(dest) == bddfalse);
+                        auto it = var_to_state.find(bdd_var(dest));
+                        assert(it != var_to_state.end());
+                        auto it2 = old_to_new.find(it->second);
+                        assert(it2 != old_to_new.end());
+                        univ_dest.push_back(it2->second);
+                        dest = bdd_high(dest);
+                      }
+
+                    auto it = old_to_new.find(st);
+                    assert(it != old_to_new.end());
+                    unsigned src = it->second;
+                    unsigned dst = uniq_.new_univ_dests(univ_dest.begin(),
+                                                        univ_dest.end());
+                    aut_->new_edge(src, dst, cond, {});
+                  }
+              }
+
+            auto it = old_to_new.find(sere_aut->get_init_state_number());
+            assert(it != old_to_new.end());
+
+            return it->second;
+          }
+
           case op::eword:
           case op::Xor:
           case op::Implies:
@@ -267,7 +343,6 @@ namespace spot
           case op::NegClosureMarked:
           case op::EConcat:
           case op::EConcatMarked:
-          case op::UConcat:
           case op::OrRat:
           case op::AndRat:
           case op::AndNLM:
@@ -288,7 +363,6 @@ namespace spot
   twa_graph_ptr
   ltl_to_aa(formula f, bdd_dict_ptr& dict, bool purge_dead_states)
   {
-    SPOT_ASSERT(f.is_ltl_formula());
     f = negative_normal_form(f);
 
     auto aut = make_twa_graph(dict);
