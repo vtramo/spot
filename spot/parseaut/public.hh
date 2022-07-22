@@ -44,7 +44,14 @@ namespace spot
   struct parse_aut_error_list {};
 #endif
 
-  enum class parsed_aut_type { HOA, NeverClaim, LBTT, DRA, DSA, Unknown };
+  enum class parsed_aut_type {
+    HOA,
+    NeverClaim,
+    LBTT,
+    DRA, /* DSTAR format for Rabin */
+    DSA, /* DSTAR format for Streett */
+    PGAME, /* PG Solver Game */
+    Unknown };
 
   /// \brief Result of the automaton parser
   struct SPOT_API parsed_aut final
@@ -91,11 +98,11 @@ namespace spot
 
   struct automaton_parser_options final
   {
-    bool ignore_abort = false;        ///< Skip aborted automata
-    bool debug = false;                ///< Run the parser in debug mode?
-    bool trust_hoa = true;        ///< Trust properties in HOA files
-    bool raise_errors = false;        ///< Raise errors as exceptions.
-    bool want_kripke = false;        ///< Parse as a Kripke structure.
+    bool ignore_abort = false;  ///< Skip aborted automata
+    bool debug = false;         ///< Run the parser in debug mode?
+    bool trust_hoa = true;      ///< Trust properties in HOA files
+    bool raise_errors = false;  ///< Raise errors as exceptions.
+    bool want_kripke = false;   ///< Parse as a Kripke structure.
   };
 
   /// \brief Parse a stream of automata

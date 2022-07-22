@@ -65,12 +65,18 @@ eol         \n+|\r+
 eol2        (\n\r)+|(\r\n)+
 eols        ({eol}|{eol2})*
 identifier  [[:alpha:]_][[:alnum:]_.-]*
+pgameinit   "parity"[ \t]+[0-9]+[ \t]*;
+oldpgameinit [0-9]+[ \t]+[0-9]+[ \t]+[01]+[ \t]+[0-9,]+([ \t]+".*")?[ \t]*;
+/* A pattern than match the start of an automaton, in order
+to detect the end of the previous one.  We do not try to match
+LBTT automata here. */
+startaut    {eols}("HOA:"|"never"|"DSA"|"DRA"|{pgameinit})
 
 %x in_COMMENT in_STRING in_NEVER_PAR
 %s in_HOA in_NEVER in_LBTT_HEADER
 %s in_LBTT_STATE in_LBTT_INIT in_LBTT_TRANS
 %s in_LBTT_T_ACC in_LBTT_S_ACC in_LBTT_GUARD
-%s in_DSTAR
+%s in_DSTAR in_PGAME
 %%
 
 %{
@@ -127,7 +133,20 @@ identifier  [[:alpha:]_][[:alnum:]_.-]*
 <INITIAL>"never"	  BEGIN(in_NEVER); return token::NEVER;
 <INITIAL>"DSA"		  BEGIN(in_DSTAR); return token::DSA;
 <INITIAL>"DRA"		  BEGIN(in_DSTAR); return token::DRA;
-
+<INITIAL>{pgameinit} {
+                          BEGIN(in_PGAME);
+			  char* end = nullptr;
+			  errno = 0;
+			  unsigned long n = strtoul(yytext + 7, &end, 10);
+			  yylval->num = n;
+                          return token::PGAME;
+                          }
+<INITIAL>{oldpgameinit}   {
+                          BEGIN(in_PGAME);
+			  yylval->num = 0;
+                          yyless(0);
+                          return token::PGAME;
+                          }
 <INITIAL>[0-9]+[ \t][0-9]+[ts]?  {
 	                  BEGIN(in_LBTT_HEADER);
 			  char* end = nullptr;
@@ -229,10 +248,8 @@ identifier  [[:alpha:]_][[:alnum:]_.-]*
                           return token::INT;
                         }
   [0-9]+                parse_int(); return token::INT;
-  /* The start of any automaton is the end of this one.
-     We do not try to detect LBTT automata, as that would
-     be too hard to distinguish from state numbers. */
-  {eols}("HOA:"|"never"|"DSA"|"DRA")  {
+  /* The start of any automaton is the end of this one. */
+  {startaut}  {
 			  yylloc->end = yylloc->begin;
 			  yyless(0);
 			  BEGIN(INITIAL);
@@ -268,6 +285,24 @@ identifier  [[:alpha:]_][[:alnum:]_.-]*
 			  yylval->str = new std::string(yytext, yyleng);
 	                  return token::IDENTIFIER;
 		        }
+}
+
+<in_PGAME>{
+  /* Handle short numbers without going through parse_int() for efficiency. */
+  [0-9]                 yylval->num = *yytext - '0'; return token::INT;
+  [0-9][0-9]            {
+                          yylval->num = (yytext[0] * 10) + yytext[1] - '0' * 11;
+                          return token::INT;
+                        }
+  [0-9]+                parse_int(); return token::INT;
+  /* The start of any automaton is the end of this one. */
+  {startaut}  {
+			  yylloc->end = yylloc->begin;
+			  yyless(0);
+			  BEGIN(INITIAL);
+			  return token::ENDPGAME;
+			}
+  <<EOF>>	return token::ENDPGAME;
 }
 
   /* Note: the LBTT format is scanf friendly, but not Bison-friendly.

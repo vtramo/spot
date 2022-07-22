@@ -44,6 +44,7 @@
 #include "spot/priv/accmap.hh"
 #include <spot/tl/parse.hh>
 #include <spot/twaalgos/alternation.hh>
+#include <spot/twaalgos/game.hh>
 
 using namespace std::string_literals;
 
@@ -256,6 +257,11 @@ extern "C" int strverscmp(const char *s1, const char *s2);
 %token ENDOFFILE 0 "end of file"
 %token <str> '['
 
+%token <str> LINEDIRECTIVE "#line"
+%token <b> BDD
+
+/**** DSTAR tokens ****/
+%token ENDDSTAR "end of DSTAR automaton"
 %token DRA "DRA"
 %token DSA "DSA"
 %token V2 "v2"
@@ -263,14 +269,12 @@ extern "C" int strverscmp(const char *s1, const char *s2);
 %token ACCPAIRS "Acceptance-Pairs:"
 %token ACCSIG "Acc-Sig:"
 %token ENDOFHEADER "---"
-%token <str> LINEDIRECTIVE "#line"
-%token <b> BDD
 
 %left '|'
 %left '&'
 %precedence '!'
 
-%type <states> init-state-conj-2 state-conj-2 state-conj-checked
+%type <states> init-state-conj-2 state-conj-2 state-conj-checked pgame_succs
 %type <num> checked-state-num state-num acc-set sign
 %type <b> label-expr
 %type <mark> acc-sig acc-sets trans-acc_opt state-acc_opt
@@ -299,10 +303,14 @@ extern "C" int strverscmp(const char *s1, const char *s2);
 %type <str> nc-one-ident nc-ident-list
 %type <code> acceptance-cond
 
+/**** PGAME tokens ****/
+// Also using INT, STRING
+%token PGAME "start of PGSolver game"
+%token ENDPGAME "end of PGSolver game"
+
 /**** LBTT tokens *****/
- // Also using INT, STRING
+// Also using INT, STRING
 %token ENDAUT "-1"
-%token ENDDSTAR "end of DSTAR automaton"
 %token <num> LBTT "LBTT header"
 %token <num> INT_S "state acceptance"
 %token <num> LBTT_EMPTY "acceptance sets for empty automaton"
@@ -364,6 +372,7 @@ aut-1: hoa   { res.h->type = spot::parsed_aut_type::HOA; }
      | never { res.h->type = spot::parsed_aut_type::NeverClaim; }
      | lbtt  { res.h->type = spot::parsed_aut_type::LBTT; }
      | dstar /* will set type as DSA or DRA while parsing first line */
+     | pgame { res.h->type = spot::parsed_aut_type::PGAME; }
 
 /**********************************************************************/
 /*                          Rules for HOA                             */
@@ -1765,7 +1774,7 @@ dstar_header: dstar_sizes
 
     if (res.states > 0)
       {
-	res.h->aut->new_states(res.states);;
+	res.h->aut->new_states(res.states);
 	res.info_states.resize(res.states);
       }
     res.acc_style = State_Acc;
@@ -1907,6 +1916,93 @@ dstar_states: %empty
     for (auto i: res.dest_map)
       res.h->aut->new_edge(res.cur_state, i.first, i.second, $3);
   }
+
+/**********************************************************************/
+/*                    Rules for PGSolver games                        */
+/**********************************************************************/
+
+pgamestart: PGAME
+       {
+	 if (res.opts.want_kripke)
+	   {
+	     error(@$,
+                   "cannot read a Kripke structure out of a PGSolver game.");
+	     YYABORT;
+	   }
+       }
+
+pgame: pgamestart pgame_nodes ENDPGAME
+       {
+         unsigned n = res.accset;
+         auto p = spot::acc_cond::acc_code::parity_max_odd(n);
+         res.h->aut->set_acceptance(n, p);
+         res.acc_style = State_Acc;
+	 // Pretend that we have declared all states.
+         n = res.h->aut->num_states();
+         res.info_states.resize(n);
+	 for (auto& p: res.info_states)
+	   p.declared = true;
+       }
+     | pgamestart error ENDPGAME
+       {
+	 error(@$, "failed to parse this as a PGSolver game");
+       }
+
+pgame_nodes: pgame_node ';'
+           | pgame_nodes pgame_node ';'
+
+pgame_succs: INT
+           { $$ = new std::vector<unsigned>{$1}; }
+           | pgame_succs ',' INT
+           {
+             $$ = $1;
+             $$->emplace_back($3);
+           }
+
+pgame_node: INT INT INT pgame_succs string_opt
+            {
+              unsigned state = $1;
+              unsigned owner = $3;
+              if (owner > 1)
+                {
+                  error(@3, "node owner should be 0 or 1");
+                  owner = 0;
+                }
+              // Create any missing state
+              unsigned max_state = state;
+              for (unsigned s: *$4)
+                max_state = std::max(max_state, s);
+              unsigned n = res.h->aut->num_states();
+              if (n <= max_state)
+                res.h->aut->new_states(max_state + 1 - n);
+
+              // assume the source of the first edge is initial
+              if (res.start.empty())
+                res.start.emplace_back(@$, std::vector<unsigned>{state});
+
+              // Create all edges with priority $2
+              spot::acc_cond::mark_t m({$2});
+              for (unsigned s: *$4)
+                res.h->aut->new_edge(state, s, bddtrue, m);
+              res.accset = std::max(res.accset, 1 + (int) $2);
+
+              n = res.h->aut->num_states();
+              if (!res.state_player)
+                res.state_player = new std::vector<bool>(n);
+              else if (res.state_player->size() < n)
+                res.state_player->resize(n);
+              (*res.state_player)[state] = owner;
+
+              if (std::string* name = $5)
+                {
+                  if (!res.state_names)
+                    res.state_names = new std::vector<std::string>(n);
+                  else if (res.state_names->size() < n)
+                    res.state_names->resize(n);
+                  (*res.state_names)[state] = std::move(*name);
+                  delete name;
+                }
+            }
 
 /**********************************************************************/
 /*                      Rules for neverclaims                         */
@@ -2487,7 +2583,7 @@ static void fix_initial_state(result_& r)
   start.resize(std::distance(start.begin(), res));
 
   assert(start.size() >= 1);
-  if (start.size() == 1)
+    if (start.size() == 1)
     {
       if (r.opts.want_kripke)
 	r.h->ks->set_init_state(start.front().front());

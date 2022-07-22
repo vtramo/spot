@@ -341,6 +341,7 @@ TESTS_twa = \
   core/dnfstreett.test \
   core/parity.test \
   core/parity2.test \
+  core/pgsolver.test \
   core/ltlsynt.test \
   core/ltlsynt-pgame.test \
   core/syfco.test \

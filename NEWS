@@ -65,6 +65,10 @@ New in spot 2.10.6.dev  (not yet released)
     property of Spot to the controllable-AP header for the Extended
     HOA format used in SyntComp.   https://arxiv.org/abs/1912.05793
 
+  - The automaton parser learned to parse games in the PGSolver format.
+    See the bottom of https://spot.lrde.epita.fr/ipynb/games.html for
+    an example.
+
   - "aliases" is a new named property that is filled by the HOA parser
     using the list of aliases declared in the HOA file, and then used
     by the HOA printer on a best-effort basis.  Aliases can be used to
@@ -105,7 +109,7 @@ New in spot 2.10.6.dev  (not yet released)
 
   - The zielonka_tree construction was optimized using the same
     memoization trick that is used in ACD.  Additionally it can now be
-    run with additional option to abort when the tree as an unwanted
+    run with additional options to abort when the tree as an unwanted
     shape, or to turn the tree into a DAG.
 
   - contains() can now take a twa as a second argument, not just a
