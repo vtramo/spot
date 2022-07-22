@@ -117,6 +117,17 @@ New in spot 2.10.6.dev  (not yet released)
     to obtain a simple model checker (that returns true or false,
     without counterexample).
 
+ Python bindings:
+
+  - The to_str() method of automata can now export a parity game into
+    the PG-Solver format by passing option 'pg'.  See
+    https://spot.lrde.epita.fr/ipynb/games.html for an example.
+
+ Deprectation notice:
+
+  - spot::pg_print() has been deprecated in favor of spot::print_pg()
+    for consistency with the rest of the API.
+
   Bugs fixed:
 
   - calling twa_graph::new_univ_edge(src, begin, end, cond, acc) could

@@ -400,7 +400,7 @@ namespace
       [](const spot::twa_graph_ptr& game)->void
         {
           if (opt_print_pg)
-            spot::pg_print(std::cout, game);
+            spot::print_pg(std::cout, game);
           else
             spot::print_hoa(std::cout, game, opt_print_hoa_args) << '\n';
         }
@@ -785,7 +785,7 @@ namespace
       if (opt_print_pg || opt_print_hoa)
         {
           if (opt_print_pg)
-            spot::pg_print(std::cout, arena);
+            spot::print_pg(std::cout, arena);
           else
             spot::print_hoa(std::cout, arena, opt_print_hoa_args) << '\n';
           return 0;

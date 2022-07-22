@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2017-2018, 2020-2021 Laboratoire de Recherche et
+// Copyright (C) 2017-2018, 2020-2022 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -23,7 +23,7 @@
 
 #include <spot/misc/timer.hh>
 #include <spot/twaalgos/game.hh>
-#include <spot/misc/bddlt.hh>
+#include <spot/misc/escape.hh>
 #include <spot/twaalgos/sccinfo.hh>
 
 namespace spot
@@ -834,66 +834,71 @@ namespace spot
     return solve_parity_game(arena);
   }
 
+  // backward compatibility
   void pg_print(std::ostream& os, const const_twa_graph_ptr& arena)
   {
-    ensure_parity_game(arena, "pg_print");
+    print_pg(os, arena);
+  }
 
-    auto do_print = [&os](const const_twa_graph_ptr& arena)
-      {
-        const region_t& owner = get_state_players(arena);
-
-        unsigned ns = arena->num_states();
-        unsigned init = arena->get_init_state_number();
-        os << "parity " << ns - 1 << ";\n";
-        std::vector<bool> seen(ns, false);
-        std::vector<unsigned> todo({init});
-        while (!todo.empty())
-          {
-            unsigned src = todo.back();
-            todo.pop_back();
-            if (seen[src])
-              continue;
-            seen[src] = true;
-            os << src << ' ';
-            os << arena->out(src).begin()->acc.max_set() - 1 << ' ';
-            os << owner[src] << ' ';
-            bool first = true;
-            for (auto& e: arena->out(src))
-              {
-                if (!first)
-                  os << ',';
-                first = false;
-                os << e.dst;
-                if (!seen[e.dst])
-                  todo.push_back(e.dst);
-              }
-            if (src == init)
-              os << " \"INIT\"";
-            os << ";\n";
-          }
-      };
-    // Ensure coloring
-    // PGSolver format expects max odd and colored
+  std::ostream& print_pg(std::ostream& os, const const_twa_graph_ptr& arena)
+  {
     bool is_par, max, odd;
     is_par = arena->acc().is_parity(max, odd, true);
-    assert(is_par && "pg_printer needs parity condition");
-    bool is_colored = (max & odd) ? std::all_of(arena->edges().begin(),
-                                              arena->edges().end(),
-                                              [](const auto& e)
-                                                {
-                                                  return (bool) e.acc;
-                                                })
-                                  : false;
-    if (is_colored)
-      do_print(arena);
-    else
+    if (!is_par)
+      throw std::runtime_error("print_pg: arena must have a parity acceptance");
+    const region_t& owner = *ensure_game(arena, "print_pg");
+
+    bool max_odd_colored =
+      max && odd && std::all_of(arena->edges().begin(),
+                                arena->edges().end(),
+                                [](const auto& e)
+                                {
+                                  return (bool) e.acc;
+                                });
+    const_twa_graph_ptr towork = arena;
+    if (!max_odd_colored)
       {
-        auto arena2 = change_parity(arena, parity_kind_max, parity_style_odd);
-        colorize_parity_here(arena2, true);
-        set_state_players(arena2,
-                          get_state_players(arena));
-        do_print(arena2);
+        twa_graph_ptr tmp =
+          change_parity(arena, parity_kind_max, parity_style_odd);
+        colorize_parity_here(tmp, true);
+        towork = tmp;
       }
+
+    auto sn = arena->get_named_prop<std::vector<std::string>>("state-names");
+    unsigned ns = towork->num_states();
+    unsigned init = towork->get_init_state_number();
+    os << "parity " << ns - 1 << ";\n";
+    std::vector<bool> seen(ns, false);
+    std::vector<unsigned> todo({init});
+    while (!todo.empty())
+      {
+        unsigned src = todo.back();
+        todo.pop_back();
+        if (seen[src])
+          continue;
+        seen[src] = true;
+        os << src << ' ';
+        os << towork->out(src).begin()->acc.max_set() - 1 << ' ';
+        os << owner[src] << ' ';
+        bool first = true;
+        for (auto& e: arena->out(src))
+          {
+            if (!first)
+              os << ',';
+            first = false;
+            os << e.dst;
+            if (!seen[e.dst])
+              todo.push_back(e.dst);
+          }
+        if (sn && sn->size() > src && !(*sn)[src].empty())
+          {
+            os << " \"";
+            escape_str(os, (*sn)[src]);
+            os << '"';
+          }
+        os << ";\n";
+      }
+    return os;
   }
 
   void alternate_players(spot::twa_graph_ptr& arena,

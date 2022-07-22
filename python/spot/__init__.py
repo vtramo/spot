@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2014-2021  Laboratoire de
+# Copyright (C) 2014-2022  Laboratoire de
 # Recherche et Développement de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -260,6 +260,12 @@ class twa:
         if format == 'lbtt':
             ostr = ostringstream()
             print_lbtt(ostr, a, opt)
+            return ostr.str()
+        if format == 'pg':
+            if opt is not None:
+                raise ValueError("print_pg() has no option")
+            ostr = ostringstream()
+            print_pg(ostr, a)
             return ostr.str()
         raise ValueError("unknown string format: " + format)
 

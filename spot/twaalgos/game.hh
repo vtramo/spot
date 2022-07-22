@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2017-2021 Laboratoire de Recherche et Développement
+// Copyright (C) 2017-2022 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -112,10 +112,26 @@ namespace spot
 
 
   /// \ingroup games
-  /// \brief Print a max odd parity game using PG-solver syntax
+  /// \brief Print a parity game using PG-solver syntax
+  ///
+  /// The input automaton should have parity acceptance and should
+  /// define state owner.  Since the PG solver format want player 1 to
+  /// solve a max odd condition, the acceptance condition will be
+  /// adapted to max odd if necessary.
+  ///
+  /// The output will list the initial state as first state (because
+  /// that is the convention of our parser), and list only reachable
+  /// states.
+  ///
+  /// If states are named, the names will be output as well.
+  /// @{
+  SPOT_API
+  std::ostream& print_pg(std::ostream& os, const const_twa_graph_ptr& arena);
+
+  SPOT_DEPRECATED("use print_pg() instead")
   SPOT_API
   void pg_print(std::ostream& os, const const_twa_graph_ptr& arena);
-
+  /// @}
 
   /// \ingroup games
   /// \brief Highlight the edges of a strategy on an automaton.
