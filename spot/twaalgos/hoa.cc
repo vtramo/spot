@@ -794,7 +794,7 @@ namespace spot
         os << (v1_1 ? "spot." : "spot-") << "state-player:";
         if (player->size() != num_states)
           throw std::runtime_error("print_hoa(): state-player property has"
-                                   " (" + std::to_string(player->size()) +
+                                   " " + std::to_string(player->size()) +
                                    " states but automaton has " +
                                    std::to_string(num_states));
         unsigned n = 0;
