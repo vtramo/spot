@@ -139,7 +139,7 @@ automaton. Finally, the output as a never claim is done via the
 
   int main()
   {
-    spot::parsed_formula pf = spot::parse_infix_psl("[]<>a || <>[]b");
+    spot::parsed_formula pf = spot::parse_infix_psl("GFa -> GFb");
     if (pf.format_errors(std::cerr))
       return 1;
     spot::translator trans;
@@ -158,22 +158,22 @@ never {
 T0_init:
   if
   :: (true) -> goto T0_init
-  :: (a) -> goto accept_S1
-  :: (b) -> goto accept_S2
+  :: (b) -> goto accept_S1
+  :: (!(a)) -> goto accept_S2
   fi;
 accept_S1:
   if
-  :: (a) -> goto accept_S1
-  :: (!(a)) -> goto T0_S3
+  :: (b) -> goto accept_S1
+  :: (!(b)) -> goto T0_S3
   fi;
 accept_S2:
   if
-  :: (b) -> goto accept_S2
+  :: (!(a)) -> goto accept_S2
   fi;
 T0_S3:
   if
-  :: (a) -> goto accept_S1
-  :: (!(a)) -> goto T0_S3
+  :: (b) -> goto accept_S1
+  :: (!(b)) -> goto T0_S3
   fi;
 }
 
