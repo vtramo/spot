@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2021 Laboratoire de Recherche et Développement
+// Copyright (C) 2021-2022 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -87,28 +87,30 @@ namespace spot
   unsplit_mealy(const const_twa_graph_ptr& m);
 
   /// \brief reduce an (in)completely specified mealy machine
-  ///        Based on signature inclusion or equality. This is not guaranteed
-  ///        to find the minimal number of states but is usually faster.
-  ///        This also comes at another drawback:
-  ///        All applicable sequences have to be infinite. Finite
-  ///        traces are disregarded
-  /// \param mm The mealy machine to be minimized, has to be unsplit
+  ///
+  /// This is a bisimulation based reduction, that optionally use
+  /// inclusion between signatures to force some output when there is
+  /// a choice in order to favor more reductions.  Only infinite
+  /// traces are considered.  See \cite renkin.22.forte for details.
+  ///
+  /// \param mm The mealy machine to be minimized, has to be unsplit.
   /// \param output_assignment Whether or not to use output assignment
   /// \return A specialization of \c mm. Note that if mm is separated,
   /// the returned machine is separated as well.
-  /// \note See todo TACAS22 Effective reductions of mealy machines
-  /// @{
+    /// @{
   SPOT_API twa_graph_ptr
   reduce_mealy(const const_twa_graph_ptr& mm,
-               bool output_assignment = false);
+               bool output_assignment = true);
 
   SPOT_API void
   reduce_mealy_here(twa_graph_ptr& mm,
-                    bool output_assignment = false);
+                    bool output_assignment = true);
   /// @}
 
   /// \brief Minimizes an (in)completely specified mealy machine
-  /// The approach is described in \todo TACAS
+  ///
+  /// The approach is described in \cite renkin.22.forte.
+  ///
   /// \param premin Use reduce_mealy before applying the
   ///               main algorithm if demanded AND
   ///               the original machine has no finite trace.
