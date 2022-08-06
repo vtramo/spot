@@ -21,59 +21,84 @@
 
 #include <spot/twa/twagraph.hh>
 
+/// \addtogroup mealy Functions related to Mealy machines
+/// \ingroup twa_algorithms
+
 namespace spot
 {
   // Forward decl
   struct synthesis_info;
 
-  /// todo
-  /// Comment je faire au mieux pour expliquer mealy dans les doc
-
-  /// \brief Checks whether or not the automaton is a mealy machine
+  /// \ingroup mealy
+  /// \brief Checks whether the automaton is a mealy machine
+  ///
+  /// A mealy machine is an automaton with the named property
+  /// `"synthesis-outputs"` and and that has a "true" as acceptance
+  /// condition.
   ///
   /// \param m The automaton to be verified
-  /// \note A mealy machine must have the named property \"synthesis-outputs\"
-  /// and have a \"true\" as acceptance condition
+  /// \see is_separated_mealy
+  /// \see is_split_mealy
+  /// \see is_input_deterministic_mealy
   SPOT_API bool
   is_mealy(const const_twa_graph_ptr& m);
 
-  /// \brief Checks whether or not the automaton is a separated mealy machine
+  /// \ingroup mealy
+  /// \brief Checks whether the automaton is a separated mealy machine
+  ///
+  /// A separated mealy machine is a mealy machine with
+  /// all transitions having the form `(in)&(out)` where `in` and
+  /// `out` are BDDs over the input and output propositions.
   ///
   /// \param m The automaton to be verified
-  /// \note A separated mealy machine is a mealy machine machine with all
-  /// transitions having the form (in)&(out) where in[out] is a bdd over
-  /// input[output] propositions of m
+  ///
+  /// \see is_mealy
+  /// \see is_split_mealy
   SPOT_API bool
   is_separated_mealy(const const_twa_graph_ptr& m);
 
+  /// \ingroup mealy
   /// \brief Checks whether or not the automaton is a split mealy machine
   ///
+  /// A split mealy machine is a mealy machine machine that has
+  /// be converted into a game.  It should have the named property
+  /// `"state-player"`, moreover the game should be alternating
+  /// between the two players.  Transitions leaving states owned by
+  /// player 0 (the environment) should use only input propositions,
+  /// while transitions leaving states owned by player 1 (the
+  /// controller) should use only output propositions.
+  ///
   /// \param m The automaton to be verified
-  /// \note A split mealy machine is a mealy machine machine with the named
-  /// property \"state-player\". Moreover the underlying automaton
-  /// must be alternating between the player and the env. Transitions
-  /// leaving env[player] states can only be labeled by
-  /// input[output] propositions.
+  /// \see is_mealy
+  /// \see is_separated_mealy
   SPOT_API bool
   is_split_mealy(const const_twa_graph_ptr& m);
 
-  /// \brief Checks whether or not a mealy machine is input deterministic
+  /// \brief Checks whether a mealy machine is input deterministic
+  ///
+  /// A machine is input deterministic if none of the states has two
+  /// outgoing transitions that can agree on a common assignment of
+  /// the input propositions.  In case the mealy machine is split, the
+  /// previous condition is tested only on states owned by player 0
+  /// (the environment).
   ///
   /// \param m The automaton to be verified
-  /// \note works all mealy machines, no matter whether they are split
-  /// or separated or neither of neither of them.
-  /// \note A machine is input deterministic if none of the states
-  /// has two outgoing transitions that can agree on a assignement
-  /// of the input propositions.
+  /// \see is_mealy
   SPOT_API bool
   is_input_deterministic_mealy(const const_twa_graph_ptr& m);
 
 
-  /// \brief make each transition in a separated mealy machine a
-  /// 2-step transition.
+  /// \ingroup mealy
+  /// \brief split a separated mealy machine
+  ///
+  /// In a separated mealy machine, every transitions as a label of
+  /// the form `(in)&(out)`.  This function will turn each transtion
+  /// into a pair of consecutive transitions labeled by `in` and
+  /// `out`, and turn the mealy machine into a game (what we call a
+  /// split mealy machine)
   ///
   /// \param m separated mealy machine to be split
-  /// \return returns the equivalent split mealy machine if not done inplace
+  /// \see is_split_mealy
   /// @{
   SPOT_API twa_graph_ptr
   split_separated_mealy(const const_twa_graph_ptr& m);
@@ -82,10 +107,18 @@ namespace spot
   split_separated_mealy_here(const twa_graph_ptr& m);
   /// @}
 
+  /// \ingroup mealy
   /// \brief the inverse of split_separated_mealy
+  ///
+  /// Take a split mealy machine \a m, and build a separated mealy machine.
+  ///
+  /// \see split_separated_mealy
+  /// \see is_split_mealy
+  /// \see is_separated_mealy
   SPOT_API twa_graph_ptr
   unsplit_mealy(const const_twa_graph_ptr& m);
 
+  /// \ingroup mealy
   /// \brief reduce an (in)completely specified mealy machine
   ///
   /// This is a bisimulation based reduction, that optionally use
@@ -95,9 +128,11 @@ namespace spot
   ///
   /// \param mm The mealy machine to be minimized, has to be unsplit.
   /// \param output_assignment Whether or not to use output assignment
-  /// \return A specialization of \c mm. Note that if mm is separated,
-  /// the returned machine is separated as well.
-    /// @{
+  /// \return A specialization of \c mm.
+  ///
+  /// \note If mm is separated, the returned machine is separated as
+  /// well.
+  /// @{
   SPOT_API twa_graph_ptr
   reduce_mealy(const const_twa_graph_ptr& mm,
                bool output_assignment = true);
@@ -107,53 +142,60 @@ namespace spot
                     bool output_assignment = true);
   /// @}
 
+  /// \ingroup mealy
   /// \brief Minimizes an (in)completely specified mealy machine
   ///
   /// The approach is described in \cite renkin.22.forte.
   ///
-  /// \param premin Use reduce_mealy before applying the
-  ///               main algorithm if demanded AND
-  ///               the original machine has no finite trace.
-  ///               -1 : Do not use;
-  ///                0 : Use without output assignment;
-  ///                1 : Use with output assignment
-  /// \return Returns a split mealy machines which is a minimal
-  /// speciliazation of the original machine
+  /// \param premin Whether to use reduce_mealy as a preprocessing:
+  ///   - -1: Do not use;
+  ///   - 0: Use without output assignment;
+  ///   - 1: Use with output assignment.
+  /// \return A split mealy machines which is a minimal
+  /// specialization of the original machine.
+  ///
+  /// \note Enabling \a premin will remove finite traces.
+  /// \see is_split_mealy_specialization
   SPOT_API twa_graph_ptr
   minimize_mealy(const const_twa_graph_ptr& mm, int premin = -1);
 
 
+  /// \ingroup mealy
   /// \brief Test if the split mealy machine \a right is a specialization of
   /// the split mealy machine \a left.
   ///
-  /// That is all input sequences valid for left
-  /// must be applicable for right and the induced sequence of output signals
-  /// of right must imply the ones of left
+  /// That is, all input sequences valid for left must be applicable
+  /// for right and the induced sequence of output signals of right
+  /// must imply the ones of left
   SPOT_API bool
   is_split_mealy_specialization(const_twa_graph_ptr left,
                                 const_twa_graph_ptr right,
                                 bool verbose = false);
 
+  /// \ingroup mealy
   /// \brief Product between two mealy machines \a left and \a right.
   /// \pre The machines have to be both either split or unsplit,
-  /// input complete and compatible. All of this is check by assertion
-  /// \result The mealy machine representing the shared behaviour.
-  /// The resulting machine has the same class (mealy/separated/split)
-  /// as the input machines
+  /// input complete and compatible. All of this is checked by assertion.
+  /// \result A mealy machine representing the shared behaviour,
+  /// with the same tyoe (mealy/separated/split) as the input machines
   SPOT_API twa_graph_ptr
   mealy_product(const const_twa_graph_ptr& left,
                 const const_twa_graph_ptr& right);
 
+  /// \ingroup mealy
   /// \brief Convenience function to call minimize_mealy or reduce_mealy.
-  /// Uses the same convention as ltlsynt for \a minimize_lvl:
-  /// 0: no reduction
-  /// 1: bisimulation based reduction
-  /// 2: bisimulation with output assignment
-  /// 3: SAT minimization
-  /// 4: 1 then 3
-  /// 5: 2 then 3
+  /// Uses the same convention as ltlsynt for \a minimize_lvl (or the
+  /// field `minimize_lvl` of \a si):
+  ///   - 0: no reduction
+  ///   - 1: bisimulation based reduction
+  ///   - 2: bisimulation with output assignment
+  ///   - 3: SAT minimization
+  ///   - 4: 1 then 3
+  ///   - 5: 2 then 3
+  ///
   /// Minimizes the given machine \a m inplace, the parameter
-  /// \a split_out defines whether it is split or not
+  /// \a split_out specifies if the result should be split.
+  /// @{
   SPOT_API void
   simplify_mealy_here(twa_graph_ptr& m, int minimize_lvl,
                       bool split_out);
@@ -161,4 +203,5 @@ namespace spot
   SPOT_API void
   simplify_mealy_here(twa_graph_ptr& m, synthesis_info& si,
                       bool split_out);
+  /// @}
 }
