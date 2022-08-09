@@ -97,6 +97,7 @@ check_PROGRAMS = \
   core/reductaustr \
   core/safra \
   core/sccif \
+  core/sharedbitarray \
   core/syntimpl \
   core/taatgba \
   core/trival \
@@ -150,6 +151,7 @@ core_reductaustr_SOURCES = core/equalsf.cc
 core_reductaustr_CPPFLAGS = $(AM_CPPFLAGS) -DREDUC_TAUSTR
 core_safra_SOURCES = core/safra.cc
 core_sccif_SOURCES = core/sccif.cc
+core_sharedbitarray_SOURCES = core/sharedbitarray.cc
 core_syntimpl_SOURCES = core/syntimpl.cc
 core_tostring_SOURCES = core/tostring.cc
 core_trival_SOURCES = core/trival.cc
@@ -281,6 +283,7 @@ TESTS_twa = \
   core/sccsimpl.test \
   core/sepsets.test \
   core/split.test \
+  core/sharedbitarray.test \
   core/sugar.test \
   core/dbacomp.test \
   core/obligation.test \
