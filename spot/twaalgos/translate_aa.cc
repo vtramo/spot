@@ -189,31 +189,9 @@ namespace spot
             for (auto& e : aut_->out(rhs_init))
               add_self_loop(e, init_state, acc);
 
-            std::vector<unsigned> dsts;
-            for (const auto& lhs_e : aut_->out(lhs_init))
-              {
-                const auto& lhs_dsts = aut_->univ_dests(lhs_e);
-                std::copy(lhs_dsts.begin(), lhs_dsts.end(),
-                          std::back_inserter(dsts));
-                size_t lhs_dest_num = dsts.size();
-
-                for (const auto& rhs_e : aut_->out(rhs_init))
-                  {
-                    const auto& rhs_dsts = aut_->univ_dests(rhs_e);
-                    std::copy(rhs_dsts.begin(), rhs_dsts.end(),
-                              std::back_inserter(dsts));
-
-                    bdd cond = lhs_e.cond & rhs_e.cond;
-
-                    unsigned dst = uniq_.new_univ_dests(dsts.begin(),
-                                                        dsts.end());
-                    aut_->new_edge(init_state, dst, cond, {});
-
-                    // reset to only lhs' current edge destinations
-                    dsts.resize(lhs_dest_num);
-                  }
-                dsts.clear();
-              }
+            bdd comb = oe_(lhs_init);
+            comb &= oe_(rhs_init);
+            oe_.new_dests(init_state, comb);
 
             return init_state;
           }
