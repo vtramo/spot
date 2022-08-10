@@ -77,6 +77,8 @@ thead tr{background:#ffe35e}
 .org-hoa-ap-number{color:#d70079}
 .implem{background:#fff0a6;padding:0.5ex 1ex 0.5ex 1ex;margin:1ex;border-color:#ffe35e;border-style:solid none}
 .implem::before{background:#ffe35e;content:"Implementation detail";padding:.5ex;position:relative;top:0;left:0;font-weight:bold}
+.note{background:#fff0a6;padding:0.5ex 1ex 0.5ex 1ex;margin:1ex;border-color:#ffe35e;border-style:solid none}
+.note::before{background:#ffe35e;content:"Note";padding:.5ex;position:relative;top:0;left:0;font-weight:bold}
 .caveat{background:#ef99c9;padding:0.5ex 1ex 0.5ex 1ex;margin:1ex;border-color:#d70079;border-style:solid none}
 .caveat::before{background:#d70079;content:"Caveat";padding:.5ex;position:relative;top:0;left:0;font-weight:bold}
 .spotlogo{transform-origin:50% 50%;animation-duration:2s;animation-name:animspotlogo}
