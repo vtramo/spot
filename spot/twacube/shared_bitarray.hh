@@ -23,22 +23,27 @@
 #include <spot/misc/common.hh>
 #include <spot/misc/fixpool.hh>
 #include <spot/misc/hashfunc.hh>
-#include <spot/misc/trival.hh>
 #include <atomic>
-#include <vector>
 #include <array>
-#include <string>
+#include <deque>
 #include <cstring>
 #include <climits>
 #include <cstdint>
 #include <limits>
-#include <optional>
+#include <iostream>
 #include <sstream>
 #include <map>
 #include <unordered_map>
+#include <memory>
 
-#ifdef SPOT_ENABLE_PTHREAD
+#ifdef ENABLE_PTHREAD
 #include <mutex>
+#endif
+
+#ifdef ENABLE_PTHREAD
+  #define DO_IF_PTHREAD(ARG) ARG
+#else
+  #define DO_IF_PTHREAD(ARG)
 #endif
 
 namespace spot
@@ -194,9 +199,13 @@ namespace spot
         , use_{0}
       {
       }
-      ~shared_bitarr_varsize() noexcept {};
+      ~shared_bitarr_varsize()
+      {
+        SPOT_ASSERT(use_ == 0 && "Destroying shared_bitarr which "
+                                 "is still used");
+      };
 
-      int incr() noexcept
+      uintptr_t incr() noexcept
       {
         SPOT_ASSERT(use_ < std::numeric_limits<uintptr_t>::max()
                     && "Use overflow of bitarr");
@@ -206,7 +215,8 @@ namespace spot
       bool decr() noexcept
       {
         SPOT_ASSERT((use_ > 0) && "Use count underflow");
-        if (!--use_)
+        --use_;
+        if (use_ == 0)
           {
             release();
             return false;
@@ -257,53 +267,68 @@ namespace spot
           return u_.l_->get_data();
       }
 
-    public:
-
-      bitarr_varsize(const bitarr_varsize& other)
+      /// \brief Conditional ref count increase
+      /// depending on small property
+      void c_incr_()
       {
-        u_ = other.u_;
-        if (!other.is_small())
+        if (!is_small() && u_.l_)
           u_.l_->incr();
       }
 
+      /// \brief Conditional ref count decrease
+      /// depending on small property
+      void c_decr_()
+      {
+        if (!is_small() && u_.l_)
+          u_.l_->decr();
+      }
+
+    public:
+
+      /// \brief copy constructor, trivial if small
+      bitarr_varsize(const bitarr_varsize& other)
+      {
+        u_ = other.u_;
+        c_incr_();
+      }
+
+      /// \brief move constructor, trivial if small
       bitarr_varsize(bitarr_varsize&& other)
       {
         u_ = other.u_;
         other.u_.l_ = nullptr; // Other becomes large and null
       }
 
+      /// \brief Assignment
       bitarr_varsize& operator=(const bitarr_varsize& other)
       {
-        // Unuse this.
-        // If usage drops to zero -> destroy
-        if (!is_small() && u_.l_)
-          {
-            if (u_.l_ == other.u_.l_) // Covers this == &other
-              return *this;
-            u_.l_->decr();
-          }
+        if (this == &other
+            || (!is_small() && (u_.l_ == other.u_.l_)))
+          return *this;
+
+        c_decr_();
         u_ = other.u_;
-        if (!is_small() && u_.l_)
-          u_.l_->incr();
+        c_incr_();
         return *this;
       }
 
+      /// \brief Move assignement
       bitarr_varsize& operator=(bitarr_varsize&& other)
       {
         SPOT_ASSERT(this != &other);
         // Unuse this.
         // If usage drops to zero -> destroy
-        if (!is_small() && u_.l_)
-            u_->l_->decr();
+        c_decr_();
         // Take the other
         u_ = other.u_;
         other.u_.l_ = nullptr;
+        return *this;
       }
 
       ~bitarr_varsize()
       {
-        if (!is_small() && u_.l_)
-            u_.l_->decr();
+        c_decr_();
+        u_.l_ = nullptr;
       }
 
       /// \brief Whether or not the underlying bitarr is small
@@ -404,16 +429,16 @@ namespace spot
       /// \brief Temporary bitarr
       bit_data_ptr temp_;
 
-#ifdef SPOT_ENABLE_PTHREAD
+#ifdef ENABLE_PTHREAD
       /// \brief A lock for the pool
       std::mutex mem_lock_;
 
       /// \brief Multiple temporaries when threaded
-      std::vector<std::pair<std::atomic_flag, bit_data_ptr>> temps_;
+      std::deque<std::pair<std::atomic_flag, bit_data_ptr>> temps_;
 
       /// \brief A lock for the hash map
       std::mutex map_lock_;
-#endif // SPOT_ENABLE_PTHREAD
+#endif // ENABLE_PTHREAD
 
     public:
 
@@ -530,26 +555,21 @@ namespace spot
           }
       }
 
-
-      std::optional<std::lock_guard<std::mutex>>
+#ifdef ENABLE_PTHREAD
+      std::lock_guard<std::mutex>
       lock_mem_()
       {
-#ifdef SPOT_ENABLE_PTHREAD
-        return std::optional(std::lock_guard(mem_lock_));
-#else
-        return std::nullopt;
-#endif
+        return std::lock_guard(mem_lock_);
       }
+#endif
 
-      std::optional<std::lock_guard<std::mutex>>
+#ifdef ENABLE_PTHREAD
+      std::lock_guard<std::mutex>
       lock_map_()
       {
-#ifdef SPOT_ENABLE_PTHREAD
-        return std::optional(std::lock_guard(map_lock_));
-#else
-        return std::nullopt;
-#endif
+        return std::lock_guard(map_lock_);
       }
+#endif
 
       /// \brief Assert bounds
       void check_bounds_(unsigned idx)
@@ -581,10 +601,12 @@ namespace spot
       /// at construction, throws an error otherwise
       bit_data_ptr get_temp_()
       {
-#ifdef SPOT_ENABLE_PTHREAD
+#ifdef ENABLE_PTHREAD
         for (auto& [flag, ptr] : temps_)
           if (!flag.test_and_set()) // todo check memory order
-            return ptr;
+            {
+              return ptr;
+            }
         throw std::runtime_error("More Threads active than expected!");
 #else
         return temp_;
@@ -596,10 +618,10 @@ namespace spot
       {
         SPOT_ASSERT(ptr && "Temporary ptr can not be null!");
         // In no threading case, nothing to do
-#ifdef SPOT_ENABLE_PTHREAD
-        auto idx = std::distance(temps_, ptr);
-        SPOT_ASSERT(temp_cubes_[idx].second == ptr);
-        temp_cubes_[idx].clear();
+#ifdef ENABLE_PTHREAD
+        auto idx = std::distance(temp_, ptr)/n_;
+        SPOT_ASSERT(temps_.at(idx).second == ptr);
+        temps_.at(idx).first.clear();
 #endif
       }
 
@@ -612,7 +634,7 @@ namespace spot
         // No copy constructor can be called in the inbetween time
         auto h = internal::hash(ptr->get_data(), n_parts());
 
-        auto g_h = lock_map_();
+        DO_IF_PTHREAD(auto g_h = lock_map_();)
 
         // Delete from map if still zero
         if (ptr->use_)
@@ -625,7 +647,7 @@ namespace spot
                 auto ptr = it_b->second;
                 map_.erase(it_b);
                 ptr->~shared_bitarr_t();
-                auto g_m = lock_mem_();
+                DO_IF_PTHREAD(auto g_m = lock_mem_();)
                 mem_pool_.deallocate((void*) ptr);
                 return;
               }
@@ -637,7 +659,7 @@ namespace spot
     protected:
       shared_bitarr_t* alloc_()
       {
-        auto g_m = lock_mem_();
+        DO_IF_PTHREAD(auto g_m = lock_mem_();)
         void* ptr = mem_pool_.allocate();
         return new (ptr) shared_bitarr_t(this);
       }
@@ -656,7 +678,7 @@ namespace spot
 
 
         auto h = hash(ptr, n_parts());
-        auto g_h = lock_map_();
+        DO_IF_PTHREAD(auto g_h = lock_map_();)
         auto [it_b, it_e] = map_.equal_range(h);
         for (; it_b != it_e; ++it_b)
           {
@@ -668,8 +690,7 @@ namespace spot
                 return bitarr_t(value);
               }
           }
-      // We could not find one -> create it
-        auto g_m = lock_mem_();
+        // We could not find one -> create it
         shared_bitarr_t* sb = alloc_();
         internal::cpy(ptr, sb->get_data(), n_parts());
         map_.emplace(h, sb);
@@ -683,6 +704,9 @@ namespace spot
   typedef internal::bitarr_handler_varsize<internal::BITARR_SMALL>
           bitarr_handler;
   typedef typename bitarr_handler::bitarr_t bitarr;
+
+  typedef std::shared_ptr<bitarr_handler> bitarr_handler_ptr;
+  typedef std::shared_ptr<const bitarr_handler> const_bitarr_handler_ptr;
 
 }
 
@@ -777,8 +801,7 @@ namespace spot
     inline bitarr_varsize<NSMALL>&
     bitarr_varsize<NSMALL>::operator&=(const bitarr_varsize<NSMALL>& rhs)
     {
-      auto tmp = this->set_intersection(rhs);
-      *this = tmp;
+      *this = this->set_intersection(rhs);
       return *this;
     }
 
@@ -787,17 +810,23 @@ namespace spot
     bitarr_varsize<NSMALL>::set_union(const bitarr_varsize<NSMALL>& rhs)
         const
     {
-        if (is_small())
-          {
-            bitarr_varsize<NSMALL> res; //small array re "free"
-            internal::set_union(get_data(),
-                                rhs.get_data(),
-                                res.get_data(),
-                                NSMALL);
-            return res;
-          }
-        else
+      SPOT_ASSERT(is_small() == rhs.is_small());
+      if (is_small())
+        {
+          bitarr_varsize<NSMALL> res; //small array re "free"
+          internal::set_union(get_data(),
+                              rhs.get_data(),
+                              res.get_data(),
+                              NSMALL);
+          return res;
+        }
+      else
+        {
+          SPOT_ASSERT(u_.l_);
+          SPOT_ASSERT(rhs.u_.l_);
+          SPOT_ASSERT(u_.l_->bh_->size() == rhs.u_.l_->bh_->size());
           return u_.l_->bh_->set_union(*this, rhs);
+        }
     }
 
     template<unsigned NSMALL>
@@ -812,8 +841,7 @@ namespace spot
     inline bitarr_varsize<NSMALL>&
     bitarr_varsize<NSMALL>::operator|=(const bitarr_varsize<NSMALL>& rhs)
     {
-      auto tmp = this->set_union(rhs);
-      *this = tmp;
+      *this = this->set_union(rhs);;
       return *this;
     }
 
@@ -821,7 +849,7 @@ namespace spot
     // bitarr_handler impl
     template<unsigned NSMALL>
     bitarr_handler_varsize<NSMALL>::bitarr_handler_varsize(size_t nbits,
-                                                          size_t nthreads)
+                                                           size_t nthreads)
       : size_(nbits)
       , n_((nbits+1)/NB_BITS + (((nbits+1)%NB_BITS) != 0))
       , is_small_{n_ <= NSMALL}
@@ -832,16 +860,16 @@ namespace spot
       // There is only one dynamic alloc stored in temp_
       // if there are multiple needed in the threaded case
       // they point to somewhere within this alloc
-      assert(nthreads > 0);
-#ifdef SPOT_ENABLE_PTHREAD
-      temps_.resize(nthreads);
+      SPOT_ASSERT(nthreads > 0);
+#ifdef ENABLE_PTHREAD
       auto ptr = temp_;
-      for (auto& [_, c_ptr] : temps_)
+      for (unsigned i = 0; i < nthreads; ++i)
         {
-          c_ptr = ptr;
+          temps_.emplace_back();
+          temps_.back().second = ptr;
           ptr += n_;
         }
-#endif // SPOT_ENABLE_PTHREAD
+#endif // ENABLE_PTHREAD
     }
 
     template<unsigned NSMALL>

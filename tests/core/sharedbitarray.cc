@@ -22,9 +22,10 @@
 #include <array>
 #include <iostream>
 #include <sstream>
+#include <vector>
 #include <spot/twacube/shared_bitarray.hh>
 
-#ifdef SPOT_ENABLE_PTHREAD
+#ifdef ENABLE_PTHREAD
 #include <thread>
 #include <atomic>
 #endif
@@ -66,7 +67,7 @@ static void test_n(unsigned nbits)
 {
   spot::bitarr_handler bh(nbits, 1);
 
-  std::cout << "Is small? " << bh.is_small() << std::endl;
+  std::cout << "Nbits " << nbits << "; Is small? " << bh.is_small() << std::endl;
 
   auto b0 = bh.generate(modNtrue(1, nbits, 3));
   auto b1 = bh.generate(modNtrue(2, nbits, 3));
@@ -124,15 +125,23 @@ static void test_large()
   test_n(144);
 }
 
-#ifdef SPOT_ENABLE_PTHREAD
+#ifdef ENABLE_PTHREAD
+
 class onegen{
   unsigned idx_;
   bool done_;
 
+public:
+
   onegen(unsigned idx)
     : idx_{idx}
-    , done_{idx != -1u}
+    , done_{idx == -1u}
   {
+  }
+
+  unsigned get() const
+  {
+    return idx_;
   }
 
   bool done() const
@@ -146,21 +155,36 @@ class onegen{
   }
 };
 
-void or_all(bit_handler& bh, spot::bit_arr& b, unsigned nbits,
-            const std::atomic_int& go)
+static void or_all(spot::bitarr_handler& bh, spot::bitarr& b, unsigned nbits,
+                   const std::atomic_int& go, const unsigned id)
 {
+  std::cout << "Create " << std::this_thread::get_id() << std::endl;
   while(!go)
     continue;
-
-  for (unsigned i = 1; i <= nbits; ++i)
+  std::cout << "Launch " << std::this_thread::get_id() << std::endl;
+  if (id & 1)
     {
-      b |= bh.generate(onegen(i));
+      for (unsigned i = 1; i <= nbits; ++i)
+        {
+          auto tmp = bh.generate(onegen(i));
+          b |= tmp;
+        }
+    }
+  else
+    {
+      for (unsigned i = nbits; i != 0; --i)
+        {
+          auto tmp = bh.generate(onegen(i));
+          b |= tmp;
+        }
     }
 }
 
-static void test_threaded(unsigned nbits)
+static void test_threaded(unsigned nthreads, unsigned nbits)
 {
-  constexpr unsigned nthreads = 8;
+
+  std::cout << "Threaded test with nthreads " << nthreads
+            << " and nbits = " << nbits << std::endl;
 
   spot::bitarr_handler bh(nbits, nthreads);
 
@@ -173,17 +197,18 @@ static void test_threaded(unsigned nbits)
 
   for (unsigned i = 0; i < nthreads; ++i)
     {
-      w.emplace_back(
-        [&]()
-        {
-          or_all(bh, bv[i], nbits, go);
-        });
+      std::cout << i << std::endl;
+      w.emplace_back([&bh, &bv, nbits, &go, i]()
+                      {
+                        or_all(bh, bv.at(i), nbits, go, i);
+                      }
+                    );
     }
   go = 1;
   for (auto& t : w)
     t.join();
 
-  std::cout << "Expect rows with all ones\n";
+  std::cout << "Expect rows with all ones, except first bit\n";
   for (const auto& b : bv)
     bh.dump(std::cout, b, false);
 
@@ -192,10 +217,20 @@ static void test_threaded(unsigned nbits)
 
 
 int main(){
+  //test_small();
+  //test_large();
+#ifdef ENABLE_PTHREAD
+  std::cout << "Testing pthread" << std::endl;
+  test_threaded(1, 12);
+  test_threaded(4, 12);
+  test_threaded(1, 244);
+  test_threaded(4, 244);
+#else
+  std::cout << "No pthread" << std::endl;
+#endif
+  //  SPOT_ASSERT((0) == true);
   test_small();
   test_large();
-#ifdef SPOT_ENABLE_PTHREAD
-  test_threaded(244);
-#endif
+
   return 0;
 }
