@@ -1,5 +1,5 @@
 ## -*- coding: utf-8 -*-
-## Copyright (C) 2011-2014, 2016-2018, 2020-2021 Laboratoire de
+## Copyright (C) 2011-2014, 2016-2018, 2020-2022 Laboratoire de
 ## Recherche et Développement de l'Epita (LRDE).
 ## Copyright (C) 2003, 2004, 2005, 2006 Laboratoire d'Informatique de
 ## Paris 6 (LIP6), département Systèmes Répartis Coopératifs (SRC),
@@ -63,7 +63,6 @@ libmisc_la_SOURCES = \
   bareword.cc \
   bitset.cc \
   bitvect.cc \
-  common.cc \
   escape.cc \
   formater.cc \
   intvcomp.cc \

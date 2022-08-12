@@ -366,15 +366,16 @@ namespace spot
     g_.chain_edges_();
   }
 
-  unsigned twa_graph::merge_states()
+  unsigned twa_graph::merge_states(parallel_policy ppolicy)
   {
     if (!is_existential())
       throw std::runtime_error(
           "twa_graph::merge_states() does not work on alternating automata");
 
 #ifdef ENABLE_PTHREAD
-    const unsigned nthreads = get_nthreads();
+    const unsigned nthreads = ppolicy.nthreads();
 #else
+    (void) ppolicy;
     constexpr unsigned nthreads = 1;
 #endif
 
@@ -392,10 +393,10 @@ namespace spot
       if (rhs.cond != lhs.cond)
         return false;
       return lhs.dst < rhs.dst;
-    });
+    }, nthreads);
     g_.chain_edges_();
 
-    const auto n_states = num_states();
+    const unsigned n_states = num_states();
 
     // Edges are nicely chained and there are no erased edges
     // -> We can work with the edge_vector
@@ -404,30 +405,28 @@ namespace spot
     // if so, the graph alternates between env and player vertices,
     // so there are, by definition, no self-loops
     auto sp = get_named_prop<std::vector<bool>>("state-player");
-    const auto spe = (bool) sp;
 
     // The hashing is a bit delicat: We may only use the dst
     // if it has no self-loop
-    auto use_for_hash = spe ? std::vector<bool>()
-                            : std::vector<bool>(n_states);
+    auto use_for_hash = sp ? std::vector<bool>()
+                           : std::vector<bool>(n_states);
 
     const auto& e_vec = edge_vector();
-    const auto n_edges = e_vec.size();
+    unsigned n_edges = e_vec.size();
 
     // For each state we need 4 indices of the edge vector
     // [first, first_non_sfirst_selflooplfloop, first_selfloop, end]
     // The init value makes sure nothing is done for dead end states
-    auto e_idx =
-      std::vector<std::array<unsigned, 4>>(n_states, {-1u, -1u,
-                                                      -1u, -1u});
+    std::vector<std::array<unsigned, 4>> e_idx(n_states, {-1u, -1u,
+                                                          -1u, -1u});
     // Like a linked list holding the non-selfloop and selfloop transitions
-    auto e_chain = std::vector<unsigned>(e_vec.size(), -1u);
+    std::vector<unsigned> e_chain(n_edges, -1u);
 
     unsigned idx = 1;
 
     // Edges are sorted with repected to src first
     const unsigned n_high = e_vec.back().src;
-    if (spe)
+    if (sp)
       for (auto s = 0u; s < n_high; ++s)
         treat<true, false>(e_idx, e_vec, e_chain,
                            use_for_hash, idx, s, n_edges);
@@ -436,7 +435,7 @@ namespace spot
         treat<false, false>(e_idx, e_vec, e_chain,
                             use_for_hash, idx, s, n_edges);
     // Last one
-    if (spe)
+    if (sp)
       treat<true, true>(e_idx, e_vec, e_chain,
                         use_for_hash, idx, n_high, n_edges);
     else
@@ -445,7 +444,7 @@ namespace spot
 
     assert(idx == e_vec.size() && "Something went wrong during indexing");
 
-    auto n_players = 0u;
+    unsigned n_players = 0u;
     if (sp)
       n_players = std::accumulate(sp->begin(), sp->end(), 0u);
 
@@ -454,14 +453,12 @@ namespace spot
     // hash_linked_list is like a linked list structure
     // of fake pointers
 
-    auto hash_linked_list = std::vector<unsigned>(n_states, -1u);
-    auto s_to_hash = std::vector<size_t>(n_states, 0);
-    auto env_map =
-      robin_hood::unordered_flat_map<size_t,
-                                     std::pair<unsigned, unsigned>>();
-    auto player_map =
-      robin_hood::unordered_flat_map<size_t,
-                                     std::pair<unsigned, unsigned>>();
+    std::vector<unsigned> hash_linked_list(n_states, -1u);
+    std::vector<size_t> s_to_hash(n_states, 0);
+    robin_hood::unordered_flat_map<size_t,
+                                   std::pair<unsigned, unsigned>> env_map;
+    robin_hood::unordered_flat_map<size_t,
+                                   std::pair<unsigned, unsigned>> player_map;
     env_map.reserve(n_states - n_players);
     player_map.reserve(n_players);
 
@@ -476,7 +473,7 @@ namespace spot
         else
           {
             // "tail"
-            auto idx = it->second.second;
+            unsigned idx = it->second.second;
             assert(idx < s && "Must be monotone");
             hash_linked_list[idx] = s;
             it->second.second = s;
@@ -484,19 +481,19 @@ namespace spot
       };
 
     // Hash all states
-    constexpr auto SHIFT = sizeof(size_t)/2 * CHAR_BIT;
+    constexpr unsigned shift = sizeof(size_t)/2 * CHAR_BIT;
     for (auto s = 0u; s != n_states; ++s)
       {
-        auto h = fnv<size_t>::init;
-        const auto e = e_idx[s][3];
-        for (auto i = e_idx[s][0]; i != e; ++i)
+        size_t h = fnv<size_t>::init;
+        const unsigned e = e_idx[s][3];
+        for (unsigned i = e_idx[s][0]; i != e; ++i)
           {
             // If size_t has 8byte and unsigned has 4byte
             // then this works fine, otherwise there might be more collisions
-            size_t hh = spe || use_for_hash[e_vec[i].dst]
+            size_t hh = sp || use_for_hash[e_vec[i].dst]
                           ? e_vec[i].dst
                           : fnv<unsigned>::init;
-            hh <<= SHIFT;
+            hh <<= shift;
             hh += e_vec[i].cond.id();
             h ^= hh;
             h *= fnv<size_t>::prime;
@@ -504,7 +501,7 @@ namespace spot
             h *= fnv<size_t>::prime;
           }
         s_to_hash[s] = h;
-        if (spe && (*sp)[s])
+        if (sp && (*sp)[s])
           emplace(player_map, h, s);
         else
           emplace(env_map, h, s);
@@ -538,20 +535,20 @@ namespace spot
         auto [i1, nsl1, sl1, e1] = e_idx[s1];
         auto [i2, nsl2, sl2, e2] = e_idx[s2];
 
-        if ((e2-i2) != (e1-i1))
+        if ((e2 - i2) != (e1 - i1))
           return false; // Different number of outgoing trans
 
         // checked1/2 is one element larger than necessary
         // the last element is always false
         // and acts like a nulltermination
-        checked1.resize(e1-i1+1);
+        checked1.resize(e1 - i1 + 1);
         std::fill(checked1.begin(), checked1.end(), false);
-        checked2.resize(e2-i2+1);
+        checked2.resize(e2 - i2 + 1);
         std::fill(checked2.begin(), checked2.end(), false);
 
         // Try to match self-loops
         // Not entirely sure when this helps exactly
-        while ((sl1 < e1) & (sl2 < e2))
+        while ((sl1 < e1) && (sl2 < e2))
           {
             // Like a search in ordered array
             if (e_vec[sl1].data() == e_vec[sl2].data())
@@ -576,12 +573,12 @@ namespace spot
         // Check if all have been correctly treated
         if ((nsl1 > e1)
             && std::all_of(checked1.begin(), checked1.end(),
-                           [](const auto& e){return e; }))
+                           [](const auto& e){return e;}))
           return true;
 
         // The remaining edges need to match exactly
-        auto idx1 = i1;
-        auto idx2 = i2;
+        unsigned idx1 = i1;
+        unsigned idx2 = i2;
         while (((idx1 < e1) & (idx2 < e2)))
           {
             // More efficient version?
@@ -600,7 +597,7 @@ namespace spot
 
 
             if  ((e_vec[idx1].dst != e_vec[idx2].dst)
-                || !(e_vec[idx1].data() == e_vec[idx2].data()))
+                 || !(e_vec[idx1].data() == e_vec[idx2].data()))
               return false;
 
             // Advance
@@ -620,7 +617,7 @@ namespace spot
                         std::vector<char>& checked2)
       {
         v.clear();
-        for (auto i = ix; i != -1U; i = hash_linked_list[i])
+        for (unsigned i = ix; i != -1U; i = hash_linked_list[i])
           v.push_back(i);
         const unsigned N = v.size();
 
@@ -699,8 +696,10 @@ namespace spot
       auto bege = env_map.begin();
       auto ende = env_map.end();
 
-#ifdef ENABLE_PTHREAD
-      if ((nthreads == 1) & (num_states() > 1000)) // Bound?
+#ifndef ENABLE_PTHREAD
+      (void) nthreads;
+#else
+      if (nthreads <= 1)
         {
 #endif // ENABLE_PTHREAD
           worker(0, begp, endp, bege, ende);
@@ -728,11 +727,10 @@ namespace spot
     for (auto& e: edges())
       if (remap[e.dst] != -1U)
         {
-          assert((!spe || (sp->at(e.dst) == sp->at(remap[e.dst])))
+          assert((!sp || (sp->at(e.dst) == sp->at(remap[e.dst])))
                  && "States do not have the same owner");
           e.dst = remap[e.dst];
         }
-
 
     if (remap[get_init_state_number()] != -1U)
       set_init_state(remap[get_init_state_number()]);

@@ -38,9 +38,6 @@ New in spot 2.10.6.dev  (not yet released)
 
   Library:
 
-  - A global variable, together with its setters and getters to define the
-    maximal number of threads is added to common.hh/common.cc
-
   - The new function suffix_operator_normal_form() implements
     transformation of formulas to Suffix Operator Normal Form,
     described in [cimatti.06.fmcad].
@@ -116,6 +113,11 @@ New in spot 2.10.6.dev  (not yet released)
     twa_graph.  This allows for instance to do contains(ltl, kripke)
     to obtain a simple model checker (that returns true or false,
     without counterexample).
+
+  - spot::parallel_policy is an object that can be passed to some
+    algorithm to specify how many threads can be used if Spot has been
+    compiled with --enable-pthread.  Currently, only
+    twa_graph::merge_states() support it.
 
  Python bindings:
 

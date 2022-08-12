@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2014-2021 Laboratoire de Recherche et Développement
+// Copyright (C) 2014-2022 Laboratoire de Recherche et Développement
 // de l'Epita.
 //
 // This file is part of Spot, a model checking library.
@@ -589,8 +589,12 @@ namespace spot
     /// (1)-a->(1) and (1)-a->(1) if (1), (2) and (3) are merged into
     /// (1).
     ///
+    /// On large automaton, it might be worthwhile to use multiple
+    /// threads to find states that can be merged.  This can be
+    /// requested with the \a ppolicy argument.
+    ///
     /// \return the number of states that have been merged and removed.
-    unsigned merge_states();
+    unsigned merge_states(parallel_policy ppolicy = parallel_policy());
 
     /// \brief Like merge states, but one can chose which states are
     /// candidates for merging.

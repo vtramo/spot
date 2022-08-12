@@ -1255,56 +1255,57 @@ namespace spot
     /// and make a temporary copy of the edges (needs more ram)
     /// \pre This needs the edge_vector to be in a coherent state when called
     template<class Predicate = std::less<edge_storage_t>>
-    void sort_edges_srcfirst_(Predicate p = Predicate())
+    void sort_edges_srcfirst_(Predicate p = Predicate(),
+                              parallel_policy ppolicy = parallel_policy())
     {
-      //std::cerr << "\nbefore\n";
-      //dump_storage(std::cerr);
-      const auto N = num_states();
-
-      auto idx_list = std::vector<unsigned>(N+1);
-      auto new_edges = edge_vector_t();
+      SPOT_ASSERT(!edges_.empty());
+      const unsigned ns = num_states();
+      std::vector<unsigned> idx_list(ns+1);
+      edge_vector_t new_edges;
       new_edges.reserve(edges_.size());
-      if (SPOT_UNLIKELY(edges_.empty()))
-        throw std::runtime_error("Empty edge vector!");
       new_edges.resize(1);
       // This causes edge 0 to be considered as dead.
       new_edges[0].next_succ = 0;
-      // Copy the edges such that they are sorted by src
-      for (auto s = 0u; s < N; ++s)
+      // Copy all edges so that they are sorted by src
+      for (unsigned s = 0; s < ns; ++s)
         {
           idx_list[s] = new_edges.size();
           for (const auto& e : out(s))
             new_edges.push_back(e);
         }
-      idx_list[N] = new_edges.size();
+      idx_list[ns] = new_edges.size();
       // New edge sorted by source
       // If we have few edge or only one threads
       // Benchmark few?
       auto bne = new_edges.begin();
-#ifdef SPOT_ENABLE_PTHREAD
-      const unsigned nthreads = get_nthreads();
-      if (nthreads == 1 || edges_.size() < 1000)
+#ifndef SPOT_ENABLE_PTHREAD
+      (void) ppolicy;
+#else
+      unsigned nthreads = ppolicy.nthreads();
+      if (nthreads <= 1)
 #endif
         {
-          for (auto s = 0u; s < N; ++s)
+          for (unsigned s = 0u; s < ns; ++s)
             std::stable_sort(bne + idx_list[s],
-                             bne + idx_list[s+1],
-                             p);
+                             bne + idx_list[s+1], p);
         }
 #ifdef SPOT_ENABLE_PTHREAD
       else
         {
-          static auto tv = std::vector<std::thread>();
+          static std::vector<std::thread> tv;
           SPOT_ASSERT(tv.empty());
           tv.resize(nthreads);
+          // FIXME: Due to the way these thread advence into the sate
+          // vectors, they access very close memory location.  It
+          // would seems more cache friendly to have thread work on
+          // blocks of continuous states.
           for (unsigned id = 0; id < nthreads; ++id)
             tv[id] = std::thread(
-              [bne, id, N, &idx_list, p, nthreads]()
+              [bne, id, ns, &idx_list, p, nthreads]()
               {
-                for (auto s = id; s < N; s+=nthreads)
+                for (unsigned s = id; s < ns; s += nthreads)
                   std::stable_sort(bne + idx_list[s],
-                                   bne + idx_list[s+1],
-                                   p);
+                                   bne + idx_list[s+1], p);
                 return;
               });
           for (auto& t : tv)

@@ -23,42 +23,40 @@ import spot
 from unittest import TestCase
 tc = TestCase()
 
+aut = spot.automaton("""HOA: v1 States: 1 Start: 0 AP: 1 "a"
+Acceptance: 1 Inf(0) --BODY-- State: 0 [0] 0 [0] 0 {0} --END--""")
+tc.assertEqual(aut.num_edges(), 2)
+aut.merge_edges()
+tc.assertEqual(aut.num_edges(), 1)
+
+aut = spot.automaton("""
+HOA: v1
+States: 2
+Start: 0
+AP: 2 "p0" "p1"
+acc-name: Buchi
+Acceptance: 1 Inf(0)
+properties: trans-labels explicit-labels trans-acc complete
+--BODY--
+State: 0
+[!0] 0 {0}
+[0] 1 {0}
+State: 1
+[!0&!1] 0 {0}
+[0 | 1] 1
+[0&!1] 1 {0}
+--END--""")
+tc.assertEqual(aut.num_edges(), 5)
+aut.merge_edges()
+tc.assertEqual(aut.num_edges(), 5)
+tc.assertFalse(spot.is_deterministic(aut))
+aut = spot.split_edges(aut)
+tc.assertEqual(aut.num_edges(), 9)
+aut.merge_edges()
+tc.assertEqual(aut.num_edges(), 5)
+tc.assertTrue(spot.is_deterministic(aut))
+
 for nthread in range(1, 16, 2):
-    spot.set_nthreads(nthread)
-    tc.assertEqual(spot.get_nthreads(), nthread)
-    aut = spot.automaton("""HOA: v1 States: 1 Start: 0 AP: 1 "a"
-    Acceptance: 1 Inf(0) --BODY-- State: 0 [0] 0 [0] 0 {0} --END--""")
-    tc.assertEqual(aut.num_edges(), 2)
-    aut.merge_edges()
-    tc.assertEqual(aut.num_edges(), 1)
-
-    aut = spot.automaton("""
-    HOA: v1
-    States: 2
-    Start: 0
-    AP: 2 "p0" "p1"
-    acc-name: Buchi
-    Acceptance: 1 Inf(0)
-    properties: trans-labels explicit-labels trans-acc complete
-    --BODY--
-    State: 0
-    [!0] 0 {0}
-    [0] 1 {0}
-    State: 1
-    [!0&!1] 0 {0}
-    [0 | 1] 1
-    [0&!1] 1 {0}
-    --END--""")
-    tc.assertEqual(aut.num_edges(), 5)
-    aut.merge_edges()
-    tc.assertEqual(aut.num_edges(), 5)
-    tc.assertFalse(spot.is_deterministic(aut))
-    aut = spot.split_edges(aut)
-    tc.assertEqual(aut.num_edges(), 9)
-    aut.merge_edges()
-    tc.assertEqual(aut.num_edges(), 5)
-    tc.assertTrue(spot.is_deterministic(aut))
-
     aut = spot.automaton("""
     HOA: v1
     States: 3
@@ -78,12 +76,12 @@ for nthread in range(1, 16, 2):
     [!0] 2 {0}
     [0] 1
     --END--""")
-    aut.merge_states()
+    aut.merge_states(nthread)
     tc.assertEqual(aut.num_edges(), 4)
     tc.assertEqual(aut.num_states(), 2)
     tc.assertTrue(spot.is_deterministic(aut))
     tc.assertTrue(aut.prop_complete())
-    aut.merge_states()
+    aut.merge_states(nthread)
     tc.assertEqual(aut.num_edges(), 4)
     tc.assertEqual(aut.num_states(), 2)
     tc.assertTrue(spot.is_deterministic(aut))
@@ -168,6 +166,6 @@ for nthread in range(1, 16, 2):
     State: 40 [0&1&!2] 7 {3} [0&1&2] 8 {3} [0&!1&!2] 11 {1} [0&!1&2] 12
     {1} [!0&1&!2] 31 {1} [!0&1&2] 32 {1} [!0&!1&2] 34 {1} [!0&!1&!2] 40
     {1} --END--""")
-    aa.merge_states()
+    aa.merge_states(nthread)
     # This used to cause a segfault reported by Philipp.
     print(aa.to_str())

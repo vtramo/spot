@@ -486,6 +486,7 @@ static void handle_any_exception()
   }
 }
 
+%implicitconv spot::parallel_policy;
 %include <spot/misc/common.hh>
 %include <spot/misc/version.hh>
 %include <spot/misc/minato.hh>

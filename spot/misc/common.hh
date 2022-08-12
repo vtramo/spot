@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2013-2021 Laboratoire de Recherche et Développement
+// Copyright (C) 2013-2022 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -145,6 +145,27 @@ namespace spot
       {
       }
   };
+
+  /// \brief This class is used to tell parallel algorithms what
+  /// resources they may use.
+  ///
+  /// Currently, this simply stores an integer indicating the number
+  /// of threads that the algorithm may create, but in the future it
+  /// will probably do more.
+  class SPOT_API parallel_policy
+  {
+    unsigned nthreads_;
+  public:
+    parallel_policy(unsigned nthreads = 1) : nthreads_(nthreads)
+    {
+    }
+
+    unsigned nthreads() const
+    {
+      return nthreads_;
+    }
+  };
+
 }
 
 // This is a workaround for the issue described in GNU GCC bug 89303.
@@ -169,11 +190,3 @@ namespace spot
 #  define SPOT_make_shared_enabled__(TYPE, ...)  \
    std::make_shared<TYPE>(__VA_ARGS__)
 #endif
-
-
-// Global variable to determine the maximal number of threads
-SPOT_API void
-set_nthreads(unsigned nthreads);
-
-SPOT_API unsigned
-get_nthreads();
