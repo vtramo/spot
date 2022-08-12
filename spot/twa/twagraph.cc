@@ -36,11 +36,11 @@ namespace
   using namespace spot;
     // If LAST is false,
     // it is guaranteed that there will be another src state
-    template<bool SPE, bool LAST>
+    template<bool LAST>
     void treat(std::vector<std::array<unsigned, 4>>& e_idx,
                 const twa_graph::graph_t::edge_vector_t& e_vec,
                 std::vector<unsigned>& e_chain,
-                std::vector<bool>& use_for_hash,
+                std::vector<unsigned>& hash_of_state,
                 unsigned& idx,
                 unsigned s,
                 unsigned n_e)
@@ -98,10 +98,10 @@ namespace
         }
       s_idx[3] = idx;
 
-      // Check if self-loops appeared
-      // If so -> do not use for hash
-      if constexpr (!SPE)
-        use_for_hash[s] = s_idx[2] == -1u;
+      // Check if self-loops appeared.  We cannot hash
+      // states with self-loops.
+      if (s_idx[2] != -1u)
+        hash_of_state[s] = fnv<unsigned>::init;
     }
 }
 
@@ -401,15 +401,19 @@ namespace spot
     // Edges are nicely chained and there are no erased edges
     // -> We can work with the edge_vector
 
-    // Check if it is a game <-> "state-player" is defined
-    // if so, the graph alternates between env and player vertices,
-    // so there are, by definition, no self-loops
+    // Check if it is a game <-> "state-player" is defined.  If
+    // so, we can only merge states that belong to the same player.
+    // (We will use two hash maps in this case.)
     auto sp = get_named_prop<std::vector<bool>>("state-player");
 
-    // The hashing is a bit delicat: We may only use the dst
-    // if it has no self-loop
-    auto use_for_hash = sp ? std::vector<bool>()
-                           : std::vector<bool>(n_states);
+    // The hashing is a bit delicat: We may only use the dst if it has
+    // no self-loop.  HASH_OF_STATE stores the hash associated to each
+    // state (by default its own number) or some common value if the
+    // state contains self-loop.
+    std::vector<unsigned> hash_of_state;
+    hash_of_state.reserve(n_states);
+    for (unsigned i = 0; i < n_states; ++i)
+      hash_of_state.push_back(i);
 
     const auto& e_vec = edge_vector();
     unsigned n_edges = e_vec.size();
@@ -424,29 +428,20 @@ namespace spot
 
     unsigned idx = 1;
 
-    // Edges are sorted with repected to src first
+    // Edges are sorted with respect to src first
     const unsigned n_high = e_vec.back().src;
-    if (sp)
-      for (auto s = 0u; s < n_high; ++s)
-        treat<true, false>(e_idx, e_vec, e_chain,
-                           use_for_hash, idx, s, n_edges);
-    else
-      for (auto s = 0u; s < n_high; ++s)
-        treat<false, false>(e_idx, e_vec, e_chain,
-                            use_for_hash, idx, s, n_edges);
+    for (auto s = 0u; s < n_high; ++s)
+      treat<false>(e_idx, e_vec, e_chain,
+                   hash_of_state, idx, s, n_edges);
     // Last one
-    if (sp)
-      treat<true, true>(e_idx, e_vec, e_chain,
-                        use_for_hash, idx, n_high, n_edges);
-    else
-      treat<false, true>(e_idx, e_vec, e_chain,
-                         use_for_hash, idx, n_high, n_edges);
+    treat<true>(e_idx, e_vec, e_chain,
+                hash_of_state, idx, n_high, n_edges);
 
     assert(idx == e_vec.size() && "Something went wrong during indexing");
 
-    unsigned n_players = 0u;
+    unsigned n_player1 = 0u;
     if (sp)
-      n_players = std::accumulate(sp->begin(), sp->end(), 0u);
+      n_player1 = std::accumulate(sp->begin(), sp->end(), 0u);
 
     // Represents which states share a hash
     // Head is in the unordered_map,
@@ -454,26 +449,28 @@ namespace spot
     // of fake pointers
 
     std::vector<unsigned> hash_linked_list(n_states, -1u);
-    std::vector<size_t> s_to_hash(n_states, 0);
-    robin_hood::unordered_flat_map<size_t,
-                                   std::pair<unsigned, unsigned>> env_map;
-    robin_hood::unordered_flat_map<size_t,
-                                   std::pair<unsigned, unsigned>> player_map;
-    env_map.reserve(n_states - n_players);
-    player_map.reserve(n_players);
+    typedef robin_hood::unordered_flat_map<size_t,
+                                           std::pair<unsigned,
+                                                     unsigned>> player_map;
+    // If the automaton is not a game, everything is assumed to be
+    // owned by player 0.
+    player_map map0;            // for player 0
+    player_map map1;            // for player 1
+
+    map0.reserve(n_states - n_player1);
+    map1.reserve(n_player1);
 
     // Sadly we need to loop the edges twice since we have
     // to check for self-loops before hashing
 
     auto emplace = [&hash_linked_list](auto& m, auto h, auto s)
       {
-        auto it = m.find(h);
-        if (it == m.end())
-          m.emplace(h, std::make_pair(s, s));
-        else
+        auto [it, inserted] = m.try_emplace(h, std::make_pair(s, s));
+        if (!inserted)
           {
-            // "tail"
-            unsigned idx = it->second.second;
+            // We already have an entry with hash "h".   Link it
+            // to the new state.
+            unsigned idx = it->second.second; // tail of the list
             assert(idx < s && "Must be monotone");
             hash_linked_list[idx] = s;
             it->second.second = s;
@@ -490,9 +487,7 @@ namespace spot
           {
             // If size_t has 8byte and unsigned has 4byte
             // then this works fine, otherwise there might be more collisions
-            size_t hh = sp || use_for_hash[e_vec[i].dst]
-                          ? e_vec[i].dst
-                          : fnv<unsigned>::init;
+            size_t hh = hash_of_state[e_vec[i].dst];
             hh <<= shift;
             hh += e_vec[i].cond.id();
             h ^= hh;
@@ -500,16 +495,15 @@ namespace spot
             h ^= e_vec[i].acc.hash();
             h *= fnv<size_t>::prime;
           }
-        s_to_hash[s] = h;
         if (sp && (*sp)[s])
-          emplace(player_map, h, s);
+          emplace(map1, h, s);
         else
-          emplace(env_map, h, s);
+          emplace(map0, h, s);
       }
     // All states that might possible be merged share the same hash
     // Info hash coll
     //std::cout << "Hash collission rate pre merge: "
-    //          << ((env_map.size()+player_map.size())/((float)n_states))
+    //          << ((map0.size()+map1.size())/((float)n_states))
     //          << '\n';
 
 
@@ -535,51 +529,50 @@ namespace spot
         auto [i1, nsl1, sl1, e1] = e_idx[s1];
         auto [i2, nsl2, sl2, e2] = e_idx[s2];
 
-        if ((e2 - i2) != (e1 - i1))
+        unsigned n_trans = e1 - i1;
+        if ((e2 - i2) != n_trans)
           return false; // Different number of outgoing trans
 
-        // checked1/2 is one element larger than necessary
-        // the last element is always false
-        // and acts like a nulltermination
-        checked1.resize(e1 - i1 + 1);
-        std::fill(checked1.begin(), checked1.end(), false);
-        checked2.resize(e2 - i2 + 1);
-        std::fill(checked2.begin(), checked2.end(), false);
+        // checked1/2 is one element larger than necessary;
+        // the last element (false) serves as a sentinel.
+        checked1.clear();
+        checked1.resize(n_trans + 1, false);
+        checked2.clear();
+        checked2.resize(n_trans + 1, false);
 
         // Try to match self-loops
-        // Not entirely sure when this helps exactly
+        unsigned self_loops_matched = 0;
         while ((sl1 < e1) && (sl2 < e2))
           {
-            // Like a search in ordered array
-            if (e_vec[sl1].data() == e_vec[sl2].data())
+            auto& data1 = e_vec[sl1].data();
+            auto& data2 = e_vec[sl2].data();
+            if (data1 == data2)
               {
                 // Matched
+                ++self_loops_matched;
                 checked1[sl1 - i1] = true; //never touches last element
                 checked2[sl2 - i2] = true;
                 // Advance both
                 sl1 = e_chain[sl1];
                 sl2 = e_chain[sl2];
               }
-            else if (edge_data_comp(e_vec[sl1].data(),
-                                    e_vec[sl2].data()))
-              // sl1 needs to advance
+            // Since edges are ordered on each side, aadvance
+            // the smallest side in case there is no match.
+            else if (edge_data_comp(data1, data2))
               sl1 = e_chain[sl1];
             else
-              // sl2 needs to advance
               sl2 = e_chain[sl2];
           }
 
-        // If there are no non-self-loops, in s1
-        // Check if all have been correctly treated
-        if ((nsl1 > e1)
-            && std::all_of(checked1.begin(), checked1.end(),
-                           [](const auto& e){return e;}))
+        // If the matched self-loops cover all transitions, we can
+        // stop here.
+        if (self_loops_matched == n_trans)
           return true;
 
         // The remaining edges need to match exactly
         unsigned idx1 = i1;
         unsigned idx2 = i2;
-        while (((idx1 < e1) & (idx2 < e2)))
+        while (((idx1 < e1) && (idx2 < e2)))
           {
             // More efficient version?
             // Skip checked edges
@@ -594,7 +587,6 @@ namespace spot
                 assert(idx2 == e2);
                 break;
               }
-
 
             if  ((e_vec[idx1].dst != e_vec[idx2].dst)
                  || !(e_vec[idx1].data() == e_vec[idx2].data()))
@@ -611,32 +603,35 @@ namespace spot
     const unsigned nb_states = num_states();
     std::vector<unsigned> remap(nb_states, -1U);
 
-    // Check each hash
+    // Check all pair of states with compatible hash
     auto check_ix = [&](unsigned ix, std::vector<unsigned>& v,
                         std::vector<char>& checked1,
                         std::vector<char>& checked2)
       {
+        if (hash_linked_list[ix] == -1U) // no compatible state
+          return;
+
         v.clear();
         for (unsigned i = ix; i != -1U; i = hash_linked_list[i])
           v.push_back(i);
-        const unsigned N = v.size();
+        const unsigned vs = v.size();
 
-        for (unsigned idx = 0; idx < N; ++idx)
+        for (unsigned idx = 0; idx < vs; ++idx)
           {
-            auto i = v[idx];
+            unsigned i = v[idx];
             for (unsigned jdx = 0; jdx < idx; ++jdx)
               {
-                auto j = v[jdx];
+                unsigned j = v[jdx];
                 if (state_equal(j, i, checked1, checked2))
                   {
                     remap[i] = (remap[j] != -1U) ? remap[j] : j;
 
-                    // Because of the special self-loop tests we use above,
-                    // it's possible that i can be mapped to remap[j] even
-                    // if j was last compatible states found.  Consider the
-                    // following cases, taken from an actual test case:
-                    // 18 is equal to 5, 35 is equal to 18, but 35 is not
-                    // equal to 5.
+                    // Because of the special self-loop tests we use
+                    // above, it's possible that i can be mapped to
+                    // remap[j] even if j was the last compatible
+                    // state found.  Consider the following cases,
+                    // taken from an actual test case: 18 is equal to
+                    // 5, 35 is equal to 18, but 35 is not equal to 5.
                     //
                     // State: 5
                     // [0&1&2] 8 {3}
@@ -673,8 +668,9 @@ namespace spot
           }
       };
 
-    auto worker = [&upd, check_ix, nthreads](unsigned pid, auto begp, auto endp,
-                                             auto bege, auto ende)
+    auto worker = [&upd, check_ix, nthreads](unsigned pid,
+                                             auto beg1, auto end1,
+                                             auto beg0, auto end0)
     {
       // Temporary storage for list of edges to reduce cache misses
       std::vector<unsigned> v;
@@ -682,19 +678,19 @@ namespace spot
       // that have been matched already.
       std::vector<char> checked1;
       std::vector<char> checked2;
-      upd(begp, endp, pid);
-      upd(bege, ende, pid);
-      for (; begp != endp; upd(begp, endp, nthreads))
-        check_ix(begp->second.first, v, checked1, checked2);
-      for (; bege != ende; upd(bege, ende, nthreads))
-        check_ix(bege->second.first, v, checked1, checked2);
+      upd(beg1, end1, pid);
+      upd(beg0, end0, pid);
+      for (; beg1 != end1; upd(beg1, end1, nthreads))
+        check_ix(beg1->second.first, v, checked1, checked2);
+      for (; beg0 != end0; upd(beg0, end0, nthreads))
+        check_ix(beg0->second.first, v, checked1, checked2);
       };
 
     {
-      auto begp = player_map.begin();
-      auto endp = player_map.end();
-      auto bege = env_map.begin();
-      auto ende = env_map.end();
+      auto beg1 = map1.begin();
+      auto end1 = map1.end();
+      auto beg0 = map0.begin();
+      auto end0 = map0.end();
 
 #ifndef ENABLE_PTHREAD
       (void) nthreads;
@@ -702,7 +698,7 @@ namespace spot
       if (nthreads <= 1)
         {
 #endif // ENABLE_PTHREAD
-          worker(0, begp, endp, bege, ende);
+          worker(0, beg1, end1, beg0, end0);
 #ifdef ENABLE_PTHREAD
         }
       else
@@ -712,9 +708,9 @@ namespace spot
           tv.resize(nthreads);
           for (unsigned pid = 0; pid < nthreads; ++pid)
             tv[pid] = std::thread(
-              [worker, pid, begp, endp, bege, ende]()
+              [worker, pid, beg1, end1, beg0, end0]()
               {
-                worker(pid, begp, endp, bege, ende);
+                worker(pid, beg1, end1, beg0, end0);
                 return;
               });
           for (auto& t : tv)
@@ -747,7 +743,7 @@ namespace spot
       defrag_states(remap, st);
     // Info hash coll 2
     //std::cout << "Hash collission rate post merge: "
-    //          << ((env_map.size()+player_map.size())/((float)num_states()))
+    //          << ((map0.size()+map1.size())/((float)num_states()))
     //          << '\n';
     return merged;
   }
