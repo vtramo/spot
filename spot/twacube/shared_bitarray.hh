@@ -48,7 +48,7 @@
 
 namespace spot
 {
-  namespace internal
+  namespace internal_bitarr
   {
     constexpr unsigned BITARR_SMALL = 1;
 
@@ -240,6 +240,8 @@ namespace spot
     template<unsigned NSMALL>
     class SPOT_API bitarr_varsize{
 
+    protected:
+
       typedef shared_bitarr_varsize<NSMALL> shared_bitarr_t;
       typedef bitarr_handler_varsize<NSMALL> bitarr_handler_t;
 
@@ -325,6 +327,8 @@ namespace spot
         return *this;
       }
 
+      /// \brief No need for virtual destructor,
+      /// we will not use inheritance in a polymorphic way
       ~bitarr_varsize()
       {
         c_decr_();
@@ -379,7 +383,7 @@ namespace spot
             else
               os << u_.l_ << ' ' << u_.l_->bh_ << ' ' << u_.l_->use_ << ' ';
           }
-        internal::dump(os, get_data(), n_parts(), stop, full);
+        internal_bitarr::dump(os, get_data(), n_parts(), stop, full);
         os << '\n';
       }
 
@@ -474,10 +478,11 @@ namespace spot
 
       /// \brief Generate a bitarr from a generate object \a gen
       /// This object need to provide a member function void next()
-      /// and unsigned get() and bool done;
+      /// and unsigned get() and bool done();
       /// Must be copy constructible
       /// All indexes returned will be set to true, all other bits are false
-      /// It will be used as for (; !gen.done(); gen.next()); unsigned idx = gen.get();
+      /// It will be used as for (; !gen.done(); gen.next());
+      /// unsigned idx = gen.get();
       // todo make lock_ optional to chain construction/operations?
       template<class GEN>
       bitarr_t generate(GEN gen)
@@ -494,37 +499,37 @@ namespace spot
             set_false_(ptr);
             gen_(gen, ptr);
             auto res = lock_(ptr);
-            return res;
+            return res_ptr;
           }
       }
 
       bool is_set(const bitarr_t& b, unsigned idx)
       {
         check_bounds_(idx);
-        return internal::is_set(b.get_data(), idx);
+        return internal_bitarr::is_set(b.get_data(), idx);
       }
 
       int cmp(const bitarr_t& lhs, const bitarr_t& rhs)
       {
-        return internal::cmp(lhs.get_data(), rhs.get_data(),
-                             n_parts());
+        return internal_bitarr::cmp(lhs.get_data(), rhs.get_data(),
+                                    n_parts());
       }
 
       bool set_intersects(const bitarr_t& lhs, const bitarr_t& rhs)
       {
-        return internal::set_intersects(lhs.get_data(), rhs.get_data(),
-                                        n_parts());
+        return internal_bitarr::set_intersects(lhs.get_data(), rhs.get_data(),
+                                              n_parts());
       }
 
       bitarr_t set_intersection(const bitarr_t& lhs, const bitarr_t& rhs)
       {
-        return binop_(internal::set_intersection, lhs, rhs);
+        return binop_(internal_bitarr::set_intersection, lhs, rhs);
       }
 
 
       bitarr_t set_union(const bitarr_t& lhs, const bitarr_t& rhs)
       {
-        return binop_(internal::set_union, lhs, rhs);
+        return binop_(internal_bitarr::set_union, lhs, rhs);
       }
 
       void dump(std::ostream& os, const bitarr_t& b, bool full)
@@ -551,7 +556,7 @@ namespace spot
             set_false_(ptr);
             binop(lhs.get_data(), rhs.get_data(),
                   ptr, n_parts());
-            return lock_(ptr);
+            return bitarr_t(lock_(ptr));
           }
       }
 
@@ -571,13 +576,6 @@ namespace spot
       }
 #endif
 
-      /// \brief Assert bounds
-      void check_bounds_(unsigned idx)
-      {
-        SPOT_ASSERT(0 < idx && idx <= size()
-                    && "Index out of bounds");
-      }
-
       /// \brief Implementation of the generator functions
       template<class GEN>
       void gen_(GEN& gen, bit_data_ptr ptr)
@@ -586,14 +584,23 @@ namespace spot
           {
             auto idx = gen.get();
             check_bounds_(idx);
-            internal::set_to(ptr, idx, true);
+            internal_bitarr::set_to(ptr, idx, true);
           }
       }
 
       /// \brief Set all bits to false, account for small index
       void set_false_(bit_data_ptr ptr)
       {
-        internal::set_false(ptr, n_parts(), is_small());
+        internal_bitarr::set_false(ptr, n_parts(), is_small());
+      }
+
+    protected:
+
+      /// \brief Assert bounds
+      void check_bounds_(unsigned idx)
+      {
+        SPOT_ASSERT(0 < idx && idx <= size()
+                    && "Index out of bounds");
       }
 
       /// \brief provides a bit_data_ptr with appropriate size
@@ -632,7 +639,7 @@ namespace spot
         // if a new cube with the same "value" has been constructed
         // in the mean time
         // No copy constructor can be called in the inbetween time
-        auto h = internal::hash(ptr->get_data(), n_parts());
+        auto h = internal_bitarr::hash(ptr->get_data(), n_parts());
 
         DO_IF_PTHREAD(auto g_h = lock_map_();)
 
@@ -656,7 +663,6 @@ namespace spot
                                 "this cubeseet.");
       }
 
-    protected:
       shared_bitarr_t* alloc_()
       {
         DO_IF_PTHREAD(auto g_m = lock_mem_();)
@@ -670,12 +676,7 @@ namespace spot
       bitarr_t lock_(bit_data_ptr ptr)
       {
         if (is_small())
-          {
-            bitarr_t res;
-            internal::cpy(ptr, res.get_data(), n_parts());
-            return res;
-          }
-
+          return ptr;
 
         auto h = hash(ptr, n_parts());
         DO_IF_PTHREAD(auto g_h = lock_map_();)
@@ -683,7 +684,7 @@ namespace spot
         for (; it_b != it_e; ++it_b)
           {
             auto& value = it_b->second;
-            if (internal::cmp(ptr, value->get_data(), n_parts()) == 0)
+            if (internal_bitarr::cmp(ptr, value->get_data(), n_parts()) == 0)
               {
                 // Found it
                 rel_temp_(ptr);
@@ -692,7 +693,7 @@ namespace spot
           }
         // We could not find one -> create it
         shared_bitarr_t* sb = alloc_();
-        internal::cpy(ptr, sb->get_data(), n_parts());
+        internal_bitarr::cpy(ptr, sb->get_data(), n_parts());
         map_.emplace(h, sb);
         rel_temp_(ptr);
         return bitarr_t(sb);
@@ -701,7 +702,7 @@ namespace spot
 
   } // Internal
 
-  typedef internal::bitarr_handler_varsize<internal::BITARR_SMALL>
+  typedef internal_bitarr::bitarr_handler_varsize<internal_bitarr::BITARR_SMALL>
           bitarr_handler;
   typedef typename bitarr_handler::bitarr_t bitarr;
 
@@ -714,7 +715,7 @@ namespace spot
 // Out of line definitions
 namespace spot
 {
-  namespace internal
+  namespace internal_bitarr
   {
     // share_bitarr dependent impl
     template<unsigned NSMALL>
@@ -727,7 +728,7 @@ namespace spot
     template<unsigned NSMALL>
     inline bitarr_varsize<NSMALL>::bitarr_varsize()
     {
-      internal::set_false(u_.s_.data(), NSMALL, true);
+      internal_bitarr::set_false(u_.s_.data(), NSMALL, true);
       assert(is_small());
     }
 
@@ -745,11 +746,11 @@ namespace spot
       if (is_small())
         {
           SPOT_ASSERT(0 < idx && idx < NSMALL*NB_BITS);
-          return internal::is_set(get_data(), idx);
+          return internal_bitarr::is_set(get_data(), idx);
         }
       else
         {
-          SPOT_ASSERT(this);
+          SPOT_ASSERT(u_.l_);
           return u_.l_->bh_->is_set(*this, idx);
         }
     }
@@ -759,16 +760,16 @@ namespace spot
     bitarr_varsize<NSMALL>::set_intersects(const bitarr_varsize<NSMALL>& rhs)
         const
     {
-      return internal::set_intersects(get_data(),
-                                      rhs.get_data(),
-                                      n_parts());
+      return internal_bitarr::set_intersects(get_data(),
+                                             rhs.get_data(),
+                                             n_parts());
     }
 
     template<unsigned NSMALL>
     inline int
     bitarr_varsize<NSMALL>::cmp(const bitarr_varsize<NSMALL>& rhs) const
     {
-      return internal::cmp(get_data(), rhs.get_data(), n_parts());
+      return internal_bitarr::cmp(get_data(), rhs.get_data(), n_parts());
     }
 
     template<unsigned NSMALL>
@@ -779,7 +780,7 @@ namespace spot
         if (is_small())
           {
             bitarr_varsize<NSMALL> res; //small array re "free"
-            internal::set_intersection(get_data(),
+            internal_bitarr::set_intersection(get_data(),
                                       rhs.get_data(),
                                       res.get_data(),
                                       NSMALL);
@@ -814,10 +815,10 @@ namespace spot
       if (is_small())
         {
           bitarr_varsize<NSMALL> res; //small array re "free"
-          internal::set_union(get_data(),
-                              rhs.get_data(),
-                              res.get_data(),
-                              NSMALL);
+          internal_bitarr::set_union(get_data(),
+                                     rhs.get_data(),
+                                     res.get_data(),
+                                     NSMALL);
           return res;
         }
       else
@@ -878,6 +879,6 @@ namespace spot
       delete[] temp_;
     }
 
-  } // internal
+  } // internal_bitarr
 
 } // SPOT

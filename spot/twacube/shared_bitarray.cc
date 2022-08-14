@@ -21,7 +21,7 @@
 
 namespace spot
 {
-  namespace internal
+  namespace internal_bitarr
   {
 
     void

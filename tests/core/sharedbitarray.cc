@@ -183,9 +183,6 @@ static void or_all(spot::bitarr_handler& bh, spot::bitarr& b, unsigned nbits,
 static void test_threaded(unsigned nthreads, unsigned nbits)
 {
 
-  std::cout << "Threaded test with nthreads " << nthreads
-            << " and nbits = " << nbits << std::endl;
-
   spot::bitarr_handler bh(nbits, nthreads);
 
   std::vector<spot::bitarr> bv;
@@ -207,18 +204,18 @@ static void test_threaded(unsigned nthreads, unsigned nbits)
   go = 1;
   for (auto& t : w)
     t.join();
-
-  std::cout << "Expect rows with all ones, except first bit\n";
+  // Check if all bits are set for all bitarr
   for (const auto& b : bv)
-    bh.dump(std::cout, b, false);
-
+    for (unsigned i = 1; i <= nbits; ++i)
+      if (!b.is_set(i))
+        std::cout << "Mutlthreaded test failed\n";
 }
 #endif
 
 
 int main(){
-  //test_small();
-  //test_large();
+  test_small();
+  test_large();
 #ifdef ENABLE_PTHREAD
   std::cout << "Testing pthread" << std::endl;
   test_threaded(1, 12);
@@ -228,9 +225,6 @@ int main(){
 #else
   std::cout << "No pthread" << std::endl;
 #endif
-  //  SPOT_ASSERT((0) == true);
-  test_small();
-  test_large();
 
   return 0;
 }
