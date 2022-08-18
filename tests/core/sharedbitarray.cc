@@ -51,9 +51,9 @@ namespace{
       cur_ += step_*(cur_ <= end_);
     }
 
-    unsigned get() const
+    auto get() const
     {
-      return cur_;
+      return std::make_pair(cur_, true);
     }
 
     bool done() const
@@ -139,9 +139,9 @@ public:
   {
   }
 
-  unsigned get() const
+  auto get() const
   {
-    return idx_;
+    return std::make_pair(idx_, true);
   }
 
   bool done() const
@@ -159,7 +159,7 @@ static void or_all(spot::bitarr_handler& bh, spot::bitarr& b, unsigned nbits,
                    const std::atomic_int& go, const unsigned id)
 {
   std::cout << "Create " << std::this_thread::get_id() << std::endl;
-  while(!go)
+  while(go == 0)
     continue;
   std::cout << "Launch " << std::this_thread::get_id() << std::endl;
   if (id & 1)

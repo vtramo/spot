@@ -35,7 +35,7 @@ namespace spot
           for (unsigned j = 0; j < NB_BITS; ++j)
             {
              os << ((d & one) ? '1' : '0');
-             if (full && (((j+1)%8) == 0))
+             if (full && (((j+1)%CHAR_WIDTH) == 0))
               os << ' ';
              d >>= 1;
              if (idx == stop)

@@ -53,8 +53,12 @@ namespace spot
     constexpr unsigned BITARR_SMALL = 1;
 
     template<unsigned N>
+    class bitdata_varsize;
+    template<unsigned N>
     class bitarr_varsize;
 
+    template<unsigned N>
+    class bitdata_handler_varsize;
     template<unsigned N>
     class bitarr_handler_varsize;
 
@@ -183,32 +187,34 @@ namespace spot
     // Start classes
 
     template<unsigned NSMALL>
-    class shared_bitarr_varsize
+    class shared_bitdata_varsize
     {
-      typedef bitarr_handler_varsize<NSMALL> bitarr_handler_t;
-      typedef bitarr_varsize<NSMALL> bitarr_t;
+      typedef bitdata_handler_varsize<NSMALL> bitdata_handler_t;
+      typedef bitdata_varsize<NSMALL> bitdata_t;
 
-      friend bitarr_handler_t;
-      friend bitarr_t;
+      friend bitdata_handler_t;
+      friend bitdata_t;
 
-      bitarr_handler_t* bh_;
+    protected:
+
+      bitdata_handler_t* bh_;
       std::atomic_uintptr_t use_;
 
-      constexpr shared_bitarr_varsize(bitarr_handler_t* bh) noexcept
+      constexpr shared_bitdata_varsize(bitdata_handler_t* bh) noexcept
         : bh_{bh}
         , use_{0}
       {
       }
-      ~shared_bitarr_varsize()
+      ~shared_bitdata_varsize()
       {
-        SPOT_ASSERT(use_ == 0 && "Destroying shared_bitarr which "
+        SPOT_ASSERT(use_ == 0 && "Destroying shared_bitdata which "
                                  "is still used");
       };
 
       uintptr_t incr() noexcept
       {
         SPOT_ASSERT(use_ < std::numeric_limits<uintptr_t>::max()
-                    && "Use overflow of bitarr");
+                    && "Use overflow of bitdata");
         return ++use_;
       }
 
@@ -235,30 +241,37 @@ namespace spot
       {
         return reinterpret_cast<c_bit_data_ptr>(this + 1);
       }
+
+
+
+
     };
 
     template<unsigned NSMALL>
-    class SPOT_API bitarr_varsize{
+    class SPOT_API bitdata_varsize{
 
     protected:
 
-      typedef shared_bitarr_varsize<NSMALL> shared_bitarr_t;
-      typedef bitarr_handler_varsize<NSMALL> bitarr_handler_t;
+      typedef shared_bitdata_varsize<NSMALL> shared_bitdata_t;
+      typedef bitdata_handler_varsize<NSMALL> bitdata_handler_t;
 
-      friend shared_bitarr_t;
-      friend bitarr_handler_t;
+      friend shared_bitdata_t;
+      friend bitdata_handler_t;
 
       union arr_union{
         std::array<bit_data, NSMALL> s_;
-        shared_bitarr_t* l_;
+        shared_bitdata_t* l_;
       } u_;
 
 
-      /// \brief Always allocates a small bitarr
+      /// \brief Always allocates a small bitdata array
       /// with all bits set to false
-      explicit bitarr_varsize();
+      explicit bitdata_varsize();
+      /// \brief Create a small bitdata_varsize from
+      /// bit_data_ptr
+      explicit bitdata_varsize(bit_data_ptr ptr);
       // Large bitarr from shared data ptr
-      explicit bitarr_varsize(shared_bitarr_t* s_data);
+      explicit bitdata_varsize(shared_bitdata_t* s_data);
 
       /// \brief Mutator for data
       bit_data_ptr get_data() noexcept
@@ -267,6 +280,14 @@ namespace spot
           return u_.s_.data();
         else
           return u_.l_->get_data();
+      }
+
+      /// \brief Access to handler
+      bitdata_handler_t*
+      get_handler() const
+      {
+        SPOT_ASSERT(!is_small());
+        return u_.l_->bh_;
       }
 
       /// \brief Conditional ref count increase
@@ -288,22 +309,23 @@ namespace spot
     public:
 
       /// \brief copy constructor, trivial if small
-      bitarr_varsize(const bitarr_varsize& other)
+      bitdata_varsize(const bitdata_varsize& other)
       {
         u_ = other.u_;
         c_incr_();
       }
 
       /// \brief move constructor, trivial if small
-      bitarr_varsize(bitarr_varsize&& other)
+      bitdata_varsize(bitdata_varsize&& other)
       {
         u_ = other.u_;
         other.u_.l_ = nullptr; // Other becomes large and null
       }
 
       /// \brief Assignment
-      bitarr_varsize& operator=(const bitarr_varsize& other)
+      bitdata_varsize& operator=(const bitdata_varsize& other)
       {
+        std::cout << "copyassign bitdata" << std::endl;
         if (this == &other
             || (!is_small() && (u_.l_ == other.u_.l_)))
           return *this;
@@ -315,7 +337,7 @@ namespace spot
       }
 
       /// \brief Move assignement
-      bitarr_varsize& operator=(bitarr_varsize&& other)
+      bitdata_varsize& operator=(bitdata_varsize&& other)
       {
         SPOT_ASSERT(this != &other);
         // Unuse this.
@@ -329,7 +351,7 @@ namespace spot
 
       /// \brief No need for virtual destructor,
       /// we will not use inheritance in a polymorphic way
-      ~bitarr_varsize()
+      ~bitdata_varsize()
       {
         c_decr_();
         u_.l_ = nullptr;
@@ -387,28 +409,17 @@ namespace spot
         os << '\n';
       }
 
-      // Wrappers to interface
-      bool is_set(unsigned idx) const noexcept;
-      bool set_intersects(const bitarr_varsize& rhs) const;
-      int cmp(const bitarr_varsize& rhs) const;
-      bitarr_varsize set_union(const bitarr_varsize& rhs) const;
-      bitarr_varsize operator|| (const bitarr_varsize& rhs) const;
-      bitarr_varsize& operator|= (const bitarr_varsize& rhs);
-      bitarr_varsize set_intersection(const bitarr_varsize& rhs) const;
-      bitarr_varsize operator&& (const bitarr_varsize& rhs) const;
-      bitarr_varsize& operator&= (const bitarr_varsize& rhs);
-    };
-
+    }; // bitdata_varsize
 
     template<unsigned NSMALL>
-    class SPOT_API bitarr_handler_varsize
+    class SPOT_API bitdata_handler_varsize
     {
     public:
-      typedef bitarr_varsize<NSMALL> bitarr_t;
-      typedef shared_bitarr_varsize<NSMALL> shared_bitarr_t;
+      typedef bitdata_varsize<NSMALL> bitdata_t;
+      typedef shared_bitdata_varsize<NSMALL> shared_bitdata_t;
 
-      friend bitarr_t;
-      friend shared_bitarr_t;
+      friend bitdata_t;
+      friend shared_bitdata_t;
     private:
       /// \brief Total bit size
       const size_t size_;
@@ -419,11 +430,13 @@ namespace spot
       /// \brief Whether or not the associated bitarr are small
       const bool is_small_;
 
+      typedef fixed_size_pool<pool_type::Unsafe> pool_type_;
       /// \brief allocator for large bitarr, unused if small
-      fixed_size_pool<pool_type::Unsafe> mem_pool_;
+      std::unique_ptr<pool_type_> mem_pool_;
 
+      typedef std::unordered_multimap<size_t, shared_bitdata_t*> map_type_;
       /// \brief Map to share large bitarr
-      std::unordered_multimap<size_t, shared_bitarr_t*> map_;
+      std::unique_ptr<map_type_> map_;
 
       // We want to avoid temporary allocations for operations.
       // Therefore a special member exists.
@@ -446,16 +459,16 @@ namespace spot
 
     public:
 
-      bitarr_handler_varsize() = delete;
+      bitdata_handler_varsize() = delete;
 
-      /// \brief Build a bitarr allocator for at least \a nbits
-      /// per bitarr and temporary objects for at most \a nthreads
+      /// \brief Build a bitdata allocator for at least \a nbits
+      /// per bitdata and temporary objects for at most \a nthreads
       /// threads.
       /// \note nthreads is ignored if not configured
       /// with --enable-pthreads
-      bitarr_handler_varsize(size_t nbits, size_t nthreads);
+      bitdata_handler_varsize(size_t nbits, size_t nthreads);
 
-      ~bitarr_handler_varsize();
+      virtual ~bitdata_handler_varsize();
 
       /// \brief Return the number of bits
       /// \note The bits are enumerated from [1 ... size()]
@@ -476,89 +489,23 @@ namespace spot
         return n_;
       }
 
-      /// \brief Generate a bitarr from a generate object \a gen
-      /// This object need to provide a member function void next()
-      /// and unsigned get() and bool done();
-      /// Must be copy constructible
-      /// All indexes returned will be set to true, all other bits are false
-      /// It will be used as for (; !gen.done(); gen.next());
-      /// unsigned idx = gen.get();
-      // todo make lock_ optional to chain construction/operations?
-      template<class GEN>
-      bitarr_t generate(GEN gen)
-      {
-        if (is_small())
-          {
-            bitarr_t res;
-            gen_(gen, res.get_data());
-            return res;
-          }
-        else
-          {
-            auto ptr = get_temp_();
-            set_false_(ptr);
-            gen_(gen, ptr);
-            auto res = lock_(ptr);
-            return res_ptr;
-          }
-      }
-
-      bool is_set(const bitarr_t& b, unsigned idx)
+      bool is_set(const bitdata_t& b, unsigned idx)
       {
         check_bounds_(idx);
         return internal_bitarr::is_set(b.get_data(), idx);
       }
 
-      int cmp(const bitarr_t& lhs, const bitarr_t& rhs)
+      int cmp(const bitdata_t& lhs, const bitdata_t& rhs)
       {
-        return internal_bitarr::cmp(lhs.get_data(), rhs.get_data(),
-                                    n_parts());
+        return internal_bitarr::cmp(lhs.get_data(), rhs.get_data(), n_parts());
       }
 
-      bool set_intersects(const bitarr_t& lhs, const bitarr_t& rhs)
-      {
-        return internal_bitarr::set_intersects(lhs.get_data(), rhs.get_data(),
-                                              n_parts());
-      }
-
-      bitarr_t set_intersection(const bitarr_t& lhs, const bitarr_t& rhs)
-      {
-        return binop_(internal_bitarr::set_intersection, lhs, rhs);
-      }
-
-
-      bitarr_t set_union(const bitarr_t& lhs, const bitarr_t& rhs)
-      {
-        return binop_(internal_bitarr::set_union, lhs, rhs);
-      }
-
-      void dump(std::ostream& os, const bitarr_t& b, bool full)
+      void dump(std::ostream& os, const bitdata_t& b, bool full)
       {
         b.dump(os, full ? -1u : size(), full);
       }
 
     private:
-
-      template<class BINOP>
-      bitarr_t binop_(BINOP binop,
-                      const bitarr_t& lhs, const bitarr_t& rhs)
-      {
-        if (is_small())
-          {
-            bitarr_t res;
-            binop(lhs.get_data(), rhs.get_data(),
-                  res.get_data(), n_parts());
-            return res;
-          }
-        else
-          {
-            auto ptr = get_temp_();
-            set_false_(ptr);
-            binop(lhs.get_data(), rhs.get_data(),
-                  ptr, n_parts());
-            return bitarr_t(lock_(ptr));
-          }
-      }
 
 #ifdef ENABLE_PTHREAD
       std::lock_guard<std::mutex>
@@ -575,23 +522,23 @@ namespace spot
         return std::lock_guard(map_lock_);
       }
 #endif
-
       /// \brief Implementation of the generator functions
-      template<class GEN>
-      void gen_(GEN& gen, bit_data_ptr ptr)
+      template<class GEN, class SET>
+      void gen_like_(GEN& gen,
+                     SET set,
+                     bit_data_ptr ptr)
       {
         for (; !gen.done(); gen.next())
           {
-            auto idx = gen.get();
-            check_bounds_(idx);
-            internal_bitarr::set_to(ptr, idx, true);
+            const auto& [idx, val] = gen.get();
+            set(ptr, idx, val);
           }
       }
 
       /// \brief Set all bits to false, account for small index
       void set_false_(bit_data_ptr ptr)
       {
-        internal_bitarr::set_false(ptr, n_parts(), is_small());
+        set_false(ptr, n_parts(), is_small());
       }
 
     protected:
@@ -632,7 +579,7 @@ namespace spot
 #endif
       }
 
-      void release_(shared_bitarr_t* ptr)
+      void release_(shared_bitdata_t* ptr)
       {
         // If we got here the very last usage was deleted
         // The only way for use_ to be != 0 is
@@ -646,16 +593,17 @@ namespace spot
         // Delete from map if still zero
         if (ptr->use_)
           return;
-        auto [it_b, it_e] = map_.equal_range(h);
+        std::cout << "Release " << ptr << std::endl;
+        auto [it_b, it_e] = map_->equal_range(h);
         for (; it_b != it_e; ++it_b)
           {
             if (ptr == it_b->second)
               {
                 auto ptr = it_b->second;
-                map_.erase(it_b);
-                ptr->~shared_bitarr_t();
+                map_->erase(it_b);
+                ptr->~shared_bitdata_t();
                 DO_IF_PTHREAD(auto g_m = lock_mem_();)
-                mem_pool_.deallocate((void*) ptr);
+                mem_pool_->deallocate((void*) ptr);
                 return;
               }
           }
@@ -663,24 +611,33 @@ namespace spot
                                 "this cubeseet.");
       }
 
-      shared_bitarr_t* alloc_()
+      shared_bitdata_t* alloc_()
       {
         DO_IF_PTHREAD(auto g_m = lock_mem_();)
-        void* ptr = mem_pool_.allocate();
-        return new (ptr) shared_bitarr_t(this);
+        void* ptr = mem_pool_->allocate();
+        std::cout << "alloc " << ptr << std::endl;
+        return new (ptr) shared_bitdata_t(this);
       }
 
       /// \brief takes a bit_data_ptr and searches/inserts it into the map
       /// Only needs to be called for large bit_arr
       /// trivial for small
-      bitarr_t lock_(bit_data_ptr ptr)
+      /// Constructs the given type from it
+      /// using the optional arguments
+      template<class T, class... ARGS>
+      T lock_as_(bit_data_ptr ptr,
+                 ARGS... args)
       {
         if (is_small())
-          return ptr;
+          {
+            SPOT_ASSERT(!(ptr[0] & one)
+                        && "Does not point to small");
+            return T(ptr, std::forward<ARGS>(args)...);
+          }
 
         auto h = hash(ptr, n_parts());
         DO_IF_PTHREAD(auto g_h = lock_map_();)
-        auto [it_b, it_e] = map_.equal_range(h);
+        auto [it_b, it_e] = map_->equal_range(h);
         for (; it_b != it_e; ++it_b)
           {
             auto& value = it_b->second;
@@ -688,16 +645,183 @@ namespace spot
               {
                 // Found it
                 rel_temp_(ptr);
-                return bitarr_t(value);
+                return T(value, std::forward<ARGS>(args)...);
               }
           }
         // We could not find one -> create it
-        shared_bitarr_t* sb = alloc_();
-        internal_bitarr::cpy(ptr, sb->get_data(), n_parts());
-        map_.emplace(h, sb);
+        shared_bitdata_t* sb = alloc_();
+        cpy(ptr, sb->get_data(), n_parts());
+        map_->emplace(h, sb);
         rel_temp_(ptr);
-        return bitarr_t(sb);
+        return T(sb, std::forward<ARGS>(args)...);
       }
+
+      template<class T, class GEN, class SET, class... ARGS>
+      T generate_as_(GEN gen, SET set, ARGS... args)
+      {
+        if (is_small())
+          {
+            auto res = T(std::forward<ARGS>(args)...);
+            gen_like_(gen, set,
+                      res.get_data());
+            return res;
+          }
+        else
+          {
+            auto ptr = get_temp_();
+            set_false_(ptr);
+            gen_like_(gen, set, ptr);
+            return lock_as_<T>(ptr, std::forward<ARGS>(args)...);
+          }
+      }
+
+      template<class T, class BINOP, class... ARGS>
+      T binop_as_(BINOP binop, const T& lhs,
+                  const T& rhs, ARGS... args)
+      {
+        if (is_small())
+          {
+            auto res = T(std::forward<ARGS>(args)...);
+            binop(lhs.get_data(), rhs.get_data(),
+                  res.get_data(), n_parts());
+            return res;
+          }
+        else
+          {
+            auto ptr = get_temp_();
+            set_false_(ptr);
+            binop(lhs.get_data(), rhs.get_data(),
+                  ptr, n_parts());
+            return lock_as_<T>(ptr, std::forward<ARGS>(args)...);
+          }
+      }
+
+    }; // bitdata_handler_varsize
+
+    template<unsigned NSMALL>
+    class SPOT_API bitarr_varsize
+      : public bitdata_varsize<NSMALL>
+    {
+    public:
+      //typedef typename bitdata_varsize<NSMALL>::bitdata_t bitdata_t;
+      typedef typename bitdata_varsize<NSMALL>::shared_bitdata_t
+              shared_bitdata_t;
+      typedef bitdata_handler_varsize<NSMALL> bitdata_handler_t;
+      typedef bitarr_handler_varsize<NSMALL> bitarr_handler_t;
+
+      friend shared_bitdata_t;
+      friend bitdata_handler_t;
+      friend bitarr_handler_t;
+
+    protected:
+      /// \brief Always allocates a small bitarr
+      /// with all bits set to false
+      explicit bitarr_varsize() = default;
+      explicit bitarr_varsize(bit_data_ptr ptr)
+        : bitdata_varsize<NSMALL>(ptr)
+      {
+      }
+      // Large bitarr from shared data ptr
+      explicit bitarr_varsize(shared_bitdata_t* s_data)
+        : bitdata_varsize<NSMALL>(s_data)
+      {
+      }
+
+    public:
+
+      bitarr_varsize(const bitarr_varsize& other) = default;
+      bitarr_varsize(bitarr_varsize&& other) = default;
+      bitarr_varsize& operator=(const bitarr_varsize& other) = default;
+      //{
+      //  bitdata_varsize<NSMALL>::operator=(other);
+      //  return *this;
+      //}
+      bitarr_varsize& operator=(bitarr_varsize&& other) = default;
+      //{
+      //  bitdata_varsize<NSMALL>::operator=(std::move(other));
+      //  return *this;
+      //}
+
+      // Wrappers to interface
+      bool is_set(unsigned idx) const noexcept;
+      bool set_intersects(const bitarr_varsize& rhs) const;
+      int cmp(const bitarr_varsize& rhs) const;
+      bitarr_varsize set_union(const bitarr_varsize& rhs) const;
+      bitarr_varsize operator|| (const bitarr_varsize& rhs) const;
+      bitarr_varsize& operator|= (const bitarr_varsize& rhs);
+      bitarr_varsize set_intersection(const bitarr_varsize& rhs) const;
+      bitarr_varsize operator&& (const bitarr_varsize& rhs) const;
+      bitarr_varsize& operator&= (const bitarr_varsize& rhs);
+    };
+
+
+
+    template<unsigned NSMALL>
+    class SPOT_API bitarr_handler_varsize
+      : public bitdata_handler_varsize<NSMALL>
+    {
+    public:
+      typedef bitdata_handler_varsize<NSMALL> bitdata_handler_t;
+
+      typedef bitarr_varsize<NSMALL> bitarr_t;
+      typedef shared_bitdata_varsize<NSMALL> shared_bitarr_t;
+
+      friend bitarr_t;
+      friend shared_bitarr_t;
+
+    public:
+
+      bitarr_handler_varsize() = delete;
+
+      /// \brief Build a bitarr allocator for at least \a nbits
+      /// per bitarr and temporary objects for at most \a nthreads
+      /// threads.
+      /// \note nthreads is ignored if not configured
+      /// with --enable-pthreads
+      bitarr_handler_varsize(size_t nbits, size_t nthreads)
+        : bitdata_handler_varsize<NSMALL>(nbits, nthreads)
+      {
+      }
+
+      ~bitarr_handler_varsize() = default;
+
+      /// \brief Generate a bitarr from a generate object \a gen
+      /// This object need to provide a member function void next()
+      /// and unsigned get() and bool done();
+      /// Must be copy constructible
+      /// All indexes returned will be set to true, all other bits are false
+      /// It will be used as for (; !gen.done(); gen.next());
+      /// unsigned idx = gen.get();
+      // todo make lock_ optional to chain construction/operations?
+      template<class GEN>
+      bitarr_t generate(GEN gen)
+      {
+        return bitdata_handler_t::template generate_as_<bitarr_t>(
+            gen, internal_bitarr::set_to);
+      }
+
+      bool set_intersects(const bitarr_t& lhs, const bitarr_t& rhs)
+      {
+        return set_intersects(lhs.get_data(), rhs.get_data(), this->n_parts());
+      }
+
+      bitarr_t set_intersection(const bitarr_t& lhs, const bitarr_t& rhs)
+      {
+        return this->template binop_as_<bitarr_t>(
+            internal_bitarr::set_intersection, lhs, rhs);
+      }
+
+      bitarr_t set_union(const bitarr_t& lhs, const bitarr_t& rhs)
+      {
+        return this->template binop_as_<bitarr_t>(
+            internal_bitarr::set_union, lhs, rhs);
+      }
+
+      void dump(std::ostream& os, const bitarr_t& b, bool full)
+      {
+        b.dump(os, full ? -1u : this->size(), full);
+      }
+
     }; // bitarr_handler_varsize
 
   } // Internal
@@ -719,39 +843,85 @@ namespace spot
   {
     // share_bitarr dependent impl
     template<unsigned NSMALL>
-    inline void shared_bitarr_varsize<NSMALL>::release()
+    inline void shared_bitdata_varsize<NSMALL>::release()
     {
       bh_->release_(this);
     }
 
     // bitarr dependent impl
     template<unsigned NSMALL>
-    inline bitarr_varsize<NSMALL>::bitarr_varsize()
+    inline bitdata_varsize<NSMALL>::bitdata_varsize()
     {
-      internal_bitarr::set_false(u_.s_.data(), NSMALL, true);
+      set_false(u_.s_.data(), NSMALL, true);
       assert(is_small());
     }
 
     template<unsigned NSMALL>
-    inline bitarr_varsize<NSMALL>::bitarr_varsize(shared_bitarr_t* s_data)
+    inline bitdata_varsize<NSMALL>::bitdata_varsize(bit_data_ptr ptr)
+    {
+      cpy(ptr, u_.s_.data(), NSMALL);
+      SPOT_ASSERT(is_small());
+    }
+
+    template<unsigned NSMALL>
+    inline bitdata_varsize<NSMALL>::bitdata_varsize(shared_bitdata_t* s_data)
     {
       SPOT_ASSERT(s_data && "bitarr can not be created from null data ptr");
       u_.l_ = s_data;
       u_.l_->incr();
     }
 
+    // bitarr_handler impl
+    template<unsigned NSMALL>
+    bitdata_handler_varsize<NSMALL>::bitdata_handler_varsize(size_t nbits,
+                                                             size_t nthreads)
+      : size_(nbits)
+      , n_((nbits+1)/NB_BITS + (((nbits+1)%NB_BITS) != 0))
+      , is_small_{n_ <= NSMALL}
+      , mem_pool_(nullptr)
+      , map_(nullptr)
+      , temp_{new bit_data[nthreads*n_]}
+    {
+      // Too long for init-list
+      if (n_ > NSMALL)
+        {
+          mem_pool_ = std::make_unique<pool_type_>(
+            sizeof(shared_bitdata_varsize<NSMALL>) + n_*BIT_DATA_SIZE);
+          map_ = std::make_unique<map_type_>(1000);
+        }
+      // There is only one dynamic alloc stored in temp_
+      // if there are multiple needed in the threaded case
+      // they point to somewhere within this alloc
+      SPOT_ASSERT(nthreads > 0);
+#ifdef ENABLE_PTHREAD
+      auto ptr = temp_;
+      for (unsigned i = 0; i < nthreads; ++i)
+        {
+          temps_.emplace_back();
+          temps_.back().second = ptr;
+          ptr += n_;
+        }
+#endif // ENABLE_PTHREAD
+    }
+
+    template<unsigned NSMALL>
+    bitdata_handler_varsize<NSMALL>::~bitdata_handler_varsize()
+    {
+      delete[] temp_;
+    }
+
     template<unsigned NSMALL>
     inline bool bitarr_varsize<NSMALL>::is_set(unsigned idx) const noexcept
     {
-      if (is_small())
+      if (this->is_small())
         {
           SPOT_ASSERT(0 < idx && idx < NSMALL*NB_BITS);
-          return internal_bitarr::is_set(get_data(), idx);
+          return internal_bitarr::is_set(this->get_data(), idx);
         }
       else
         {
-          SPOT_ASSERT(u_.l_);
-          return u_.l_->bh_->is_set(*this, idx);
+          SPOT_ASSERT(this->u_.l_);
+          return this->get_handler()->is_set(*this, idx);
         }
     }
 
@@ -760,16 +930,15 @@ namespace spot
     bitarr_varsize<NSMALL>::set_intersects(const bitarr_varsize<NSMALL>& rhs)
         const
     {
-      return internal_bitarr::set_intersects(get_data(),
-                                             rhs.get_data(),
-                                             n_parts());
+      return set_intersects(this->get_data(), rhs.get_data(),
+                            this->n_parts());
     }
 
     template<unsigned NSMALL>
     inline int
     bitarr_varsize<NSMALL>::cmp(const bitarr_varsize<NSMALL>& rhs) const
     {
-      return internal_bitarr::cmp(get_data(), rhs.get_data(), n_parts());
+      return cmp(this->get_data(), rhs.get_data(), this->n_parts());
     }
 
     template<unsigned NSMALL>
@@ -777,17 +946,18 @@ namespace spot
     bitarr_varsize<NSMALL>::set_intersection(const bitarr_varsize<NSMALL>& rhs)
         const
     {
-        if (is_small())
+        if (this->is_small())
           {
-            bitarr_varsize<NSMALL> res; //small array re "free"
-            internal_bitarr::set_intersection(get_data(),
-                                      rhs.get_data(),
-                                      res.get_data(),
-                                      NSMALL);
+            bitarr_varsize<NSMALL> res; //small array is "free"
+            internal_bitarr::set_intersection(this->get_data(), rhs.get_data(),
+                                              res.get_data(), NSMALL);
             return res;
           }
         else
-          return u_.l_->bh_->set_intersection(*this, rhs);
+          {
+            auto dh = static_cast<bitarr_handler_t*>(this->get_handler());
+            return dh->set_intersection(*this, rhs);
+          }
     }
 
     template<unsigned NSMALL>
@@ -811,22 +981,19 @@ namespace spot
     bitarr_varsize<NSMALL>::set_union(const bitarr_varsize<NSMALL>& rhs)
         const
     {
-      SPOT_ASSERT(is_small() == rhs.is_small());
-      if (is_small())
+      SPOT_ASSERT(this->is_small() == rhs.is_small());
+      if (this->is_small())
         {
           bitarr_varsize<NSMALL> res; //small array re "free"
-          internal_bitarr::set_union(get_data(),
-                                     rhs.get_data(),
-                                     res.get_data(),
-                                     NSMALL);
+          internal_bitarr::set_union(this->get_data(), rhs.get_data(),
+                                     res.get_data(), NSMALL);
           return res;
         }
       else
         {
-          SPOT_ASSERT(u_.l_);
-          SPOT_ASSERT(rhs.u_.l_);
-          SPOT_ASSERT(u_.l_->bh_->size() == rhs.u_.l_->bh_->size());
-          return u_.l_->bh_->set_union(*this, rhs);
+
+            auto dh = static_cast<bitarr_handler_t*>(this->get_handler());
+            return dh->set_union(*this, rhs);
         }
     }
 
@@ -842,41 +1009,8 @@ namespace spot
     inline bitarr_varsize<NSMALL>&
     bitarr_varsize<NSMALL>::operator|=(const bitarr_varsize<NSMALL>& rhs)
     {
-      *this = this->set_union(rhs);;
+      *this = this->set_union(rhs);
       return *this;
-    }
-
-
-    // bitarr_handler impl
-    template<unsigned NSMALL>
-    bitarr_handler_varsize<NSMALL>::bitarr_handler_varsize(size_t nbits,
-                                                           size_t nthreads)
-      : size_(nbits)
-      , n_((nbits+1)/NB_BITS + (((nbits+1)%NB_BITS) != 0))
-      , is_small_{n_ <= NSMALL}
-      , mem_pool_(sizeof(shared_bitarr_varsize<NSMALL>) + n_*BIT_DATA_SIZE)
-      , map_(1000*(n_ > NSMALL))
-      , temp_{new bit_data[nthreads*n_]}
-    {
-      // There is only one dynamic alloc stored in temp_
-      // if there are multiple needed in the threaded case
-      // they point to somewhere within this alloc
-      SPOT_ASSERT(nthreads > 0);
-#ifdef ENABLE_PTHREAD
-      auto ptr = temp_;
-      for (unsigned i = 0; i < nthreads; ++i)
-        {
-          temps_.emplace_back();
-          temps_.back().second = ptr;
-          ptr += n_;
-        }
-#endif // ENABLE_PTHREAD
-    }
-
-    template<unsigned NSMALL>
-    bitarr_handler_varsize<NSMALL>::~bitarr_handler_varsize()
-    {
-      delete[] temp_;
     }
 
   } // internal_bitarr

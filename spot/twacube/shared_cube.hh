@@ -36,7 +36,7 @@ namespace spot
     template<unsigned N>
     class cube_handler_varsize;
 
-    using cube_data = bit_data;
+    using cube_data = internal_bitarr::bit_data;
     using cube_data_ptr = bit_data_ptr;
     using c_cube_data_ptr = c_bit_data_ptr;
 
