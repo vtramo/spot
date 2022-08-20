@@ -213,6 +213,7 @@ namespace spot
 
       uintptr_t incr() noexcept
       {
+        std::cout << use_ << "incr " << this << '\n';
         SPOT_ASSERT(use_ < std::numeric_limits<uintptr_t>::max()
                     && "Use overflow of bitdata");
         return ++use_;
@@ -220,10 +221,12 @@ namespace spot
 
       bool decr() noexcept
       {
+        std::cout << ((unsigned) use_) << " decr " << this << '\n';
         SPOT_ASSERT((use_ > 0) && "Use count underflow");
         --use_;
         if (use_ == 0)
           {
+            std::cout << "rel " << this << '\n';
             release();
             return false;
           }
@@ -303,7 +306,8 @@ namespace spot
       void c_decr_()
       {
         if (!is_small() && u_.l_)
-          u_.l_->decr();
+          if (!u_.l_->decr())
+            u_.l_ = nullptr;
       }
 
     public:
@@ -325,7 +329,7 @@ namespace spot
       /// \brief Assignment
       bitdata_varsize& operator=(const bitdata_varsize& other)
       {
-        std::cout << "copyassign bitdata" << std::endl;
+        std::cout << "copyassign bitdata" << '\n';
         if (this == &other
             || (!is_small() && (u_.l_ == other.u_.l_)))
           return *this;
@@ -589,11 +593,10 @@ namespace spot
         auto h = internal_bitarr::hash(ptr->get_data(), n_parts());
 
         DO_IF_PTHREAD(auto g_h = lock_map_();)
-
         // Delete from map if still zero
-        if (ptr->use_)
+        if (ptr->use_ != 0)
           return;
-        std::cout << "Release " << ptr << std::endl;
+        std::cout << "Release " << ptr  << ' ' << h << '\n';
         auto [it_b, it_e] = map_->equal_range(h);
         for (; it_b != it_e; ++it_b)
           {
@@ -601,22 +604,27 @@ namespace spot
               {
                 auto ptr = it_b->second;
                 map_->erase(it_b);
-                ptr->~shared_bitdata_t();
-                DO_IF_PTHREAD(auto g_m = lock_mem_();)
-                mem_pool_->deallocate((void*) ptr);
+                dealloc_(ptr);
                 return;
               }
           }
         throw std::runtime_error("Deleting a ptr not allocated by "
-                                "this cubeseet.");
+                                "this cubeset.");
       }
 
       shared_bitdata_t* alloc_()
       {
         DO_IF_PTHREAD(auto g_m = lock_mem_();)
         void* ptr = mem_pool_->allocate();
-        std::cout << "alloc " << ptr << std::endl;
+        std::cout << "alloc " << ptr << '\n';
         return new (ptr) shared_bitdata_t(this);
+      }
+
+      void dealloc_(shared_bitdata_t* ptr)
+      {
+        ptr->~shared_bitdata_t();
+        DO_IF_PTHREAD(auto g_m = lock_mem_();)
+        mem_pool_->deallocate((void*) ptr);
       }
 
       /// \brief takes a bit_data_ptr and searches/inserts it into the map
@@ -645,6 +653,7 @@ namespace spot
               {
                 // Found it
                 rel_temp_(ptr);
+                std::cout << "Reuse " << value << ' ' << h << '\n';
                 return T(value, std::forward<ARGS>(args)...);
               }
           }
@@ -653,6 +662,7 @@ namespace spot
         cpy(ptr, sb->get_data(), n_parts());
         map_->emplace(h, sb);
         rel_temp_(ptr);
+        std::cout << "New " << sb << ' ' << h << '\n';
         return T(sb, std::forward<ARGS>(args)...);
       }
 

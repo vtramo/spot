@@ -182,7 +182,7 @@ static void or_all(spot::bitarr_handler& bh, spot::bitarr& b, unsigned nbits,
 
 static void test_threaded(unsigned nthreads, unsigned nbits)
 {
-
+  std::cout << "Test thread " << nthreads << ", " << nbits << '\n';
   spot::bitarr_handler bh(nbits, nthreads);
 
   std::vector<spot::bitarr> bv;
@@ -219,9 +219,9 @@ int main(){
 #ifdef ENABLE_PTHREAD
   std::cout << "Testing pthread" << std::endl;
   test_threaded(1, 12);
-  test_threaded(4, 12);
+  test_threaded(2, 12);
   test_threaded(1, 244);
-  test_threaded(4, 244);
+  test_threaded(2, 244);
 #else
   std::cout << "No pthread" << std::endl;
 #endif
