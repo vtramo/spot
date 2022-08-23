@@ -21,11 +21,13 @@
 #pragma once
 
 #include <spot/misc/common.hh>
+#include <config.h>
 #include <spot/misc/fixpool.hh>
 #include <spot/misc/hashfunc.hh>
 #include <atomic>
 #include <array>
 #include <deque>
+#include <string>
 #include <cstring>
 #include <climits>
 #include <cstdint>
@@ -37,6 +39,7 @@
 #include <memory>
 
 #ifdef ENABLE_PTHREAD
+#include <thread>
 #include <mutex>
 #endif
 
@@ -97,9 +100,8 @@ namespace spot
         return 0;
       for (unsigned i = 0; i < n; ++i)
         {
-          auto r = lhs[i] - rhs[i];
-          if (r)
-            return 1 - 2*(r > lhs[i]);
+          if (lhs[i] != rhs[i])
+            return (lhs[i] > rhs[i]) ? -1 : 1;
         }
       return 0;
     }
@@ -223,10 +225,10 @@ namespace spot
       {
         std::cout << ((unsigned) use_) << " decr " << this << '\n';
         SPOT_ASSERT((use_ > 0) && "Use count underflow");
-        --use_;
-        if (use_ == 0)
+        std::uintptr_t remaining = use_.fetch_sub(1)-1;
+        if (remaining == 0)
           {
-            std::cout << "rel " << this << '\n';
+            std::cout << "rel " << this << ' ' << (std::this_thread::get_id()) << '\n';
             release();
             return false;
           }
@@ -244,9 +246,6 @@ namespace spot
       {
         return reinterpret_cast<c_bit_data_ptr>(this + 1);
       }
-
-
-
 
     };
 
@@ -306,8 +305,7 @@ namespace spot
       void c_decr_()
       {
         if (!is_small() && u_.l_)
-          if (!u_.l_->decr())
-            u_.l_ = nullptr;
+          u_.l_->decr();
       }
 
     public:
@@ -452,7 +450,7 @@ namespace spot
 
 #ifdef ENABLE_PTHREAD
       /// \brief A lock for the pool
-      std::mutex mem_lock_;
+      //std::mutex mem_lock_;
 
       /// \brief Multiple temporaries when threaded
       std::deque<std::pair<std::atomic_flag, bit_data_ptr>> temps_;
@@ -511,18 +509,19 @@ namespace spot
 
     private:
 
-#ifdef ENABLE_PTHREAD
-      std::lock_guard<std::mutex>
-      lock_mem_()
-      {
-        return std::lock_guard(mem_lock_);
-      }
-#endif
+//#ifdef ENABLE_PTHREAD
+//      std::lock_guard<std::mutex>
+//      lock_mem_()
+//      {
+//        return std::lock_guard(mem_lock_);
+//      }
+//#endif
 
 #ifdef ENABLE_PTHREAD
       std::lock_guard<std::mutex>
       lock_map_()
       {
+        std::cout << "LM " << std::this_thread::get_id() << '\n';
         return std::lock_guard(map_lock_);
       }
 #endif
@@ -595,8 +594,12 @@ namespace spot
         DO_IF_PTHREAD(auto g_h = lock_map_();)
         // Delete from map if still zero
         if (ptr->use_ != 0)
-          return;
-        std::cout << "Release " << ptr  << ' ' << h << '\n';
+          {
+            std::cout << "Reused in mean\n";
+            return;
+          }
+
+        std::cout << "Release " << ptr  << ' ' << h << ' ' << std::this_thread::get_id() << '\n';
         auto [it_b, it_e] = map_->equal_range(h);
         for (; it_b != it_e; ++it_b)
           {
@@ -608,13 +611,18 @@ namespace spot
                 return;
               }
           }
+        std::ostringstream oos;
+        oos << ptr << ' ' << h << ' ' << std::this_thread::get_id() << '\n';
+        for (const auto& [k, v] : *map_)
+          oos << k << " : " << v << std::endl;
         throw std::runtime_error("Deleting a ptr not allocated by "
-                                "this cubeset.");
+                                "this cubeset\n: " + oos.str());
       }
 
       shared_bitdata_t* alloc_()
       {
-        DO_IF_PTHREAD(auto g_m = lock_mem_();)
+        //DO_IF_PTHREAD(auto g_m = lock_mem_();)
+        SPOT_ASSERT(!map_lock_.try_lock());
         void* ptr = mem_pool_->allocate();
         std::cout << "alloc " << ptr << '\n';
         return new (ptr) shared_bitdata_t(this);
@@ -622,8 +630,9 @@ namespace spot
 
       void dealloc_(shared_bitdata_t* ptr)
       {
+        SPOT_ASSERT(!map_lock_.try_lock());
         ptr->~shared_bitdata_t();
-        DO_IF_PTHREAD(auto g_m = lock_mem_();)
+        //DO_IF_PTHREAD(auto g_m = lock_mem_();)
         mem_pool_->deallocate((void*) ptr);
       }
 
@@ -638,12 +647,14 @@ namespace spot
       {
         if (is_small())
           {
+            std::cerr << "SMALL LOCK\n";
             SPOT_ASSERT(!(ptr[0] & one)
                         && "Does not point to small");
             return T(ptr, std::forward<ARGS>(args)...);
           }
 
         auto h = hash(ptr, n_parts());
+
         DO_IF_PTHREAD(auto g_h = lock_map_();)
         auto [it_b, it_e] = map_->equal_range(h);
         for (; it_b != it_e; ++it_b)
@@ -652,18 +663,23 @@ namespace spot
             if (internal_bitarr::cmp(ptr, value->get_data(), n_parts()) == 0)
               {
                 // Found it
+                SPOT_ASSERT(h == hash(value->get_data(), n_parts()));
                 rel_temp_(ptr);
-                std::cout << "Reuse " << value << ' ' << h << '\n';
-                return T(value, std::forward<ARGS>(args)...);
+                std::cout << "Reuse " << value << ' ' << h << ' ' << (std::this_thread::get_id()) << '\n';
+                auto t = T(value, std::forward<ARGS>(args)...);
+                return t;
               }
           }
         // We could not find one -> create it
         shared_bitdata_t* sb = alloc_();
         cpy(ptr, sb->get_data(), n_parts());
-        map_->emplace(h, sb);
+        SPOT_ASSERT(h == hash(sb->get_data(), n_parts()));
         rel_temp_(ptr);
-        std::cout << "New " << sb << ' ' << h << '\n';
-        return T(sb, std::forward<ARGS>(args)...);
+        std::cout << "New " << sb << ' ' << h << ' ' << (std::this_thread::get_id()) << '\n';
+        auto t = T(sb, std::forward<ARGS>(args)...);
+        //map_->emplace(h, sb);
+        map_->insert(std::make_pair(h, sb));
+        return t; // Obj ctr is thread-safe
       }
 
       template<class T, class GEN, class SET, class... ARGS>
@@ -742,15 +758,9 @@ namespace spot
       bitarr_varsize(const bitarr_varsize& other) = default;
       bitarr_varsize(bitarr_varsize&& other) = default;
       bitarr_varsize& operator=(const bitarr_varsize& other) = default;
-      //{
-      //  bitdata_varsize<NSMALL>::operator=(other);
-      //  return *this;
-      //}
       bitarr_varsize& operator=(bitarr_varsize&& other) = default;
-      //{
-      //  bitdata_varsize<NSMALL>::operator=(std::move(other));
-      //  return *this;
-      //}
+      ~bitarr_varsize() = default;
+
 
       // Wrappers to interface
       bool is_set(unsigned idx) const noexcept;
@@ -863,7 +873,7 @@ namespace spot
     inline bitdata_varsize<NSMALL>::bitdata_varsize()
     {
       set_false(u_.s_.data(), NSMALL, true);
-      assert(is_small());
+      SPOT_ASSERT(is_small());
     }
 
     template<unsigned NSMALL>

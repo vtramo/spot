@@ -167,7 +167,8 @@ static void or_all(spot::bitarr_handler& bh, spot::bitarr& b, unsigned nbits,
       for (unsigned i = 1; i <= nbits; ++i)
         {
           auto tmp = bh.generate(onegen(i));
-          b |= tmp;
+          auto tmp2 = bh.set_union(b, tmp);
+          b = tmp2;
         }
     }
   else
@@ -175,7 +176,8 @@ static void or_all(spot::bitarr_handler& bh, spot::bitarr& b, unsigned nbits,
       for (unsigned i = nbits; i != 0; --i)
         {
           auto tmp = bh.generate(onegen(i));
-          b |= tmp;
+          auto tmp2 = bh.set_union(b, tmp);
+          b = tmp2;
         }
     }
 }
