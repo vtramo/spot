@@ -44,10 +44,8 @@ debian-unstable-gcc-coverage:
     - ./configure CXX='g++ --coverage' --enable-devel --disable-static --enable-doxygen
     - make
     - make check
-    - lcov --capture --directory . --no-external --output spot.info
-    - lcov --remove spot.info '*/bin/spot.cc' '*/bin/spot-x.cc' '*/spot/parse*/scan*.cc' '*/spot/parse*/parse*.cc' '*/utf8/*' '*/python/*' '*/buddy/*' '*/doc/org/tmp/*' --output spot2.info
-    - lcov --summary spot2.info
-    - genhtml --legend --demangle-cpp --output-directory coverage spot2.info
+    - gcovr --xml-pretty --exclude-unreachable-branches --print-summary -o coverage.xml --root $PWD -e 'bin/spot.cc' -e 'bin/spot-x.cc' -e 'spot/bricks/.*' -e 'spot/parse.*/scan.*.cc' -e 'spot/parse.*/parse.*.cc' -e 'utf8/.*' -e 'python/.*' -e 'buddy/.*' -e 'doc/org/tmp/.*' --html-details coverage.html --html-tab-size 8
+  coverage: /^\s*lines:\s*\d+.\d+\%/
   artifacts:
     when: always
     paths:
@@ -55,9 +53,12 @@ debian-unstable-gcc-coverage:
       - ./*.log
       - doc/spot.html/
       - doc/userdoc/
-      - coverage/
+      - coverage*.html
       - ./*.tar.gz
-      - spot2.info
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
 
 debian-unstable-gcc-pypy:
   stage: build
