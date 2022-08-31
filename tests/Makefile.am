@@ -76,6 +76,7 @@ check_PROGRAMS = \
   core/intvcomp \
   core/intvcmp2 \
   core/kripkecat \
+  core/ltl2aa \
   core/ltl2dot \
   core/ltl2text \
   core/ltlrel \
@@ -125,6 +126,7 @@ core_cube_SOURCES = core/cube.cc
 core_equals_SOURCES = core/equalsf.cc
 core_kind_SOURCES = core/kind.cc
 core_length_SOURCES = core/length.cc
+core_ltl2aa_SOURCES = core/ltl2aa.cc
 core_ltl2dot_SOURCES = core/readltl.cc
 core_ltl2dot_CPPFLAGS = $(AM_CPPFLAGS) -DDOTTY
 core_ltl2text_SOURCES = core/readltl.cc
