@@ -286,22 +286,26 @@ namespace spot
                 for (bdd cond : minterms_of(bddtrue, aps))
                   {
                     bdd dest = bdd_appex(sig, cond, bddop_and, aps);
-                    while (dest != bddtrue)
+                    while (dest != bddfalse)
                       {
-                        assert(bdd_low(dest) == bddfalse);
+                        assert(bdd_high(dest) == bddtrue);
                         auto it = var_to_state.find(bdd_var(dest));
                         assert(it != var_to_state.end());
                         auto it2 = old_to_new.find(it->second);
                         assert(it2 != old_to_new.end());
                         univ_dest.push_back(it2->second);
-                        dest = bdd_high(dest);
+                        dest = bdd_low(dest);
                       }
 
                     auto it = old_to_new.find(st);
                     assert(it != old_to_new.end());
                     unsigned src = it->second;
-                    unsigned dst = uniq_.new_univ_dests(univ_dest.begin(),
-                                                        univ_dest.end());
+
+                    unsigned dst = univ_dest.empty()
+                      ? accepting_sink_
+                      : (uniq_.new_univ_dests(univ_dest.begin(),
+                                              univ_dest.end()));
+
                     aut_->new_edge(src, dst, cond, {});
                   }
               }
