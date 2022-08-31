@@ -33,6 +33,7 @@ kripkecat
 length
 .libs
 ikwiad
+ltl2aa
 ltl2dot
 ltl2text
 ltlmagic
