@@ -54,6 +54,7 @@ debian-unstable-gcc-coverage:
       - doc/spot.html/
       - doc/userdoc/
       - coverage*.html
+      - coverage*.css
       - ./*.tar.gz
     reports:
       coverage_report:
