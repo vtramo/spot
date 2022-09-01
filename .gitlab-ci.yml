@@ -32,6 +32,30 @@ debian-stable-gcc:
       - ./*.log
       - ./*.tar.gz
 
+# We build on Debian unstable because we want an up-to-date Automake.
+# (See issue #512.)  We do not run distcheck here to speedup this build
+# that several other builds depend upon.  Other builds will run distcheck.
+make-dist:
+  stage: build
+  only:
+    - branches
+  except:
+    - /wip/
+  image: gitlab-registry.lrde.epita.fr/spot/buildenv/debian
+  script:
+    - autoreconf -vfi
+    - ./configure --disable-static --enable-doxygen
+    - make
+    - make dist
+    - autoconf --trace='AC_INIT:$2' > VERSION
+  artifacts:
+    when: always
+    paths:
+      - spot-*/_build/sub/tests/*/*.log
+      - ./*.log
+      - ./*.tar.gz
+      - VERSION
+
 debian-unstable-gcc-coverage:
   stage: build
   only:
@@ -62,22 +86,29 @@ debian-unstable-gcc-coverage:
         path: coverage.xml
 
 debian-unstable-gcc-pypy:
-  stage: build
+  stage: build2
+  needs:
+    - job: make-dist
+      artifacts: true
+  variables:
+    GIT_STRATEGY: none
   only:
     - branches
   except:
     - /wip/
   image: gitlab-registry.lrde.epita.fr/spot/buildenv/debian
   script:
-    - autoreconf -vfi
+    - VERSION=`cat VERSION`
+    - tar xvf spot-$VERSION.tar.gz
+    - cd spot-$VERSION
     - ./configure PYTHON=/usr/bin/pypy3 --disable-static
     - make
     - make check TESTS='$(TESTS_python) $(TESTS_ipython)'
   artifacts:
     when: always
     paths:
-      - tests/*/*.log
-      - ./*.log
+      - spot-*/tests/*/*.log
+      - spot-*/*.log
 
 debian-gcc-snapshot:
   stage: build
@@ -140,22 +171,30 @@ arch-clang:
       - ./*.log
 
 arch-gcc-glibcxxdebug:
-  stage: build
+  stage: build2
+  needs:
+    - job: make-dist
+      artifacts: true
+  variables:
+    GIT_STRATEGY: none
   only:
     - branches
   except:
     - /wip/
   image: gitlab-registry.lrde.epita.fr/spot/buildenv/arch
   script:
-    - autoreconf -vfi
-    - ./configure --enable-devel --enable-c++20 --enable-glibcxx-debug
+    - VERSION=`cat VERSION`
+    - tar xvf spot-$VERSION.tar.gz
+    - mkdir build-$VERSION
+    - cd build-$VERSION
+    - ../spot-$VERSION/configure --enable-devel --enable-c++20 --enable-glibcxx-debug
     - make
     - make distcheck DISTCHECK_CONFIGURE_FLAGS='--enable-devel --enable-c++20 --enable-glibcxx-debug'
   artifacts:
     when: on_failure
     paths:
-      - ./spot-*/_build/sub/tests/*/*.log
-      - ./*.log
+      - build-*/spot-*/_build/sub/tests/*/*.log
+      - build-*/*.log
 
 mingw-shared:
   stage: build2
@@ -163,15 +202,17 @@ mingw-shared:
     # We start from the tarball generated from a non-cross-compiling
     # job, so that all generated files are included, especially those
     # built from the executables.
-    - job: debian-stable-gcc
+    - job: make-dist
       artifacts: true
+  variables:
+    GIT_STRATEGY: none
   only:
     - branches
   except:
     - /wip/
   image: gitlab-registry.lrde.epita.fr/spot/buildenv/debian
   script:
-    - VERSION=`autoconf --trace='AC_INIT:$2'`
+    - VERSION=`cat VERSION`
     - tar xvf spot-$VERSION.tar.gz
     - cd spot-$VERSION
     - ./configure CC=i686-w64-mingw32-gcc CXX=i686-w64-mingw32-g++-posix --host i686-w64-mingw32 --disable-python
@@ -188,15 +229,17 @@ mingw-static:
     # We start from the tarball generated from a non-cross-compiling
     # job, so that all generated files are included, especially those
     # built from the executables.
-    - job: debian-stable-gcc
+    - job: make-dist
       artifacts: true
+  variables:
+    GIT_STRATEGY: none
   only:
     - branches
   except:
     - /wip/
   image: gitlab-registry.lrde.epita.fr/spot/buildenv/debian
   script:
-    - VERSION=`autoconf --trace='AC_INIT:$2'`
+    - VERSION=`cat VERSION`
     - tar xvf spot-$VERSION.tar.gz
     - cd spot-$VERSION
     - mkdir install_dir
@@ -216,6 +259,8 @@ mingw-static:
 
 debpkg-stable:
   stage: build
+  variables:
+    GIT_STRATEGY: none
   only:
     - /-deb$/
     - master
@@ -240,6 +285,8 @@ debpkg-stable:
 
 debpkg-stable-i386:
   stage: build2
+  variables:
+    GIT_STRATEGY: none
   only:
     - /-deb$/
     - master
@@ -269,6 +316,8 @@ debpkg-stable-i386:
 
 debpkg-unstable:
   stage: build
+  variables:
+    GIT_STRATEGY: none
   only:
     - /-deb$/
     - next
@@ -291,6 +340,8 @@ debpkg-unstable:
 
 debpkg-unstable-i386:
   stage: build2
+  variables:
+    GIT_STRATEGY: none
   only:
     - /-deb$/
     - next
@@ -342,6 +393,8 @@ rpm-pkg:
 
 publish-rpm:
   stage: publish
+  variables:
+    GIT_STRATEGY: none
   only:
     - /-rpm$/
     - next
@@ -359,12 +412,17 @@ publish-stable:
   tags:
     - dput
   stage: publish
+  variables:
+    GIT_STRATEGY: none
   dependencies:
     - debpkg-stable-i386
+    - make-dist
   script:
     - cd _build_stable
     - ls -l
     - dput lrde *.changes
+    - cd ..
+    - ls -l
     - tgz=`ls spot-*.tar.* | head -n 1`
     - case $tgz in *[0-9].tar.*) scp $tgz doc@perso:/var/www/dload/spot/;; esac
     - curl -X POST -F ref=master -F token=$TRIGGER_SPOT_WEB -F "variables[spot_branch]=stable" https://gitlab.lrde.epita.fr/api/v4/projects/131/trigger/pipeline
@@ -377,6 +435,8 @@ publish-unstable:
   tags:
     - dput
   stage: publish
+  variables:
+    GIT_STRATEGY: none
   dependencies:
     - debpkg-unstable-i386
   script:
