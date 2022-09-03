@@ -1084,9 +1084,12 @@ namespace spot
             {
               if (aut->acc().is_t())
                 opt_show_acc_ = false;
-              bdd out = *p;
-              opt_mealy_output_ = out;
-              opt_mealy_ = true;
+              if (opt_showlabel_)
+              {
+                bdd out = *p;
+                opt_mealy_output_ = out;
+                opt_mealy_ = true;
+              }
             }
         incomplete_ =
           aut->get_named_prop<std::set<unsigned>>("incomplete-states");

@@ -611,3 +611,18 @@ State: 1
 
 res = spot.reduce_mealy(aut, True)
 tc.assertEqual(res.to_str(), exp)
+
+exp = """digraph "" {
+  rankdir=LR
+  node [shape="circle"]
+  I [label="", style=invis, width=0]
+  I -> 0
+  0 [label="0"]
+  0 -> 1 [label=""]
+  0 -> 1 [label=""]
+  0 -> 1 [label=""]
+  1 [label="1"]
+  1 -> 1 [label=""]
+}
+"""
+tc.assertEqual(res.to_str("dot", "g"), exp)
