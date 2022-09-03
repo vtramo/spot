@@ -1737,7 +1737,7 @@ namespace // anonymous for subsformula
         std::vector<formula> children;
         for (auto fi : f)
           children.push_back(
-            extract_and(fi, outs, can_extract_impl, form2props));
+            extract_and(fi, outs, false, form2props));
         return formula::And(children);
       }
     if (f.is(op::Not))
