@@ -39,6 +39,11 @@ namespace spot
       {
       }
 
+      ~ltl_to_aa_builder()
+      {
+        aut_->get_dict()->unregister_all_my_variables(this);
+      }
+
       twa_graph_ptr aut_;
       unsigned accepting_sink_;
       internal::univ_dest_mapper<twa_graph::graph_t> uniq_;
@@ -241,9 +246,9 @@ namespace spot
           {
             // FIXME: combine out edges with rhs !
             //unsigned rhs_init = recurse(f[1]);
-            twa_graph_ptr sere_aut = derive_finite_automaton_with_first(f[0]);
+            const auto& dict = aut_->get_dict();
+            twa_graph_ptr sere_aut = derive_finite_automaton_with_first(f[0], dict);
 
-            const auto& dict = sere_aut->get_dict();
 
             std::map<unsigned, unsigned> old_to_new;
             std::map<unsigned, int> state_to_var;
@@ -271,6 +276,7 @@ namespace spot
               return p.first->second;
             };
 
+            aut_->copy_ap_of(sere_aut);
             unsigned ns = sere_aut->num_states();
             for (unsigned st = 0; st < ns; ++st)
               {
