@@ -203,9 +203,9 @@ namespace spot
   }
 
   twa_graph_ptr
-  derive_finite_automaton_with_first(formula f, bool deterministic)
+  derive_finite_automaton_with_first(formula f, bdd_dict_ptr bdd_dict,
+                                     bool deterministic)
   {
-    auto bdd_dict = make_bdd_dict();
     auto aut = make_twa_graph(bdd_dict);
 
     aut->prop_state_acc(true);
@@ -403,9 +403,11 @@ namespace spot
   }
 
   twa_graph_ptr
-  derive_automaton_with_first(formula f, bool deterministic)
+  derive_automaton_with_first(formula f, bdd_dict_ptr bdd_dict,
+                              bool deterministic)
   {
-    auto finite = derive_finite_automaton_with_first(f, deterministic);
+    auto finite = derive_finite_automaton_with_first(f, bdd_dict,
+                                                     deterministic);
 
     return from_finite(finite);
   }
