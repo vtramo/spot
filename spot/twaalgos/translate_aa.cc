@@ -71,6 +71,35 @@ namespace spot
         aut_->new_edge(init_state, dst, e.cond, acc);
       }
 
+      unsigned copy_sere_aut_to_res(twa_graph_ptr sere_aut)
+      {
+        std::map<unsigned, unsigned> old_to_new;
+        auto register_state = [&](unsigned st) -> unsigned {
+          auto p = old_to_new.emplace(st, 0);
+          if (p.second)
+          {
+            unsigned new_st = aut_->new_state();
+            p.first->second = new_st;
+          }
+          return p.first->second;
+        };
+
+        unsigned ns = sere_aut->num_states();
+        for (unsigned st = 0; st < ns; ++st)
+          {
+            unsigned new_st = register_state(st);
+            for (const auto& e : sere_aut->out(st))
+              {
+                if (sere_aut->state_is_accepting(e.dst))
+                  aut_->new_edge(new_st, accepting_sink_, e.cond);
+                else
+                  aut_->new_edge(new_st, register_state(e.dst), e.cond);
+              }
+          }
+
+        return register_state(sere_aut->get_init_state_number());
+      }
+
 
       unsigned recurse(formula f)
       {
@@ -322,13 +351,19 @@ namespace spot
             return it->second;
           }
 
+          case op::Closure:
+          {
+            twa_graph_ptr sere_aut =
+              derive_finite_automaton_with_first(f[0], aut_->get_dict());
+            return copy_sere_aut_to_res(sere_aut);
+          }
+
+          case op::NegClosure:
+          case op::NegClosureMarked:
           case op::eword:
           case op::Xor:
           case op::Implies:
           case op::Equiv:
-          case op::Closure:
-          case op::NegClosure:
-          case op::NegClosureMarked:
           case op::EConcat:
           case op::EConcatMarked:
           case op::OrRat:
