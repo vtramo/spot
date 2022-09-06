@@ -294,10 +294,10 @@ namespace spot
               {
                 int v = dict->register_anonymous_variables(1, this);
                 p.first->second = v;
-                var_to_state.emplace(v, st);
 
                 unsigned new_st = aut_->new_state();
                 old_to_new.emplace(st, new_st);
+                var_to_state.emplace(v, new_st);
 
                 vars &= bdd_ithvar(v);
               }
@@ -326,9 +326,7 @@ namespace spot
                         assert(bdd_high(dest) == bddtrue);
                         auto it = var_to_state.find(bdd_var(dest));
                         assert(it != var_to_state.end());
-                        auto it2 = old_to_new.find(it->second);
-                        assert(it2 != old_to_new.end());
-                        univ_dest.push_back(it2->second);
+                        univ_dest.push_back(it->second);
                         dest = bdd_low(dest);
                       }
 
