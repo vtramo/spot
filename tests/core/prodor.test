@@ -1,6 +1,6 @@
 #!/bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2015, 2017-2018, 2021 Laboratoire de Recherche et
+# Copyright (C) 2015, 2017-2018, 2021-2022 Laboratoire de Recherche et
 # Développement de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -154,8 +154,8 @@ diff por.hoa exp
 
 ltl2tgba -BDH 'GFa' > gfa.hoa
 ltl2tgba -x '!wdba-minimize' -DH 'Xb' > xb.hoa
-autfilt --product-or gfa.hoa xb.hoa -H > por.hoa
-cat por.hoa
+autfilt --product-or gfa.hoa xb.hoa -H > por2.hoa
+cat por2.hoa
 
 cat >exp <<EOF
 HOA: v1
@@ -194,4 +194,4 @@ State: 6
 [!0] 6
 --END--
 EOF
-diff por.hoa exp
+diff por2.hoa exp

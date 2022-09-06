@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2014-2020 Laboratoire de Recherche et Développement
+// Copyright (C) 2014-2020, 2022 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -122,8 +122,23 @@ namespace spot
       res->copy_ap_of(left);
       res->copy_ap_of(right);
 
+      auto& lacc = left->acc();
+      auto& racc = right->acc();
+
       bool leftweak = left->prop_weak().is_true();
       bool rightweak = right->prop_weak().is_true();
+
+      // The conjunction of two co-Büchi automata is a co-Büchi automaton.
+      // The disjunction of two Büchi automata is a Büchi automaton.
+      //
+      // The code to handle this case is similar to the weak_weak case,
+      // except we do not set the weak property on the result.
+      if (!leftweak
+          && !rightweak
+          && ((aop == and_acc && lacc.is_co_buchi() && racc.is_co_buchi())
+              || (aop == or_acc && lacc.is_buchi() && racc.is_buchi())))
+        goto and_cobuchi_or_buchi;
+
       // We have optimization to the standard product in case one
       // of the arguments is weak.
       if (leftweak || rightweak)
@@ -132,14 +147,13 @@ namespace spot
           // t, f, Büchi or co-Büchi.  We use co-Büchi only when
           // t and f cannot be used, and both acceptance conditions
           // are in {t,f,co-Büchi}.
-          if (leftweak && rightweak)
+          if ((leftweak && rightweak))
             {
             weak_weak:
               res->prop_weak(true);
+            and_cobuchi_or_buchi:
               acc_cond::mark_t accmark = {0};
               acc_cond::mark_t rejmark = {};
-              auto& lacc = left->acc();
-              auto& racc = right->acc();
               if ((lacc.is_co_buchi() && (racc.is_co_buchi()
                                          || racc.num_sets() == 0))
                   || (lacc.num_sets() == 0 && racc.is_co_buchi()))

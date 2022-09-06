@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2014-2015, 2018-2020 Laboratoire de Recherche et
+// Copyright (C) 2014-2015, 2018-2020, 2022 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -37,10 +37,14 @@ namespace spot
   /// The resulting automaton will accept the intersection of both
   /// languages and have an acceptance condition that is the
   /// conjunction of the acceptance conditions of the two input
-  /// automata.  In case one of the left or right automaton is weak,
-  /// the acceptance condition of the result is made simpler: it
-  /// usually is the acceptance condition of the other argument,
+  /// automata.
+  ///
+  /// As an optionmization, in case one of the left or right automaton
+  /// is weak, the acceptance condition of the result is made simpler:
+  /// it usually is the acceptance condition of the other argument,
   /// therefore avoiding the need to introduce new accepting sets.
+  /// Similarly, the product of two co-Büchi automata will be a
+  /// co-Büchi automaton.
   ///
   /// The algorithm also defines a named property called
   /// "product-states" with type spot::product_states.  This stores
@@ -64,10 +68,14 @@ namespace spot
   /// languages recognized by each input automaton (with its initial
   /// state changed) and have an acceptance condition that is the
   /// conjunction of the acceptance conditions of the two input
-  /// automata.  In case one of the left or right automaton is weak,
-  /// the acceptance condition of the result is made simpler: it
-  /// usually is the acceptance condition of the other argument,
+  /// automata.
+  ///
+  /// As an optionmization, in case one of the left or right automaton
+  /// is weak, the acceptance condition of the result is made simpler:
+  /// it usually is the acceptance condition of the other argument,
   /// therefore avoiding the need to introduce new accepting sets.
+  /// Similarly, the product of two co-Büchi automata will be a
+  /// co-Büchi automaton.
   ///
   /// The algorithm also defines a named property called
   /// "product-states" with type spot::product_states.  This stores
@@ -89,10 +97,15 @@ namespace spot
   /// The resulting automaton will accept the union of both
   /// languages and have an acceptance condition that is the
   /// disjunction of the acceptance conditions of the two input
-  /// automata.  In case one of the left or right automaton is weak,
-  /// the acceptance condition of the result is made simpler: it
-  /// usually is the acceptance condition of the other argument,
+  /// automata.
+  ///
+  /// As an optionmization, in case one of the left or right automaton
+  /// is weak, the acceptance condition of the result is made simpler:
+  /// it usually is the acceptance condition of the other argument,
   /// therefore avoiding the need to introduce new accepting sets.
+  /// Similarly, the product_pr of two Büchi automata will be a
+  /// Büchi automaton.
+  ///
   ///
   /// The algorithm also defines a named property called
   /// "product-states" with type spot::product_states.  This stores
@@ -112,10 +125,14 @@ namespace spot
   /// recognized by each input automaton (with its initial state
   /// changed) and have an acceptance condition that is the
   /// disjunction of the acceptance conditions of the two input
-  /// automata. In case one of the left or right automaton is weak,
-  /// the acceptance condition of the result is made simpler: it
-  /// usually is the acceptance condition of the other argument,
+  /// automata.
+  ///
+  /// As an optionmization, in case one of the left or right automaton
+  /// is weak, the acceptance condition of the result is made simpler:
+  /// it usually is the acceptance condition of the other argument,
   /// therefore avoiding the need to introduce new accepting sets.
+  /// Similarly, the product_pr of two Büchi automata will be a
+  /// Büchi automaton.
   ///
   /// The algorithm also defines a named property called
   /// "product-states" with type spot::product_states.  This stores

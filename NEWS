@@ -114,10 +114,14 @@ New in spot 2.10.6.dev  (not yet released)
     to obtain a simple model checker (that returns true or false,
     without counterexample).
 
+  - product() learned that the product of two co-Büchi automata
+    is a co-Büchi automaton.  And product_or() learned that the
+    "or"-product of two Büchi automata is a Büchi automaton.
+
   - spot::parallel_policy is an object that can be passed to some
     algorithm to specify how many threads can be used if Spot has been
     compiled with --enable-pthread.  Currently, only
-    twa_graph::merge_states() support it.
+    twa_graph::merge_states() supports it.
 
  Python bindings:
 
