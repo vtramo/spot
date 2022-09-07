@@ -80,12 +80,18 @@ be more specific about a particular aspect of Spot.
 - *Generic Emptiness Check for Fun and Profit*,
   /Christel Baier/, /František Blahoudek/, /Alexandre Duret-Lutz/,
   /Joachim Klein/, /David Müller/, and /Jan Strejček/.
-  In. Proc. of ATVA'19, LNCS 11781, pp. 11781, Oct 2019.  ([[https://www.lrde.epita.fr/~adl/dl/adl_bib.html#baier.19.atva][bib]] | [[https://www.lrde.epita.fr/~adl/dl/adl/baier.19.atva.pdf][pdf]] |
+  In. Proc. of ATVA'19, LNCS 11781, pp. 445--461, Oct 2019.  ([[https://www.lrde.epita.fr/~adl/dl/adl_bib.html#baier.19.atva][bib]] | [[https://www.lrde.epita.fr/~adl/dl/adl/baier.19.atva.pdf][pdf]] |
   [[https://www.lrde.epita.fr/~adl/dl/adl/baier.19.atva.slides.mefosyloma.pdf][slides1]] | [[https://www.lrde.epita.fr/~adl/dl/adl/baier.19.atva.slides.pdf][slides2]])
 
   Presents the generic emptiness-check implemented in Spot.
 
-* Obsolete reference
+- *Practical Applications of the Alternating Cycle Decomposition*,
+  /Antonio Casares/, /Alexandre Duret-Lutz/, /Klara J. Meyer/, /Florian Renkin/,
+  and /Salomon Sickert/.
+  In. Proc. of TACAS'22, LNCS 13244, pp. 99--117, Apr 2022.  ([[https://www.lrde.epita.fr/~adl/dl/adl_bib.html#casares.22.tacas][bib]] | [[https://www.lrde.epita.fr/~adl/dl/adl/casares.22.tacas.pdf][pdf]] |
+  [[https://www.lrde.epita.fr/~adl/dl/adl/casares.22.tacas.slides.pdf][slides1]] | [[https://www.lrde.epita.fr/~adl/dl/adl/casares.22.tacas.slides2.pdf][slides2]])
+
+* Obsolete references
 
 - *Spot 2.0 — a framework for LTL and ω-automata manipulation*,
   /Alexandre Duret-Lutz/, /Alexandre Lewkowicz/, /Amaury Fauchille/,
