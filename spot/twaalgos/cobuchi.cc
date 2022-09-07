@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2017-2018, 2021 Laboratoire de Recherche et Développement
+// Copyright (C) 2017-2018, 2021, 2022 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -26,6 +26,7 @@
 #include <spot/twa/acc.hh>
 #include <spot/twa/bddprint.hh>
 #include <spot/twa/twagraph.hh>
+#include <spot/twaalgos/degen.hh>
 #include <spot/twaalgos/powerset.hh>
 #include <spot/twaalgos/product.hh>
 #include <spot/twaalgos/sccinfo.hh>
@@ -338,23 +339,26 @@ namespace spot
   twa_graph_ptr
   to_nca(const_twa_graph_ptr aut, bool named_states)
   {
-    if (aut->acc().is_co_buchi())
+    const acc_cond& acc = aut->acc();
+    if (acc.is_co_buchi())
       return make_twa_graph(aut, twa::prop_set::all());
 
     if (auto weak = weak_to_cobuchi(aut))
       return weak;
 
+    if (acc.is_generalized_co_buchi())
+      return degeneralize_tba(aut);
+
     const acc_cond::acc_code& code = aut->get_acceptance();
 
     std::vector<acc_cond::rs_pair> pairs;
-    if (aut->acc().is_streett_like(pairs) || aut->acc().is_parity())
+    if (acc.is_streett_like(pairs) || acc.is_parity())
       return nsa_to_nca(aut, named_states);
     else if (code.is_dnf())
       return dnf_to_nca(aut, named_states);
 
     auto tmp = make_twa_graph(aut, twa::prop_set::all());
-    tmp->set_acceptance(aut->acc().num_sets(),
-                        aut->get_acceptance().to_dnf());
+    tmp->set_acceptance(acc.num_sets(), code.to_dnf());
     return to_nca(tmp, named_states);
   }
 
@@ -683,6 +687,8 @@ namespace spot
           return make_twa_graph(aut, twa::prop_set::all());
         if (auto weak = weak_to_cobuchi(aut))
           return weak;
+        if (aut->acc().is_generalized_co_buchi())
+          return degeneralize_tba(aut);
       }
 
     const acc_cond::acc_code& code = aut->get_acceptance();

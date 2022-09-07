@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2017-2019 Laboratoire de Recherche et Développement
+// Copyright (C) 2017-2019, 2022 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -92,8 +92,8 @@ namespace spot
   /// original language, and is a superset iff the original language
   /// can not be expressed using a co-Büchi acceptance condition.
   ///
-  /// The implementation dispatches between dnf_to_nca, nsa_to_nca,
-  /// and a trivial implementation for weak automata.
+  /// The implementation dispatches between dnf_to_nca(), nsa_to_nca(),
+  /// degeneralize_tba(), and a trivial implementation for weak automata.
   SPOT_API twa_graph_ptr
   to_nca(const_twa_graph_ptr aut, bool named_states = false);
 
@@ -126,7 +126,8 @@ namespace spot
   /// can not be expressed using a co-Büchi acceptance condition.
   ///
   /// The implementation dispatches between dnf_to_dca, nsa_to_dca,
-  /// and a trivial implementation for deterministic weak automata.
+  /// degeneralize(), and a trivial implementation for deterministic
+  /// weak automata.
   SPOT_API twa_graph_ptr
   to_dca(const_twa_graph_ptr aut, bool named_states = false);
 }

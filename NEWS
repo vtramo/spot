@@ -114,6 +114,9 @@ New in spot 2.10.6.dev  (not yet released)
     to obtain a simple model checker (that returns true or false,
     without counterexample).
 
+  - degeneralize() and degeneralize_tba() learned to work on
+    generalized-co-Büchi as well.
+
   - product() learned that the product of two co-Büchi automata
     is a co-Büchi automaton.  And product_or() learned that the
     "or"-product of two Büchi automata is a Büchi automaton.

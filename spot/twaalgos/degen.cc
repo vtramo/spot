@@ -80,7 +80,8 @@ namespace spot
       void fill_cache(unsigned s)
       {
         unsigned s1 = scc_of(s);
-        acc_cond::mark_t common = a_->acc().all_sets();
+        acc_cond::mark_t all_colors = a_->acc().all_sets();
+        acc_cond::mark_t common = all_colors;
         acc_cond::mark_t union_ = {};
         bool has_acc_self_loop = false;
         bool is_true_state = false;
@@ -97,7 +98,7 @@ namespace spot
             std::get<2>(cache_[d]) &= t.acc;
 
             // an accepting self-loop?
-            if ((t.dst == s) && a_->acc().accepting(t.acc))
+            if ((t.dst == s) && t.acc == all_colors)
               {
                 has_acc_self_loop = true;
                 if (t.cond == bddtrue)
@@ -330,9 +331,10 @@ namespace spot
                      bool skip_levels, bool ignaccsl,
                      bool remove_extra_scc)
     {
-      if (!a->acc().is_generalized_buchi())
+      bool input_is_gba = a->acc().is_generalized_buchi();
+      if (!(input_is_gba || a->acc().is_generalized_co_buchi()))
         throw std::runtime_error
-          ("degeneralize() only works with generalized Büchi acceptance");
+          ("degeneralize() only works with generalized (co)Büchi acceptance");
       if (!a->is_existential())
         throw std::runtime_error
           ("degeneralize() does not support alternation");
@@ -347,7 +349,11 @@ namespace spot
       // The result automaton is an SBA.
       auto res = make_twa_graph(dict);
       res->copy_ap_of(a);
-      res->set_buchi();
+      if (input_is_gba)
+        res->set_buchi();
+      else
+        res->set_co_buchi();
+      acc_cond::mark_t all_colors = a->get_acceptance().used_sets();
       if (want_sba)
         res->prop_state_acc(true);
       // Preserve determinism, weakness, and stutter-invariance
@@ -396,9 +402,32 @@ namespace spot
       std::vector<std::pair<unsigned, bool>> lvl_cache(a->num_states());
 
       // Compute SCCs in order to use any optimization.
-      std::unique_ptr<scc_info> m = use_scc
-        ? std::make_unique<scc_info>(a, scc_info_options::NONE)
-        : nullptr;
+      std::unique_ptr<scc_info> m = nullptr;
+      if (use_scc)
+        {
+          if (!input_is_gba)
+            {
+              // If the input is gen-co-Büchi, temporary pretend its
+              // generalized Büchi.
+              unsigned n = a->num_sets();
+              twa_graph_ptr amut = std::const_pointer_cast<twa_graph>(a);
+              amut->set_generalized_buchi(n);
+              try
+                {
+                  m = std::make_unique<scc_info>(a, scc_info_options::NONE);
+                }
+              catch (...)
+                {
+                  amut->set_generalized_co_buchi(n);
+                  throw;
+                }
+              amut->set_generalized_co_buchi(n);
+            }
+          else
+            {
+              m = std::make_unique<scc_info>(a, scc_info_options::NONE);
+            }
+        }
 
       // Initialize scc_orders
       std::unique_ptr<scc_orders> orders = use_cust_acc_orders
@@ -674,7 +703,7 @@ namespace spot
                     {
                       d.second = 0; // Make it go to the first level.
                       // Skip as many levels as possible.
-                      if (!a->acc().accepting(acc) && skip_levels)
+                      if (acc != all_colors && skip_levels)
                         {
                           if (use_cust_acc_orders)
                             {
@@ -723,9 +752,10 @@ namespace spot
                int use_lvl_cache, bool skip_levels, bool ignaccsl,
                bool remove_extra_scc)
   {
-    // If this already a degeneralized digraph, there is nothing we
+    // If this already a degeneralized twa, there is nothing we
     // can improve.
-    if (a->is_sba())
+    if (const acc_cond& acc = a->acc();
+        a->prop_state_acc() && (acc.is_buchi() || acc.is_co_buchi()))
       return std::const_pointer_cast<twa_graph>(a);
 
     return degeneralize_aux<true>(a, use_z_lvl, use_cust_acc_orders,
@@ -739,9 +769,9 @@ namespace spot
                    int use_lvl_cache, bool skip_levels, bool ignaccsl,
                    bool remove_extra_scc)
   {
-    // If this already a degeneralized digraph, there is nothing we
+    // If this already a degeneralized twa, there is nothing we
     // can improve.
-    if (a->acc().is_buchi())
+    if (a->acc().is_buchi() || a->acc().is_co_buchi())
       return std::const_pointer_cast<twa_graph>(a);
 
     return degeneralize_aux<false>(a, use_z_lvl, use_cust_acc_orders,

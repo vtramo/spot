@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2012-2015, 2017-2020 Laboratoire de
+// Copyright (C) 2012-2015, 2017-2020, 2022 Laboratoire de
 // Recherche et Développement de l'Epita.
 //
 // This file is part of Spot, a model checking library.
@@ -26,32 +26,35 @@ namespace spot
   class scc_info;
 
   /// \ingroup twa_acc_transform
-  /// \brief Degeneralize a spot::tgba into an equivalent sba with
-  /// only one acceptance condition.
+  /// \brief Degeneralize a generalized (co)Büchi automaton into an
+  /// equivalent (co)Büchi automaton.
   ///
-  /// This algorithm will build a new explicit automaton that has
-  /// at most (N+1) times the number of states of the original automaton.
+  /// There are two variants of the function.  If the generalizd
+  /// (co)Büchi acceptance uses N colors, degeneralize() algorithm
+  /// will builds a state-based (co)Büchi automaton that has at most
+  /// (N+1) times the number of states of the original automaton.
+  /// degeneralize_tba() builds a transition-based (co)Büchi automaton
+  /// that has at most N times the number of states of the original
+  /// automaton.
   ///
-  /// When \a use_z_lvl is set, the level of the degeneralized
-  /// automaton is reset everytime an SCC is exited.  If \a
-  /// use_cust_acc_orders is set, the degeneralization will compute a
-  /// custom acceptance order for each SCC (this option is disabled by
-  /// default because our benchmarks show that it usually does more
-  /// harm than good).  If \a use_lvl_cache is set, everytime an SCC
-  /// is entered on a state that as already been associated to some
-  /// level elsewhere, reuse that level (set it to 2 to keep the
-  /// smallest number, 3 to keep the largest level, and 1 to keep the
-  /// first level found). If \a ignaccsl is set, we do not directly
-  /// jump to the accepting level if the entering state has an
-  /// accepting self-loop.  If \a remove_extra_scc is set (the default)
-  /// we ensure that the output automaton has as many SCCs as the input
-  /// by removing superfluous SCCs.
+  /// Additional options control optimizations described in
+  /// \cite babiak.13.spin . When \a use_z_lvl is set, the level of
+  /// the degeneralized automaton is reset everytime an SCC is exited.
+  /// If \a use_cust_acc_orders is set, the degeneralization will
+  /// compute a custom acceptance order for each SCC (this option is
+  /// disabled by default because our benchmarks show that it usually
+  /// does more harm than good).  If \a use_lvl_cache is set,
+  /// everytime an SCC is entered on a state that as already been
+  /// associated to some level elsewhere, reuse that level (set it to
+  /// 2 to keep the smallest number, 3 to keep the largest level, and
+  /// 1 to keep the first level found). If \a ignaccsl is set, we do
+  /// not directly jump to the accepting level if the entering state
+  /// has an accepting self-loop.  If \a remove_extra_scc is set (the
+  /// default) we ensure that the output automaton has as many SCCs as
+  /// the input by removing superfluous SCCs.
   ///
   /// Any of these three options will cause the SCCs of the automaton
   /// \a a to be computed prior to its actual degeneralization.
-  ///
-  /// The degeneralize_tba() variant produce a degeneralized automaton
-  /// with transition-based acceptance.
   ///
   /// The mapping between each state of the resulting automaton
   /// and the original state of the input automaton is stored in the
@@ -70,6 +73,14 @@ namespace spot
   /// Similarly, the property "degen-levels" keeps track of the degeneralization
   /// levels.  To retrieve it, call
   /// `aut->get_named_prop<std::vector<unsigned>>("degen-levels")`.
+  ///
+  /// As an alternative method to degeneralization, one may also
+  /// consider ACD transform.  acd_transform() will never produce
+  /// larger automata than degenaralize_tba(), and
+  /// acd_transform_sbacc() produce smaller automata than
+  /// degeneralize() on the average.  See \cite casares.22.tacas for
+  /// some comparisons.
+  ///
   /// \@{
   SPOT_API twa_graph_ptr
   degeneralize(const const_twa_graph_ptr& a, bool use_z_lvl = true,

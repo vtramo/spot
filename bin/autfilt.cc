@@ -713,10 +713,12 @@ ensure_deterministic(const spot::twa_graph_ptr& aut, bool nonalt = false)
   return p.run(aut);
 }
 
-static spot::twa_graph_ptr ensure_tba(spot::twa_graph_ptr aut)
+static spot::twa_graph_ptr
+ensure_tba(spot::twa_graph_ptr aut,
+           spot::postprocessor::output_type type = spot::postprocessor::Buchi)
 {
   spot::postprocessor p;
-  p.set_type(spot::postprocessor::Buchi);
+  p.set_type(type);
   p.set_pref(spot::postprocessor::Any);
   p.set_level(spot::postprocessor::Low);
   return p.run(aut);
@@ -726,12 +728,14 @@ static spot::twa_graph_ptr ensure_tba(spot::twa_graph_ptr aut)
 static spot::twa_graph_ptr
 product(spot::twa_graph_ptr left, spot::twa_graph_ptr right)
 {
-  if ((type == spot::postprocessor::Buchi)
-      && (left->num_sets() + right->num_sets() >
-          spot::acc_cond::mark_t::max_accsets()))
+  // Are we likely to fail because of too many colors?
+  if ((left->num_sets() + right->num_sets() >
+       spot::acc_cond::mark_t::max_accsets())
+      && (type == spot::postprocessor::Buchi
+          || type == spot::postprocessor::CoBuchi))
     {
-      left = ensure_tba(left);
-      right = ensure_tba(right);
+      left = ensure_tba(left, type);
+      right = ensure_tba(right, type);
     }
   return spot::product(left, right);
 }
@@ -739,12 +743,14 @@ product(spot::twa_graph_ptr left, spot::twa_graph_ptr right)
 static spot::twa_graph_ptr
 product_or(spot::twa_graph_ptr left, spot::twa_graph_ptr right)
 {
-  if ((type == spot::postprocessor::Buchi)
-      && (left->num_sets() + right->num_sets() >
-          spot::acc_cond::mark_t::max_accsets()))
+  // Are we likely to fail because of too many colors?
+  if ((left->num_sets() + right->num_sets() >
+       spot::acc_cond::mark_t::max_accsets())
+      && (type == spot::postprocessor::Buchi
+          || type == spot::postprocessor::CoBuchi))
     {
-      left = ensure_tba(left);
-      right = ensure_tba(right);
+      left = ensure_tba(left, type);
+      right = ensure_tba(right, type);
     }
   return spot::product_or(left, right);
 }
@@ -988,7 +994,7 @@ parse_opt(int key, char* arg, struct argp_state*)
         if (!opt->included_in)
           opt->included_in = aut;
         else
-          opt->included_in = spot::product_or(opt->included_in, aut);
+          opt->included_in = ::product_or(opt->included_in, aut);
       }
       break;
     case OPT_INHERENTLY_WEAK_SCCS:

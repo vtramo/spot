@@ -236,7 +236,8 @@ namespace spot
     if (COMP_)
       tmp = complete(tmp);
     bool want_parity = type_ & Parity;
-    if (want_parity && tmp->acc().is_generalized_buchi())
+    if (want_parity && (tmp->acc().is_generalized_buchi()
+                        || tmp->acc().is_generalized_co_buchi()))
       tmp = choose_degen(tmp);
     assert(!!SBACC_ == state_based_);
     if (state_based_)
@@ -402,10 +403,19 @@ namespace spot
 
     if (PREF_ == Any)
       {
-        if (type_ == Buchi)
-          a = choose_degen(a);
+        if (type_ == Buchi
+            || (type_ == CoBuchi && a->acc().is_generalized_co_buchi()))
+          {
+            a = choose_degen(a);
+          }
         else if (type_ == CoBuchi)
-          a = to_nca(a);
+          {
+            a = to_nca(a);
+            if (state_based_ && a->prop_state_acc().is_true())
+              a = do_sba_simul(a, simul_);
+            else
+              a = do_simul(a, simul_);
+          }
         return finalize(a);
       }
 
@@ -699,6 +709,8 @@ namespace spot
     if (type_ == CoBuchi)
       {
         unsigned ns = sim->num_states();
+        bool weak = sim->prop_weak().is_true();
+
         if (PREF_ == Deterministic)
           sim = to_dca(sim);
         else
@@ -706,8 +718,13 @@ namespace spot
 
         // if the input of to_dca/to_nca was weak, the number of
         // states has not changed, and running simulation is useless.
-        if (level_ != Low && ns < sim->num_states())
-          sim = do_simul(sim, simul_);
+        if (!weak || (level_ != Low && ns < sim->num_states()))
+          {
+            if (state_based_ && sim->prop_state_acc().is_true())
+              sim = do_sba_simul(sim, simul_);
+            else
+              sim = do_simul(sim, simul_);
+          }
       }
 
     return finalize(sim);
