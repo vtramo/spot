@@ -381,13 +381,14 @@ When /transition-based acceptance/ is used, acceptance sets are now
 sets of /edges/ (or set of /transitions/ if you prefer), and runs are
 accepting if the edges they visit satisfy the acceptance condition.
 
-Here is an example of Transition-based Generalized Büchi Automaton
-(TGBA).
+Here is an example of Transition-based Büchi Automaton
+(TBA).
 
 #+NAME: tgba-example1
 #+BEGIN_SRC sh
 ltl2tgba 'GF(a & X(a U b))' -d
 #+END_SRC
+
 #+BEGIN_SRC dot :file concept-tgba1.svg :var txt=tgba-example1 :exports results
 $txt
 #+END_SRC
@@ -399,27 +400,13 @@ This automaton accept all ω-words that infinitely often match the
 pattern $a^+;b$ (that is: a positive number of letters where $a$ is
 true are followed by one letter where $b$ is true).
 
-Using transition-based acceptance allows for more compact automata.
-The typical example is the LTL formula =GFa= (infinitely often $a$)
-that can be represented using a one-state transition-based Büchi
-automaton:
-#+NAME: tgba-example2
-#+BEGIN_SRC sh
-ltl2tgba 'GFa' -d
-#+END_SRC
-#+BEGIN_SRC dot :file concept-tgba2.svg :var txt=tgba-example2 :exports results
-$txt
-#+END_SRC
-
-#+RESULTS:
-[[file:concept-tgba2.svg]]
-
-While the same property require a 2-state Büchi automaton using
+Using transition-based acceptance often allows for more compact automata.
+For instance the above automaton would need at least 3 states with
 state-based acceptance:
 
 #+NAME: tgba-example3
 #+BEGIN_SRC sh
-ltl2tgba 'GFa' -B -d
+ltl2tgba 'GF(a & X(a U b))' -B -d
 #+END_SRC
 #+BEGIN_SRC dot :file concept-tba-vs-ba.svg :var txt=tgba-example3 :exports results
 $txt
