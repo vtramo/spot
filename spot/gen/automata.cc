@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2017-2019, 2021 Laboratoire de Recherche et
+// Copyright (C) 2017-2019, 2021-2022 Laboratoire de Recherche et
 // Developpement de l'EPITA (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -220,13 +220,48 @@ namespace spot
       return aut;
     }
 
+    static twa_graph_ptr
+    cyclist_trace_or_proof(unsigned n, bool trace, bdd_dict_ptr dict)
+    {
+      auto aut = make_twa_graph(dict);
+      acc_cond::mark_t m = aut->set_buchi();
+      aut->new_states(n + 2);
+      aut->set_init_state(0);
+      if (trace)
+          m = {};
+      aut->prop_state_acc(true);
+
+      // How many AP to we need to represent n letters
+      unsigned nap = ulog2(n + 1);
+      std::vector<int> apvars(nap);
+      for (unsigned a = 0; a < nap; ++a)
+        apvars[a] = aut->register_ap("p" + std::to_string(a));
+
+      if (trace)
+        aut->new_edge(0, 0, bddtrue); // the only non-deterministic edge
+      else
+        aut->prop_universal(true);
+
+      bdd zero = bdd_ibuildcube(0, nap, apvars.data());
+      aut->new_edge(0, 1, zero, m);
+      for (unsigned letter = 1; letter <= n; ++letter)
+        {
+          bdd cond = bdd_ibuildcube(letter, nap, apvars.data());
+          aut->new_acc_edge(1, letter + 1, cond);
+          aut->new_edge(letter + 1, 1, zero, m);
+        }
+
+      return aut;
+    }
+
+
     twa_graph_ptr aut_pattern(aut_pattern_id pattern, int n, bdd_dict_ptr dict)
     {
       if (n < 0)
         {
           std::ostringstream err;
           err << "pattern argument for " << aut_pattern_name(pattern)
-              << " should be positive";
+              << " should be non-negative";
           throw std::runtime_error(err.str());
         }
 
@@ -241,6 +276,10 @@ namespace spot
           return l_dsa(n, dict);
         case AUT_M_NBA:
           return m_nba(n, dict);
+        case AUT_CYCLIST_TRACE_NBA:
+          return cyclist_trace_or_proof(n, true, dict);
+        case AUT_CYCLIST_PROOF_DBA:
+          return cyclist_trace_or_proof(n, false, dict);
         case AUT_END:
           break;
         }
@@ -255,6 +294,8 @@ namespace spot
           "l-nba",
           "l-dsa",
           "m-nba",
+          "cyclist-trace-nba",
+          "cyclist-proof-dba",
         };
       // Make sure we do not forget to update the above table every
       // time a new pattern is added.

@@ -36,6 +36,11 @@ New in spot 2.10.6.dev  (not yet released)
   - ltlsynt has a new option --from-pgame that takes a parity game in
     extended HOA format, as used in the Synthesis Competition.
 
+  - genaut learned the --cyclist-trace-nba and --cyclist-proof-dba
+    options.  Those are used to generate pairs of automata that should
+    include each other, and are used to show a regression (in speed)
+    present in Spot 2.10.x and fixed in 2.11.
+
   Library:
 
   - The new function suffix_operator_normal_form() implements
@@ -120,6 +125,12 @@ New in spot 2.10.6.dev  (not yet released)
   - product() learned that the product of two co-Büchi automata
     is a co-Büchi automaton.  And product_or() learned that the
     "or"-product of two Büchi automata is a Büchi automaton.
+
+  - spot::postprocessor has a new extra option merge-states-min that
+    indicate above how many states twa_graph::merge_states(), which
+    perform a very cheap pass to fuse states with identicall
+    succesors, should be called before running simulation-based
+    reductions.
 
   - spot::parallel_policy is an object that can be passed to some
     algorithm to specify how many threads can be used if Spot has been

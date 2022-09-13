@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2017, 2019 Laboratoire de Recherche et Developpement de
+// Copyright (C) 2017, 2019, 2022 Laboratoire de Recherche et Developpement de
 // l'EPITA (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -79,6 +79,24 @@ namespace spot
       /// propositions to encode the $n+1$ letters used in the
       /// original alphabet.
       AUT_M_NBA,
+      /// \brief An NBA with (n+2) states derived from a Cyclic test
+      /// case.
+      ///
+      /// This familly of automata is derived from a couple of
+      /// examples supplied by Reuben Rowe.  The task is to
+      /// check that the automaton generated with AUT_CYCLIST_TRACE_NBA
+      /// for a given n contain the automaton generated with
+      /// AUT_CYCLIST_PROOF_DBA for the same n.
+      AUT_CYCLIST_TRACE_NBA,
+      /// \brief A DBA with (n+2) states derived from a Cyclic test
+      /// case.
+      ///
+      /// This familly of automata is derived from a couple of
+      /// examples supplied by Reuben Rowe.  The task is to
+      /// check that the automaton generated with AUT_CYCLIST_TRACE_NBA
+      /// for a given n contain the automaton generated with
+      /// AUT_CYCLIST_PROOF_DBA for the same n.
+      AUT_CYCLIST_PROOF_DBA,
       AUT_END
     };
 

@@ -89,6 +89,7 @@ namespace spot
         wdba_minimize_ = opt->get("wdba-minimize", -1);
         gen_reduce_parity_ = opt->get("gen-reduce-parity", 1);
         simul_max_ = opt->get("simul-max", 4096);
+        merge_states_min_ = opt->get("merge-states-min", 128);
         wdba_det_max_ = opt->get("wdba-det-max", 4096);
         simul_trans_pruning_ = opt->get("simul-trans-pruning", 512);
 
@@ -118,6 +119,9 @@ namespace spot
   {
     if (opt == 0)
       return a;
+    if (merge_states_min_ > 0
+        && static_cast<unsigned>(merge_states_min_) < a->num_states())
+      a->merge_states();
     if (simul_max_ > 0 && static_cast<unsigned>(simul_max_) < a->num_states())
       return a;
 

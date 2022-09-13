@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2013-2021 Laboratoire de Recherche et Développement
+// Copyright (C) 2013-2022 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -164,6 +164,10 @@ Set to 1 to use only direct simulation.  Set to 2 to use only reverse \
 simulation.  Set to 3 to iterate both direct and reverse simulations.   \
 The default is the value of parameter \"simul\" in --high mode, and 0 \
 therwise.") },
+    { DOC("merge-states-min", "Number of states above which states are \
+merged using a cheap approximation of a bisimulation quotient before \
+attempting simulation-based reductions.   Defaults to 128.  Set to 0 to \
+never merge states.") },
     { DOC("simul-max", "Number of states above which simulation-based \
 reductions are skipped. Defaults to 4096.  Set to 0 to disable.  This \
 applies to all simulation-based optimization, including thoses of the \

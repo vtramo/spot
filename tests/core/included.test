@@ -1,6 +1,6 @@
 #! /bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2016 Laboratoire de Recherche et Développement
+# Copyright (C) 2016, 2022 Laboratoire de Recherche et Développement
 # de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -60,5 +60,12 @@ ltl2tgba true | autfilt out.hoa --equivalent-to -
 ltl2tgba '!(a U c)' | autfilt --product-or a1.hoa > out.hoa
 ltl2tgba true | autfilt out.hoa --equivalent-to - && exit 1
 
-:
+# In Spot 2.10, the following was very slow.
+for n in 1 2 4 8 16 512 1024 2048 4096 8192; do
+  genaut --cyclist-trace-nba=$n > trace.hoa
+  genaut --cyclist-proof-dba=$n > proof.hoa
+  autfilt -q --included-in=trace.hoa proof.hoa || exit 1
+  autfilt -q --included-in=proof.hoa trace.hoa && exit 1
+done
 
+:

@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2012-2021 Laboratoire de Recherche et Développement
+// Copyright (C) 2012-2022 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -268,6 +268,7 @@ namespace spot
     bool state_based_ = false;
     int wdba_minimize_ = -1;
     int simul_max_ = 4096;
+    int merge_states_min_ = 128;
     int wdba_det_max_ = 4096;
   };
   /// @}

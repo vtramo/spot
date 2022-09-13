@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2017-2019 Laboratoire de Recherche et Développement
+// Copyright (C) 2017-2019, 2022 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -62,6 +62,11 @@ static const argp_option options[] =
     { "m-nba", gen::AUT_M_NBA, "RANGE", 0,
       "An NBA with N+1 states whose determinization needs at least "
       "N! states", 0},
+    { "cyclist-trace-nba", gen::AUT_CYCLIST_TRACE_NBA, "RANGE", 0,
+      "An NBA with N+2 states that should include cyclist-proof-dba=B.", 0},
+    { "cyclist-proof-dba", gen::AUT_CYCLIST_PROOF_DBA, "RANGE", 0,
+      "A DBA with N+2 states that should be included "
+      "in cyclist-trace-nba=B.", 0},
     RANGE_DOC,
   /**************************************************/
     { nullptr, 0, nullptr, 0, "Miscellaneous options:", -1 },
