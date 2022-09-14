@@ -114,13 +114,13 @@ static const argp_option options[] =
       "realizability only, do not compute a winning strategy", 0},
     { "aiger", OPT_PRINT_AIGER, "ite|isop|both[+ud][+dc]"
                                  "[+sub0|sub1|sub2]", OPTION_ARG_OPTIONAL,
-      "prints a winning strategy as an AIGER circuit. The first, and only "
-      "mandatory option defines the method to be used. \"ite\" for "
-      "If-then-else normal form; "
+      "prints a winning strategy as an AIGER circuit. The first word "
+      "indicates the encoding to used: \"ite\" for "
+      "If-Then-Else normal form; "
       "\"isop\" for irreducible sum of producs; "
-      "\"both\" tries both encodings and keeps the smaller one. "
+      "\"both\" tries both and keeps the smaller one. "
       "The other options further "
-      "refine the encoding, see aiger::encode_bdd.", 0},
+      "refine the encoding, see aiger::encode_bdd. Defaults to \"ite\".", 0},
     { "verbose", OPT_VERBOSE, nullptr, 0,
       "verbose mode", -1 },
     { "verify", OPT_VERIFY, nullptr, 0,
