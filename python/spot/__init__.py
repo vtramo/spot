@@ -1298,6 +1298,36 @@ def sat_minimize(aut, acc=None, colored=False,
     else:
         return sm(aut, args, state_based)
 
+# Adding the inline csv-display option
+def minimize_mealy(mm, opt = -1, display_log = False, return_log = False):
+    from spot.impl import minimize_mealy as minmealy
+
+    try:
+        lvl = int(opt)
+        opt = synthesis_info()
+        opt.minimize_lvl = lvl + 4
+    except (ValueError, TypeError) as _:
+        pass
+
+    if display_log or return_log:
+        import pandas as pd
+        with tempfile.NamedTemporaryFile(dir='.', suffix='.minlog') as t:
+            opt.opt.set_str("satlogcsv", t.name)
+            resmm = minmealy(mm, opt)
+
+            dfrm = pd.read_csv(t.name, dtype=object)
+            if display_log:
+                from IPython.display import display
+                del dfrm['instance']
+                display(dfrm)
+            if return_log:
+                return resmm, dfrm
+            else:
+                return resmm
+    else:
+        return minmealy(mm, opt)
+
+
 
 def parse_word(word, dic=_bdd_dict):
     from spot.impl import parse_word as pw

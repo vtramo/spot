@@ -143,6 +143,10 @@ def canonicalize(s, type, ignores):
     # timing result we cannot compare between runs.
     s = re.sub(r'<table.*dataframe.*?enc.user.*?</table>', '<table></table>', s,
                flags=re.DOTALL)
+    # Table that contains premin_time are log from the mealy minimization.
+    # They contain timing result so we cannot compare between runs.
+    s = re.sub(r'<table.*dataframe.*?premin_time.*?</table>', '<table></table>',
+               s, flags=re.DOTALL)
 
     for n, p in enumerate(ignores):
         s = re.sub(p, 'IGN{}'.format(n), s)

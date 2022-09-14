@@ -159,6 +159,27 @@ namespace spot
   SPOT_API twa_graph_ptr
   minimize_mealy(const const_twa_graph_ptr& mm, int premin = -1);
 
+  /// \ingroup mealy
+  /// \brief Minimizes an (in)completely specified mealy machine
+  ///
+  /// The approach is described in \cite renkin.22.forte.
+  ///
+  /// \param si synthesis_info structure used to store data for benchmarking
+  /// and indicates which premin level to use
+  ///
+  /// \return A split mealy machines which is a minimal
+  /// specialization of the original machine.
+  ///
+  /// \note Enabling \a premin will remove finite traces.
+  /// \note If si.opt contains an option "satlogcsv" detailed results will be
+  /// stored in this file. If it contains "satlogdimacs" all sat problems will
+  /// stored.
+  /// \see is_split_mealy_specialization
+
+  SPOT_API twa_graph_ptr
+  minimize_mealy(const const_twa_graph_ptr& mm,
+                 synthesis_info& si);
+
 
   /// \ingroup mealy
   /// \brief Test if the split mealy machine \a right is a specialization of

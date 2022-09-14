@@ -27,6 +27,7 @@
 #include <vector>
 #include <sstream>
 #include <string>
+#include <fstream>
 
 #include <spot/misc/bddlt.hh>
 #include <spot/misc/hash.hh>
@@ -86,6 +87,33 @@ namespace
     return true;
   }
 #endif
+}
+
+namespace
+{
+  static std::unique_ptr<std::ofstream> sat_csv_file;
+  struct fwrapper{
+    std::string fname;
+    std::FILE* f;
+    fwrapper(const std::string& name)
+      : fname{name}
+      , f{std::fopen(name.c_str(), "a")}
+    {
+      if (!f)
+        throw std::runtime_error("File could not be oppened for writing.");
+    }
+    ~fwrapper()
+    {
+      std::fclose(f);
+      f = nullptr;
+    }
+    fwrapper& operator=(const fwrapper&) = delete;
+    fwrapper& operator=(fwrapper&&) = delete;
+    fwrapper(const fwrapper&) = delete;
+    fwrapper(fwrapper&&) = delete;
+  };
+  static std::unique_ptr<fwrapper> sat_dimacs_file;
+  static std::string sat_instance_name = "";
 }
 
 
@@ -817,6 +845,119 @@ namespace
 #else
   void trace_clause(const std::vector<int>&){}
 #endif
+  struct satprob_info
+  {
+    stopwatch sw;
+
+    double premin_time, reorg_time, partsol_time, player_incomp_time,
+           incomp_time, split_all_let_time, split_min_let_time,
+           split_cstr_time, prob_init_build_time, sat_time,
+           build_time, refine_time, total_time;
+    long long n_classes, n_refinement, n_lit, n_clauses,
+              n_iteration, n_bisim_let, n_min_states, done;
+    std::string task;
+    const std::string instance;
+
+    satprob_info(const std::string& instance)
+      : premin_time{-1}
+      , reorg_time{-1}
+      , partsol_time{-1}
+      , player_incomp_time{-1}
+      , incomp_time{-1}
+      , split_all_let_time{-1}
+      , split_min_let_time{-1}
+      , split_cstr_time{-1}
+      , prob_init_build_time{-1}
+      , sat_time{-1}
+      , build_time{-1}
+      , refine_time{-1}
+      , total_time{-1}
+      , n_classes{-1}
+      , n_refinement{-1}
+      , n_lit{-1}
+      , n_clauses{-1}
+      , n_iteration{-1}
+      , n_bisim_let{-1}
+      , n_min_states{-1}
+      , done{-1}
+      , task{}
+      , instance{instance+","}
+    {
+    }
+
+    void start()
+    {
+      sw.start();
+    }
+    double stop()
+    {
+      return sw.stop();
+    }
+    double restart()
+    {
+      double res = sw.stop();
+      sw.start();
+      return res;
+    }
+    // Writing also "flushes"
+    void write()
+    {
+      auto f = [](std::ostream& o, auto& v, bool sep = true)
+        {
+          if (v >= 0)
+            o << v;
+          if (sep)
+            o.put(',');
+          v = -1;
+        };
+      if (!sat_csv_file)
+        return;
+
+      auto& out = *sat_csv_file;
+      if (out.tellp() == 0)
+        {
+          out << "instance,task,premin_time,reorg_time,partsol_time,"
+              << "player_incomp_time,incomp_time,split_all_let_time,"
+              << "split_min_let_time,split_cstr_time,prob_init_build_time,"
+              << "sat_time,build_time,refine_time,total_time,n_classes,"
+              << "n_refinement,n_lit,n_clauses,n_iteration,n_bisim_let,"
+              << "n_min_states,done\n";
+        }
+
+      assert(!task.empty());
+      out << instance;
+      out << task;
+      task = "";
+      out.put(',');
+
+      std::stringstream ss;
+
+      f(ss, premin_time);
+      f(ss, reorg_time);
+      f(ss, partsol_time);
+      f(ss, player_incomp_time);
+      f(ss, incomp_time);
+      f(ss, split_all_let_time);
+      f(ss, split_min_let_time);
+      f(ss, split_cstr_time);
+      f(ss, prob_init_build_time);
+      f(ss, sat_time);
+      f(ss, build_time);
+      f(ss, refine_time);
+      f(ss, total_time);
+      f(ss, n_classes);
+      f(ss, n_refinement);
+      f(ss, n_lit);
+      f(ss, n_clauses);
+      f(ss, n_iteration);
+      f(ss, n_bisim_let);
+      f(ss, n_min_states);
+      f(ss, done, false);
+      out << ss.str();
+      out.put('\n');
+    }
+  };
+
 
   template <class CONT>
   bool all_of(const CONT& c)
@@ -1125,7 +1266,7 @@ namespace
 
   square_matrix<bool, true>
   compute_incomp(const_twa_graph_ptr mm, const unsigned n_env,
-                 stopwatch& sw)
+                 satprob_info& si)
   {
     const unsigned n_tot = mm->num_states();
 
@@ -1201,7 +1342,7 @@ namespace
         return inc_player.get(ps2c[s1].second, ps2c[s2].second);
       };
 
-    dotimeprint << "Done computing player incomp " << sw.stop() << '\n';
+    si.player_incomp_time = si.restart();
 
 #ifdef TRACE
     trace << "player cond id incomp\n";
@@ -1284,7 +1425,7 @@ namespace
     trace << "Env state incomp\n";
     inc_env.print(std::cerr);
 #endif
-
+    si.incomp_time = si.restart();
     return inc_env;
   }
 
@@ -1912,26 +2053,22 @@ namespace
   std::pair<twa_graph_ptr, reduced_alphabet_t>
   reduce_and_split(const_twa_graph_ptr mmw, const unsigned n_env,
                    const square_matrix<bool, true>& incompmat,
-                   stopwatch& sw)
+                   satprob_info& si)
   {
     reduced_alphabet_t red;
+    si.start();
+
     std::tie(red.n_groups, red.which_group) = trans_comp_classes(incompmat);
-    dotimeprint << "Done trans comp " << red.n_groups
-                << " - " << sw.stop() << '\n';
 
     compute_all_letters(red, mmw, n_env);
-    dotimeprint << "Done comp all letters " << " - " << sw.stop() << '\n';
+    si.split_all_let_time = si.restart();
 
     compute_minimal_letters(red, mmw, n_env);
-#ifdef MINTIMINGS
-    dotimeprint << "Done comp all min sim letters ";
-    for (const auto& al : red.bisim_letters)
-      dotimeprint << al.size() << ' ';
-    dotimeprint << " - " << sw.stop() << '\n';
-#endif
+    si.split_min_let_time = si.restart();
+    si.n_bisim_let = red.n_red_sigma;
 
     twa_graph_ptr split_mmw = split_on_minimal(red, mmw, n_env);
-    dotimeprint << "Done splitting " << sw.stop() << '\n';
+    si.split_cstr_time = si.restart();
     trace << std::endl;
 
     return std::make_pair(split_mmw, red);
@@ -2234,9 +2371,10 @@ namespace
   struct mm_sat_prob_t<true>
   {
     mm_sat_prob_t(unsigned n_classes, unsigned n_env,
-                  unsigned n_sigma_red)
+                  unsigned n_sigma_red, satprob_info& si)
       : lm(n_classes, n_env, n_sigma_red)
       , n_classes{lm.n_classes_}
+      , si{si}
     {
       state_cover_clauses.reserve(n_classes);
       trans_cover_clauses.reserve(n_classes*n_sigma_red);
@@ -2288,6 +2426,13 @@ namespace
       // res[i] == -1 : i not used in lit mapper
       // res[i] == 0 : i is assigned false
       // res[i] == 1 : i is assigned true
+      if (sat_dimacs_file)
+        {
+          fprintf(sat_dimacs_file->f,
+                  "c ### Next Instance %lld %lld ###\n",
+                  this->si.n_classes, this->si.n_refinement);
+          picosat_print(lm.psat_, sat_dimacs_file->f);
+        }
       switch (picosat_sat(lm.psat_, -1))
       {
         case PICOSAT_UNSATISFIABLE:
@@ -2353,6 +2498,8 @@ namespace
     std::unordered_map<int, std::vector<bdd>> cube_map;
     // A map that indicates if two cubes are compatible or not via their id
     std::unordered_map<std::pair<int, int>, bool, pair_hash> cube_incomp_map;
+    // Piggy-back a struct for performance measure
+    satprob_info& si;
   };
 
   template<>
@@ -2431,14 +2578,15 @@ namespace
                   const square_matrix<bool, true>& incompmat,
                   const reduced_alphabet_t& red,
                   const part_sol_t& psol,
-                  const unsigned n_env)
+                  const unsigned n_env,
+                  satprob_info& si)
   {
     const auto& psolv = psol.psol;
     const unsigned n_classes = psolv.size();
     const unsigned n_red = red.n_red_sigma;
     const unsigned n_groups = red.n_groups;
 
-    mm_sat_prob_t<USE_PICO> mm_pb(n_classes, n_env, n_red);
+    mm_sat_prob_t<USE_PICO> mm_pb(n_classes, n_env, n_red, si);
 
     auto& lm = mm_pb.lm;
 
@@ -3372,7 +3520,7 @@ namespace
                         const reduced_alphabet_t& red,
                         const part_sol_t& psol,
                         const unsigned n_env,
-                        stopwatch& sw)
+                        satprob_info& si)
   {
     const auto& psolv = psol.psol;
     const unsigned n_psol = psolv.size();
@@ -3393,15 +3541,16 @@ namespace
         mm_pb.lm.print(std::cerr);
 #endif
         mm_pb.set_variable_clauses();
-        dotimeprint << "Done constructing SAT " << sw.stop() << '\n';
-        dotimeprint << "n literals " << mm_pb.n_lits()
-                    << " n clauses " << mm_pb.n_clauses() << '\n';
+        si.n_lit = mm_pb.n_lits();
+        si.n_clauses = mm_pb.n_clauses();
+        si.start();
         auto sol = mm_pb.get_sol();
-        dotimeprint << "Done solving SAT " << sw.stop() << '\n';
+        si.sat_time = si.restart();
 
         if (sol.empty())
           {
             mm_pb.unset_variable_clauses();
+            si.write();
             return nullptr;
           }
 #ifdef TRACE
@@ -3606,20 +3755,25 @@ namespace
         for (const auto& el : used_ziaj_map)
           if (el.second == bddfalse)
             infeasible_classes.emplace_back(el.first.i, el.first.a);
+        si.build_time = si.restart();
+
         if (!infeasible_classes.empty())
           {
             // Remove the variable clauses
             // This is suboptimal but the contexts form a stack so...
-            dotimeprint << "Refining constraints for "
-                        << infeasible_classes.size() << " classses.\n";
+            auto oldrefine = si.n_refinement;
+            si.write();
+            si.task = "refinement";
+            si.n_classes = n_classes;
+            si.n_refinement = oldrefine + infeasible_classes.size();
             mm_pb.unset_variable_clauses();
             add_bdd_cond_constr(mm_pb, mmw, red, n_env,
                                 infeasible_classes, x_in_class);
+            si.refine_time = si.restart();
             continue; //retry
           }
 
         cstr_split_mealy(minmach, red, x_in_class, used_ziaj_map);
-
         // todo: What is the impact of chosing one of the possibilities
         minmach->set_init_state(init_class_v.front());
         return minmach;
@@ -3634,8 +3788,10 @@ namespace spot
   {
     assert(is_mealy(mm));
 
-    stopwatch sw;
-    sw.start();
+    satprob_info si(sat_instance_name);
+    si.task = "presat";
+    stopwatch sglob;
+    sglob.start();
 
     if ((premin < -1) || (premin > 1))
       throw std::runtime_error("premin has to be -1, 0 or 1");
@@ -3672,7 +3828,9 @@ namespace spot
 
     const_twa_graph_ptr mmw = do_premin();
     assert(is_split_mealy(mmw));
-    dotimeprint << "Done premin " << sw.stop() << '\n';
+    si.premin_time = si.restart();
+
+
 
     // 0 -> "Env" next is input props
     // 1 -> "Player" next is output prop
@@ -3690,24 +3848,24 @@ namespace spot
     print_hoa(std::cerr, mmw);
 #endif
     assert(n_env != -1u);
-    dotimeprint << "Done reorganise " << n_env << " - "
-                << sw.stop() << '\n';
+    si.reorg_time = si.restart();
 
     // Compute incompatibility based on bdd
-    auto incompmat = compute_incomp(mmw, n_env, sw);
-    dotimeprint << "Done incompatibility " << sw.stop() << '\n';
+    auto incompmat = compute_incomp(mmw, n_env, si);
 #ifdef TRACE
     incompmat.print(std::cerr);
 #endif
 
     // Get a partial solution
     auto partsol = get_part_sol(incompmat);
-    dotimeprint << "Done partial solution " << partsol.psol.size()
-                << " - " << sw.stop() << '\n';
+    si.partsol_time = si.restart();
 
 
     auto early_exit = [&]()
       {
+        si.done = 1;
+        si.total_time = sglob.stop();
+        si.write();
         // Always keep machines split
         if (mm->get_named_prop<region_t>("state-player"))
           assert(is_split_mealy_specialization(mm, mmw));
@@ -3721,57 +3879,77 @@ namespace spot
     // states as the original automaton -> we are done
     if (partsol.psol.size() == n_env)
       {
-        dotimeprint << "Done trans comp " << 1 << " - " << sw.stop() << '\n';
-        dotimeprint << "Done comp all letters " << " - "
-                    << sw.stop() << '\n';
-#ifdef MINTIMINGS
-        dotimeprint << "Done comp all min sim letters 0 - "
-                    << sw.stop() << '\n';
-#endif
-        dotimeprint << "Done splitting " << sw.stop() << '\n';
-        dotimeprint << "Done split and reduce " << sw.stop() << '\n';
-        dotimeprint << "Done build init prob " << sw.stop() << '\n';
-        dotimeprint << "Done minimizing - " << mmw->num_states()
-                    << " - " << sw.stop() << '\n';
         return early_exit();
       }
 
     // Get the reduced alphabet
     auto [split_mmw, reduced_alphabet] =
-        reduce_and_split(mmw, n_env, incompmat, sw);
-    dotimeprint << "Done split and reduce " << sw.stop() << '\n';
+        reduce_and_split(mmw, n_env, incompmat, si);
 
     auto mm_pb = build_init_prob<true>(split_mmw, incompmat,
-                                       reduced_alphabet, partsol, n_env);
-    dotimeprint << "Done build init prob " << sw.stop() << '\n';
+                                       reduced_alphabet, partsol, n_env, si);
+    si.prob_init_build_time = si.restart();
+    si.write();
 
     twa_graph_ptr minmachine = nullptr;
     for (size_t n_classes = partsol.psol.size();
          n_classes < n_env; ++n_classes)
       {
+        if (si.task.empty())
+          si.task = "sat";
+        si.n_iteration = (n_classes-partsol.psol.size());
+        si.n_refinement = 0;
+        si.n_classes = n_classes;
+
         minmachine = try_build_min_machine(mm_pb, mmw,
                                            reduced_alphabet,
                                            partsol, n_env,
-                                           sw);
-        dotimeprint << "Done try_build " << n_classes
-              << " - " << sw.stop() << '\n';
+                                           si);
 
         if (minmachine)
           break;
         increment_classes(split_mmw, incompmat, reduced_alphabet,
                           partsol, mm_pb);
-        dotimeprint << "Done incrementing " << sw.stop() << '\n';
+
       }
     // Is already minimal -> Return a copy
     // Set state players!
     if (!minmachine)
       return early_exit();
     set_synthesis_outputs(minmachine, get_synthesis_outputs(mm));
-    dotimeprint << "Done minimizing - " << minmachine->num_states()
-                << " - " << sw.stop() << '\n';
+
+    si.done=1;
+    si.n_min_states = minmachine->num_states();
+    si.total_time = sglob.stop();
+    si.write();
 
     assert(is_split_mealy_specialization(mm, minmachine));
     return minmachine;
+  }
+
+  twa_graph_ptr
+  minimize_mealy(const const_twa_graph_ptr& mm,
+                 synthesis_info& si)
+  {
+    if ((si.minimize_lvl < 3) || (5 < si.minimize_lvl))
+      throw std::runtime_error("Invalid option");
+
+    std::string csvfile = si.opt.get_str("satlogcsv");
+    std::string dimacsfile = si.opt.get_str("satlogdimacs");
+
+    if (!csvfile.empty())
+      sat_csv_file
+        = std::make_unique<std::ofstream>(csvfile,
+                                          std::ios_base::ate
+                                            | std::ios_base::app);
+    if (!dimacsfile.empty())
+      sat_dimacs_file
+        = std::make_unique<fwrapper>(dimacsfile);
+    sat_instance_name = si.opt.get_str("satinstancename");
+    auto res = minimize_mealy(mm, si.minimize_lvl-4);
+    sat_csv_file.reset();
+    sat_dimacs_file.reset();
+    return res;
   }
 }
 
