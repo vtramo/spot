@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2012-2021 Laboratoire de Recherche et Développement
+// Copyright (C) 2012-2022 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -41,7 +41,7 @@
 #include <spot/twaalgos/isdet.hh>
 
 automaton_format_t automaton_format = Hoa;
-static const char* automaton_format_opt = nullptr;
+const char* automaton_format_opt = nullptr;
 const char* opt_name = nullptr;
 static const char* opt_output = nullptr;
 static const char* stats = "";

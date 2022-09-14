@@ -36,6 +36,16 @@ New in spot 2.10.6.dev  (not yet released)
   - ltlsynt has a new option --from-pgame that takes a parity game in
     extended HOA format, as used in the Synthesis Competition.
 
+  - ltlsynt has a new option --hide-status to hide the REALIZABLE or
+    UNREALIZABLE output expected by SYNTCOMP.  (This line is
+    superfluous, because the exit status of ltlsynt already indicate
+    whether the formula is realizable or not.)
+
+  - ltlsynt has a new option --dot to request GraphViz output instead
+    of most output.  This works for displaying Mealy machines, games,
+    or AIG circuits.  See https://spot.lrde.epita.fr/ltlsynt.html for
+    examples.
+
   - genaut learned the --cyclist-trace-nba and --cyclist-proof-dba
     options.  Those are used to generate pairs of automata that should
     include each other, and are used to show a regression (in speed)

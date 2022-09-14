@@ -985,3 +985,22 @@ ltlsynt -f "G(o1|o2) & (GFi <-> GFo1)" --outs="o1,o2" --verbose\
                                        --bypass=yes 2> out
 sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
 diff outx exp
+
+# Test --dot and --hide-status
+ltlsynt -f 'i <-> Fo' --ins=i --aiger --dot | grep arrowhead=dot
+ltlsynt -f 'i <-> Fo' --ins=i --print-game-hoa --dot | grep 'shape="diamond"'
+ltlsynt -f 'i <-> Fo' --ins=i --dot --hide-status > res
+cat >exp <<EOF
+digraph "" {
+  rankdir=LR
+  node [shape="circle"]
+  I [label="", style=invis, width=0]
+  I -> 0
+  0 [label="0"]
+  0 -> 0 [label="i / o"]
+  0 -> 1 [label="!i / !o"]
+  1 [label="1"]
+  1 -> 1 [label="1 / !o"]
+}
+EOF
+diff res exp

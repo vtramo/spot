@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2014-2018, 2020 Laboratoire de Recherche et
+// Copyright (C) 2014-2018, 2020, 2022 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -47,6 +47,7 @@ enum automaton_format_t {
 
 // The format to use in output_automaton()
 extern automaton_format_t automaton_format;
+extern const char* automaton_format_opt;
 // Set to the argument of --name, else nullptr.
 extern const char* opt_name;
 // Output options

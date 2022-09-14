@@ -37,6 +37,7 @@
 #include <spot/twaalgos/aiger.hh>
 #include <spot/twaalgos/game.hh>
 #include <spot/twaalgos/hoa.hh>
+#include <spot/twaalgos/dot.hh>
 #include <spot/twaalgos/minimize.hh>
 #include <spot/twaalgos/mealy_machine.hh>
 #include <spot/twaalgos/product.hh>
@@ -49,7 +50,9 @@ enum
   OPT_BYPASS,
   OPT_CSV,
   OPT_DECOMPOSE,
+  OPT_DOT,
   OPT_FROM_PGAME,
+  OPT_HIDE,
   OPT_INPUT,
   OPT_OUTPUT,
   OPT_PRINT,
@@ -107,32 +110,41 @@ static const argp_option options[] =
     /**************************************************/
     { nullptr, 0, nullptr, 0, "Output options:", 20 },
     { "print-pg", OPT_PRINT, nullptr, 0,
-      "print the parity game in the pgsolver format, do not solve it", 0},
+      "print the parity game in the pgsolver format, do not solve it", 0 },
     { "print-game-hoa", OPT_PRINT_HOA, "options", OPTION_ARG_OPTIONAL,
-      "print the parity game in the HOA format, do not solve it", 0},
+      "print the parity game in the HOA format, do not solve it", 0 },
     { "realizability", OPT_REAL, nullptr, 0,
-      "realizability only, do not compute a winning strategy", 0},
+      "realizability only, do not compute a winning strategy", 0 },
     { "aiger", OPT_PRINT_AIGER, "ite|isop|both[+ud][+dc]"
                                  "[+sub0|sub1|sub2]", OPTION_ARG_OPTIONAL,
-      "prints a winning strategy as an AIGER circuit. The first word "
-      "indicates the encoding to used: \"ite\" for "
+      "encode the winning strategy as an AIG circuit and print it in AIGER"
+      " format. The first word indicates the encoding to used: \"ite\" for "
       "If-Then-Else normal form; "
-      "\"isop\" for irreducible sum of producs; "
+      "\"isop\" for irreducible sum of products; "
       "\"both\" tries both and keeps the smaller one. "
-      "The other options further "
-      "refine the encoding, see aiger::encode_bdd. Defaults to \"ite\".", 0},
-    { "verbose", OPT_VERBOSE, nullptr, 0,
-      "verbose mode", -1 },
-    { "verify", OPT_VERIFY, nullptr, 0,
-       "verifies the strategy or (if demanded) aiger against the spec.", -1 },
+      "Other options further "
+      "refine the encoding, see aiger::encode_bdd. Defaults to \"ite\".", 0 },
+    { "dot", OPT_DOT, "options", OPTION_ARG_OPTIONAL,
+      "Use dot format when printing the result (game, strategy, or "
+      "AIG circuit, depending on other options).  The options that "
+      "may be passed to --dot depend on the nature of what is printed. "
+      "For games and strategies, standard automata rendering "
+      "options are supported (e.g., see ltl2tgba --dot).  For AIG circuit, "
+      "use (h) for horizontal and (v) for vertical layouts.", 0 },
     { "csv", OPT_CSV, "[>>]FILENAME", OPTION_ARG_OPTIONAL,
       "output statistics as CSV in FILENAME or on standard output "
       "(if '>>' is used to request append mode, the header line is "
       "not output)", 0 },
+    { "hide-status", OPT_HIDE, nullptr, 0,
+      "Hide the REALIZABLE or UNREALIZABLE line.  (Hint: exit status "
+      "is enough of an indication.)", 0 },
     /**************************************************/
     { nullptr, 0, nullptr, 0, "Miscellaneous options:", -1 },
     { "extra-options", 'x', "OPTS", 0,
         "fine-tuning options (see spot-x (7))", 0 },
+    { "verbose", OPT_VERBOSE, nullptr, 0, "verbose mode", 0 },
+    { "verify", OPT_VERIFY, nullptr, 0,
+       "verify the strategy or (if demanded) AIG against the formula", 0 },
     { nullptr, 0, nullptr, 0, nullptr, 0 },
   };
 
@@ -162,8 +174,10 @@ static const char* opt_print_hoa_args = nullptr;
 static bool opt_real = false;
 static bool opt_do_verify = false;
 static const char* opt_print_aiger = nullptr;
-
+static const char* opt_dot_arg = nullptr;
+static bool opt_dot = false;
 static spot::synthesis_info* gi;
+static bool show_status = true;
 
 static char const *const algo_names[] =
   {
@@ -255,6 +269,17 @@ namespace
     };
 
   static void
+  dispatch_print_hoa(const spot::const_twa_graph_ptr& game)
+  {
+    if (opt_dot)
+      spot::print_dot(std::cout, game, opt_print_hoa_args);
+    else if (opt_print_pg)
+      spot::print_pg(std::cout, game);
+    else
+      spot::print_hoa(std::cout, game, opt_print_hoa_args) << '\n';
+  }
+
+  static void
   print_csv(const spot::formula& f, const char* filename = nullptr)
   {
     auto& vs = gi->verbose_stream;
@@ -326,7 +351,7 @@ namespace
     outf.close(opt_csv);
   }
 
-  int
+  static int
   solve_formula(const spot::formula& f,
                 const std::vector<std::string>& input_aps,
                 const std::vector<std::string>& output_aps)
@@ -397,15 +422,8 @@ namespace
     std::vector<spot::mealy_like> mealy_machines;
 
     auto print_game = want_game ?
-      [](const spot::twa_graph_ptr& game)->void
-        {
-          if (opt_print_pg)
-            spot::print_pg(std::cout, game);
-          else
-            spot::print_hoa(std::cout, game, opt_print_hoa_args) << '\n';
-        }
-      :
-      [](const spot::twa_graph_ptr&)->void{};
+      [](const spot::twa_graph_ptr& game)->void { dispatch_print_hoa(game); }
+      : [](const spot::twa_graph_ptr&)->void{};
 
     for (; sub_f != sub_form.end(); ++sub_f, ++sub_o)
     {
@@ -425,7 +443,8 @@ namespace
       {
       case spot::mealy_like::realizability_code::UNREALIZABLE:
         {
-          std::cout << "UNREALIZABLE" << std::endl;
+          if (show_status)
+            std::cout << "UNREALIZABLE" << std::endl;
           safe_tot_time();
           return 1;
         }
@@ -448,7 +467,8 @@ namespace
             continue;
           if (!spot::solve_game(arena, *gi))
             {
-              std::cout << "UNREALIZABLE" << std::endl;
+              if (show_status)
+                std::cout << "UNREALIZABLE" << std::endl;
               safe_tot_time();
               return 1;
             }
@@ -506,7 +526,8 @@ namespace
         return 0;
       }
 
-    std::cout << "REALIZABLE" << std::endl;
+    if (show_status)
+      std::cout << "REALIZABLE" << std::endl;
     if (opt_real)
       {
         safe_tot_time();
@@ -545,7 +566,10 @@ namespace
                                << " latches and "
                                << saig->num_gates() << " gates\n";
           }
-        spot::print_aiger(std::cout, saig) << '\n';
+        if (opt_dot)
+          spot::print_dot(std::cout, saig, opt_dot_arg);
+        else
+          spot::print_aiger(std::cout, saig) << '\n';
       }
     else
       {
@@ -784,10 +808,7 @@ namespace
         }
       if (opt_print_pg || opt_print_hoa)
         {
-          if (opt_print_pg)
-            spot::print_pg(std::cout, arena);
-          else
-            spot::print_hoa(std::cout, arena, opt_print_hoa_args) << '\n';
+          dispatch_print_hoa(arena);
           return 0;
         }
       auto safe_tot_time = [&]() {
@@ -796,13 +817,15 @@ namespace
       };
       if (!spot::solve_game(arena, *gi))
         {
-          std::cout << "UNREALIZABLE" << std::endl;
+          if (show_status)
+            std::cout << "UNREALIZABLE" << std::endl;
           safe_tot_time();
           return 1;
         }
       if (gi->bv)
         gi->bv->realizable = true;
-      std::cout << "REALIZABLE" << std::endl;
+      if (show_status)
+        std::cout << "REALIZABLE" << std::endl;
       if (opt_real)
         {
           safe_tot_time();
@@ -905,8 +928,16 @@ parse_opt(int key, char *arg, struct argp_state *)
       opt_decompose_ltl = XARGMATCH("--decompose", arg,
                                     decompose_args, decompose_values);
       break;
+    case OPT_DOT:
+      opt_dot = true;
+      automaton_format_opt = opt_dot_arg = arg;
+      automaton_format = Dot;
+      break;
     case OPT_FROM_PGAME:
       jobs.emplace_back(arg, job_type::AUT_FILENAME);
+      break;
+    case OPT_HIDE:
+      show_status = false;
       break;
     case OPT_INPUT:
       {
