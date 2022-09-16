@@ -53,7 +53,7 @@ namespace spot
   public:
     outedge_combiner(const twa_graph_ptr& aut, unsigned sink = -1u);
     ~outedge_combiner();
-    bdd operator()(unsigned st);
+    bdd operator()(unsigned st, const std::vector<unsigned>& dst_filter = std::vector<unsigned>());
     void new_dests(unsigned st, bdd out) const;
   };
 
