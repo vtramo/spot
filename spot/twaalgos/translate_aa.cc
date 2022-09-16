@@ -73,6 +73,7 @@ namespace spot
 
       unsigned copy_sere_aut_to_res(twa_graph_ptr sere_aut)
       {
+        aut_->copy_ap_of(sere_aut);
         std::map<unsigned, unsigned> old_to_new;
         auto register_state = [&](unsigned st) -> unsigned {
           auto p = old_to_new.emplace(st, 0);
@@ -340,6 +341,7 @@ namespace spot
                                               univ_dest.end()));
 
                     aut_->new_edge(src, dst, cond, {});
+                    univ_dest.clear();
                   }
               }
 
