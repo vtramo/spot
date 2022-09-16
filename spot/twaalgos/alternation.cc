@@ -38,7 +38,8 @@ namespace spot
     aut_->get_dict()->unregister_all_my_variables(this);
   }
 
-  bdd outedge_combiner::operator()(unsigned st, const std::vector<unsigned>& dst_filter)
+  bdd outedge_combiner::operator()(unsigned st, const std::vector<unsigned>& dst_filter,
+                                   bool remove_original_edges)
   {
     const auto& dict = aut_->get_dict();
     bdd res = bddtrue;
@@ -79,6 +80,9 @@ namespace spot
                 out &= bdd_ithvar(p.first->second);
               }
             res2 |= e.cond & out;
+
+            if (remove_original_edges)
+              e.cond = bddfalse;
           }
 
         if (res2 != bddfalse)
