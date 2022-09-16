@@ -274,8 +274,7 @@ namespace spot
 
           case op::UConcat:
           {
-            // FIXME: combine out edges with rhs !
-            //unsigned rhs_init = recurse(f[1]);
+            unsigned rhs_init = recurse(f[1]);
             const auto& dict = aut_->get_dict();
             twa_graph_ptr sere_aut = derive_finite_automaton_with_first(f[0], dict);
 
@@ -286,6 +285,7 @@ namespace spot
             bdd vars = bddtrue;
             bdd aps = sere_aut->ap_vars();
             std::vector<unsigned> univ_dest;
+            std::vector<unsigned> acc_states;
 
             // registers a state in various maps and returns the index of the
             // anonymous bdd var representing that state
@@ -299,6 +299,9 @@ namespace spot
                 unsigned new_st = aut_->new_state();
                 old_to_new.emplace(st, new_st);
                 var_to_state.emplace(v, new_st);
+
+                if (sere_aut->state_is_accepting(st))
+                  acc_states.push_back(new_st);
 
                 vars &= bdd_ithvar(v);
               }
@@ -345,9 +348,22 @@ namespace spot
                   }
               }
 
+            for (unsigned st = 0; st < ns; ++st)
+              {
+                auto it = old_to_new.find(st);
+                assert(it != old_to_new.end());
+                unsigned new_st = it->second;
+
+                bdd comb = bddtrue;
+                comb &= oe_(new_st, acc_states);
+                comb &= oe_(rhs_init);
+                oe_.new_dests(new_st, comb);
+              }
+
             auto it = old_to_new.find(sere_aut->get_init_state_number());
             assert(it != old_to_new.end());
 
+            //aut_->merge_edges();
             return it->second;
           }
 
