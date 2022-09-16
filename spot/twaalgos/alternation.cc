@@ -38,7 +38,7 @@ namespace spot
     aut_->get_dict()->unregister_all_my_variables(this);
   }
 
-  bdd outedge_combiner::operator()(unsigned st)
+  bdd outedge_combiner::operator()(unsigned st, const std::vector<unsigned>& dst_filter)
   {
     const auto& dict = aut_->get_dict();
     bdd res = bddtrue;
@@ -47,6 +47,21 @@ namespace spot
         bdd res2 = bddfalse;
         for (auto& e: aut_->out(d1))
           {
+            // handle edge filtering
+            if (!dst_filter.empty())
+              {
+                // if any edge destination is an accepting state in the SERE
+                // automaton, handle the edge, otherwise skip it
+                auto univ_dests = aut_->univ_dests(e.dst);
+                if (std::all_of(univ_dests.begin(), univ_dests.end(),
+                                [&](unsigned dst)
+                                {
+                                  return std::find(dst_filter.begin(), dst_filter.end(), dst)
+                                    == dst_filter.end();
+                                }))
+                  continue;
+              }
+
             bdd out = bddtrue;
             for (unsigned d: aut_->univ_dests(e.dst))
               {
@@ -65,7 +80,9 @@ namespace spot
               }
             res2 |= e.cond & out;
           }
-        res &= res2;
+
+        if (res2 != bddfalse)
+          res &= res2;
       }
     return res;
   }
