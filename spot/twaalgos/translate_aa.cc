@@ -355,15 +355,18 @@ namespace spot
                 unsigned new_st = it->second;
 
                 bdd comb = bddtrue;
-                comb &= oe_(new_st, acc_states);
-                comb &= oe_(rhs_init);
-                oe_.new_dests(new_st, comb);
+                comb &= oe_(new_st, acc_states, true);
+                if (comb != bddtrue)
+                  {
+                    comb &= oe_(rhs_init);
+                    oe_.new_dests(new_st, comb);
+                  }
               }
 
             auto it = old_to_new.find(sere_aut->get_init_state_number());
             assert(it != old_to_new.end());
 
-            //aut_->merge_edges();
+            aut_->merge_edges();
             return it->second;
           }
 
