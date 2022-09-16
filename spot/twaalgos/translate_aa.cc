@@ -285,6 +285,7 @@ namespace spot
             bdd vars = bddtrue;
             bdd aps = sere_aut->ap_vars();
             std::vector<unsigned> univ_dest;
+            // TODO: this should be a std::vector<bool> !
             std::vector<unsigned> acc_states;
 
             // registers a state in various maps and returns the index of the
