@@ -71,34 +71,43 @@ namespace spot
         aut_->new_edge(init_state, dst, e.cond, acc);
       }
 
-      unsigned copy_sere_aut_to_res(twa_graph_ptr sere_aut)
+      unsigned copy_sere_aut_to_res(twa_graph_ptr sere_aut,
+                                    std::map<unsigned, unsigned>& old_to_new,
+                                    std::vector<unsigned>* acc_states = nullptr,
+                                    bool use_accepting_sink = true)
       {
+        unsigned ns = sere_aut->num_states();
+
+        // TODO: create all new states at once, keeping an initial offset (the
+        //       number of states already present in aut_)
         aut_->copy_ap_of(sere_aut);
-        std::map<unsigned, unsigned> old_to_new;
         auto register_state = [&](unsigned st) -> unsigned {
           auto p = old_to_new.emplace(st, 0);
           if (p.second)
           {
             unsigned new_st = aut_->new_state();
             p.first->second = new_st;
+            if (acc_states != nullptr && sere_aut->state_is_accepting(st))
+              acc_states->push_back(new_st);
           }
           return p.first->second;
         };
 
-        unsigned ns = sere_aut->num_states();
         for (unsigned st = 0; st < ns; ++st)
           {
             unsigned new_st = register_state(st);
             for (const auto& e : sere_aut->out(st))
               {
-                if (sere_aut->state_is_accepting(e.dst))
+                if (use_accepting_sink && sere_aut->state_is_accepting(e.dst))
                   aut_->new_edge(new_st, accepting_sink_, e.cond);
                 else
                   aut_->new_edge(new_st, register_state(e.dst), e.cond);
               }
           }
 
-        return register_state(sere_aut->get_init_state_number());
+        auto it = old_to_new.find(sere_aut->get_init_state_number());
+        assert(it != old_to_new.end());
+        return it->second;
       }
 
 
@@ -272,6 +281,47 @@ namespace spot
             return init_state;
           }
 
+          case op::EConcat:
+          {
+            unsigned rhs_init = recurse(f[1]);
+            const auto& dict = aut_->get_dict();
+            twa_graph_ptr sere_aut = derive_finite_automaton_with_first(f[0], dict);
+
+            // TODO: this should be a std::vector<bool> !
+            std::vector<unsigned> acc_states;
+            std::map<unsigned, unsigned> old_to_new;
+            copy_sere_aut_to_res(sere_aut, old_to_new, &acc_states, false);
+
+            std::vector<unsigned> acc_edges;
+            unsigned ns = sere_aut->num_states();
+            for (unsigned st = 0; st < ns; ++st)
+              {
+                auto it = old_to_new.find(st);
+                assert(it != old_to_new.end());
+                unsigned new_st = it->second;
+
+                for (auto& e : aut_->out(new_st))
+                  {
+                    e.acc = acc_cond::mark_t{0};
+                    if (std::find(acc_states.begin(), acc_states.end(), e.dst)
+                        != acc_states.end())
+                      acc_edges.push_back(aut_->edge_number(e));
+                  }
+              }
+
+            for (unsigned i : acc_edges)
+              {
+                auto& e1 = aut_->edge_storage(i);
+                for (const auto& e2 : aut_->out(rhs_init))
+                  aut_->new_edge(e1.src, e2.dst, e1.cond & e2.cond);
+              }
+
+            auto it = old_to_new.find(sere_aut->get_init_state_number());
+            assert(it != old_to_new.end());
+
+            return it->second;
+          }
+
           case op::UConcat:
           {
             unsigned rhs_init = recurse(f[1]);
@@ -375,7 +425,8 @@ namespace spot
           {
             twa_graph_ptr sere_aut =
               derive_finite_automaton_with_first(f[0], aut_->get_dict());
-            return copy_sere_aut_to_res(sere_aut);
+            std::map<unsigned, unsigned> old_to_new;
+            return copy_sere_aut_to_res(sere_aut, old_to_new);
           }
 
           case op::NegClosure:
@@ -384,7 +435,6 @@ namespace spot
           case op::Xor:
           case op::Implies:
           case op::Equiv:
-          case op::EConcat:
           case op::EConcatMarked:
           case op::OrRat:
           case op::AndRat:
@@ -419,7 +469,10 @@ namespace spot
     aut->set_init_state(init_state);
 
     if (purge_dead_states)
-      aut->purge_dead_states();
+      {
+        aut->purge_dead_states();
+        aut->merge_edges();
+      }
 
     return aut;
   }
