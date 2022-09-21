@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2017, 2018, 2019 Laboratoire de Recherche et Developpement de
-// l'EPITA (LRDE).
+// Copyright (C) 2017-2019, 2022 Laboratoire de Recherche et
+// Developpement de l'EPITA (LRDE).
 //
 // This file is part of Spot, a model checking library.
 //
@@ -56,6 +56,8 @@ namespace spot
       /// 12 formulas from Etessami and Holzmann.
       /// \cite etessami.00.concur
       LTL_EH_PATTERNS,
+      /// Familly sent by Edmond Irani Liu
+      LTL_EIL_GSI,
       /// `F(p0 | XG(p1 | XG(p2 | ... XG(pn))))`
       LTL_FXG_OR,
       /// `(GFa1 & GFa2 & ... & GFan) <-> GFz`

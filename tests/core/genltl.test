@@ -269,3 +269,43 @@ diff range1.ltl range2.ltl
 genltl --sb-patterns=1..20 | ltlfilt -v --nth 10..20 > range1.ltl
 genltl --sb-patterns=1..9 > range2.ltl
 diff range1.ltl range2.ltl
+
+
+# Edmond Irani Liu sent a bug report where formula 23 in this series
+# took 9 days to produce, despite the small size of the resulting
+# automaton.  I (ADL) later found this to be caused by simulation
+# applied on a non-deterministic automaton with many non-deterministic
+# choices going to state that simulate one another, which in turn lead
+# to massive slowdown of the minato_isop algorithm.  As a workaround,
+# I introduced delay_branching_here(), a cheap function that is called
+# before simplification.  In this case, this is enough to determinize
+# the automaton, simplifying simulation-based reduction greatly.
+genltl --eil-gsi=1..25 | ltlfilt --from-ltlf | ltl2tgba --stats=%s,%e >output
+cat >expected <<EOF
+5,9
+7,15
+9,21
+11,27
+13,33
+15,39
+17,45
+19,51
+21,57
+23,63
+25,69
+27,75
+29,81
+31,87
+33,93
+35,99
+37,105
+39,111
+41,117
+43,123
+45,129
+47,135
+49,141
+51,147
+53,153
+EOF
+diff expected output

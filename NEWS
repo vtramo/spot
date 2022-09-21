@@ -51,6 +51,13 @@ New in spot 2.10.6.dev  (not yet released)
     include each other, and are used to show a regression (in speed)
     present in Spot 2.10.x and fixed in 2.11.
 
+  - genltl learned --eil-gsi to generate a familly a function whose
+    translation and simplification used to be very slow.  In particular
+
+       genltl --eil-gsi=23 | ltlfilt --from-ltlf | ltl2tgba
+
+     was reported as taking 9 days.  This is now instantaneous.
+
   Library:
 
   - The new function suffix_operator_normal_form() implements
@@ -149,7 +156,8 @@ New in spot 2.10.6.dev  (not yet released)
     and q₃ can be merged (taking the union of their outgoing
     transitions).  This is cheap function is automatically called by
     spot::translate() after translation of a formula to GBA, before
-    further simplification.
+    further simplification.  This was introduced to help with automata
+    produced from formulas output by "genltl --eil-gsi" (see above).
 
   - spot::parallel_policy is an object that can be passed to some
     algorithm to specify how many threads can be used if Spot has been

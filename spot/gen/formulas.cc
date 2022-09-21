@@ -1281,6 +1281,21 @@ namespace spot
         }
     }
 
+    // G[0..n]((a S b) -> c) rewritten using future operators,
+    // from Edmond Irani Liu (EIL).  GSI stands for "Globally Since Implies."
+    static formula eil_gsi(int n, std::string a, std::string b, std::string c)
+    {
+      formula fa = formula::ap(a);
+      formula fb = formula::ap(b);
+      formula res = fb;
+      for (int i = 1; i <= n; ++i)
+        {
+          formula tmp = formula::And({formula::strong_X(i, fa), res});
+          res = formula::Or({formula::strong_X(i, fb), tmp});
+        }
+      return formula::Implies(res, formula::strong_X(n, formula::ap(c)));
+    }
+
     formula ltl_pattern(ltl_pattern_id pattern, int n, int m)
     {
       if (n < 0)
@@ -1317,6 +1332,8 @@ namespace spot
           return dac_pattern(n);
         case LTL_EH_PATTERNS:
           return eh_pattern(n);
+        case LTL_EIL_GSI:
+          return eil_gsi(n, "a", "b", "c");
         case LTL_FXG_OR:
           return FXG_or_n("p", n);
         case LTL_GF_EQUIV:
@@ -1418,6 +1435,7 @@ namespace spot
           "ccj-beta-prime",
           "dac-patterns",
           "eh-patterns",
+          "eil-gsi",
           "fxg-or",
           "gf-equiv",
           "gf-equiv-xn",
@@ -1485,6 +1503,7 @@ namespace spot
           return 55;
         case LTL_EH_PATTERNS:
           return 12;
+        case LTL_EIL_GSI:
         case LTL_FXG_OR:
         case LTL_GF_EQUIV:
         case LTL_GF_EQUIV_XN:
@@ -1554,6 +1573,7 @@ namespace spot
         case LTL_CCJ_BETA_PRIME:
         case LTL_DAC_PATTERNS:
         case LTL_EH_PATTERNS:
+        case LTL_EIL_GSI:
         case LTL_FXG_OR:
         case LTL_GF_EQUIV:
         case LTL_GF_EQUIV_XN:

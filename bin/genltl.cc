@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2012, 2013, 2015-2019 Laboratoire de Recherche et
+// Copyright (C) 2012, 2013, 2015-2019, 2022 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -84,6 +84,8 @@ static const argp_option options[] =
     { "eh-patterns", gen::LTL_EH_PATTERNS, "RANGE", OPTION_ARG_OPTIONAL,
       "Etessami and Holzmann [Concur'00] patterns "
       "(range should be included in 1..12)", 0 },
+    { "eil-gsi", gen::LTL_EIL_GSI, "RANGE", 0,
+      "G[0..n]((a S b) -> c) rewritten using future operators", 0 },
     { "fxg-or", gen::LTL_FXG_OR, "RANGE", 0,
       "F(p0 | XG(p1 | XG(p2 | ... XG(pn))))", 0},
     { "gf-equiv", gen::LTL_GF_EQUIV, "RANGE", 0,
