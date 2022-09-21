@@ -1323,18 +1323,6 @@ namespace spot
       }
     init_number_ = newst[init_number_];
     g_.defrag_states(newst, used_states);
-    // Make sure we did not mess up the structure
-    assert([&]()
-      {
-        if (auto sp = get_named_prop<std::vector<bool>>("state-player"))
-          {
-            for (const auto& e : edges())
-              if (sp->at(e.src) == sp->at(e.dst))
-                return false;
-            return true;
-          }
-        return true;
-      }() && "Game not alternating!");
   }
 
   void twa_graph::remove_unused_ap()

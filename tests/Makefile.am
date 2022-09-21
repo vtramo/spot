@@ -405,6 +405,7 @@ TESTS_python = \
   python/bddnqueen.py \
   python/bugdet.py \
   python/complement_semidet.py \
+  python/dbranch.py \
   python/declenv.py \
   python/decompose_scc.py \
   python/det.py \

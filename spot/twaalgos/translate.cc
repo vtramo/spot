@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2013-2018, 2020-2021 Laboratoire de Recherche et
+// Copyright (C) 2013-2018, 2020-2022 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -29,6 +29,7 @@
 #include <spot/twaalgos/product.hh>
 #include <spot/twaalgos/sccinfo.hh>
 #include <spot/twaalgos/hoa.hh>
+#include <spot/twaalgos/dbranch.hh>
 
 namespace spot
 {
@@ -401,6 +402,11 @@ namespace spot
         aut = ltl_to_tgba_fm(r, simpl_->get_dict(), exprop,
                              true, false, false, nullptr, nullptr,
                              unambiguous);
+        if (delay_branching_here(aut))
+          {
+            aut->purge_unreachable_states();
+            aut->merge_edges();
+          }
       }
 
     aut = this->postprocessor::run(aut, r);

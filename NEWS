@@ -142,6 +142,15 @@ New in spot 2.10.6.dev  (not yet released)
     succesors, should be called before running simulation-based
     reductions.
 
+  - A new function delay_branching_here(aut) can be used to simplify
+    some non-deterministic branching.  If two transitions (q₁,ℓ,M,q₂)
+    and (q₁,ℓ,M,q₃) differ only by their destination state, and are
+    the only incoming transitions of their destination states, then q₂
+    and q₃ can be merged (taking the union of their outgoing
+    transitions).  This is cheap function is automatically called by
+    spot::translate() after translation of a formula to GBA, before
+    further simplification.
+
   - spot::parallel_policy is an object that can be passed to some
     algorithm to specify how many threads can be used if Spot has been
     compiled with --enable-pthread.  Currently, only

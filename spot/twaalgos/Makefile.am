@@ -1,5 +1,5 @@
 ## -*- coding: utf-8 -*-
-## Copyright (C) 2008-2018, 2020-2021 Laboratoire de Recherche et
+## Copyright (C) 2008-2018, 2020-2022 Laboratoire de Recherche et
 ## Développement de l'Epita (LRDE).
 ## Copyright (C) 2003-2005 Laboratoire d'Informatique de Paris 6
 ## (LIP6), département Systèmes Répartis Coopératifs (SRC), Université
@@ -42,6 +42,7 @@ twaalgos_HEADERS = \
   contains.hh \
   copy.hh \
   cycles.hh \
+  dbranch.hh \
   degen.hh \
   determinize.hh \
   dot.hh \
@@ -115,6 +116,7 @@ libtwaalgos_la_SOURCES = \
   compsusp.cc \
   contains.cc \
   cycles.cc \
+  dbranch.cc \
   degen.cc \
   determinize.cc \
   dot.cc \

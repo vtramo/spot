@@ -1,6 +1,6 @@
 #!/bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2016-2021 Laboratoire de Recherche et Développement
+# Copyright (C) 2016-2022 Laboratoire de Recherche et Développement
 # de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -134,8 +134,8 @@ genltl --kr-n2=1..2 --kr-nlogn=1..2 --kr-n=1..2 --gxf-and=0..3 --fxg-or=0..3 \
        --pps-arbiter-standard=2..3 --pps-arbiter-strict=2..3 --format=%F=%L,%f |
     ltl2tgba --low --det -F-/2 --stats='%<,%s' > out
 cat >exp<<EOF
-kv-psi=1,10
-kv-psi=2,24
+kv-psi=1,9
+kv-psi=2,19
 kr-nlogn=1,16
 kr-nlogn=2,44
 kr-n=1,10
