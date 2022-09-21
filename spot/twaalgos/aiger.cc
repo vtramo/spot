@@ -637,19 +637,44 @@ namespace spot
     // De-morgan
     // !(!v&low | v&high) = !(!v&low) & !(v&high)
     // !v&low | v&high = !(!(!v&low) & !(v&high))
+    // note that if low or high are T
+    // we can simplify the formula
+    // given that low / high is T
+    // then !(!v&low) & !(v&high) can be simplified to
+    // !v&low | v&high = !v | high / low | v
+    // = !(v & !high) /  !(!low & !v)
+    // The case when low / high is ⊥ is automatically treated
     auto b_it = bdd2var_.find(b.id());
     if (b_it != bdd2var_.end())
       return b_it->second;
 
-    // todo
-//    unsigned v_var = bdd2var_.at(bdd_var(b));
     unsigned v_var = bdd2var_.at(bdd_ithvar(bdd_var(b)).id());
 
     unsigned b_branch_var[2] = {bdd2INFvar(bdd_low(b)),
                                 bdd2INFvar(bdd_high(b))};
 
-    unsigned r = aig_not(aig_and(v_var, b_branch_var[1]));
-    unsigned l = aig_not(aig_and(aig_not(v_var), b_branch_var[0]));
+    unsigned l;
+    unsigned r;
+
+    if (b_branch_var[0] == aig_true())
+      {
+        // low == T
+        l = v_var;
+        r = aig_not(b_branch_var[1]);
+      }
+    else if (b_branch_var[1] == aig_true())
+      {
+        // high == T
+        l = aig_not(b_branch_var[0]);
+        r = aig_not(v_var);
+      }
+    else
+      {
+        // General case
+        r = aig_not(aig_and(v_var, b_branch_var[1]));
+        l = aig_not(aig_and(aig_not(v_var), b_branch_var[0]));
+      }
+
     return aig_not(aig_and(l, r));
   }
 
