@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2016-2019, 2021 Laboratoire de Recherche et
+// Copyright (C) 2016-2019, 2021, 2022 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -457,12 +457,10 @@ namespace spot
             // First loop over all possible valuations atomic properties.
             for (bdd oneletter: minterms_of(all_letters, ap))
               {
-                minato_isop isop(bs & oneletter);
-                bdd cube;
-                while ((cube = isop.next()) != bddfalse)
+                minato_isop isop(bdd_relprod(bs, oneletter, ap));
+                bdd dest;
+                while ((dest = isop.next()) != bddfalse)
                   {
-                    bdd cond = bdd_exist(cube, all_vars_);
-                    bdd dest = bdd_existcomp(cube, all_vars_);
                     v.clear();
                     acc_cond::mark_t m = bdd_to_state(dest, v);
 
@@ -491,7 +489,7 @@ namespace spot
                     unsigned d = new_state(v, has_mark);
                     if (has_mark)
                       m.set(0);
-                    res->new_edge(s, d, cond, all_marks - m);
+                    res->new_edge(s, d, oneletter, all_marks - m);
                   }
               }
           }
@@ -576,7 +574,8 @@ namespace spot
     bdd all_states_;
     bdd ap_;
     bdd all_letters_;
-    bdd transition_;
+    bdd dest_;
+    bdd cond_;
     minato_isop isop_;
     const std::map<int, unsigned>& var_to_state_;
     univ_remover_state* dst_;
@@ -587,8 +586,8 @@ namespace spot
                                const std::vector<int>& state_to_var,
                                const std::map<int, unsigned>& var_to_state,
                                bdd all_states)
-      : transitions_(bddtrue), all_states_(all_states), transition_(bddfalse),
-        isop_(bddfalse), var_to_state_(var_to_state)
+      : transitions_(bddtrue), all_states_(all_states), dest_(bddfalse),
+        cond_(bddfalse), isop_(bddfalse), var_to_state_(var_to_state)
     {
       // Build the bdd transitions_, from which we extract the successors.
       for (unsigned s : state->states())
@@ -627,20 +626,20 @@ namespace spot
 
     void one_transition()
     {
-      transition_ = isop_.next();
-      if (transition_ != bddfalse || all_letters_ != bddfalse)
+      dest_ = isop_.next();
+      if (dest_ != bddfalse || all_letters_ != bddfalse)
         {
           // If it was the last transition, try the next letter.
-          if (transition_ == bddfalse)
+          if (dest_ == bddfalse)
             {
               bdd oneletter = bdd_satoneset(all_letters_, ap_, bddfalse);
+              cond_ = oneletter;
               all_letters_ -= oneletter;
               // Get a sum of possible transitions matching this letter.
-              isop_ = minato_isop(oneletter & transitions_);
-              transition_ = isop_.next();
+              isop_ = minato_isop(bdd_relprod(transitions_, oneletter, ap_));
+              dest_ = isop_.next();
             }
-          bdd dest_bdd = bdd_exist(transition_, ap_);
-          std::set<unsigned> dest = bdd_to_state(dest_bdd);
+          std::set<unsigned> dest = bdd_to_state(dest_);
           dst_ = new univ_remover_state(dest);
         }
     }
@@ -648,18 +647,18 @@ namespace spot
     virtual bool first() override
     {
       one_transition();
-      return transition_ != bddfalse;
+      return dest_ != bddfalse;
     }
 
     virtual bool next() override
     {
       one_transition();
-      return transition_ != bddfalse;
+      return dest_ != bddfalse;
     }
 
     virtual bool done() const override
     {
-      return transition_ == bddfalse && all_letters_ == bddfalse;
+      return dest_ == bddfalse && all_letters_ == bddfalse;
     }
 
     virtual const state* dst() const override
@@ -669,7 +668,7 @@ namespace spot
 
     virtual bdd cond() const override
     {
-      return bdd_exist(transition_, all_states_);
+      return cond_;
     }
 
     virtual acc_cond::mark_t acc() const override

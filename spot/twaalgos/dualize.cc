@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2017-2019, 2021 Laboratoire de Recherche et Développement
-// de l'Epita (LRDE).
+// Copyright (C) 2017-2019, 2021-2022 Laboratoire de Recherche et
+// Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
 //
@@ -155,14 +155,11 @@ namespace spot
 
             for (bdd oneletter: minterms_of(letters, ap))
               {
-                minato_isop isop(delta & oneletter);
-                bdd cube;
+                minato_isop isop(bdd_relprod(delta, oneletter, ap));
+                bdd dest;
 
-                while ((cube = isop.next()) != bddfalse)
+                while ((dest = isop.next()) != bddfalse)
                   {
-                    bdd cond = bdd_exist(cube, all_vars_);
-                    bdd dest = bdd_existcomp(cube, all_vars_);
-
                     st.clear();
                     acc_cond::mark_t m = bdd_to_state(dest, st);
                     if  (st.empty())
@@ -171,7 +168,7 @@ namespace spot
                         if (aut_->prop_state_acc())
                           m = aut_->state_acc_sets(i);
                       }
-                    res->new_univ_edge(i, st.begin(), st.end(), cond, m);
+                    res->new_univ_edge(i, st.begin(), st.end(), oneletter, m);
                   }
               }
           }

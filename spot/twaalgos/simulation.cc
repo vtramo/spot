@@ -590,7 +590,7 @@ namespace spot
                 // C1 then (!C1)C2, instead of C1 then C2.
                 // With minatop_isop, we ensure that the no negative
                 // class variable will be seen (likewise for promises).
-                minato_isop isop(sig & one);
+                minato_isop isop(bdd_relprod(sig, one, sup_all_atomic_prop));
 
                 ++nb_minterms;
 
@@ -603,16 +603,11 @@ namespace spot
 
                     // Take the edge, and keep only the variable which
                     // are used to represent the class.
-                    bdd dst = bdd_existcomp(cond_acc_dest,
-                                             all_class_var_);
+                    bdd dst = bdd_existcomp(cond_acc_dest, all_class_var_);
 
                     // Keep only ones who are acceptance condition.
                     auto acc = bdd_to_mark(bdd_existcomp(cond_acc_dest,
                                                          all_proms_));
-
-                    // Keep the other!
-                    bdd cond = bdd_existcomp(cond_acc_dest,
-                                             sup_all_atomic_prop);
 
                     // Because we have complemented all the Inf
                     // acceptance conditions on the input automaton,
@@ -630,11 +625,11 @@ namespace spot
                             accst[srcst] = acc;
                             acc = {};
                           }
-                        gb->new_edge(dst.id(), src.id(), cond, acc);
+                        gb->new_edge(dst.id(), src.id(), one, acc);
                       }
                     else
                       {
-                        gb->new_edge(src.id(), dst.id(), cond, acc);
+                        gb->new_edge(src.id(), dst.id(), one, acc);
                       }
                   }
               }
