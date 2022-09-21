@@ -705,7 +705,7 @@ namespace
         }
 
       if (opt_csv)
-        print_csv(f);
+        print_csv(f, filename);
       return res;
     }
 
