@@ -50,6 +50,11 @@ implication checks for formula simplifications.  Defaults to 64.") },
     { nullptr, 0, nullptr, 0, "Translation options:", 0 },
     { DOC("ltl-split", "Set to 0 to disable the translation of automata \
 as product or sum of subformulas.") },
+    { DOC("branch-prop", "Set to 0 to disable branching-postponement \
+(done during translation, may create more states) and delayed-branching \
+(almost similar, but done after translation to only remove states).  \
+Set to 1 to force branching-postponement, and to 2 \
+to force delayed-branching.  By default delayed-branching is used.") },
     { DOC("comp-susp", "Set to 1 to enable compositional suspension, \
 as described in our SPIN'13 paper (see Bibliography below).  Set to 2, \
 to build only the skeleton TGBA without composing it.  Set to 0 (the \

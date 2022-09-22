@@ -159,6 +159,11 @@ New in spot 2.10.6.dev  (not yet released)
     further simplification.  This was introduced to help with automata
     produced from formulas output by "genltl --eil-gsi" (see above).
 
+  - spot::postproc has new configuration variable branch-post that
+    can be used to control the use of branching-postponement (diabled
+    by default) or delayed-branching (see above, enabled by default).
+    See the spot-x(7) man page for details.
+
   - spot::parallel_policy is an object that can be passed to some
     algorithm to specify how many threads can be used if Spot has been
     compiled with --enable-pthread.  Currently, only

@@ -65,6 +65,7 @@ namespace spot
     int tls_max_states = opt->get("tls-max-states", 64);
     tls_max_states_ = std::max(0, tls_max_states);
     exprop_ = opt->get("exprop", -1);
+    branchpost_ = opt->get("branch-post", -1);
   }
 
   void translator::build_simplifier(const bdd_dict_ptr& dict)
@@ -399,10 +400,18 @@ namespace spot
         bool exprop = unambiguous
           || (level_ == postprocessor::High && exprop_ != 0)
           || exprop_ > 0;
+        // branch-post: 1 == force branching postponement
+        //              0 == disable branching post. and delay_branching
+        //              2 == force delay_branching
+        //             -1 == auto (delay_branching)
+        // Some quick experiments suggests that branching postponement
+        // can produce larger automata on non-obligations formulas, and
+        // that even on obligation formulas, delay_branching is faster.
+        bool bpost = branchpost_ == 1;
         aut = ltl_to_tgba_fm(r, simpl_->get_dict(), exprop,
-                             true, false, false, nullptr, nullptr,
+                             true, bpost, false, nullptr, nullptr,
                              unambiguous);
-        if (delay_branching_here(aut))
+        if (!bpost && branchpost_ != 0 && delay_branching_here(aut))
           {
             aut->purge_unreachable_states();
             aut->merge_edges();

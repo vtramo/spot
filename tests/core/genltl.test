@@ -280,7 +280,8 @@ diff range1.ltl range2.ltl
 # I introduced delay_branching_here(), a cheap function that is called
 # before simplification.  In this case, this is enough to determinize
 # the automaton, simplifying simulation-based reduction greatly.
-genltl --eil-gsi=1..25 | ltlfilt --from-ltlf | ltl2tgba --stats=%s,%e >output
+genltl --eil-gsi=1..25 | ltlfilt --from-ltlf > formulas.ltl
+ltl2tgba -F formulas.ltl --stats=%s,%e >output
 cat >expected <<EOF
 5,9
 7,15
@@ -308,4 +309,8 @@ cat >expected <<EOF
 51,147
 53,153
 EOF
+diff expected output
+
+# branching postponement should work as well
+ltl2tgba -F formulas.ltl -x branch-post=1 --stats=%s,%e >output
 diff expected output
