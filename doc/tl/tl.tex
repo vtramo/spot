@@ -395,7 +395,7 @@ following Boolean operators:
   (allowing better compatibility with Wring and VIS) may only used in
   temporal formulas.  Boolean expressions that occur inside SERE (see
   Section~\ref{sec:sere}) may not use this form because the $\STARALT$
-  symbol is used as the Kleen star.}
+  symbol is used as the Kleene star.}
 
 Additionally, an atomic proposition $a$ can be negated using the
 syntax \samp{$a$=0}, which is equivalent to \samp{$\NOT a$}.  Also
@@ -600,7 +600,7 @@ the source.  It can mean either ``\textit{Sequential Extended Regular
 ``\textit{Semi-Extended Regular Expression}''~\citep{eisner.08.hvc}.
 In any case, the intent is the same: regular expressions with
 traditional operations (union `$\OR$', concatenation `$\CONCAT$',
-Kleen star `$\STAR{}$') are extended with operators such as
+Kleene star `$\STAR{}$') are extended with operators such as
 intersection `$\ANDALT$', and fusion `$\FUSION$'.
 
 Any Boolean formula (section~\ref{def:boolform}) is a SERE.  SERE can
@@ -638,7 +638,7 @@ denote arbitrary SERE.
 \end{tabular}
 \end{center}
 
-\footnotetext{\emph{Non-Length-Matching} interesction.}
+\footnotetext{\emph{Non-Length-Matching} intersection.}
 
 The character \samp{\$} or the string \samp{inf} can also be used as
 value for $\mvar{j}$ in the above operators to denote an unbounded
@@ -1069,7 +1069,7 @@ psl2ba, Modella, and NuSMV all have $\U$ and $\R$ as left-associative,
 while Goal (hence Büchi store), LTL2AUT, and LTL2Büchi (from
 JavaPathFinder) have $\U$ and $\R$ as right-associative.  Vis and LBTT
 have these two operators as non-associative (parentheses required).
-Similarly the tools do not aggree on the associativity of $\IMPLIES$
+Similarly the tools do not agree on the associativity of $\IMPLIES$
 and $\EQUIV$: some tools handle both operators as left-associative, or
 both right-associative, other have only $\IMPLIES$ as right-associative.
 
@@ -1429,7 +1429,7 @@ $\NOT$ operator.
 \end{align*}
 
 Note that the above rules include the ``unabbreviation'' of operators
-``$\EQUIV$'', ``$\IMPLIES$'', and ``$\XOR$'', correspondings to the
+``$\EQUIV$'', ``$\IMPLIES$'', and ``$\XOR$'', corresponding to the
 rules \texttt{"ei\^"} of function `\verb=unabbreviate()= as described
 in Section~\ref{sec:unabbrev}.  Therefore it is never necessary to
 apply these abbreviations before or after
@@ -2097,3 +2097,14 @@ $f_1\AND f_2$ & \bor{f_1}{g}{f_2}{g}  &              &              &           
 %%% TeX-master: t
 %%% coding: utf-8
 %%% End:
+
+% LocalWords:  tabu Alexandre Duret Lutz toc subsequence Kripke unary
+% LocalWords:  LTL GFa INISHED ZX FX cccccrl UTF syntaxes disjunction
+% LocalWords:  VIS Kleene overline overbar ary cccrl EF sep FB LTLf
+% LocalWords:  rewritings TSLF NLM iter un SVA PSL SEREs DFA ccccc ba
+% LocalWords:  SystemVerilog clc ltl psl Modella NuSMV Büchi AUT Vis
+% LocalWords:  JavaPathFinder LBTT AST subtrees boolean nenoform lbt
+% LocalWords:  eword nn LBT's automata subformulas ottom unabbreviate
+% LocalWords:  Unabbreviations ei GRW RW WR unabbreviator simplifier
+% LocalWords:  tl unabbreviation indeterminism dnf cnf SNF rl iff BDD
+% LocalWords:  subformula
