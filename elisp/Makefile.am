@@ -1,6 +1,6 @@
 ## -*- coding: utf-8 -*-
-## Copyright (C) 2015, 2016, 2017, 2018 Laboratoire de Recherche et Développement
-## de l'Epita (LRDE).
+## Copyright (C) 2015-2018, 2022 Laboratoire de Recherche et
+## Développement de l'Epita (LRDE).
 ##
 ## This file is part of Spot, a model checking library.
 ##
@@ -19,7 +19,7 @@
 
 EXTRA_DIST = hoa-mode.el
 
-GIT = https://gitlab.lrde.epita.fr/spot/emacs-modes/raw/master/
+GIT = https://gitlab.lre.epita.fr/spot/emacs-modes/raw/master/
 
 .PHONY: update-el
 update-el:

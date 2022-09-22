@@ -1602,7 +1602,7 @@ New in spot 2.6.2 (2018-09-28)
 
   - We no longer distribute the Python-based CGI script + javascript
     code for the online translator.  Its replacement has its own
-    repository: https://gitlab.lrde.epita.fr/spot/spot-web-app/
+    repository: https://gitlab.lre.epita.fr/spot/spot-web-app/
 
   Library:
 

@@ -31,7 +31,7 @@ Installation of DiVinE
 Use the following commands to compile and install the patched version
 of DiVinE.
 
-  git clone https://gitlab.lrde.epita.fr/spot/divine-ltsmin-deb
+  git clone https://gitlab.lre.epita.fr/spot/divine-ltsmin-deb
   cd divine-ltsmin-deb
   mkdir _build && cd _build
   cmake .. -DMURPHI=OFF -DHOARD=OFF -DGUI=OFF -DRX_PATH= -DCMAKE_INSTALL_PREFIX=$HOME/usr

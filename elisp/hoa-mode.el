@@ -1,10 +1,10 @@
 ;;; hoa-mode.el --- Major mode for the HOA format -*- lexical-binding: t -*-
 
-;; Copyright (C) 2015, 2017, 2019  Alexandre Duret-Lutz
+;; Copyright (C) 2015, 2017, 2019, 2022  Alexandre Duret-Lutz
 
 ;; Author: Alexandre Duret-Lutz <adl@lrde.epita.fr>
 ;; Maintainer: Alexandre Duret-Lutz <adl@lrde.epita.fr>
-;; URL: https://gitlab.lrde.epita.fr/spot/emacs-modes
+;; URL: https://gitlab.lre.epita.fr/spot/emacs-modes
 ;; Keywords: major-mode, automata, convenience
 ;; Created: 2015-11-13
 

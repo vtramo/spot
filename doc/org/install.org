@@ -14,7 +14,7 @@ The latest release of Spot is version {{{LASTRELEASE}}}:
 - {{{LASTTARBALL}}} (see also the {{{LASTNEWS}}})
 
 Past releases can be found [[https://www.lrde.epita.fr/dload/spot/][in the same directory]].  If you are
-interested in /future/ releases, you can always peek at the [[https://gitlab.lrde.epita.fr/spot/spot/-/jobs/artifacts/next/browse?job=debian-stable-gcc][last
+interested in /future/ releases, you can always peek at the [[https://gitlab.lre.epita.fr/spot/spot/-/jobs/artifacts/next/browse?job=make-dist][last
 successful development build]].
 
 ** Requirements
@@ -162,11 +162,11 @@ the (working) code that should be part of the next major release.
 To clone the git repository, use
 
 #+BEGIN_SRC sh
-git clone https://gitlab.lrde.epita.fr/spot/spot.git
+git clone https://gitlab.lre.epita.fr/spot/spot.git
 #+END_SRC
 
 This should put you on the =next= branch by default.  From there, read
-the [[https://gitlab.lrde.epita.fr/spot/spot/blob/next/HACKING][HACKING]] file that should be at the top of your cloned repository:
+the [[https://gitlab.lre.epita.fr/spot/spot/blob/next/HACKING][HACKING]] file that should be at the top of your cloned repository:
 it lists all the tools you should install before attempting to compile
 the source tree.
 

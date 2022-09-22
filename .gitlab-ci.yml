@@ -19,7 +19,7 @@ debian-stable-gcc:
     - branches
   except:
     - /wip/
-  image: gitlab-registry.lrde.epita.fr/spot/buildenv/debian:stable
+  image: gitlab-registry.lre.epita.fr/spot/buildenv/debian:stable
   script:
     - autoreconf -vfi
     - ./configure --enable-max-accsets=256 --enable-pthread
@@ -41,7 +41,7 @@ make-dist:
     - branches
   except:
     - /wip/
-  image: gitlab-registry.lrde.epita.fr/spot/buildenv/debian
+  image: gitlab-registry.lre.epita.fr/spot/buildenv/debian
   script:
     - autoreconf -vfi
     - ./configure --disable-static --enable-doxygen
@@ -62,7 +62,7 @@ debian-unstable-gcc-coverage:
     - branches
   except:
     - /wip/
-  image: gitlab-registry.lrde.epita.fr/spot/buildenv/debian
+  image: gitlab-registry.lre.epita.fr/spot/buildenv/debian
   script:
     - autoreconf -vfi
     - ./configure CXX='g++ --coverage' --enable-devel --disable-static --enable-doxygen
@@ -96,7 +96,7 @@ debian-unstable-gcc-pypy:
     - branches
   except:
     - /wip/
-  image: gitlab-registry.lrde.epita.fr/spot/buildenv/debian
+  image: gitlab-registry.lre.epita.fr/spot/buildenv/debian
   script:
     - VERSION=`cat VERSION`
     - tar xvf spot-$VERSION.tar.gz
@@ -116,7 +116,7 @@ debian-gcc-snapshot:
     - branches
   except:
     - /wip/
-  image: gitlab-registry.lrde.epita.fr/spot/buildenv/debian
+  image: gitlab-registry.lre.epita.fr/spot/buildenv/debian
   script:
     - export PATH="/usr/lib/gcc-snapshot/bin:$PATH" LD_LIBRARY_PATH="/usr/lib/gcc-snapshot/lib:$LD_LIBRARY_PATH"
     - autoreconf -vfi
@@ -139,7 +139,7 @@ alpine-gcc:
     - branches
   except:
     - /wip/
-  image: gitlab-registry.lrde.epita.fr/spot/buildenv/alpine
+  image: gitlab-registry.lre.epita.fr/spot/buildenv/alpine
   script:
     - autoreconf -vfi
     - ./configure
@@ -158,7 +158,7 @@ arch-clang:
     - branches
   except:
     - /wip/
-  image: gitlab-registry.lrde.epita.fr/spot/buildenv/arch
+  image: gitlab-registry.lre.epita.fr/spot/buildenv/arch
   script:
     - autoreconf -vfi
     - ./configure --prefix ~/install_dir CC='clang -Qunused-arguments' CXX='clang++ -Qunused-arguments' --enable-devel --enable-c++20 --enable-doxygen
@@ -181,7 +181,7 @@ arch-gcc-glibcxxdebug:
     - branches
   except:
     - /wip/
-  image: gitlab-registry.lrde.epita.fr/spot/buildenv/arch
+  image: gitlab-registry.lre.epita.fr/spot/buildenv/arch
   script:
     - VERSION=`cat VERSION`
     - tar xvf spot-$VERSION.tar.gz
@@ -210,7 +210,7 @@ mingw-shared:
     - branches
   except:
     - /wip/
-  image: gitlab-registry.lrde.epita.fr/spot/buildenv/debian
+  image: gitlab-registry.lre.epita.fr/spot/buildenv/debian
   script:
     - VERSION=`cat VERSION`
     - tar xvf spot-$VERSION.tar.gz
@@ -237,7 +237,7 @@ mingw-static:
     - branches
   except:
     - /wip/
-  image: gitlab-registry.lrde.epita.fr/spot/buildenv/debian
+  image: gitlab-registry.lre.epita.fr/spot/buildenv/debian
   script:
     - VERSION=`cat VERSION`
     - tar xvf spot-$VERSION.tar.gz
@@ -267,11 +267,11 @@ debpkg-stable:
     - next
     - stable
   script:
-    - docker pull gitlab-registry.lrde.epita.fr/spot/buildenv/debian:stable
+    - docker pull gitlab-registry.lre.epita.fr/spot/buildenv/debian:stable
     - vol=spot-stable-$CI_COMMIT_SHA
     - docker volume create $vol
     - exitcode=0
-    - docker run -v $vol:/build/result  --name helper-$vol gitlab-registry.lrde.epita.fr/spot/buildenv/debian:stable ./build-spot.sh $CI_COMMIT_REF_NAME -j${NBPROC-1} || exitcode=$?
+    - docker run -v $vol:/build/result  --name helper-$vol gitlab-registry.lre.epita.fr/spot/buildenv/debian:stable ./build-spot.sh $CI_COMMIT_REF_NAME -j${NBPROC-1} || exitcode=$?
     - docker cp helper-$vol:/build/result _build_stable || exitcode=$?
     - docker rm helper-$vol || exitcode=$?
     - docker volume rm $vol || exitcode=$?
@@ -295,11 +295,11 @@ debpkg-stable-i386:
   tags: ["x86"]
   needs: ["debpkg-stable"]
   script:
-    - docker pull gitlab-registry.lrde.epita.fr/spot/buildenv/debian-i386:stable
+    - docker pull gitlab-registry.lre.epita.fr/spot/buildenv/debian-i386:stable
     - vol=spot-stable-$CI_COMMIT_SHA
     - docker volume create $vol
     - exitcode=0
-    - docker create -v $vol:/build/result --name helper-$vol gitlab-registry.lrde.epita.fr/spot/buildenv/debian-i386:stable ./bin-spot.sh -j${NBPROC-1} || exitcode=$?
+    - docker create -v $vol:/build/result --name helper-$vol gitlab-registry.lre.epita.fr/spot/buildenv/debian-i386:stable ./bin-spot.sh -j${NBPROC-1} || exitcode=$?
     - docker cp _build_stable/. helper-$vol:/build/result || exitcode=$?
     - rm -rf _build_stable
     - docker start -a helper-$vol || exitcode=$?
@@ -322,11 +322,11 @@ debpkg-unstable:
     - /-deb$/
     - next
   script:
-    - docker pull gitlab-registry.lrde.epita.fr/spot/buildenv/debian
+    - docker pull gitlab-registry.lre.epita.fr/spot/buildenv/debian
     - vol=spot-unstable-$CI_COMMIT_SHA
     - docker volume create $vol
     - exitcode=0
-    - docker run -v $vol:/build/result --name helper-$vol gitlab-registry.lrde.epita.fr/spot/buildenv/debian ./build-spot.sh $CI_COMMIT_REF_NAME -j${NBPROC-1} || exitcode=$?
+    - docker run -v $vol:/build/result --name helper-$vol gitlab-registry.lre.epita.fr/spot/buildenv/debian ./build-spot.sh $CI_COMMIT_REF_NAME -j${NBPROC-1} || exitcode=$?
     - docker cp helper-$vol:/build/result _build_unstable || exitcode=$?
     - docker rm helper-$vol || exitcode=$?
     - docker volume rm $vol || exitcode=$?
@@ -348,11 +348,11 @@ debpkg-unstable-i386:
   tags: ["x86"]
   needs: ["debpkg-unstable"]
   script:
-    - docker pull gitlab-registry.lrde.epita.fr/spot/buildenv/debian-i386
+    - docker pull gitlab-registry.lre.epita.fr/spot/buildenv/debian-i386
     - vol=spot-unstable-$CI_COMMIT_SHA
     - docker volume create $vol
     - exitcode=0
-    - docker create -v $vol:/build/result --name helper-$vol gitlab-registry.lrde.epita.fr/spot/buildenv/debian-i386 ./bin-spot.sh -j${NBPROC-1} || exitcode=$?
+    - docker create -v $vol:/build/result --name helper-$vol gitlab-registry.lre.epita.fr/spot/buildenv/debian-i386 ./bin-spot.sh -j${NBPROC-1} || exitcode=$?
     - docker cp _build_unstable/. helper-$vol:/build/result || exitcode=$?
     - rm -rf _build_unstable
     - docker start -a helper-$vol || exitcode=$?
@@ -374,7 +374,7 @@ rpm-pkg:
     - master
     - next
     - stable
-  image: gitlab-registry.lrde.epita.fr/spot/buildenv/fedora
+  image: gitlab-registry.lre.epita.fr/spot/buildenv/fedora
   script:
     - autoreconf -vfi
     - ./configure
@@ -425,8 +425,8 @@ publish-stable:
     - ls -l
     - tgz=`ls spot-*.tar.* | head -n 1`
     - case $tgz in *[0-9].tar.*) scp $tgz doc@perso:/var/www/dload/spot/;; esac
-    - curl -X POST -F ref=master -F token=$TRIGGER_SPOT_WEB -F "variables[spot_branch]=stable" https://gitlab.lrde.epita.fr/api/v4/projects/131/trigger/pipeline
-    - curl -X POST "https://archive.softwareheritage.org/api/1/origin/save/git/url/https://gitlab.lrde.epita.fr/spot/spot/"
+    - curl -X POST -F ref=master -F token=$TRIGGER_SPOT_WEB -F "variables[spot_branch]=stable" https://gitlab.lre.epita.fr/api/v4/projects/131/trigger/pipeline
+    - curl -X POST "https://archive.softwareheritage.org/api/1/origin/save/git/url/https://gitlab.lre.epita.fr/spot/spot/"
     - curl "https://web.archive.org/save/https://www.lrde.epita.fr/dload/spot/$tgz"
 
 publish-unstable:
@@ -443,8 +443,8 @@ publish-unstable:
     - cd _build_unstable
     - ls -l
     - dput lrde *.changes
-    - curl -X POST -F ref=master -F token=$TRIGGER_SPOT_WEB -F "variables[spot_branch]=next" https://gitlab.lrde.epita.fr/api/v4/projects/131/trigger/pipeline
-    - curl -X POST -F ref=master -F token=$TRIGGER_SANDBOX https://gitlab.lrde.epita.fr/api/v4/projects/181/trigger/pipeline
+    - curl -X POST -F ref=master -F token=$TRIGGER_SPOT_WEB -F "variables[spot_branch]=next" https://gitlab.lre.epita.fr/api/v4/projects/131/trigger/pipeline
+    - curl -X POST -F ref=master -F token=$TRIGGER_SANDBOX https://gitlab.lre.epita.fr/api/v4/projects/181/trigger/pipeline
 
 raspbian:
   stage: build

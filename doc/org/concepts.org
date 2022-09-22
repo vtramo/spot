@@ -1022,7 +1022,7 @@ layers.
     dynamic libraries that [[http://fmt.cs.utwente.nl/tools/ltsmin/][LTSmin]] uses to represent state-spaces.  It
     currently supports libraries generated from Promela models using
     SpinS or a patched version of DiVinE, but you have to install
-    those third-party tools first.  See [[https://gitlab.lrde.epita.fr/spot/spot/blob/next/tests/ltsmin/README][=tests/ltsmin/README=]]
+    those third-party tools first.  See [[https://gitlab.lre.epita.fr/spot/spot/blob/next/tests/ltsmin/README][=tests/ltsmin/README=]]
     for details.
   - In addition to the C++17 API, we also provide Python bindings for
     =libspotgen=, =libspotltsmin=, =libbddx=, and most of =libspot=.
@@ -1034,8 +1034,8 @@ layers.
     distributed with the rest of Spot, their source-code is publicly
     available (in case you want to contribute or run a local version).
     The [[https://spot-sandbox.lrde.epita.fr/][=spot-sandbox=]] website runs from a Docker container whose
-    configuration can be found in [[https://gitlab.lrde.epita.fr/spot/sandbox/tree/master=][this repository]].  The client and
-    server parts of the [[https://spot.lrde.epita.fr/app/][online LTL translator]] can be found in [[https://gitlab.lrde.epita.fr/spot/spot-web-app/][this
+    configuration can be found in [[https://gitlab.lre.epita.fr/spot/sandbox/tree/master=][this repository]].  The client and
+    server parts of the [[https://spot.lrde.epita.fr/app/][online LTL translator]] can be found in [[https://gitlab.lre.epita.fr/spot/spot-web-app/][this
     repository]].
 
 * Automaton property flags
