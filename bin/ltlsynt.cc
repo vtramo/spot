@@ -160,8 +160,8 @@ static const struct argp_child children[] =
 const char argp_program_doc[] = "\
 Synthesize a controller from its LTL specification.\v\
 Exit status:\n\
-  0   if the input problem is realizable\n\
-  1   if the input problem is not realizable\n\
+  0   if all input problems were realizable\n\
+  1   if at least one input problem was not realizable\n\
   2   if any error has been reported";
 
 static std::optional<std::vector<std::string>> all_output_aps;
@@ -279,6 +279,10 @@ namespace
       spot::print_hoa(std::cout, game, opt_print_hoa_args) << '\n';
   }
 
+  // If filename is passed, it is printed instead of the formula.  We
+  // use that when processing games since we have no formula to print.
+  // It would be cleaner to have two columns: one for location (that's
+  // filename + line number if known), and one for formula (if known).
   static void
   print_csv(const spot::formula& f, const char* filename = nullptr)
   {
@@ -705,7 +709,7 @@ namespace
         }
 
       if (opt_csv)
-        print_csv(f, filename);
+        print_csv(f);
       return res;
     }
 
