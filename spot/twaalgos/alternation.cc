@@ -85,8 +85,7 @@ namespace spot
               e.cond = bddfalse;
           }
 
-        if (res2 != bddfalse)
-          res &= res2;
+        res &= res2;
       }
     return res;
   }
