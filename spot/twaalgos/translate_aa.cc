@@ -328,6 +328,13 @@ namespace spot
             const auto& dict = aut_->get_dict();
             twa_graph_ptr sere_aut = derive_finite_automaton_with_first(f[0], dict);
 
+            // DFA recognizes the empty language, so {0} []-> rhs is always true
+            unsigned ns = sere_aut->num_states();
+            bool has_accepting_state = false;
+            for (unsigned st = 0; st < ns && !has_accepting_state; ++st)
+              has_accepting_state = sere_aut->state_is_accepting(st);
+            if (!has_accepting_state)
+              return accepting_sink_;
 
             std::map<unsigned, unsigned> old_to_new;
             std::map<unsigned, int> state_to_var;
@@ -361,7 +368,6 @@ namespace spot
             };
 
             aut_->copy_ap_of(sere_aut);
-            unsigned ns = sere_aut->num_states();
             for (unsigned st = 0; st < ns; ++st)
               {
                 register_state(st);
