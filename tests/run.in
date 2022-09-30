@@ -46,7 +46,9 @@ PATH="@abs_top_builddir@/bin:$PATH"
 export PATH
 
 test -z "$1" &&
-    PYTHONPATH=$pypath DYLD_LIBRARY_PATH=$modpath:$DYLD_LIBRARY_PATH \
+    PYTHONPATH=$pypath \
+    DYLD_LIBRARY_PATH=$modpath:$DYLD_LIBRARY_PATH \
+    LD_LIBRARY_PATH=$modpath:$LD_LIBRARY_PATH \
     exec $PREFIXCMD @PYTHON@
 srcdir="@srcdir@"
 
@@ -109,10 +111,12 @@ case $1 in
   *.ipynb)
     PYTHONPATH=$pypath:$PYTHONPATH \
     DYLD_LIBRARY_PATH=$modpath:$DYLD_LIBRARY_PATH \
+    LD_LIBRARY_PATH=$modpath:$LD_LIBRARY_PATH \
     PYTHONIOENCODING=utf-8:surrogateescape \
     exec $PREFIXCMD @PYTHON@ @abs_srcdir@/python/ipnbdoctest.py "$@";;
   *.py)
     PYTHONPATH=$pypath:$PYTHONPATH \
+    LD_LIBRARY_PATH=$modpath:$LD_LIBRARY_PATH \
     DYLD_LIBRARY_PATH=$modpath:$DYLD_LIBRARY_PATH \
     exec $PREFIXCMD @PYTHON@ "$@";;
   *.test)
@@ -121,6 +125,7 @@ case $1 in
     exec $PERL "$@";;
   *python*|*jupyter*|*pypy*)
     PYTHONPATH=$pypath:$PYTHONPATH \
+    LD_LIBRARY_PATH=$modpath:$LD_LIBRARY_PATH \
     DYLD_LIBRARY_PATH=$modpath:$DYLD_LIBRARY_PATH \
     exec $PREFIXCMD "$@";;
   *)
