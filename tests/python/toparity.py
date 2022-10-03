@@ -49,26 +49,26 @@ no_option.propagate_col = False
 no_option.use_generalized_rabin = False
 
 acc_clean_search_opt = spot.to_parity_options()
-no_option.search_ex = False
-no_option.use_last = False
-no_option.use_last_post_process = False
-no_option.force_order = False
-no_option.partial_degen = False
-no_option.acc_clean = True
-no_option.parity_equiv = False
-no_option.tar = False
-no_option.iar = True
-no_option.lar_dfs = True
-no_option.bscc = True
-no_option.parity_prefix = False
-no_option.parity_prefix_general = False
-no_option.generic_emptiness = False
-no_option.rabin_to_buchi = False
-no_option.buchi_type_to_buchi = False
-no_option.parity_type_to_parity = False
-no_option.reduce_col_deg = False
-no_option.propagate_col = False
-no_option.use_generalized_rabin = False
+acc_clean_search_opt.search_ex = False
+acc_clean_search_opt.use_last = False
+acc_clean_search_opt.use_last_post_process = False
+acc_clean_search_opt.force_order = False
+acc_clean_search_opt.partial_degen = False
+acc_clean_search_opt.acc_clean = True
+acc_clean_search_opt.parity_equiv = False
+acc_clean_search_opt.tar = False
+acc_clean_search_opt.iar = True
+acc_clean_search_opt.lar_dfs = True
+acc_clean_search_opt.bscc = True
+acc_clean_search_opt.parity_prefix = False
+acc_clean_search_opt.parity_prefix_general = False
+acc_clean_search_opt.generic_emptiness = False
+acc_clean_search_opt.rabin_to_buchi = False
+acc_clean_search_opt.buchi_type_to_buchi = False
+acc_clean_search_opt.parity_type_to_parity = False
+acc_clean_search_opt.reduce_col_deg = False
+acc_clean_search_opt.propagate_col = False
+acc_clean_search_opt.use_generalized_rabin = False
 
 partial_degen_opt = spot.to_parity_options()
 partial_degen_opt.search_ex = False
@@ -156,9 +156,29 @@ use_car_opt.reduce_col_deg = False
 use_car_opt.propagate_col = False
 use_car_opt.use_generalized_rabin = False
 
-all_opt = spot.to_parity_options()
-all_opt.pretty_print = True
+default_opt = spot.to_parity_options()
 
+all_opt = spot.to_parity_options()
+all_opt.search_ex = True
+all_opt.use_last = True
+all_opt.use_last_post_process = True
+all_opt.partial_degen = True
+all_opt.acc_clean = True
+all_opt.parity_equiv = True
+all_opt.tar = True
+all_opt.iar = True
+all_opt.lar_dfs = True
+all_opt.bscc = True
+all_opt.parity_prefix = True
+all_opt.parity_prefix_general = True
+all_opt.generic_emptiness = True
+all_opt.rabin_to_buchi = True
+all_opt.buchi_type_to_buchi = True
+all_opt.parity_type_to_parity = True
+all_opt.reduce_col_deg = True
+all_opt.propagate_col = True
+all_opt.use_generalized_rabin = True
+all_opt.pretty_print = True
 
 options = [
     no_option,
@@ -167,6 +187,7 @@ options = [
     parity_equiv_opt,
     rab_to_buchi_opt,
     use_car_opt,
+    default_opt,
     all_opt,
     None, # acd_transform
 ]
@@ -174,6 +195,8 @@ options = [
 
 def test(aut, expected_num_states=[], full=True):
     for (opt, expected_num) in zip_longest(options, expected_num_states):
+        if type(expected_num) is str and expected_num == 'skip':
+            continue
         if opt is not None:
             p1 = spot.to_parity(aut,
                                 search_ex = opt.search_ex,
@@ -296,7 +319,7 @@ State: 13
 [0&1] 5
 [!0&!1] 10 {0 1 3 5}
 [0&!1] 13 {1 3}
---END--"""), [32, 22, 23, 30, 33, 45, 22, 21])
+--END--"""), [30, 32, 23, 30, 33, 45, 22, 22, 21])
 
 test(spot.automaton("""
 HOA: v1
@@ -314,7 +337,7 @@ State: 1
 [0&!1] 1 {4}
 [!0&1] 1 {0 1 2 3}
 [!0&!1] 1 {0 3}
---END--"""), [6, 3, 3, 5, 5, 26, 3, 3])
+--END--"""), [5, 6, 3, 5, 5, 26, 3, 3, 3])
 
 test(spot.automaton("""HOA: v1
 States: 2
@@ -330,14 +353,7 @@ State: 0
 State: 1
 [0&1] 1 {2 3 4}
 [!0&!1] 0 {1 2}
---END--"""), [3, 2, 2, 9, 9, 10, 2, 2])
-
-for i,f in enumerate(spot.randltl(10, 200)):
-    test(spot.translate(f, "det", "G"), full=(i<50))
-
-for f in spot.randltl(5, 500):
-    test(spot.translate(f), full=False)
-
+--END--"""), [9, 3, 2, 9, 9, 10, 2, 2, 2])
 
 test(spot.automaton("""
 HOA: v1
@@ -370,7 +386,7 @@ State: 3
 [!0&1] 2 {1 4}
 [0&1] 3 {0}
 --END--
-"""), [104, 6, 80, 23, 27, 17, 6, 5])
+"""), [23, 104, 80, 23, 27, 17, "skip", "skip", 5])
 
 test(spot.automaton("""
 HOA: v1
@@ -404,7 +420,7 @@ State: 4
 [0&!1] 4
 [0&1] 4 {1 2 4}
 --END--
-"""), [6, 6, 7, 9, 9, 10, 6, 6])
+"""), [9, 6, 7, 9, 9, 10, 6, 6, 6])
 
 test(spot.automaton("""
 HOA: v1
@@ -426,7 +442,7 @@ State: 1
 [0&!1] 1 {2 3}
 [0&1] 1 {1 2 4}
 --END--
-"""), [3, 2, 2, 6, 6, 6, 2, 2])
+"""), [6, 3, 2, 6, 6, 6, 2, 2, 2])
 
 
 # Tests both the old and new version of to_parity
@@ -457,7 +473,7 @@ explicit-labels trans-acc --BODY-- State: 0 [0&1] 2 {4 5} [0&1] 4 {0 4}
 p = spot.to_parity_old(a, True)
 tc.assertEqual(p.num_states(), 22)
 tc.assertTrue(spot.are_equivalent(a, p))
-test(a, [6, 6, 7, 8, 6, 7, 6, 6])
+test(a, [8, 6, 7, 8, 6, 7, 6, 6, 6])
 
 # Force a few edges to false, to make sure to_parity() is OK with that.
 for e in a.out(2):
@@ -471,7 +487,7 @@ for e in a.out(3):
 p = spot.to_parity_old(a, True)
 tc.assertEqual(p.num_states(), 22)
 tc.assertTrue(spot.are_equivalent(a, p))
-test(a, [6, 6, 7, 8, 6, 7, 6, 6])
+test(a, [8, 6, 7, 8, 6, 7, 6, 6, 6])
 
 for f in spot.randltl(4, 400):
     d = spot.translate(f, "det", "G")
@@ -483,8 +499,52 @@ for f in spot.randltl(5, 2000):
     p = spot.to_parity_old(n, True)
     tc.assertTrue(spot.are_equivalent(n, p))
 
+for i,f in enumerate(spot.randltl(10, 200)):
+    test(spot.translate(f, "det", "G"), full=(i<50))
+
+for f in spot.randltl(5, 500):
+    test(spot.translate(f), full=False)
+
 # Issue #390.
 a = spot.translate('!(GFa -> (GFb & GF(!b & !Xb)))', 'gen', 'det')
 b = spot.to_parity_old(a, True)
 tc.assertTrue(a.equivalent_to(b))
-test(a, [7, 3, 3, 8, 8, 7, 3, 3])
+test(a, [8, 7, 3, 8, 8, 7, 3, 3, 3])
+
+# owl-21.0 ltl2dra -f '(GFa -> GFb) & GF(c <-> Xc)' | autfilt -Hi | fmt
+a = spot.automaton("""
+HOA: v1 name: "Automaton for ((((F(G(!a))) | (G(F(b))))) & (G(F(((c) <->
+(X(c)))))))" States: 11 Start: 0 AP: 3 "a" "b" "c" acc-name: Rabin 3
+Acceptance: 6 (Fin(0) & Inf(1)) | (Fin(2) & Inf(3)) | (Fin(4) & Inf(5))
+properties: implicit-labels trans-acc complete deterministic --BODY--
+State: 0 0 {3} 0 {2 4} 3 {3} 3 {2 4} 1 0 {2 4} 2 4 {2 4} State: 1 0 0 {2
+4} 3 3 {2 4} 1 {5} 0 {2 4} 2 {5} 4 {2 4} State: 2 3 3 {2 4} 3 3 {2 4}
+6 {1 5} 5 {1 2 4} 2 {1 5} 4 {1 2 4} State: 3 7 {1 3} 7 {1 2 4} 3 {1 3}
+3 {1 2 4} 2 4 {2 4} 2 4 {2 4} State: 4 3 {3} 3 {2 4} 3 {3} 3 {2 4} 6 {1}
+5 {1 2 4} 2 {1} 4 {1 2 4} State: 5 8 {3} 8 {2 4} 3 {3} 3 {2 4} 6 5 {2
+4} 2 4 {2 4} State: 6 8 8 {2 4} 3 3 {2 4} 6 {5} 5 {2 4} 2 {5} 4 {2 4}
+State: 7 7 {3} 7 {2 4} 3 {3} 3 {2 4} 9 10 {2 4} 2 4 {2 4} State: 8 0 {1
+3} 0 {1 2 4} 3 {1 3} 3 {1 2 4} 6 5 {2 4} 2 4 {2 4} State: 9 7 7 {2 4}
+3 3 {2 4} 1 {1 5} 0 {1 2 4} 2 {1 5} 4 {1 2 4} State: 10 7 {3} 7 {2 4}
+3 {3} 3 {2 4} 1 {1} 0 {1 2 4} 2 {1} 4 {1 2 4} --END--
+""")
+b = spot.iar_maybe(a)
+tc.assertEqual(b.num_states(), 11)
+tc.assertTrue(a.equivalent_to(b))
+test(a, [11, 11, 11, 11, 11, 11, 11, 11, 11])
+
+a = spot.automaton("""
+HOA: v1 States: 10 Start: 0 AP: 2 "p0" "p1" acc-name: Rabin 4 Acceptance:
+8 (Fin(0) & Inf(1)) | (Fin(2) & Inf(3)) | (Fin(4) & Inf(5)) | (Fin(6)
+& Inf(7)) properties: implicit-labels trans-acc complete deterministic
+--BODY-- State: 0 2 {7} 7 {3} 2 {7} 3 State: 1 5 {0 3} 9 {3 4} 5 {0 3}
+9 {3 4} State: 2 9 {1 6} 9 {1 6} 9 {1 6} 9 {1 6} State: 3 3 {4} 9 {0}
+1 {4} 4 {5 6} State: 4 7 8 {1 5 7} 9 {3 7} 8 {1 5 7} State: 5 6 {4} 9
+{1 2 6} 6 {4} 9 {1 2 6} State: 6 1 {3 7} 1 {3 7} 1 {3 7} 1 {3 7} State:
+7 1 {3 6} 8 {2} 1 {3 6} 8 {2} State: 8 8 {3 4 7} 3 {2} 8 {3 4 7} 3 {2}
+State: 9 3 {4} 2 3 {4} 6 --END--
+""")
+b = spot.iar_maybe(a)
+tc.assertEqual(b.num_states(), 87)
+tc.assertTrue(a.equivalent_to(b))
+test(a, [87, 91, 91, 87, 87, 87, 51, 51, 21])
