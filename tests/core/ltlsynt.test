@@ -1004,3 +1004,24 @@ digraph "" {
 }
 EOF
 diff res exp
+
+
+# The following formula, generated from SPIReadManag.tlsf exhibited a bug
+# in the decomposition.
+s1="G(!((!o15 & !((!o14 & o16) <-> (o14 & !o16))) <-> (o15 & !(o14 | o16)))"
+s2=" & !((!o12 & !((!o11 & o13) <-> (o11 & !o13))) <-> (o12 & !(o11 | o13)))"
+s3=" & !((o09 & !o10) <-> (!o09 & o10)) & !((o07 & !o08) <-> (!o07 & o08))"
+s4=" & !((!o05 & !((!o04 & o06) <-> (o04 & !o06))) <-> (o05 & !(o04 | o06)))"
+s5=" & !((!o02 & !((!o01 & o03) <-> (o01 & !o03))) <-> (o02 & !(o01 | o03))))"
+s6=" & ((G!(i2 & i7) & G(o15 -> Fi3)) -> (Go09 & G(o14 <-> (i6 & !i7)) & "
+s7="G(o07 <-> (i7 & i8)) & G((i7 & i8) -> (o11 U i3)) & GFo12 & G(o04 <-> "
+s8="(i4 & i6)) & G(o05 <-> !(i4 & i6)) & G(o15 <-> (i7 & i8)) & G(i7 -> o02) & "
+s9="G((!i7 & !(i1 & i2 & !i5 & i6)) -> o03) & G(o01 <-> (i1 & i2 & !i5 & i6))))"
+s=$s1$s2$s3$s4$s5$s6$s7$s8$s9
+ltlsynt --decomp=yes -f "$s" --ins=i1,i2,i3,i4,i5,i6,i7,i8 --realizability >out
+ltlsynt --decomp=no -f "$s" --ins=i1,i2,i3,i4,i5,i6,i7,i8 --realizability >>out
+cat >expected <<EOF
+REALIZABLE
+REALIZABLE
+EOF
+diff out expected
