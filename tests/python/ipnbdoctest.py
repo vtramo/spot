@@ -364,7 +364,8 @@ if __name__ == '__main__':
             except RuntimeError as e:
                 # If the Kernel dies, try again.  It seems we have spurious
                 # failures when multiple instances of jupyter start in parallel.
-                if 'Kernel died' in str(e):
+                stre = str(e)
+                if 'Kernel died' in stre or "Kernel didn't respond" in stre:
                     tries -= 1
                     if tries:
                         s = random.randint(1, 5)
