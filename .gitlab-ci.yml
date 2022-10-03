@@ -110,8 +110,14 @@ debian-unstable-gcc-pypy:
       - spot-*/tests/*/*.log
       - spot-*/*.log
 
+# With emacs now using gcc for on-the-fly compilation,
+# we cannot rebuild the documentation using gcc-snapshot.  So we start
+# from the tarball instead.
 debian-gcc-snapshot:
-  stage: build
+  stage: build2
+  needs:
+    - job: make-dist
+      artifacts: true
   only:
     - branches
   except:
@@ -119,7 +125,9 @@ debian-gcc-snapshot:
   image: gitlab-registry.lre.epita.fr/spot/buildenv/debian
   script:
     - export PATH="/usr/lib/gcc-snapshot/bin:$PATH" LD_LIBRARY_PATH="/usr/lib/gcc-snapshot/lib:$LD_LIBRARY_PATH"
-    - autoreconf -vfi
+    - VERSION=`cat VERSION`
+    - tar xvf spot-$VERSION.tar.gz
+    - cd spot-$VERSION
     - ./configure --with-included-ltdl CXX='g++'
     - make
     - make distcheck DISTCHECK_CONFIGURE_FLAGS='--with-included-ltdl'
@@ -127,11 +135,8 @@ debian-gcc-snapshot:
   artifacts:
     when: always
     paths:
-      - ./spot-*/_build/sub/tests/*/*.log
-      - ./*.log
-      - doc/spot.html/
-      - doc/userdoc/
-      - ./*.tar.gz
+      - spot-*/tests/*/*.log
+      - spot-*/*.log
 
 alpine-gcc:
   stage: build
