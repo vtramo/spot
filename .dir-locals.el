@@ -3,7 +3,7 @@
 	 (require-final-newline . t)
 	 (mode . global-whitespace)
          (bug-reference-bug-regexp
-          . "\\(?:[Ff]ix\\(es\\)? \\|[Ii]ssue \\)#\\(?2:[0-9]+\\)")
+          . "\\(?1:\\(?:[Ff]ix\\(?:es\\)? \\|[Ii]ssue \\)#\\(?2:[0-9]+\\)\\)")
          (bug-reference-url-format
           . "https://gitlab.lre.epita.fr/spot/spot/issues/%s")
 	 (mode . bug-reference)
