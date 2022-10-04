@@ -189,7 +189,12 @@ if test "x${enable_python:-yes}" = xyes; then
   AC_MSG_NOTICE([You may configure with --disable-python ]dnl
 [if you do not need Python bindings.])
   adl_CHECK_PYTHON
+
+  AC_ARG_WITH([pythondir],
+  [AS_HELP_STRING([--with-pythondir], [override the computed pythondir])],
+  [pythondir=$withval], [])
 fi
+
 
 
 adl_ENABLE_DEBUG
@@ -289,4 +294,24 @@ case $VERSION:$enable_devel in
     echo ' plan to do some benchmarking, run configure with --disable-devel. '
     echo '==================================================================='
   ;;
+esac
+
+case $enable_python in
+    yes)
+        pd=$pythondir
+        eval pd=$pd
+        eval pd=$pd
+        $PYTHON -c "
+import sys
+if '$pd' in sys.path:
+   exit()
+else:
+   print('\nWARNING: Python bindings will be installed in $pd')
+   print('         however this path is not searched by default by $PYTHON.')
+   print('\n$PYTHON\'s sys.path contains the following paths:\n',
+         '\n'.join(sys.path))
+   print('\nUse --with-pythondir=... if you wish '
+         'to change this installation path.')
+"
+        ;;
 esac

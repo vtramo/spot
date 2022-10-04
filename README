@@ -110,16 +110,16 @@ Spot follows the traditional `./configure && make && make check &&
 make install' process.  People unfamiliar with the GNU Build System
 should read the file INSTALL for generic instructions.
 
-If you plan to use the Python binding, we recommend you use one
-of the following --prefix options when calling configure:
+If you plan to use the Python bindings, we recommend you use the
+following --prefix options when calling configure:
 
-  --prefix /usr
-  --prefix /usr/local  (the default)
-  --prefix ~/.local    (if you do not have root permissions)
+  --prefix ~/.local
 
-The reason is that all these locations are usually automatically
-searched by Python.  If you use a different prefix directory, you may
-have to tune the PYTHONPATH environment variable.
+The reason is that ~/.local/lib/python3.X/site-packages, where Spot's
+Python bindings will be installed, is automatically searched by
+Python.  If you use a different prefix directory, you may have to tune
+the PYTHONPATH environment variable, or use the --with-pythondir
+option to specify different installation paths.
 
 In addition to its usual options, ./configure will accept some
 flags specific to Spot:
@@ -250,17 +250,31 @@ To test the Python bindings, try running
   >>> import spot
   >>> print(spot.version())
 
-If you installed Spot with a prefix that is not one of those suggested
-in the "Building and installing" section, it is likely that the above
-import statement will fail to locate the spot package.  You can show
-the list of directories that are searched by Python using:
+If you installed Spot with a prefix that is not searched by Python by
+default it is likely that the above import statement will fail to
+locate the spot package.  You can show the list of directories that
+are searched by Python using:
 
   % python3
   >>> import sys
   >>> print(sys.path)
 
 And you can modify that list of searched directories using the
-PYTHONPATH environment variable.
+PYTHONPATH environment variable.  Alternatively, you can instruct Spot
+to install its Python files in one of those directory using the
+--with-pythondir configure option.  As an example, an issue in
+distributions derived from Debian is that if you run
+
+  ./configure && make && make install
+
+Python files get installed in /usr/local/lib/python3.X/site-packages
+while Debian's version of Python only looks for them into
+/usr/local/lib/python3.X/dist-packages instead.  You can fix that by
+instructing configure that you want packages installed into the right
+directory instead:
+
+  ./configure --with-pythondir=/usr/local/lib/python3.X/dist-packages \
+     && make && make install
 
 To test if man pages can be found, simply try:
 

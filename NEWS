@@ -2,6 +2,11 @@ New in spot 2.10.6.dev  (not yet released)
 
   Build:
 
+  - configure will now diagnose situation where Python bindings will
+    be installed in a directory that is not part of Python's search
+    path.  A new configure option --with-pythondir can be used to
+    modify this installation path.
+
   - A new configure option --enable-pthread enable the compilation of
     Spot with -pthread, and activate the parallel version of some
     algorithms.  If Spot is compiled with -pthread enabled, any user
