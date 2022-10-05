@@ -137,6 +137,9 @@ namespace spot
     twa_graph_ptr aut;
     twa_graph_ptr aut2 = nullptr;
 
+    bool split_hard =
+      type_ == Generic || (type_ & Parity) || type_ == GeneralizedBuchi;
+
     if (ltl_split_ && !r.is_syntactic_obligation())
       {
         formula r2 = r;
@@ -146,11 +149,11 @@ namespace spot
             r2 = r2[0];
             ++leading_x;
           }
-        if (type_ == Generic || type_ == GeneralizedBuchi)
+        if (split_hard)
           {
-            // F(q|u|f) = q|F(u)|F(f)  only for generic acceptance
+            // F(q|u|f) = q|F(u)|F(f)  disabled for GeneralizedBuchi
             // G(q&e&f) = q&G(e)&G(f)
-            bool want_u = r2.is({op::F, op::Or}) && (type_ == Generic);
+            bool want_u = r2.is({op::F, op::Or}) && (type_ != GeneralizedBuchi);
             if (want_u || r2.is({op::G, op::And}))
               {
                 std::vector<formula> susp;
@@ -213,20 +216,19 @@ namespace spot
             oblg.erase(i, oblg.end());
           }
 
+        // The only cases where we accept susp and rest to be both
+        // non-empty is when doing Generic/Parity/TGBA
         if (!susp.empty())
           {
-            // The only cases where we accept susp and rest to be both
-            // non-empty is when doing Generic acceptance or TGBA.
-            if (!rest.empty()
-                && !(type_ == Generic || type_ == GeneralizedBuchi))
+            if (!rest.empty() && !split_hard)
               {
                 rest.insert(rest.end(), susp.begin(), susp.end());
                 susp.clear();
               }
             // For Parity, we want to translate all suspendable
             // formulas at once.
-            if (rest.empty() && type_ & Parity)
-              susp = { formula::multop(r2.kind(), susp) };
+            //if (rest.empty() && type_ & Parity)
+            //  susp = { formula::multop(r2.kind(), susp) };
           }
         // For TGBA and BA, we only split if there is something to
         // suspend.

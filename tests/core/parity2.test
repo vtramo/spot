@@ -1,6 +1,6 @@
 #!/bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2019, 2021 Laboratoire de Recherche et
+# Copyright (C) 2018-2019, 2021, 2022 Laboratoire de Recherche et
 # Développement de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -65,30 +65,24 @@ State: 1
 --END--
 HOA: v1
 name: "(p0 W XXGp0) & G(Fp1 & FGp2)"
-States: 5
+States: 3
 Start: 0
 AP: 3 "p0" "p1" "p2"
-acc-name: Buchi
-Acceptance: 1 Inf(0)
-properties: trans-labels explicit-labels trans-acc
+acc-name: Rabin 1
+Acceptance: 2 Fin(0) & Inf(1)
+properties: trans-labels explicit-labels trans-acc deterministic
 --BODY--
 State: 0
-[0] 0
+[0&!1&2] 0
+[0&!2] 0 {0}
+[0&1&2] 0 {1}
 [!0] 1
-[0&1&2] 2
 State: 1
-[t] 3
-[1&2] 4
+[t] 2
 State: 2
-[!0] 1
 [0&!1&2] 2
-[0&1&2] 2 {0}
-State: 3
-[0] 3
-[0&1&2] 4
-State: 4
-[0&!1&2] 4
-[0&1&2] 4 {0}
+[0&!2] 2 {0}
+[0&1&2] 2 {1}
 --END--
 HOA: v1
 name: "FGa"
@@ -124,30 +118,24 @@ State: 1
 --END--
 HOA: v1
 name: "(p0 W XXGp0) & G(Fp1 & FGp2)"
-States: 5
+States: 3
 Start: 0
 AP: 3 "p0" "p1" "p2"
 acc-name: Rabin 1
 Acceptance: 2 Fin(0) & Inf(1)
-properties: trans-labels explicit-labels trans-acc
+properties: trans-labels explicit-labels trans-acc deterministic
 --BODY--
 State: 0
-[0] 0
+[0&!1&2] 0
+[0&!2] 0 {0}
+[0&1&2] 0 {1}
 [!0] 1
-[0&1&2] 2
 State: 1
-[t] 3
-[1&2] 4
+[t] 2
 State: 2
-[!0] 1
 [0&!1&2] 2
+[0&!2] 2 {0}
 [0&1&2] 2 {1}
-State: 3
-[0] 3
-[0&1&2] 4
-State: 4
-[0&!1&2] 4
-[0&1&2] 4 {1}
 --END--
 HOA: v1
 name: "FGa"
@@ -183,30 +171,24 @@ State: 1
 --END--
 HOA: v1
 name: "(p0 W XXGp0) & G(Fp1 & FGp2)"
-States: 5
+States: 3
 Start: 0
 AP: 3 "p0" "p1" "p2"
-acc-name: Buchi
-Acceptance: 1 Inf(0)
-properties: trans-labels explicit-labels trans-acc
+acc-name: parity max even 2
+Acceptance: 2 Fin(1) & Inf(0)
+properties: trans-labels explicit-labels trans-acc deterministic
 --BODY--
 State: 0
-[0] 0
+[0&!1&2] 0
+[0&1&2] 0 {0}
+[0&!2] 0 {1}
 [!0] 1
-[0&1&2] 2
 State: 1
-[t] 3
-[1&2] 4
+[t] 2
 State: 2
-[!0] 1
 [0&!1&2] 2
 [0&1&2] 2 {0}
-State: 3
-[0] 3
-[0&1&2] 4
-State: 4
-[0&!1&2] 4
-[0&1&2] 4 {0}
+[0&!2] 2 {1}
 --END--
 HOA: v1
 name: "FGa"
@@ -242,30 +224,25 @@ State: 1
 --END--
 HOA: v1
 name: "(p0 W XXGp0) & G(Fp1 & FGp2)"
-States: 5
+States: 3
 Start: 0
 AP: 3 "p0" "p1" "p2"
-acc-name: Streett 1
-Acceptance: 2 Fin(0) | Inf(1)
+acc-name: parity min odd 3
+Acceptance: 3 Fin(0) & (Inf(1) | Fin(2))
 properties: trans-labels explicit-labels trans-acc colored
+properties: deterministic
 --BODY--
 State: 0
-[0] 0 {0}
-[!0] 1 {0}
-[0&1&2] 2 {0}
+[0&!1&2] 0 {2}
+[0&!2] 0 {0}
+[0&1&2] 0 {1}
+[!0] 1 {2}
 State: 1
-[t] 3 {0}
-[1&2] 4 {0}
+[t] 2 {2}
 State: 2
-[!0] 1 {0}
-[0&!1&2] 2 {0}
+[0&!1&2] 2 {2}
+[0&!2] 2 {0}
 [0&1&2] 2 {1}
-State: 3
-[0] 3 {0}
-[0&1&2] 4 {0}
-State: 4
-[0&!1&2] 4 {0}
-[0&1&2] 4 {1}
 --END--
 HOA: v1
 name: "FGa"
@@ -301,30 +278,25 @@ State: 1
 --END--
 HOA: v1
 name: "(p0 W XXGp0) & G(Fp1 & FGp2)"
-States: 5
+States: 3
 Start: 0
 AP: 3 "p0" "p1" "p2"
 acc-name: parity min odd 3
 Acceptance: 3 Fin(0) & (Inf(1) | Fin(2))
 properties: trans-labels explicit-labels trans-acc colored
+properties: deterministic
 --BODY--
 State: 0
-[0] 0 {2}
+[0&!1&2] 0 {2}
+[0&!2] 0 {0}
+[0&1&2] 0 {1}
 [!0] 1 {2}
-[0&1&2] 2 {2}
 State: 1
-[t] 3 {2}
-[1&2] 4 {2}
+[t] 2 {2}
 State: 2
-[!0] 1 {2}
 [0&!1&2] 2 {2}
+[0&!2] 2 {0}
 [0&1&2] 2 {1}
-State: 3
-[0] 3 {2}
-[0&1&2] 4 {2}
-State: 4
-[0&!1&2] 4 {2}
-[0&1&2] 4 {1}
 --END--
 HOA: v1
 name: "FGa"
@@ -360,30 +332,25 @@ State: 1
 --END--
 HOA: v1
 name: "(p0 W XXGp0) & G(Fp1 & FGp2)"
-States: 5
+States: 3
 Start: 0
 AP: 3 "p0" "p1" "p2"
-acc-name: parity max even 3
-Acceptance: 3 Inf(2) | (Fin(1) & Inf(0))
+acc-name: parity max even 4
+Acceptance: 4 Fin(3) & (Inf(2) | (Fin(1) & Inf(0)))
 properties: trans-labels explicit-labels trans-acc colored
+properties: deterministic
 --BODY--
 State: 0
-[0] 0 {1}
+[0&!1&2] 0 {1}
+[0&1&2] 0 {2}
+[0&!2] 0 {3}
 [!0] 1 {1}
-[0&1&2] 2 {1}
 State: 1
-[t] 3 {1}
-[1&2] 4 {1}
+[t] 2 {1}
 State: 2
-[!0] 1 {1}
 [0&!1&2] 2 {1}
 [0&1&2] 2 {2}
-State: 3
-[0] 3 {1}
-[0&1&2] 4 {1}
-State: 4
-[0&!1&2] 4 {1}
-[0&1&2] 4 {2}
+[0&!2] 2 {3}
 --END--
 EOF
 
@@ -777,7 +744,7 @@ State: 0
 HOA: v1
 name: "G(Fa & Fb)"
 States: 2
-Start: 1
+Start: 0
 AP: 2 "a" "b"
 acc-name: Buchi
 Acceptance: 1 Inf(0)
@@ -786,15 +753,15 @@ properties: deterministic stutter-invariant
 --BODY--
 State: 0
 [!1] 0
-[1] 1 {0}
+[0&1] 0 {0}
+[!0&1] 1
 State: 1
-[0&!1] 0
+[0] 0 {0}
 [!0] 1
-[0&1] 1 {0}
 --END--
 HOA: v1
 name: "(p0 W XXGp0) & G(Fp1 & FGp2)"
-States: 5
+States: 3
 Start: 0
 AP: 3 "p0" "p1" "p2"
 acc-name: Rabin 1
@@ -802,24 +769,16 @@ Acceptance: 2 Fin(0) & Inf(1)
 properties: trans-labels explicit-labels trans-acc deterministic
 --BODY--
 State: 0
-[0&!1 | 0&!2] 0
-[!0] 1
-[0&1&2] 2
-State: 1
-[!1 | !2] 3
-[1&2] 4
-State: 2
+[0&!1&2] 0
 [0&!2] 0 {0}
+[0&1&2] 0 {1}
 [!0] 1
+State: 1
+[t] 2
+State: 2
 [0&!1&2] 2
+[0&!2] 2 {0}
 [0&1&2] 2 {1}
-State: 3
-[0&!1 | 0&!2] 3
-[0&1&2] 4
-State: 4
-[0&!2] 3 {0}
-[0&!1&2] 4
-[0&1&2] 4 {1}
 --END--
 HOA: v1
 name: "FGa"
@@ -838,7 +797,7 @@ State: 0
 HOA: v1
 name: "G(Fa & Fb)"
 States: 2
-Start: 1
+Start: 0
 AP: 2 "a" "b"
 acc-name: Rabin 1
 Acceptance: 2 Fin(0) & Inf(1)
@@ -847,15 +806,15 @@ properties: deterministic stutter-invariant
 --BODY--
 State: 0
 [!1] 0
-[1] 1 {1}
+[0&1] 0 {1}
+[!0&1] 1
 State: 1
-[0&!1] 0
+[0] 0 {1}
 [!0] 1
-[0&1] 1 {1}
 --END--
 HOA: v1
 name: "(p0 W XXGp0) & G(Fp1 & FGp2)"
-States: 5
+States: 3
 Start: 0
 AP: 3 "p0" "p1" "p2"
 acc-name: Rabin 1
@@ -863,24 +822,16 @@ Acceptance: 2 Fin(0) & Inf(1)
 properties: trans-labels explicit-labels trans-acc deterministic
 --BODY--
 State: 0
-[0&!1 | 0&!2] 0
-[!0] 1
-[0&1&2] 2
-State: 1
-[!1 | !2] 3
-[1&2] 4
-State: 2
+[0&!1&2] 0
 [0&!2] 0 {0}
+[0&1&2] 0 {1}
 [!0] 1
+State: 1
+[t] 2
+State: 2
 [0&!1&2] 2
+[0&!2] 2 {0}
 [0&1&2] 2 {1}
-State: 3
-[0&!1 | 0&!2] 3
-[0&1&2] 4
-State: 4
-[0&!2] 3 {0}
-[0&!1&2] 4
-[0&1&2] 4 {1}
 --END--
 HOA: v1
 name: "FGa"
@@ -899,7 +850,7 @@ State: 0
 HOA: v1
 name: "G(Fa & Fb)"
 States: 2
-Start: 1
+Start: 0
 AP: 2 "a" "b"
 acc-name: Buchi
 Acceptance: 1 Inf(0)
@@ -908,15 +859,15 @@ properties: deterministic stutter-invariant
 --BODY--
 State: 0
 [!1] 0
-[1] 1 {0}
+[0&1] 0 {0}
+[!0&1] 1
 State: 1
-[0&!1] 0
+[0] 0 {0}
 [!0] 1
-[0&1] 1 {0}
 --END--
 HOA: v1
 name: "(p0 W XXGp0) & G(Fp1 & FGp2)"
-States: 5
+States: 3
 Start: 0
 AP: 3 "p0" "p1" "p2"
 acc-name: parity max even 2
@@ -924,24 +875,16 @@ Acceptance: 2 Fin(1) & Inf(0)
 properties: trans-labels explicit-labels trans-acc deterministic
 --BODY--
 State: 0
-[0&!1 | 0&!2] 0
-[!0] 1
-[0&1&2] 2
-State: 1
-[!1 | !2] 3
-[1&2] 4
-State: 2
+[0&!1&2] 0
+[0&1&2] 0 {0}
 [0&!2] 0 {1}
 [!0] 1
+State: 1
+[t] 2
+State: 2
 [0&!1&2] 2
 [0&1&2] 2 {0}
-State: 3
-[0&!1 | 0&!2] 3
-[0&1&2] 4
-State: 4
-[0&!2] 3 {1}
-[0&!1&2] 4
-[0&1&2] 4 {0}
+[0&!2] 2 {1}
 --END--
 HOA: v1
 name: "FGa"
@@ -960,7 +903,7 @@ State: 0
 HOA: v1
 name: "G(Fa & Fb)"
 States: 2
-Start: 1
+Start: 0
 AP: 2 "a" "b"
 acc-name: Streett 1
 Acceptance: 2 Fin(0) | Inf(1)
@@ -969,15 +912,15 @@ properties: deterministic stutter-invariant
 --BODY--
 State: 0
 [!1] 0 {0}
-[1] 1 {1}
+[0&1] 0 {1}
+[!0&1] 1 {0}
 State: 1
-[0&!1] 0 {0}
+[0] 0 {1}
 [!0] 1 {0}
-[0&1] 1 {1}
 --END--
 HOA: v1
 name: "(p0 W XXGp0) & G(Fp1 & FGp2)"
-States: 5
+States: 3
 Start: 0
 AP: 3 "p0" "p1" "p2"
 acc-name: parity min odd 3
@@ -986,24 +929,16 @@ properties: trans-labels explicit-labels trans-acc colored
 properties: deterministic
 --BODY--
 State: 0
-[0&!1 | 0&!2] 0 {2}
-[!0] 1 {2}
-[0&1&2] 2 {2}
-State: 1
-[!1 | !2] 3 {2}
-[1&2] 4 {2}
-State: 2
+[0&!1&2] 0 {2}
 [0&!2] 0 {0}
+[0&1&2] 0 {1}
 [!0] 1 {2}
+State: 1
+[t] 2 {2}
+State: 2
 [0&!1&2] 2 {2}
+[0&!2] 2 {0}
 [0&1&2] 2 {1}
-State: 3
-[0&!1 | 0&!2] 3 {2}
-[0&1&2] 4 {2}
-State: 4
-[0&!2] 3 {0}
-[0&!1&2] 4 {2}
-[0&1&2] 4 {1}
 --END--
 HOA: v1
 name: "FGa"
@@ -1022,7 +957,7 @@ State: 0
 HOA: v1
 name: "G(Fa & Fb)"
 States: 2
-Start: 1
+Start: 0
 AP: 2 "a" "b"
 acc-name: parity min odd 3
 Acceptance: 3 Fin(0) & (Inf(1) | Fin(2))
@@ -1031,15 +966,15 @@ properties: deterministic stutter-invariant
 --BODY--
 State: 0
 [!1] 0 {2}
-[1] 1 {1}
+[0&1] 0 {1}
+[!0&1] 1 {2}
 State: 1
-[0&!1] 0 {2}
+[0] 0 {1}
 [!0] 1 {2}
-[0&1] 1 {1}
 --END--
 HOA: v1
 name: "(p0 W XXGp0) & G(Fp1 & FGp2)"
-States: 5
+States: 3
 Start: 0
 AP: 3 "p0" "p1" "p2"
 acc-name: parity min odd 3
@@ -1048,24 +983,16 @@ properties: trans-labels explicit-labels trans-acc colored
 properties: deterministic
 --BODY--
 State: 0
-[0&!1 | 0&!2] 0 {2}
-[!0] 1 {2}
-[0&1&2] 2 {2}
-State: 1
-[!1 | !2] 3 {2}
-[1&2] 4 {2}
-State: 2
+[0&!1&2] 0 {2}
 [0&!2] 0 {0}
+[0&1&2] 0 {1}
 [!0] 1 {2}
+State: 1
+[t] 2 {2}
+State: 2
 [0&!1&2] 2 {2}
+[0&!2] 2 {0}
 [0&1&2] 2 {1}
-State: 3
-[0&!1 | 0&!2] 3 {2}
-[0&1&2] 4 {2}
-State: 4
-[0&!2] 3 {0}
-[0&!1&2] 4 {2}
-[0&1&2] 4 {1}
 --END--
 HOA: v1
 name: "FGa"
@@ -1084,7 +1011,7 @@ State: 0
 HOA: v1
 name: "G(Fa & Fb)"
 States: 2
-Start: 1
+Start: 0
 AP: 2 "a" "b"
 acc-name: parity max even 3
 Acceptance: 3 Inf(2) | (Fin(1) & Inf(0))
@@ -1093,15 +1020,15 @@ properties: deterministic stutter-invariant
 --BODY--
 State: 0
 [!1] 0 {1}
-[1] 1 {2}
+[0&1] 0 {2}
+[!0&1] 1 {1}
 State: 1
-[0&!1] 0 {1}
+[0] 0 {2}
 [!0] 1 {1}
-[0&1] 1 {2}
 --END--
 HOA: v1
 name: "(p0 W XXGp0) & G(Fp1 & FGp2)"
-States: 5
+States: 3
 Start: 0
 AP: 3 "p0" "p1" "p2"
 acc-name: parity max even 4
@@ -1110,24 +1037,16 @@ properties: trans-labels explicit-labels trans-acc colored
 properties: deterministic
 --BODY--
 State: 0
-[0&!1 | 0&!2] 0 {1}
-[!0] 1 {1}
-[0&1&2] 2 {1}
-State: 1
-[!1 | !2] 3 {1}
-[1&2] 4 {1}
-State: 2
+[0&!1&2] 0 {1}
+[0&1&2] 0 {2}
 [0&!2] 0 {3}
 [!0] 1 {1}
+State: 1
+[t] 2 {1}
+State: 2
 [0&!1&2] 2 {1}
 [0&1&2] 2 {2}
-State: 3
-[0&!1 | 0&!2] 3 {1}
-[0&1&2] 4 {1}
-State: 4
-[0&!2] 3 {3}
-[0&!1&2] 4 {1}
-[0&1&2] 4 {2}
+[0&!2] 2 {3}
 --END--
 EOF
 diff expected3 res3

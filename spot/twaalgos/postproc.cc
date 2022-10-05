@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2012-2021 Laboratoire de Recherche et Développement
+// Copyright (C) 2012-2022 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -40,6 +40,7 @@
 #include <spot/twaalgos/cobuchi.hh>
 #include <spot/twaalgos/cleanacc.hh>
 #include <spot/twaalgos/toparity.hh>
+#include <spot/twaalgos/zlktree.hh>
 
 namespace spot
 {
@@ -92,6 +93,7 @@ namespace spot
         merge_states_min_ = opt->get("merge-states-min", 128);
         wdba_det_max_ = opt->get("wdba-det-max", 4096);
         simul_trans_pruning_ = opt->get("simul-trans-pruning", 512);
+        acd_ = opt->get("acd", 1);
 
         if (sat_acc_ && sat_minimize_ == 0)
           sat_minimize_ = 1;        // Dicho.
@@ -250,7 +252,8 @@ namespace spot
       tmp = ensure_ba(tmp);
     if (want_parity)
       {
-        reduce_parity_here(tmp, COLORED_);
+        if (!acd_was_used_)
+          reduce_parity_here(tmp, COLORED_);
         parity_kind kind = parity_kind_any;
         parity_style style = parity_style_any;
         if ((type_ & ParityMin) == ParityMin)
@@ -295,6 +298,8 @@ namespace spot
     bool via_gba =
       (type_ == Buchi) || (type_ == GeneralizedBuchi) || (type_ == Monitor);
     bool want_parity = type_ & Parity;
+    acd_was_used_ = false;
+
     if (COLORED_ && !want_parity)
       throw std::runtime_error("postprocessor: the Colored setting only works "
                                "for parity acceptance");
@@ -340,18 +345,26 @@ namespace spot
         !(type_ == Generic && PREF_ == Any && level_ == Low))
       a = remove_alternation(a);
 
+    // If we do want a parity automaton, we can use to_parity().
+    // However (1) degeneralization is faster if the input is
+    // GBA, and (2) if we want a deterministic parity automaton and the
+    // input is not deterministic, that is useless here.  We need
+    // to determinize it first, and our deterministization
+    // function only deal with TGBA as input.
     if ((via_gba || (want_parity && !a->acc().is_parity()))
         && !a->acc().is_generalized_buchi())
       {
-        // If we do want a parity automaton, we can use to_parity().
-        // However (1) degeneralization is better if the input is
-        // GBA, and (2) if we want a deterministic parity automaton and the
-        // input is not deterministic, that is useless here.  We need
-        // to determinize it first, and our deterministization
-        // function only deal with TGBA as input.
         if (want_parity && (PREF_ != Deterministic || is_deterministic(a)))
           {
-            a = to_parity(a);
+            if (acd_)
+              {
+                a = acd_transform(a, COLORED_);
+                acd_was_used_ = true;
+              }
+            else
+              {
+                a = to_parity(a);
+              }
           }
         else
           {

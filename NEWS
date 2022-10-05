@@ -164,10 +164,19 @@ New in spot 2.10.6.dev  (not yet released)
     further simplification.  This was introduced to help with automata
     produced from formulas output by "genltl --eil-gsi" (see above).
 
-  - spot::postproc has new configuration variable branch-post that
+  - spot::postprocessor has new configuration variable branch-post that
     can be used to control the use of branching-postponement (diabled
     by default) or delayed-branching (see above, enabled by default).
     See the spot-x(7) man page for details.
+
+  - spot::postprocessor is now using acd_transform() by default when
+    building parity automata.  Setting option "acd=0" will revert
+    to using "to_parity()" instead.
+
+  - When asked to build parity automata, spot::translator is now more
+    aggressively using LTL decomposition, as done in the Generic
+    acceptance case before paritizing the result.  This results in
+    much smaller automata in many cases.
 
   - spot::parallel_policy is an object that can be passed to some
     algorithm to specify how many threads can be used if Spot has been

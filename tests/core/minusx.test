@@ -1,7 +1,7 @@
 #!/bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2016, 2020, 2021 Laboratoire de Recherche et Développement de
-# l'Epita (LRDE).
+# Copyright (C) 2016, 2020-2022 Laboratoire de Recherche et
+# Développement de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
 #
@@ -41,9 +41,9 @@ test 4,1 = `ltl2tgba --stats=%s,%d "$f"`
 test 6,0 = `ltl2tgba -x wdba-det-max=4 --stats=%s,%d "$f"`
 
 # Make sure simul-max has an effect
-f=`genltl --ms-phi-s=2`
-test 484 -eq `ltl2tgba -P -D --stats=%s "$f"`
-test 484 -lt `ltl2tgba -P -D -x simul-max=512 --stats=%s "$f"`
+f=`genltl --ms-phi-h=8`
+test 511 -eq `ltl2tgba -P -D --stats=%s "$f"`
+test 511 -lt `ltl2tgba -P -D -x simul-max=512 --stats=%s "$f"`
 
 # Illustrate issue #455: the simulation-based reduction applied before
 # tba-det can cause the creation of a DBA that is harder to reduce.

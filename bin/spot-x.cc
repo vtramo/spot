@@ -80,6 +80,9 @@ only if it is smaller than the original skeleton.  This option is only \
 used when comp-susp=1 and default to 1 or 2 depending on whether --small \
 or --deterministic is specified.") },
     { nullptr, 0, nullptr, 0, "Postprocessing options:", 0 },
+    { DOC("acd", "Set to 1 (the default) to use paritize automata using \
+the alternatinc cycle decomposition.  Set to 0 to use paritization based \
+on latest appearance record variants.") },
     { DOC("scc-filter", "Set to 1 (the default) to enable \
 SCC-pruning and acceptance simplification at the beginning of \
 post-processing.  Transitions that are outside of accepting SCC are \

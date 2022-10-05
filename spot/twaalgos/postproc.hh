@@ -270,6 +270,8 @@ namespace spot
     int simul_max_ = 4096;
     int merge_states_min_ = 128;
     int wdba_det_max_ = 4096;
+    bool acd_ = false;
+    bool acd_was_used_;
   };
   /// @}
 }
