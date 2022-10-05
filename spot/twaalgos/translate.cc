@@ -387,6 +387,7 @@ namespace spot
                      || type_ == GeneralizedBuchi)
                   aut2 = gf_guarantee_to_ba_maybe(r, simpl_->get_dict(),
                                                   det, state_based_);
+                acd_was_used_ = false;
                 if (aut2 && (pref_ & Deterministic))
                   return finalize(aut2);
                 if (!aut2 && (type_ == Generic

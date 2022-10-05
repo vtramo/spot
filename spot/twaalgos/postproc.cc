@@ -239,11 +239,13 @@ namespace spot
   {
     if (PREF_ != Any && level_ != Low)
       tmp->remove_unused_ap();
-    if (COMP_)
+    bool was_complete = tmp->prop_complete().is_true();
+    if (COMP_ && !was_complete)
       tmp = complete(tmp);
     bool want_parity = type_ & Parity;
-    if (want_parity && (tmp->acc().is_generalized_buchi()
-                        || tmp->acc().is_generalized_co_buchi()))
+    if (want_parity && tmp->num_sets() > 1
+        && (tmp->acc().is_generalized_buchi()
+            || tmp->acc().is_generalized_co_buchi()))
       tmp = choose_degen(tmp);
     assert(!!SBACC_ == state_based_);
     if (state_based_)
@@ -252,7 +254,7 @@ namespace spot
       tmp = ensure_ba(tmp);
     if (want_parity)
       {
-        if (!acd_was_used_)
+        if (!acd_was_used_ || (COMP_ && !was_complete))
           reduce_parity_here(tmp, COLORED_);
         parity_kind kind = parity_kind_any;
         parity_style style = parity_style_any;
