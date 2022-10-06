@@ -1312,7 +1312,9 @@ namespace
     // Associated condition and id of each player state
     std::vector<std::pair<bdd, unsigned>> ps2c;
     ps2c.reserve(n_tot - n_env);
+    // bdd id -> internal index
     std::unordered_map<unsigned, unsigned> all_out_cond;
+
     for (unsigned s1 = n_env; s1 < n_tot; ++s1)
       {
         const bdd &c1 = get_cond(s1);
@@ -1327,24 +1329,26 @@ namespace
 #endif
       }
     // Are two player condition ids states incompatible
+    // Matrix for incompatibility
     square_matrix<bool, true> inc_player(all_out_cond.size(), false);
+    // Matrix whether computed or not
+    square_matrix<bool, true> inc_player_comp(all_out_cond.size(), false);
     // Compute. First is id of bdd
-    for (const auto& p1 : all_out_cond)
-      for (const auto& p2 : all_out_cond)
-        {
-          if (p1.second > p2.second)
-            continue;
-          inc_player.set(p1.second, p2.second,
-                         !bdd_have_common_assignment(
-                             bdd_from_int((int) p1.first),
-                             bdd_from_int((int) p2.first)));
-          assert(inc_player.get(p1.second, p2.second)
-                 == ((bdd_from_int((int) p1.first)
-                     & bdd_from_int((int) p2.first)) == bddfalse));
-        }
+    // Lazy eval: Compute incompatibility between out conditions
+    // only if demanded
+
     auto is_p_incomp = [&](unsigned s1, unsigned s2)
       {
-        return inc_player.get(ps2c[s1].second, ps2c[s2].second);
+        const auto& [s1bdd, s1idx] = ps2c[s1];
+        const auto& [s2bdd, s2idx] = ps2c[s2];
+
+        if (!inc_player_comp.get(s1idx, s2idx))
+          {
+            inc_player_comp.set(s1idx, s2idx, true);
+            inc_player.set(s1idx, s2idx,
+                           !bdd_have_common_assignment(s1bdd, s2bdd));
+          }
+        return inc_player.get(s1idx, s2idx);
       };
 
     si.player_incomp_time = si.restart();
@@ -3948,6 +3952,7 @@ namespace
     si.task = "presat";
     stopwatch sglob;
     sglob.start();
+    si.start();
 
     if ((premin < -1) || (premin > 1))
       throw std::runtime_error("premin has to be -1, 0 or 1");
