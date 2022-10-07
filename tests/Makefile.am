@@ -476,7 +476,11 @@ endif
 CLEANFILES = python/test1.dve python/test1.dve2C python/test1.dve.cpp
 
 SUFFIXES = .ipynb .html
+# Use the classic template when available because it loads
+# jquery and we need it in zlktree.html; however the --template
+# option does not exist with nbconvert 5.6.1 (in Debian stable).
 .ipynb.html:
+	$(JUPYTER) nbconvert $< --to html --template classic --stdout >$@ || \
 	$(JUPYTER) nbconvert $< --to html --stdout >$@
 
 .PHONY: nb-html
