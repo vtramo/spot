@@ -1,26 +1,26 @@
-New in spot 2.10.6.dev  (not yet released)
+New in spot 2.11  (2022-10-08)
 
   Build:
 
-  - configure will now diagnose situation where Python bindings will
+  - configure will now diagnose situations where Python bindings will
     be installed in a directory that is not part of Python's search
     path.  A new configure option --with-pythondir can be used to
     modify this installation path.
 
-  - A new configure option --enable-pthread enable the compilation of
-    Spot with -pthread, and activate the parallel version of some
-    algorithms.  If Spot is compiled with -pthread enabled, any user
-    linking with Spot should also link with the pthread library.  In
-    order to not break existing build setups using Spot, this option
-    is currently disabled by default in this release.  We plan to turn
-    it on by default in some future release.  Third-party project
-    using Spot may want to start linking with -pthread in prevision
-    for this change.
+  - A new configure option --enable-pthread enables the compilation of
+    Spot with -pthread, and render available the parallel version of
+    some algorithms.  If Spot is compiled with -pthread enabled, any
+    user linking with Spot should also link with the pthread library.
+    In order to not break existing build setups using Spot, this
+    option is currently disabled by default in this release.  We plan
+    to turn it on by default in some future release.  Third-party
+    project using Spot may want to start linking with -pthread in
+    prevision for this change.
 
   Command-line tools:
 
   - autfilt has a new options --aliases=drop|keep to specify
-    if the output code should attempt to preserve aliases
+    if the HOA printer should attempt to preserve aliases
     present in the HOA input.  This defaults to "keep".
 
   - autfilt has a new --to-finite option, illustrated on
@@ -79,11 +79,11 @@ New in spot 2.10.6.dev  (not yet released)
   - tgba_determinize() learned to fill the "original-classes" property.
     States of the determinized automaton that correspond to the same
     subset of states of the original automaton belong to the same
-    class.  Filling this property is only done on demand has it inccurs
-    on small overhead.
+    class.  Filling this property is only done on demand as it inccurs
+    a small overhead.
 
   - sbacc() learned to take the "original-classes" property into
-    account and preserve it.
+    account and to preserve it.
 
   - The HOA parser and printer learned to map the synthesis-outputs
     property of Spot to the controllable-AP header for the Extended
@@ -148,10 +148,10 @@ New in spot 2.10.6.dev  (not yet released)
     is a co-Büchi automaton.  And product_or() learned that the
     "or"-product of two Büchi automata is a Büchi automaton.
 
-  - spot::postprocessor has a new extra option merge-states-min that
-    indicate above how many states twa_graph::merge_states(), which
+  - spot::postprocessor has a new extra option "merge-states-min" that
+    indicates above how many states twa_graph::merge_states() (which
     perform a very cheap pass to fuse states with identicall
-    succesors, should be called before running simulation-based
+    succesors) should be called before running simulation-based
     reductions.
 
   - A new function delay_branching_here(aut) can be used to simplify
@@ -164,14 +164,17 @@ New in spot 2.10.6.dev  (not yet released)
     further simplification.  This was introduced to help with automata
     produced from formulas output by "genltl --eil-gsi" (see above).
 
-  - spot::postprocessor has new configuration variable branch-post that
-    can be used to control the use of branching-postponement (diabled
-    by default) or delayed-branching (see above, enabled by default).
-    See the spot-x(7) man page for details.
+  - spot::postprocessor has new configuration variable branch-post
+    that can be used to control the use of branching-postponement
+    (disabled by default) or delayed-branching (see above, enabled by
+    default).  See the spot-x(7) man page for details.
 
   - spot::postprocessor is now using acd_transform() by default when
     building parity automata.  Setting option "acd=0" will revert
     to using "to_parity()" instead.
+
+  - to_parity() has been almost entirely rewritten and is a bit
+    faster.
 
   - When asked to build parity automata, spot::translator is now more
     aggressively using LTL decomposition, as done in the Generic
