@@ -449,7 +449,7 @@ publish-unstable:
   script:
     - cd _build_unstable
     - ls -l
-    - dput lrde `ls -t *.changes | head -1`
+    - dput lrde `ls -t *amd64.changes | head -1` `ls -t *i386.changes | head -1`
     - cd ..
     - rm -rf _build_unstable
     - curl -X POST -F ref=master -F token=$TRIGGER_SPOT_WEB -F "variables[spot_branch]=next" https://gitlab.lre.epita.fr/api/v4/projects/131/trigger/pipeline
