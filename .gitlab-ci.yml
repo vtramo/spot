@@ -410,6 +410,7 @@ publish-rpm:
     - rpm-pkg
   script:
     - case $CI_COMMIT_REF_NAME in stable) rput fedora stable *.rpm;; next) rput fedora unstable *.rpm;; esac
+    - rm -rf ./*
 
 publish-stable:
   only:
@@ -425,11 +426,12 @@ publish-stable:
   script:
     - cd _build_stable
     - ls -l
-    - dput lrde *.changes
+    - dput lrde `ls -t *.changes | head -1`
     - cd ..
     - ls -l
     - tgz=`ls spot-*.tar.* | head -n 1`
     - case $tgz in *[0-9].tar.*) scp $tgz doc@perso:/var/www/dload/spot/;; esac
+    - rm -rf ./*
     - curl -X POST -F ref=master -F token=$TRIGGER_SPOT_WEB -F "variables[spot_branch]=stable" https://gitlab.lre.epita.fr/api/v4/projects/131/trigger/pipeline
     - curl -X POST "https://archive.softwareheritage.org/api/1/origin/save/git/url/https://gitlab.lre.epita.fr/spot/spot/"
     - curl "https://web.archive.org/save/https://www.lrde.epita.fr/dload/spot/$tgz"
@@ -447,7 +449,9 @@ publish-unstable:
   script:
     - cd _build_unstable
     - ls -l
-    - dput lrde *.changes
+    - dput lrde `ls -t *.changes | head -1`
+    - cd ..
+    - rm -rf _build_unstable
     - curl -X POST -F ref=master -F token=$TRIGGER_SPOT_WEB -F "variables[spot_branch]=next" https://gitlab.lre.epita.fr/api/v4/projects/131/trigger/pipeline
     - curl -X POST -F ref=master -F token=$TRIGGER_SANDBOX https://gitlab.lre.epita.fr/api/v4/projects/181/trigger/pipeline
 
