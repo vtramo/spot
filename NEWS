@@ -1,6 +1,9 @@
-New in spot 2.11.0.dev  (not yet released)
+New in spot 2.11.1  (2022-10-10)
 
-  Nothing yet.
+  Bugs fixed:
+
+  - Fix a build issue preventing the update of website (issue #516).
+  - Fix a compilation error with clang-14 on FreeBSD (issue #515).
 
 New in spot 2.11  (2022-10-08)
 
