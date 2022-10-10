@@ -23,6 +23,7 @@
 #include <spot/misc/common.hh>
 #include <spot/twa/fwd.hh>
 #include <vector>
+#include <unordered_map>
 #include <utility>
 #include <functional>
 #include <bddx.h>
