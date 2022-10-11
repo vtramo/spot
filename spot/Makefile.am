@@ -68,6 +68,7 @@ libspot.pc: $(srcdir)/libspot.pc.in Makefile
 	    -e 's![@]includedir[@]!$(includedir)!g' \
 	    -e 's![@]libdir[@]!$(libdir)!g' \
 	    -e 's![@]PACKAGE_VERSION[@]!$(PACKAGE_VERSION)!g' \
+	    -e 's![@]LIBSPOT_PTHREAD[@]!$(LIBSPOT_PTHREAD)!g' \
 	$(srcdir)/libspot.pc.in > $@.tmp && mv $@.tmp $@
 
 CLEANFILES = libspot.pc
