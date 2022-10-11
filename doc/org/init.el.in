@@ -184,6 +184,49 @@ up.html points to index.html, then the result is:
 	:publishing-function org-publish-attachment)
        ("spot-all" :components ("spot-html" "spot-static"))))
 
+
+
+
+;;; Org-mode 9.4.6 is now using <img> to render SVG images.
+;;; Unfortunately, this breaks SVG images that use external style
+;;; sheets as <img> are expected to be self-contained.
+;;;
+;;; Since we do use such external style-sheets and never had
+;;; any issue with <object type="image/svg+xml"...>, we revert
+;;; to the previous behavior.
+;;;
+;;; The following function is based on org-html--svg-image from
+;;; Org-mode 9.4.5, with the addition of the SVG extension test.
+(defun spot-svg-output-as-object (source attributes info)
+  "If source is an SVG file, return an \"object\" embedding svg file
+SOURCE with given ATTRIBUTES.
+INFO is a plist used as a communication channel.  Otherwise return nil.
+
+The special attribute \"fallback\" can be used to specify a
+fallback image file to use if the object embedding is not
+supported.  CSS class \"org-svg\" is assigned as the class of the
+object unless a different class is specified with an attribute."
+  (when (string= "svg" (file-name-extension source))
+    (let ((fallback (plist-get attributes :fallback))
+          (attrs (org-html--make-attribute-string
+                  (org-combine-plists
+                   ;; Remove fallback attribute, which is not meant to
+                   ;; appear directly in the attributes string, and
+                   ;; provide a default class if none is set.
+                   '(:class "org-svg") attributes '(:fallback nil)))))
+      (format "<object type=\"image/svg+xml\" data=\"%s\" %s>\n%s</object>"
+              source
+              attrs
+              (if fallback
+                  (org-html-close-tag
+                   "img" (format "src=\"%s\" %s" fallback attrs) info)
+                "Sorry, your browser does not support SVG.")))))
+;;; Hack org-html--format-image to call the above first.
+;;; (The org-html--svg-image function was removed when the formater code
+;;; switched to <img> for SVG.)
+(unless (fboundp 'org-html--svg-image)
+  (advice-add 'org-html--format-image :before-until 'spot-svg-output-as-object))
+
 (org-publish-all t)
 ;;; org-babel-remove-temporary-directory does not correctly remove
 ;;; nested directories and we have some files in tmp/.libs/ because of
