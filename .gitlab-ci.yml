@@ -68,7 +68,7 @@ debian-unstable-gcc-coverage:
     - ./configure CXX='g++ --coverage' --enable-devel --disable-static --enable-doxygen
     - make
     - make check
-    - gcovr --xml-pretty --exclude-unreachable-branches --print-summary -o coverage.xml --root $PWD -e 'bin/spot.cc' -e 'bin/spot-x.cc' -e 'spot/bricks/.*' -e 'spot/parse.*/scan.*.cc' -e 'spot/parse.*/parse.*.cc' -e 'utf8/.*' -e 'python/.*' -e 'buddy/.*' -e 'doc/org/tmp/.*' --html-details coverage.html --html-tab-size 8
+    - gcovr --xml-pretty --exclude-unreachable-branches --print-summary -o coverage.xml --root $PWD -e 'bin/spot.cc' -e 'bin/spot-x.cc' -e 'spot/bricks/.*' -e 'spot/parse.*/scan.*.cc' -e 'spot/parse.*/parse.*.cc' -e 'utf8/.*' -e 'python/.*' -e 'buddy/.*' -e 'doc/org/tmp/.*' --html-details coverage.html --html-tab-size 8 --fail-under-line 90.7
   coverage: /^\s*lines:\s*\d+.\d+\%/
   artifacts:
     when: always
