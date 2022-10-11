@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2015, 2016, 2017, 2018, 2019, 2020 Laboratoire de Recherche et
+// Copyright (C) 2015-2020, 2022 Laboratoire de Recherche et
 // Developpement de l'Epita
 //
 // This file is part of Spot, a model checking library.
@@ -127,7 +127,7 @@ namespace spot
       bool b = it.isnew();
 
       // Insertion failed, delete element
-      // FIXME Should we add a local cache to avoid useless allocations?
+      // FIXME: Should we add a local cache to avoid useless allocations?
       if (!b)
         p_.deallocate(v);
       else

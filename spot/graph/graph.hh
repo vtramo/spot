@@ -1295,10 +1295,10 @@ namespace spot
           static std::vector<std::thread> tv;
           SPOT_ASSERT(tv.empty());
           tv.resize(nthreads);
-          // FIXME: Due to the way these thread advence into the sate
-          // vectors, they access very close memory location.  It
-          // would seems more cache friendly to have thread work on
-          // blocks of continuous states.
+          // FIXME: Due to the way these thread advance into the state
+          // vector, they access very close memory location.  It would
+          // seems more cache friendly to have threads work on blocks
+          // of continuous states.
           for (unsigned id = 0; id < nthreads; ++id)
             tv[id] = std::thread(
               [bne, id, ns, &idx_list, p, nthreads]()

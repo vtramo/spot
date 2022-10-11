@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2017, 2018, 2020 Laboratoire de Recherche et Développement de
-// l'Epita (LRDE)
+// Copyright (C) 2017, 2018, 2020, 2022 Laboratoire de Recherche et
+// Développement de l'Epita (LRDE)
 //
 // This file is part of Spot, a model checking library.
 //
@@ -400,10 +400,10 @@ namespace spot
       }
   }
 
-  // FIXME I think we only need visbles aps, i.e. if the system has
-  // following variables, i.e. P_0.var1 and P_0.var2 but the property
-  // automaton only mention P_0.var2, we do not need to capture (in
-  // the resulting cube) any atomic proposition for P_0.var1
+  // FIXME: I think we only need visible aps. E.g., if the system has
+  // variables P_0.var1 and P_0.var2 but the property automaton only
+  // mentions P_0.var2, we do not need to capture (in the resulting
+  // cube) any atomic proposition for P_0.var1
   void
   kripkecube<cspins_state,
              cspins_iterator>::match_aps(std::vector<std::string>& aps,

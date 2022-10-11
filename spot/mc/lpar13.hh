@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2015-2016, 2018-2021 Laboratoire de Recherche et
+// Copyright (C) 2015-2016, 2018-, 20222022 Laboratoire de Recherche et
 // Developpement de l'Epita
 //
 // This file is part of Spot, a model checking library.
@@ -32,9 +32,9 @@ namespace spot
 {
   /// \brief This class implements the sequential emptiness check as
   /// presented in "Three SCC-based Emptiness Checks for Generalized
-  /// B\¨uchi Automata" (Renault et al, LPAR 2013). Among the three
-  /// emptiness check that has been proposed we opted to implement
-  /// the Gabow's one.
+  /// Büchi Automata" (Renault et al, LPAR 2013). Among the three
+  /// emptiness checks that have been proposed, we opted to implement
+  /// yGabow's one.
   template<typename State, typename SuccIterator,
            typename StateHash, typename StateEqual>
   class SPOT_API lpar13
@@ -62,8 +62,8 @@ namespace spot
       size_t
       operator()(const product_state that) const noexcept
       {
-        // FIXME! wang32_hash(that.st_prop) could have
-        // been pre-calculated!
+        // FIXME: wang32_hash(that.st_prop) could have been
+        // pre-calculated!
         StateHash hasher;
         return  wang32_hash(that.st_prop) ^ hasher(that.st_kripke);
       }
@@ -135,7 +135,7 @@ namespace spot
                                         map[newtop])))
                 {
                   sys_.recycle(todo.back().it_kripke, tid_);
-                  // FIXME a local storage for twacube iterator?
+                  // FIXME: a local storage for twacube iterator?
                   todo.pop_back();
                   if (SPOT_UNLIKELY(found_))
                     {
@@ -346,7 +346,7 @@ namespace spot
                           ctrx_element* current = front;
                           while (current != nullptr)
                             {
-                              // FIXME also display acc?
+                              // FIXME: also display acc?
                               res = res + "  " +
                                 std::to_string(current->prod_st->st_prop) +
                                 + "*" +
