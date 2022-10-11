@@ -457,7 +457,7 @@ namespace spot
             // First loop over all possible valuations atomic properties.
             for (bdd oneletter: minterms_of(all_letters, ap))
               {
-                minato_isop isop(bdd_relprod(bs, oneletter, ap));
+                minato_isop isop(bdd_restrict(bs, oneletter));
                 bdd dest;
                 while ((dest = isop.next()) != bddfalse)
                   {
@@ -636,7 +636,7 @@ namespace spot
               cond_ = oneletter;
               all_letters_ -= oneletter;
               // Get a sum of possible transitions matching this letter.
-              isop_ = minato_isop(bdd_relprod(transitions_, oneletter, ap_));
+              isop_ = minato_isop(bdd_restrict(transitions_, oneletter));
               dest_ = isop_.next();
             }
           std::set<unsigned> dest = bdd_to_state(dest_);
