@@ -1,6 +1,8 @@
 New in spot 2.11.1.dev  (not yet released)
 
-  Nothing yet.
+  Bugs fixed:
+
+  - Fix pkg-config files containing @LIBSPOT_PTHREAD@ (issue #520)
 
 New in spot 2.11.1  (2022-10-10)
 
