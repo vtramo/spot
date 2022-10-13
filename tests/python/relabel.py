@@ -55,3 +55,7 @@ try:
     spot.relabel_here(autg, m)
 except RuntimeError as e:
     tc.assertIn("old labels", str(e))
+
+f = spot.parse_infix_sere("(p9;p21|p22):(p1&p2;p11&p22;p1&p2)").f
+g = spot.relabel_bse(f, spot.Abc)
+tc.assertEqual(str(g), "(a;(b | c)):(d;(c & e);d)")

@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2012-2016, 2018-2020 Laboratoire de Recherche et
+// Copyright (C) 2012-2016, 2018-2020, 2022 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -363,7 +363,7 @@ namespace spot
                 goto done;
               }
           }
-        if (sz > 2 && !f.is_boolean())
+        if (sz > 2 && !f.is_boolean() && f.is(op::And, op::Or))
           {
             /// If we have a formula like (a & b & Xc), consider
             /// it as ((a & b) & Xc) in the graph to isolate the
@@ -384,7 +384,7 @@ namespace spot
             for (i = 1; i < sz; ++i)
               {
                 formula next = f[i];
-                // Note that we only add an edge in both directions,
+                // Note that we add an edge in both directions,
                 // as the cut point algorithm really need undirected
                 // graphs.  (We used to do only one direction, and
                 // that turned out to be a bug.)
@@ -580,6 +580,14 @@ namespace spot
       formula_to_fgraph conv(g, subcount);
       conv.visit(f);
     }
+
+    //// Uncomment to print the graph.
+    // for (auto& [f, sv]: g)
+    //   {
+    //     std::cerr << f << ":\n";
+    //     for (auto& s: sv)
+    //       std::cerr << "  " << s << '\n';
+    //   }
 
     // Compute its cut-points
     fset c;
