@@ -187,7 +187,7 @@ up.html points to index.html, then the result is:
 
 
 
-;;; Org-mode 9.4.6 is now using <img> to render SVG images.
+;;; Org-mode 9.5 is now using <img> to render SVG images.
 ;;; Unfortunately, this breaks SVG images that use external style
 ;;; sheets as <img> are expected to be self-contained.
 ;;;
