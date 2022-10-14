@@ -1,5 +1,11 @@
 New in spot 2.11.1.dev  (not yet released)
 
+  Library:
+
+  - spot::reduce_parity() now has a "layered" option to force all
+    transition in the same parity layer to receive the same color;
+    like acd_transform() would do.
+
   Bugs fixed:
 
   - Fix pkg-config files containing @LIBSPOT_PTHREAD@ (issue #520)

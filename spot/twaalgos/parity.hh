@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2016-2019 Laboratoire de Recherche et Développement
+// Copyright (C) 2016-2019, 2022 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -134,7 +134,6 @@ namespace spot
   colorize_parity_here(twa_graph_ptr aut, bool keep_style = false);
   /// @}
 
-
   /// \brief Reduce the parity acceptance condition to use a minimal
   /// number of colors.
   ///
@@ -149,11 +148,51 @@ namespace spot
   /// the above paper assumes).  Otherwise, the smallest or highest
   /// colors (depending on the parity kind) is removed to simplify the
   /// acceptance condition.
+  ///
+  /// If the input uses state-based acceptance, the output will use
+  /// state-based acceptance as well.
+  ///
+  /// A parity automaton, sometimes called a chain automaton, can be
+  /// seen as a stack of layers that are alternatively rejecting and
+  /// accepting.  For instance imagine a parity max automaton that is
+  /// strongly connected.  Removing the transitions with the maximal
+  /// color might leave a few transitions that were not labeled by
+  /// this maximal color, but that are part of any cycle anymore:
+  /// those transition could have been colored with the maximal color,
+  /// since any cycle going through them would have seen the maximal
+  /// color.  (Once your remove this maximal layer,
+  /// your can define the next layer similarly.)
+  ///
+  /// When \a layered is true all transition that belong to the same
+  /// layer receive the same color.  When layer is `false`, only the
+  /// transition that where used initially to define the layers (i.e,
+  /// the transition with the maximal color in the previous exemple),
+  /// get their color adjusted.  The other will receive either no
+  /// color (if \a colored is false), or a useless color (if \a colored
+  /// is true).  Here "useless color" means the smallest color
+  /// for parity max, and the largest color for parity min.
+  ///
+  /// When \a layered is true, the output of this function is
+  /// comparable to what acd_transform() would produce.  The
+  /// difference is that this function preserve the kind (min/max) of
+  /// parity input, while acd_transform() always output a parity min
+  /// automaton.  Additionally, this function needs fewer resources
+  /// than acd_transform() because it is already known that the input
+  /// is a parity automaton.  In some (historically inaccurate) way,
+  /// reduce_parity() can be seen as a specialized version of
+  /// acd_transform().
+  ///
+  /// The reason layered is false by default, is that not introducing
+  /// colors in place where there where none occasionally help with
+  /// simulation-based reductions.
+  ///
   /// @{
   SPOT_API twa_graph_ptr
-  reduce_parity(const const_twa_graph_ptr& aut, bool colored = false);
+  reduce_parity(const const_twa_graph_ptr& aut,
+                bool colored = false, bool layered = false);
 
   SPOT_API twa_graph_ptr
-  reduce_parity_here(twa_graph_ptr aut, bool colored = false);
+  reduce_parity_here(twa_graph_ptr aut,
+                     bool colored = false, bool layered = false);
   /// @}
 }

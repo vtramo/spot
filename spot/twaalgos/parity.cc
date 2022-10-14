@@ -388,14 +388,14 @@ namespace spot
   }
 
   twa_graph_ptr
-  reduce_parity(const const_twa_graph_ptr& aut, bool colored)
+  reduce_parity(const const_twa_graph_ptr& aut, bool colored, bool layered)
   {
     return reduce_parity_here(make_twa_graph(aut, twa::prop_set::all()),
-                              colored);
+                              colored, layered);
   }
 
   twa_graph_ptr
-  reduce_parity_here(twa_graph_ptr aut, bool colored)
+  reduce_parity_here(twa_graph_ptr aut, bool colored, bool layered)
   {
     unsigned num_sets = aut->num_sets();
     if (!colored && num_sets == 0)
@@ -507,15 +507,30 @@ namespace spot
                   m.first += (piri - m.first) & 1;
                   m.second += (piri - m.second) & 1;
                 }
-              for (unsigned state: si.states_of(scc))
-                for (auto& e: aut->out(state))
-                  if ((sba || si.scc_of(e.dst) == scc) &&
-                      ((piri >= 0 && e.acc.has(color)) || (piri < 0 && !e.acc)))
-                    {
-                      unsigned en = aut->edge_number(e);
-                      piprime1[en] = m.first;
-                      piprime2[en] = m.second;
-                    }
+              // Recolor edges.  Depending on LAYERED we want to
+              // either recolor all edges for which piprime1 is -2
+              // (uncolored), or only the edges that we were removed
+              // by the previous filter.
+              auto coloredge = [&](auto& e) {
+                unsigned en = aut->edge_number(e);
+                bool recolor = layered
+                  ? piprime1[en] == -2
+                  : (piri >= 0 && e.acc.has(color)) || (piri < 0 && !e.acc);
+                if (recolor)
+                  {
+                    piprime1[en] = m.first;
+                    piprime2[en] = m.second;
+                  }
+              };
+              if (sba)
+                // si.edges_of(scc) would be wrong as it can ignore
+                // outgoing edges removed from a previous level.
+                for (unsigned s: si.states_of(scc))
+                  for (auto& e: aut->out(s))
+                    coloredge(e);
+              else
+                for (auto& e: si.inner_edges_of(scc))
+                  coloredge(e);
               res.first = std::max(res.first, m.first);
               res.second = std::max(res.second, m.second);
             }
