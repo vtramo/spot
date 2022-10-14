@@ -520,6 +520,7 @@ namespace std {
   %template(vectorbdd) vector<bdd>;
   %template(aliasvector) vector<pair<string, bdd>>;
   %template(vectorstring) vector<string>;
+  %template(vectorint) vector<int>;
   %template(pair_formula_vectorstring) pair<spot::formula, vector<string>>;
   %template(atomic_prop_set) set<spot::formula>;
   %template(relabeling_map) map<spot::formula, spot::formula>;

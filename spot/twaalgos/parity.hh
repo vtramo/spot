@@ -21,6 +21,7 @@
 
 #include <spot/misc/common.hh>
 #include <spot/twa/fwd.hh>
+#include <vector>
 
 namespace spot
 {
@@ -194,5 +195,27 @@ namespace spot
   SPOT_API twa_graph_ptr
   reduce_parity_here(twa_graph_ptr aut,
                      bool colored = false, bool layered = false);
+
+  /// @}
+
+  /// \brief Internal data computed by the reduce_parity function
+  ///
+  /// `piprime1` and `piprime2` have the size of `aut`'s edge vector,
+  /// represent two possible colorations of the edges.  piprime1 assumes
+  /// that terminal cases of the recursion are odd, and piprime2 assumes
+  /// they are even.
+  ///
+  /// reduce_parity() actually compare the range of values in these
+  /// two vectors to limit the number of colors.
+  struct SPOT_API reduce_parity_data
+  {
+    bool parity_max;       ///< Whether the input automaton is parity max
+    bool parity_odd;       ///< Whether the input automaton is parity odd
+    std::vector<int> piprime1;
+    std::vector<int> piprime2;
+
+    reduce_parity_data(const const_twa_graph_ptr& aut, bool layered = false);
+  };
+
   /// @}
 }
