@@ -56,6 +56,9 @@ make-dist:
       - ./*.tar.gz
       - VERSION
 
+# We --disable-devel for coverage, because debug mode replaces
+# SPOT_UNREACHABLE by an assertion wich is never reachable, lowering
+# our coverage.
 debian-unstable-gcc-coverage:
   stage: build
   only:
@@ -65,7 +68,7 @@ debian-unstable-gcc-coverage:
   image: gitlab-registry.lre.epita.fr/spot/buildenv/debian
   script:
     - autoreconf -vfi
-    - ./configure CXX='g++ --coverage' --enable-devel --disable-static --enable-doxygen
+    - ./configure CXX='g++ --coverage' --disable-devel --enable-warnings --disable-static --enable-doxygen
     - make
     - make check
     - gcovr --xml-pretty --exclude-unreachable-branches --print-summary -o coverage.xml --root $PWD -e 'bin/spot.cc' -e 'bin/spot-x.cc' -e 'spot/bricks/.*' -e 'spot/parse.*/scan.*.cc' -e 'spot/parse.*/parse.*.cc' -e 'utf8/.*' -e 'python/.*' -e 'buddy/.*' -e 'doc/org/tmp/.*' --html-details coverage.html --html-tab-size 8 --fail-under-line 90.7
