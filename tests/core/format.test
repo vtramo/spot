@@ -1,7 +1,7 @@
 #!/bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2016, 2017 Laboratoire de Recherche et Développement de
-# l'Epita (LRDE).
+# Copyright (C) 2016, 2017, 2022 Laboratoire de Recherche et
+# Développement de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
 #
@@ -139,18 +139,36 @@ test 3,5 = `ltl2tgba --low --any --stats=%s,%e "$f"`
 test 3,4 = `ltl2tgba --stats=%s,%e "$f"`
 
 cat >foo <<EOF
-HOA: v1
-States: 3
-Start: 0
-AP: 0
-Acceptance: 0 t
---BODY--
-State: 0
-[t] 1
-State: 1
-[t] 0
-State: 2
-[t] 2
---END--
+HOA: v1 States: 7 Start: 5 AP: 1 "a" acc-name: Buchi
+Acceptance: 1 Inf(0) properties: trans-labels explicit-labels
+state-acc deterministic properties: terminal --BODY-- State: 0 [0] 6
+State: 1 [t] 0 State: 2 [t] 1 State: 3 [f] 2 State: 4 [t] 3 State: 5
+[t] 4 State: 6 {0} [t] 6 --END--
 EOF
-test 2,2 = `autfilt --stats=%S,%s foo`
+(
+    autfilt --stats='%s,%[r]s,%[u]s,%[a]s' foo;
+    autfilt --remove-dead --stats='%s,%[r]s,%[u]s,%[a]s' foo;
+    autfilt --remove-dead --stats='%S,%[r]S,%[u]S,%[a]S' foo;
+    autfilt --stats='%e,%[r]e,%[u]e,%[a]e' foo;
+    autfilt --remove-dead --stats='%e,%[r]e,%[u]e,%[a]e' foo;
+    autfilt --remove-dead --stats='%E,%[r]E,%[u]E,%[a]E' foo;
+    autfilt --stats='%t,%[r]t,%[u]t,%[a]t' foo;
+    autfilt --remove-dead --stats='%t,%[r]t,%[u]t,%[a]t' foo;
+    autfilt --remove-dead --stats='%T,%[r]T,%[u]T,%[a]T' foo;
+) > stats
+
+cat >expected <<EOF
+3,3,4,7
+1,1,0,1
+3,3,4,7
+2,2,4,6
+0,0,0,0
+2,2,4,6
+4,4,7,11
+0,0,0,0
+4,4,7,11
+EOF
+diff stats expected
+
+autfilt --stats='%[x]T' foo 2>err && exit 1
+grep 'only \[a\], \[r\], or \[u\] is supported' err

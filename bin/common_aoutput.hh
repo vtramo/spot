@@ -166,9 +166,9 @@ private:
   spot::printable_value<std::string> aut_word_;
   spot::printable_value<std::string> haut_word_;
   spot::printable_acc_cond haut_gen_acc_;
-  spot::printable_value<unsigned> haut_states_;
-  spot::printable_value<unsigned> haut_edges_;
-  spot::printable_value<unsigned long long> haut_trans_;
+  spot::printable_size haut_states_;
+  spot::printable_size haut_edges_;
+  spot::printable_long_size haut_trans_;
   spot::printable_value<unsigned> haut_acc_;
   printable_varset haut_ap_;
   printable_varset aut_ap_;

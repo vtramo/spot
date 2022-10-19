@@ -1,5 +1,12 @@
 New in spot 2.11.1.dev  (not yet released)
 
+  Command-line tools:
+
+  - The --stats specifications %s, %e, %t for printing the number of
+    (reachable) states, edges, and transitions, learned to support
+    options [r], [u], [a] to indicate if only reachable, unreachable,
+    or all elements should be counted.
+
   Library:
 
   - spot::reduce_parity() now has a "layered" option to force all

@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2008, 2011-2017, 2020 Laboratoire de Recherche et
-// Développement de l'Epita (LRDE).
+// Copyright (C) 2008, 2011-2017, 2020, 2022 Laboratoire de Recherche
+// et Développement de l'Epita (LRDE).
 // Copyright (C) 2004 Laboratoire d'Informatique de Paris 6 (LIP6),
 // département Systèmes Répartis Coopératifs (SRC), Université Pierre
 // et Marie Curie.
@@ -55,6 +55,9 @@ namespace spot
   /// \brief Compute sub statistics for an automaton.
   SPOT_API twa_sub_statistics sub_stats_reachable(const const_twa_ptr& g);
 
+  /// \brief Count all transtitions, even unreachable ones.
+  SPOT_API unsigned long long
+  count_all_transitions(const const_twa_graph_ptr& g);
 
   class SPOT_API printable_formula: public printable_value<formula>
   {
@@ -102,6 +105,36 @@ namespace spot
     void print(std::ostream& os, const char* pos) const override;
   };
 
+  class SPOT_API printable_size final:
+    public spot::printable
+  {
+    unsigned reachable_ = 0;
+    unsigned all_ = 0;
+  public:
+    void set(unsigned reachable, unsigned all)
+    {
+      reachable_ = reachable;
+      all_ = all;
+    }
+
+    void print(std::ostream& os, const char* pos) const override;
+  };
+
+  class SPOT_API printable_long_size final:
+    public spot::printable
+  {
+    unsigned long long reachable_ = 0;
+    unsigned long long all_ = 0;
+  public:
+    void set(unsigned long long reachable, unsigned long long all)
+    {
+      reachable_ = reachable;
+      all_ = all;
+    }
+
+    void print(std::ostream& os, const char* pos) const override;
+  };
+
   /// \brief prints various statistics about a TGBA
   ///
   /// This object can be configured to display various statistics
@@ -123,9 +156,9 @@ namespace spot
     const char* format_;
 
     printable_formula form_;
-    printable_value<unsigned> states_;
-    printable_value<unsigned> edges_;
-    printable_value<unsigned long long> trans_;
+    printable_size states_;
+    printable_size edges_;
+    printable_long_size trans_;
     printable_value<unsigned> acc_;
     printable_scc_info scc_;
     printable_value<unsigned> nondetstates_;

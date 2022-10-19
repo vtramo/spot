@@ -203,12 +203,18 @@ static const argp_option io_options[] =
       "to specify additional options as in --hoa=opt)", 0 },
     { "%M, %m", 0, nullptr, OPTION_DOC | OPTION_NO_USAGE,
       "name of the automaton", 0 },
-    { "%S, %s", 0, nullptr, OPTION_DOC | OPTION_NO_USAGE,
-      "number of reachable states", 0 },
-    { "%E, %e", 0, nullptr, OPTION_DOC | OPTION_NO_USAGE,
-      "number of reachable edges", 0 },
-    { "%T, %t", 0, nullptr, OPTION_DOC | OPTION_NO_USAGE,
-      "number of reachable transitions", 0 },
+    { "%S, %s, %[LETTER]S, %[LETTER]s",
+      0, nullptr, OPTION_DOC | OPTION_NO_USAGE,
+      "number of states (add one LETTER to select (r) reachable [default], "
+      "(u) unreachable, (a) all).", 0 },
+    { "%E, %e, %[LETTER]E, %[LETTER]e",
+      0, nullptr, OPTION_DOC | OPTION_NO_USAGE,
+      "number of edges (add one LETTER to select (r) reachable [default], "
+      "(u) unreachable, (a) all).", 0 },
+    { "%T, %t, %[LETTER]E, %[LETTER]e",
+      0, nullptr, OPTION_DOC | OPTION_NO_USAGE,
+      "number of transitions (add one LETTER to select (r) reachable "
+      "[default], (u) unreachable, (a) all).", 0 },
     { "%A, %a", 0, nullptr, OPTION_DOC | OPTION_NO_USAGE,
       "number of acceptance sets", 0 },
     { "%G, %g, %[LETTERS]G, %[LETTERS]g", 0, nullptr,
@@ -268,12 +274,15 @@ static const argp_option o_options[] =
       "to specify additional options as in --hoa=opt)", 0 },
     { "%m", 0, nullptr, OPTION_DOC | OPTION_NO_USAGE,
       "name of the automaton", 0 },
-    { "%s", 0, nullptr, OPTION_DOC | OPTION_NO_USAGE,
-      "number of reachable states", 0 },
-    { "%e", 0, nullptr, OPTION_DOC | OPTION_NO_USAGE,
-      "number of reachable edges", 0 },
-    { "%t", 0, nullptr, OPTION_DOC | OPTION_NO_USAGE,
-      "number of reachable transitions", 0 },
+    { "%s, %[LETTER]s", 0, nullptr, OPTION_DOC | OPTION_NO_USAGE,
+      "number of states (add one LETTER to select (r) reachable [default], "
+      "(u) unreachable, (a) all).", 0 },
+    { "%e, %[LETTER]e", 0, nullptr, OPTION_DOC | OPTION_NO_USAGE,
+      "number of edges (add one LETTER to select (r) reachable [default], "
+      "(u) unreachable, (a) all).", 0 },
+    { "%t, %[LETTER]t", 0, nullptr, OPTION_DOC | OPTION_NO_USAGE,
+      "number of transitions (add one LETTER to select (r) reachable "
+      "[default], (u) unreachable, (a) all).", 0 },
     { "%a", 0, nullptr, OPTION_DOC | OPTION_NO_USAGE,
       "number of acceptance sets", 0 },
     { "%g, %[LETTERS]g", 0, nullptr,
@@ -472,15 +481,15 @@ hoa_stat_printer::print(const spot::const_parsed_aut_ptr& haut,
       if (has('T'))
         {
           spot::twa_sub_statistics s = sub_stats_reachable(haut->aut);
-          haut_states_ = s.states;
-          haut_edges_ = s.edges;
-          haut_trans_ = s.transitions;
+          haut_states_.set(s.states, haut->aut->num_states());
+          haut_edges_.set(s.edges, haut->aut->num_edges());
+          haut_trans_.set(s.transitions, count_all_transitions(haut->aut));
         }
       else if (has('E') || has('S'))
         {
           spot::twa_statistics s = stats_reachable(haut->aut);
-          haut_states_ = s.states;
-          haut_edges_ = s.edges;
+          haut_states_.set(s.states, haut->aut->num_states());
+          haut_edges_.set(s.edges, haut->aut->num_edges());
         }
       if (has('M'))
         {

@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2008, 2011-2018, 2020 Laboratoire de Recherche et
-// Développement de l'Epita (LRDE).
+// Copyright (C) 2008, 2011-2018, 2020, 2022 Laboratoire de Recherche
+// et Développement de l'Epita (LRDE).
 // Copyright (C) 2004 Laboratoire d'Informatique de Paris 6 (LIP6),
 // département Systèmes Répartis Coopératifs (SRC), Université Pierre
 // et Marie Curie.
@@ -33,6 +33,16 @@
 
 namespace spot
 {
+  unsigned long long
+  count_all_transitions(const const_twa_graph_ptr& g)
+  {
+    unsigned long long tr = 0;
+    bdd v = g->ap_vars();
+    for (auto& e: g->edges())
+      tr += bdd_satcountset(e.cond, v);
+    return tr;
+  }
+
   namespace
   {
     class stats_bfs: public twa_reachable_iterator_breadth_first
@@ -80,6 +90,7 @@ namespace spot
       twa_sub_statistics& s_;
       bdd apvars_;
     };
+
 
 
     template<typename SU, typename EU>
@@ -344,8 +355,71 @@ namespace spot
             << std::string(beg, end + 2) << ", ";
         tmp << e.what();
         throw std::runtime_error(tmp.str());
-
       }
+  }
+
+  void printable_size::print(std::ostream& os, const char* pos) const
+  {
+    char p = 'r';
+    if (*pos == '[')
+      {
+        p = pos[1];
+        if (pos[2] != ']' || !(p == 'r' || p == 'u' || p == 'a'))
+          {
+            const char* end = strchr(pos + 1, ']');
+            std::ostringstream tmp;
+            tmp << "while processing %"
+                << std::string(pos, end + 2) << ", "
+                << "only [a], [r], or [u] is supported.";
+            throw std::runtime_error(tmp.str());
+          }
+      }
+    switch (p)
+      {
+      case 'r':
+        os << reachable_;
+        return;
+      case 'a':
+        os << all_;
+        return;
+      case 'u':
+        os << all_ - reachable_;
+        return;
+      }
+    SPOT_UNREACHABLE();
+    return;
+  }
+
+  void printable_long_size::print(std::ostream& os, const char* pos) const
+  {
+    char p = 'r';
+    if (*pos == '[')
+      {
+        p = pos[1];
+        if (pos[2] != ']' || !(p == 'r' || p == 'u' || p == 'a'))
+          {
+            const char* end = strchr(pos + 1, ']');
+            std::ostringstream tmp;
+            tmp << "while processing %"
+                << std::string(pos, end + 2) << ", "
+                << "only [a], [r], or [u] is supported.";
+              throw std::runtime_error(tmp.str());
+          }
+      }
+    switch (p)
+      {
+      case 'r':
+        os << reachable_;
+        return;
+      case 'a':
+        os << all_;
+        return;
+      case 'u':
+        os << all_ - reachable_;
+        return;
+      }
+    SPOT_UNREACHABLE();
+    return;
   }
 
 
@@ -376,15 +450,15 @@ namespace spot
     if (has('t'))
       {
         twa_sub_statistics s = sub_stats_reachable(aut);
-        states_ = s.states;
-        edges_ = s.edges;
-        trans_ = s.transitions;
+        states_.set(s.states, aut->num_states());
+        edges_.set(s.edges, aut->num_edges());
+        trans_.set(s.transitions, count_all_transitions(aut));
       }
     else if (has('s') || has('e'))
       {
         twa_statistics s = stats_reachable(aut);
-        states_ = s.states;
-        edges_ = s.edges;
+        states_.set(s.states, aut->num_states());
+        edges_.set(s.edges, aut->num_edges());
       }
 
     if (has('a'))
