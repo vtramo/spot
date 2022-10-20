@@ -574,9 +574,7 @@ namespace spot
               // implies is faster than and
               if (bdd_implies(one_letter, e_info.einsup.first))
                 {
-                  e_info.econdout =
-                      bdd_appex(e_info.econd, one_letter,
-                                bddop_and, input_bdd);
+                  e_info.econdout = bdd_restrict(e_info.econd, one_letter);
                   dests.push_back(&e_info);
                   assert(e_info.econdout != bddfalse);
                 }

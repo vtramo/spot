@@ -900,8 +900,7 @@ namespace spot
               for (bdd label: minterms_of(all_props, var_set))
                 {
                   formula dest =
-                    dict_.bdd_to_sere(bdd_appex(res_ndet, label, bddop_and,
-                                                dict_.var_set));
+                    dict_.bdd_to_sere(bdd_restrict(res_ndet, label));
                   dest = formula::first_match(dest);
                   if (to_concat_)
                     dest = formula::Concat({dest, to_concat_});
@@ -995,9 +994,7 @@ namespace spot
           bdd all_props = bdd_existcomp(res, dict_.var_set);
           for (bdd label: minterms_of(all_props, var_set))
             {
-              formula dest =
-                dict_.bdd_to_sere(bdd_appex(res, label, bddop_and,
-                                            dict_.var_set));
+              formula dest = dict_.bdd_to_sere(bdd_restrict(res, label));
               f2a_t::const_iterator i = f2a_.find(dest);
               if (i != f2a_.end() && i->second.first == nullptr)
                 continue;
@@ -1471,9 +1468,7 @@ namespace spot
                   for (bdd label: minterms_of(all_props, var_set))
                     {
                       formula dest =
-                        dict_.bdd_to_sere(bdd_appex(f1, label, bddop_and,
-                                                    dict_.var_set));
-
+                        dict_.bdd_to_sere(bdd_restrict(f1, label));
                       formula dest2 = formula::binop(o, dest, node[1]);
                       bool unamb = dict_.unambiguous;
                       if (!dest2.is_ff())
@@ -1552,9 +1547,7 @@ namespace spot
                   for (bdd label: minterms_of(all_props, var_set))
                     {
                       formula dest =
-                        dict_.bdd_to_sere(bdd_appex(f1, label, bddop_and,
-                                                    dict_.var_set));
-
+                        dict_.bdd_to_sere(bdd_restrict(f1, label));
                       formula dest2 = formula::binop(o, dest, node[1]);
 
                       bdd udest =
@@ -1787,16 +1780,15 @@ namespace spot
                 var_set = bdd_existcomp(bdd_support(t.symbolic), d_.var_set);
                 all_props = bdd_existcomp(t.symbolic, d_.var_set);
               }
-            for (bdd one_prop_set: minterms_of(all_props, var_set))
+            for (bdd label: minterms_of(all_props, var_set))
               {
-                minato_isop isop(t.symbolic & one_prop_set);
+                minato_isop isop(t.symbolic & label);
                 bdd cube;
                 while ((cube = isop.next()) != bddfalse)
                   {
                     bdd label = bdd_exist(cube, d_.next_set);
                     bdd dest_bdd = bdd_existcomp(cube, d_.next_set);
-                    formula dest =
-                      d_.conj_bdd_to_formula(dest_bdd);
+                    formula dest = d_.conj_bdd_to_formula(dest_bdd);
 
                     // Handle a Miyano-Hayashi style unrolling for
                     // rational operators.  Marked nodes correspond to
@@ -1818,8 +1810,7 @@ namespace spot
                         dest = d_.mt.mark_concat_ops(dest);
                       }
                     // Note that simplify_mark may have changed dest.
-                    dest_bdd = bdd_ithvar(d_.register_next_variable(dest));
-                    res |= label & dest_bdd;
+                    res |= label & bdd_ithvar(d_.register_next_variable(dest));
                   }
               }
             t.symbolic = res;
@@ -2120,16 +2111,15 @@ namespace spot
             //
             // FIXME: minato_isop is quite expensive, and I (=adl)
             // don't think we really care that much about getting the
-            // smalled sum of products that minato_isop strives to
+            // smallest sum of products that minato_isop strives to
             // compute.  Given that Next and Acc variables should
             // always be positive, maybe there is a faster way to
             // compute the successors?  E.g. using bdd_satone() and
             // ignoring negated Next and Acc variables.
-            minato_isop isop(res & one_prop_set);
+            minato_isop isop(bdd_restrict(res, one_prop_set));
             bdd cube;
             while ((cube = isop.next()) != bddfalse)
               {
-                bdd label = bdd_exist(cube, d.next_set);
                 bdd dest_bdd = bdd_existcomp(cube, d.next_set);
                 formula dest = d.conj_bdd_to_formula(dest_bdd);
 
@@ -2147,8 +2137,9 @@ namespace spot
                 if (symb_merge)
                   dest = fc.canonicalize(dest);
 
-                bdd conds = bdd_existcomp(label, d.var_set);
-                bdd promises = bdd_existcomp(label, d.a_set);
+                bdd conds =
+                  exprop ? one_prop_set : bdd_existcomp(cube, d.var_set);
+                bdd promises = bdd_existcomp(cube, d.a_set);
                 dests.emplace_back(transition(dest, conds, promises));
               }
           }
