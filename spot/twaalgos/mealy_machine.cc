@@ -36,6 +36,7 @@
 #include <spot/twaalgos/game.hh>
 #include <spot/twaalgos/hoa.hh>
 #include <spot/twaalgos/product.hh>
+#include <spot/twaalgos/relabel.hh>
 #include <spot/twaalgos/synthesis.hh>
 
 #include <picosat/picosat.h>
@@ -1265,8 +1266,8 @@ namespace
   }
 
   square_matrix<bool, true>
-  compute_incomp(const_twa_graph_ptr mm, const unsigned n_env,
-                 satprob_info& si)
+  compute_incomp_impl_(const_twa_graph_ptr mm, const unsigned n_env,
+                       satprob_info& si, bool is_partitioned)
   {
     const unsigned n_tot = mm->num_states();
 
@@ -1276,20 +1277,6 @@ namespace
     // Helper
     // Have two states already been checked for common pred
     square_matrix<bool, true> checked_pred(n_env, false);
-
-    // We also need a transposed_graph
-    auto mm_t = make_twa_graph(mm->get_dict());
-    mm_t->copy_ap_of(mm);
-    mm_t->new_states(n_env);
-
-    for (unsigned s = 0; s < n_env; ++s)
-      {
-        for (const auto& e_env : mm->out(s))
-          {
-            unsigned dst_env = mm->out(e_env.dst).begin()->dst;
-            mm_t->new_edge(dst_env, s, e_env.cond);
-          }
-      }
 
     // Utility function
     auto get_cond = [&mm](unsigned s)->const bdd&
@@ -1373,7 +1360,27 @@ namespace
 
     // If two states can reach an incompatible state
     // under the same input, then they are incompatible as well
-    auto tag_predec = [&](unsigned s1, unsigned s2)
+
+    // Version if the input is not partitioned
+    // We also need a transposed_graph
+    twa_graph_ptr mm_t = nullptr;
+    if (!is_partitioned)
+    {
+      mm_t = make_twa_graph(mm->get_dict());
+      mm_t->copy_ap_of(mm);
+      mm_t->new_states(n_env);
+
+      for (unsigned s = 0; s < n_env; ++s)
+        {
+          for (const auto& e_env : mm->out(s))
+            {
+              unsigned dst_env = mm->out(e_env.dst).begin()->dst;
+              mm_t->new_edge(dst_env, s, e_env.cond);
+            }
+        }
+    }
+
+    auto tag_predec_unpart = [&](unsigned s1, unsigned s2)
       {
         static std::vector<std::pair<unsigned, unsigned>> todo_;
         assert(todo_.empty());
@@ -1407,6 +1414,78 @@ namespace
         // Done tagging all pred
       };
 
+    // Version of taging taking advantaged of partitioned conditions
+    struct S
+    {
+    };
+    struct T
+    {
+      int id;
+    };
+    std::unique_ptr<digraph<S, T>> mm_t_part;
+    if (is_partitioned)
+      {
+        mm_t_part = std::make_unique<digraph<S, T>>(n_env, mm->num_edges());
+        mm_t_part->new_states(n_env);
+
+        for (unsigned s = 0; s < n_env; ++s)
+          {
+            for (const auto& e_env : mm->out(s))
+              {
+                unsigned dst_env = mm->out(e_env.dst).begin()->dst;
+                mm_t_part->new_edge(dst_env, s, e_env.cond.id());
+              }
+          }
+      }
+
+    auto tag_predec_part = [&](unsigned s1, unsigned s2)
+      {
+        static std::vector<std::pair<unsigned, unsigned>> todo_;
+        assert(todo_.empty());
+
+        todo_.emplace_back(s1, s2);
+
+        while (!todo_.empty())
+          {
+            auto [i, j] = todo_.back();
+            todo_.pop_back();
+            if (checked_pred.get(i, j))
+              continue;
+            // If predecs are already marked incomp
+            auto e_it_i = mm_t_part->out(i);
+            auto e_it_j = mm_t_part->out(j);
+
+            auto e_it_i_e = e_it_i.end();
+            auto e_it_j_e = e_it_j.end();
+
+            auto e_i = e_it_i.begin();
+            auto e_j = e_it_j.begin();
+
+            // Joint iteration over both edge groups
+            while ((e_i != e_it_i_e) & (e_j != e_it_j_e))
+              {
+                if (e_i->id < e_j->id)
+                  ++e_i;
+                else if (e_j->id < e_i->id)
+                  ++e_j;
+                else
+                  {
+                    assert(e_j->id == e_i->id);
+                    trace << e_i->dst << " and " << e_j->dst << " tagged incomp"
+                            " due to " << e_i->id << '\n';
+                    inc_env.set(e_i->dst, e_j->dst, true);
+                    todo_.emplace_back(e_i->dst, e_j->dst);
+                    ++e_i;
+                    ++e_j;
+                  }
+              }
+            checked_pred.set(i, j, true);
+          }
+        // Done tagging all pred
+      };
+
+
+
     for (unsigned s1 = 0; s1 < n_env; ++s1)
       for (unsigned s2 = s1 + 1; s2 < n_env; ++s2)
         {
@@ -1417,7 +1496,10 @@ namespace
           if (direct_incomp(s1, s2))
             {
               inc_env.set(s1, s2, true);
-              tag_predec(s1, s2);
+              if (is_partitioned)
+                tag_predec_part(s1, s2);
+              else
+                tag_predec_unpart(s1, s2);
             }
         }
 
@@ -1427,6 +1509,23 @@ namespace
 #endif
     si.incomp_time = si.restart();
     return inc_env;
+  } // incomp no partition
+
+
+  square_matrix<bool, true>
+  compute_incomp(const_twa_graph_ptr mm, const unsigned n_env,
+                 satprob_info& si)
+  {
+    // Try to generate a graph with partitioned env transitions
+    auto mm2 = make_twa_graph(mm, twa::prop_set::all());
+    auto select_env = [n_env](unsigned s)noexcept {return s<n_env;};
+
+    // todo get a good value for cutoff
+    auto relabel = try_partitioned_relabel_here(mm2, true, -1u, 10,
+                                                select_env, "__syIncompNV");
+
+    return compute_incomp_impl_(relabel.succ() ? const_twa_graph_ptr(mm2) : mm,
+                                n_env, si, relabel.succ());
   }
 
     struct part_sol_t
