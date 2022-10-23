@@ -99,9 +99,16 @@ namespace spot
     bdd compute_(const bdd& new_cond);
   public:
     partition_relabel_dict() = default;
-    partition_relabel_dict(const std::vector<bdd>& old_letters,
-                           const std::vector<bdd>& new_letters,
-                           std::vector<formula> new_aps);
+
+    partition_relabel_dict(const std::vector<formula>& new_aps,
+                           l_map&& orig_letters,
+                           l_map&& computed_conditions)
+      : orig_letters_{orig_letters}
+      , computed_conditions_{computed_conditions}
+      , relabel_succ_{true}
+      , new_aps_{new_aps}
+    {
+    }
 
     void store_results(bool do_store)
     {

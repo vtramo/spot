@@ -33,12 +33,70 @@ namespace spot
   {
     struct bdd_partition
     {
-      using pou = std::array<unsigned, 2>;
-      std::vector<bdd> treated;
-      std::vector<pou> offsprings;
-      std::vector<pou> offsprings_list;
+      struct S
+      {
+        bdd new_label = bddfalse;
+      };
+      struct T
+      {
+      };
+      using implication_graph = digraph<S, T>;
+
+      // A pointer to the conditions to be partitioned
+      const std::vector<bdd>* all_cond_ptr;
+      // Graph with the invariant that
+      // children imply parents
+      // Leaves from the partition
+      // original conditions are "root" nodes
+      std::unique_ptr<implication_graph> ig;
+      // todo: technically there are at most two successors, so a graph
+      // is "too" generic
+      // All conditions currently part of the partition
+      // unsigned corresponds to the associated node
+      std::vector<std::pair<bdd, unsigned>> treated;
       std::vector<formula> new_aps;
       bool relabel_succ = false;
+
+      bdd_partition() = default;
+      bdd_partition(const std::vector<bdd>& all_cond)
+        : all_cond_ptr(&all_cond)
+        , ig{std::make_unique<implication_graph>(2*all_cond.size(),
+                                                 2*all_cond.size())}
+      {
+        // Create the roots of all old conditions
+        // Each condition is associated to the state with
+        // the same index
+        const unsigned Norig = all_cond.size();
+        ig->new_states(Norig);
+      }
+
+      // Facilitate conversion
+      // This can only be called when letters have already
+      // been computed
+      operator partition_relabel_dict() const
+      {
+        partition_relabel_dict::l_map orig_letters;
+        partition_relabel_dict::l_map computed_conditions;
+
+        orig_letters.reserve(treated.size());
+        for (const auto& [old_letter, s] : treated)
+          orig_letters[ig->state_storage(s).new_label] = old_letter;
+
+        if (ig->state_storage(0).new_label != bddfalse)
+          {
+            // split option was false, so we can store further info
+            auto& all_cond = *all_cond_ptr;
+            const unsigned Norig = all_cond.size();
+            computed_conditions.reserve(Norig);
+
+            for (unsigned i = 0; i < Norig; ++i)
+              computed_conditions[ig->state_storage(i).new_label]
+                = all_cond[i];
+          }
+        return partition_relabel_dict{new_aps,
+                                      std::move(orig_letters),
+                                      std::move(computed_conditions)};
+      }
     };
 
     bdd_partition
@@ -46,88 +104,68 @@ namespace spot
     {
       // We create vector that will be succesively filled.
       // Each entry corresponds to a "letter", of the partition
-      bdd_partition result;
-
       const size_t Norig = all_cond.size();
+
+      bdd_partition result(all_cond);
+
       auto& treated = result.treated;
-      treated.reserve(Norig);
-      auto& offsprings = result.offsprings;
-      offsprings = std::vector<bdd_partition::pou>(Norig, {-1u,-1u});
-      auto& offsprings_list = result.offsprings_list;
-      offsprings_list.reserve(Norig);
-
-      auto add_idx = [&](unsigned old_cond_idx, unsigned letter_idx)
-        {
-          unsigned tail = offsprings[old_cond_idx][1];
-          unsigned oIdx = offsprings_list.size();
-          offsprings_list.push_back({letter_idx, -1u});
-          if (tail == -1u)
-            offsprings[old_cond_idx] = {oIdx, oIdx};
-          else
-            {
-              offsprings_list[tail][1] = oIdx;
-              offsprings[old_cond_idx][1] = oIdx;
-            }
-        };
-
-      // Partition while keeping track who is an ancestor
-      // Also change to handmade linked list?
-      std::vector<std::pair<bdd, std::vector<unsigned>>> treated_inter;
-      treated_inter.reserve(Norig);
+      auto& ig = *result.ig;
 
       for (unsigned io = 0; io < Norig; ++io)
         {
           bdd cond = all_cond[io];
-          const auto Nt = treated_inter.size();
+          const auto Nt = treated.size();
           for (size_t in = 0; in < Nt; ++in)
             {
               if (cond == bddfalse)
                 break;
-              if (treated_inter[in].first == cond)
+              if (treated[in].first == cond)
                 {
-                  // Found this very condition -> done
-                  treated_inter[in].second.push_back(io);
+                  // Found this very condition -> make transition
+                  ig.new_edge(io, treated[in].second);
                   cond = bddfalse;
                   break;
                 }
-              if (bdd_have_common_assignment(treated_inter[in].first, cond))
+              if (bdd_have_common_assignment(treated[in].first, cond))
                 {
-                  bdd inter = treated_inter[in].first & cond;
-                  treated_inter[in].first -= inter;
+                  bdd inter = treated[in].first & cond;
+                  // Create two new states
+                  unsigned ssplit = ig.new_states(2);
+                  // ssplit becomes the state without the intersection
+                  // ssplit + 1 becomes the intersection
+                  // Both of them are implied by the original node,
+                  // Only inter is implied by the current letter
+                  ig.new_edge(treated[in].second, ssplit);
+                  ig.new_edge(treated[in].second, ssplit+1);
+                  ig.new_edge(io, ssplit+1);
+                  treated.emplace_back(inter, ssplit+1);
+                  // Update
                   cond -= inter;
-                  treated_inter.emplace_back(std::make_pair(
-                                             inter,
-                                             treated_inter[in].second));
-                  treated_inter.back().second.push_back(io);
-                  if (treated_inter.size() > max_letter)
+                  treated[in].first -= inter;
+                  treated[in].second = ssplit;
+                  if (treated.size() > max_letter)
                     return bdd_partition{};
                 }
             }
             if (cond != bddfalse)
-              treated_inter.emplace_back(std::make_pair(
-                                         cond,
-                                         std::vector<unsigned>{io}));
+              {
+                unsigned sc = ig.new_state();
+                treated.emplace_back(cond, sc);
+                ig.new_edge(io, sc);
+              }
         }
 
-      // Redistribute
-      const size_t Nnc = treated_inter.size();
-      treated.reserve(Nnc);
-      for (size_t i = 0; i < Nnc; ++i)
-        {
-          std::cout << i << " : " << treated_inter[i].first << '\n';
-          treated.push_back(treated_inter[i].first);
-          for (auto o : treated_inter[i].second)
-            add_idx(o, i);
-        }
       result.relabel_succ = true;
       return result;
     }
 
-    std::vector<bdd>
+    void
     comp_new_letters(bdd_partition& part,
                     twa_graph& aut,
-                    const std::string& var_prefix)
+                    const std::string& var_prefix,
+                    bool split)
     {
+      auto& ig = *part.ig;
       const auto& treated = part.treated;
       auto& new_aps = part.new_aps;
       // Get the new variables and their negations
@@ -144,12 +182,10 @@ namespace spot
           Nv_vec[i] = {bdd_nithvar(v), bdd_ithvar(v)};
         }
 
-      std::vector<bdd> treated_newcond(treated.size());
-
-      for (unsigned i = 0; i < Nnl; ++i)
+      auto leaveidx2label = [&](unsigned idx)
         {
           unsigned c = 0;
-          unsigned rem = i;
+          unsigned rem = idx;
           bdd thisbdd = bddtrue;
           while (rem)
             {
@@ -159,11 +195,41 @@ namespace spot
             }
           for (; c < Nnv; ++c)
             thisbdd &= Nv_vec[c][0];
-          treated_newcond[i] = thisbdd;
+          return thisbdd;
+        };
+
+      // Compute only labels of leaves
+      for (unsigned idx = 0; idx < Nnl; ++idx)
+        ig.state_storage(treated[idx].second).new_label = leaveidx2label(idx);
+
+      // We will label the implication graph with the new letters
+      auto relabel_impl = [&](unsigned s, auto&& relabel_impl_rec)
+        {
+          auto& ss = ig.state_storage(s);
+          if (ss.new_label != bddfalse)
+            return ss.new_label;
+          else
+            {
+              assert((ss.succ != 0) && "Should not be a leave");
+              bdd thisbdd = bddfalse;
+              for (const auto& e : ig.out(s))
+                thisbdd |= relabel_impl_rec(e.dst, relabel_impl_rec);
+              ss.new_label = thisbdd;
+              return thisbdd;
+            }
+        };
+
+      if (!split)
+        {
+          // For split only leaves is ok,
+          // disjunction is done via transitions
+          // This will compute the new_label for all states in the ig
+          const unsigned Norig = part.all_cond_ptr->size();
+          for (unsigned i = 0; i < Norig; ++i)
+            relabel_impl(i, relabel_impl);
         }
-      return treated_newcond;
-    }
-  }
+    } // comp_new_letters
+  } // Namespace
 
 
   void
@@ -240,24 +306,6 @@ namespace spot
       }
   }
 
-  partition_relabel_dict::partition_relabel_dict(const std::vector<bdd>&
-                                                    old_letters,
-                                                 const std::vector<bdd>&
-                                                    new_letters,
-                                                  std::vector<formula>
-                                                    new_aps)
-    : relabel_succ_{true}
-    , new_aps_(std::move(new_aps))
-  {
-    if (old_letters.size() != new_letters.size())
-      throw std::runtime_error("Letters need to be bijective, "
-                               "trivially non-verified");
-    const auto N = old_letters.size();
-    orig_letters_.reserve(N);
-    for (size_t i = 0; i < N; ++i)
-      orig_letters_[new_letters[i]] = old_letters[i];
-  }
-
   bdd partition_relabel_dict::compute_(const bdd& new_cond)
   {
     // todo test if new_cond is a disjunction of new_letters?
@@ -267,6 +315,10 @@ namespace spot
       {
         if (bdd_implies(k, new_cond))
           old_cond |= v;
+        else
+          assert(!bdd_have_common_assignment(new_cond,k)
+                 && "Either k implies new_cond or disjoint."
+                    " Otherwise its not part of the partition");
       }
     if (store_results_)
       computed_conditions_[new_cond] = old_cond;
@@ -287,6 +339,8 @@ namespace spot
         return partition_relabel_dict();
       };
 
+
+    // When split we need to distiguish effectively new and old edges
     if (split)
       {
         aut->get_graph().remove_dead_edges_();
@@ -294,13 +348,12 @@ namespace spot
         aut->get_graph().chain_edges_();
       }
 
-
     // Get all conditions present in the automaton
     std::vector<bdd> all_cond;
     bdd ignoredcon = bddtrue;
     std::unordered_map<int, unsigned> all_cond_id2idx;
 
-    all_cond.reserve(0.1*aut->num_states());
+    all_cond.reserve(0.1*aut->num_edges());
     all_cond_id2idx.reserve(all_cond.size());
 
     for (const auto& e : aut->edges())
@@ -309,13 +362,14 @@ namespace spot
           auto [_, ins] =
               all_cond_id2idx.try_emplace(e.cond.id(), all_cond.size());
           if (ins)
-            all_cond.push_back(e.cond);
+            {
+              all_cond.push_back(e.cond);
+              if (all_cond.size() > max_letter)
+                return abandon();
+            }
         }
       else
         ignoredcon &= bdd_support(e.cond);
-
-    if (all_cond.size() > max_letter)
-      return abandon();
 
     const unsigned stop =
         std::min(max_letter,
@@ -326,74 +380,52 @@ namespace spot
     if (!this_partition.relabel_succ)
       return abandon();
 
-    std::vector<bdd> new_letters =
-      comp_new_letters(this_partition, *aut, var_prefix);
+    comp_new_letters(this_partition, *aut, var_prefix, split);
 
-    //auto& treated = this_partition->treated;
-    auto& offsprings = this_partition.offsprings;
-    auto& offsprings_list = this_partition.offsprings_list;
-
-    // Replace all treated transitions in the original automaton
-    // with all offsprings in the new variables
-    if (split)
+    // A original condition is represented by all leaves that imply it
+    auto& ig = *this_partition.ig;
+    const unsigned Ns = aut->num_states();
+    const unsigned Nt = aut->num_edges();
+    for (unsigned s = 0; s < Ns; ++s)
       {
-        // All edges are sorted, no dead edges etc
-        const unsigned Neold = aut->num_edges();
-        for (unsigned e_idx = 1; e_idx <= Neold; ++e_idx)
+        if (select_states && !select_states(s))
+            continue;
+        for (auto& e : aut->out(s))
           {
-            auto& e = aut->edge_storage(e_idx);
-
+            if (aut->edge_number(e) > Nt)
+              continue;
             unsigned idx = all_cond_id2idx[e.cond.id()];
-            unsigned of_idx = offsprings[idx][0];
-            e.cond = new_letters[offsprings_list[of_idx][0]];
-            of_idx = offsprings_list[of_idx][1];
-            while (of_idx != -1u)
-              {
-                unsigned of = offsprings_list[of_idx][0];
-                aut->new_edge(e.src, e.dst,
-                              new_letters.at(of), e.acc);
-                of_idx = offsprings_list[of_idx][1];
-              }
-          }
-        return partition_relabel_dict(this_partition.treated,
-                                      new_letters, this_partition.new_aps);
-      }
-    else
-      {
-        const size_t Nc = all_cond.size();
-        // Relabel edges by disjunctions over all offsprings
-        auto resdict =
-          partition_relabel_dict(this_partition.treated, new_letters,
-                                 this_partition.new_aps);
-        auto& cond_map_n2o = resdict.computed_conditions_;
-        cond_map_n2o.reserve(Nc);
 
-        // Translate all (old) conditions into new_ones
-        std::vector<bdd> new_all_cond(Nc);
-        for (size_t i = 0; i < Nc; ++i)
-          {
-            unsigned of_idx = offsprings[i][0];
-            bdd new_cond = new_letters[offsprings_list[of_idx][0]];
-            of_idx = offsprings_list[of_idx][1];
-            while (of_idx != -1u)
+            if (split)
               {
-                unsigned of = offsprings_list[of_idx][0];
-                new_cond |= new_letters[of];
-                of_idx = offsprings_list[of_idx][1];
-              }
-            new_all_cond[i] = new_cond;
-            cond_map_n2o[new_cond] = all_cond[i];
-          }
+                auto replace_label =
+                  [&aut, &ig, &econd = e.cond,
+                  esrc=e.src, edst=e.dst](unsigned si, auto&& replace_label_)->void
+                  {
 
-        const unsigned Nstates = aut->num_states();
-        for (unsigned n = 0; n < Nstates; ++n)
-          {
-            if (!select_states || select_states(n))
-              for (auto& e : aut->out(n))
-                e.cond = new_all_cond[all_cond_id2idx[e.cond.id()]];
-          }
-        return resdict;
-      }
-    SPOT_UNREACHABLE();
+                    auto sstore = ig.state_storage(si);
+                    if (sstore.succ == 0)
+                      {
+                        if (econd == bddfalse)
+                          econd = sstore.new_label;
+                        else
+                          aut->new_edge(esrc, edst, sstore.new_label);
+                      }
+                    else
+                      {
+                        for (const auto& e_ig : ig.out(si))
+                          replace_label_(e_ig.dst, replace_label_);
+                      }
+                  };
+
+                // initial call
+                e.cond = bddfalse;
+                replace_label(idx, replace_label);
+              }
+            else
+              e.cond = ig.state_storage(idx).new_label;
+          } // for edge
+      } // for state
+    return this_partition;
   }
 }
