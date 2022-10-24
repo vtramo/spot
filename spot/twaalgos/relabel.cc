@@ -237,7 +237,7 @@ namespace spot
                         const bdd_partition::implication_graph& ig,
                         twa_graph_ptr& aut)
     {
-      auto sstore = ig.state_storage(si);
+      auto& sstore = ig.state_storage(si);
       if (sstore.succ == 0)
         {
           if (econd == bddfalse)
@@ -422,9 +422,13 @@ namespace spot
             if (split)
               {
                 // initial call
-                e.cond = bddfalse;
+                // We can not hold a ref to the edge
+                // as the edgevector might get reallocated
+                bdd econd = bddfalse;
+                unsigned eidx = aut->edge_number(e);
                 replace_label_(idx, e.src, e.dst,
-                               e.cond, ig, aut);
+                               econd, ig, aut);
+                aut->edge_storage(eidx).cond = econd;
               }
             else
               e.cond = ig.state_storage(idx).new_label;
