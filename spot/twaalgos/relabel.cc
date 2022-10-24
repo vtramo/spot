@@ -229,6 +229,29 @@ namespace spot
             relabel_impl(i, relabel_impl);
         }
     } // comp_new_letters
+
+    // Recursive traversal of implication graph
+    void replace_label_(unsigned si,
+                        unsigned esrc, unsigned edst,
+                        bdd& econd,
+                        const bdd_partition::implication_graph& ig,
+                        twa_graph_ptr& aut)
+    {
+      auto sstore = ig.state_storage(si);
+      if (sstore.succ == 0)
+        {
+          if (econd == bddfalse)
+            econd = sstore.new_label;
+          else
+            aut->new_edge(esrc, edst, sstore.new_label);
+        }
+      else
+        {
+          for (const auto& e_ig : ig.out(si))
+            replace_label_(e_ig.dst, esrc, edst, econd, ig, aut);
+        }
+    }
+
   } // Namespace
 
 
@@ -398,30 +421,10 @@ namespace spot
 
             if (split)
               {
-                auto replace_label =
-                  [&aut, &ig, &econd = e.cond,
-                  esrc=e.src, edst=e.dst](unsigned si,
-                                          auto&& replace_label_)->void
-                  {
-
-                    auto sstore = ig.state_storage(si);
-                    if (sstore.succ == 0)
-                      {
-                        if (econd == bddfalse)
-                          econd = sstore.new_label;
-                        else
-                          aut->new_edge(esrc, edst, sstore.new_label);
-                      }
-                    else
-                      {
-                        for (const auto& e_ig : ig.out(si))
-                          replace_label_(e_ig.dst, replace_label_);
-                      }
-                  };
-
                 // initial call
                 e.cond = bddfalse;
-                replace_label(idx, replace_label);
+                replace_label_(idx, e.src, e.dst,
+                               e.cond, ig, aut);
               }
             else
               e.cond = ig.state_storage(idx).new_label;
