@@ -1518,7 +1518,7 @@ namespace
   {
     // Try to generate a graph with partitioned env transitions
     auto mm2 = make_twa_graph(mm, twa::prop_set::all());
-    auto select_env = [n_env](unsigned s)noexcept {return s<n_env;};
+    auto select_env = [n_env](unsigned s)noexcept {return s<n_env; };
 
     // todo get a good value for cutoff
     auto relabel = try_partitioned_relabel_here(mm2, true, -1u, 10,

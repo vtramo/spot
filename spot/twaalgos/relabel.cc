@@ -316,7 +316,7 @@ namespace spot
         if (bdd_implies(k, new_cond))
           old_cond |= v;
         else
-          assert(!bdd_have_common_assignment(new_cond,k)
+          assert(!bdd_have_common_assignment(new_cond, k)
                  && "Either k implies new_cond or disjoint."
                     " Otherwise its not part of the partition");
       }
@@ -400,7 +400,8 @@ namespace spot
               {
                 auto replace_label =
                   [&aut, &ig, &econd = e.cond,
-                  esrc=e.src, edst=e.dst](unsigned si, auto&& replace_label_)->void
+                  esrc=e.src, edst=e.dst](unsigned si,
+                                          auto&& replace_label_)->void
                   {
 
                     auto sstore = ig.state_storage(si);
