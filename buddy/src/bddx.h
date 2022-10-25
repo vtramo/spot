@@ -501,6 +501,7 @@ BUDDY_API_VAR const BDD bddtrue;
 *************************************************************************/
 #ifdef CPLUSPLUS
 #include <iostream>
+#include <memory>
 
 /*=== User BDD class ===================================================*/
 
@@ -1091,6 +1092,11 @@ inline bddxtrue bdd_true(void)
 inline bddxfalse bdd_false(void)
 { return bddxfalse(); }
 
+
+template<>
+struct std::default_delete<bddPair> {
+    void operator()(bddPair *p) const { bdd_freepair(p); };
+};
 
 /*=== Iostream printing ================================================*/
 
