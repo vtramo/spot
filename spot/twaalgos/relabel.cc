@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2015-2018, 2020 Laboratoire de Recherche et
+// Copyright (C) 2015-2018, 2020, 2022 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -26,7 +26,7 @@ namespace spot
   void
   relabel_here(twa_graph_ptr& aut, relabeling_map* relmap)
   {
-    bddPair* pairs = bdd_newpair();
+    std::unique_ptr<bddPair> pairs(bdd_newpair());
     auto d = aut->get_dict();
     std::vector<int> vars;
     std::set<int> newvars;
@@ -53,7 +53,7 @@ namespace spot
           {
             int newv = aut->register_ap(p.second);
             newvars.insert(newv);
-            bdd_setpair(pairs, oldv, newv);
+            bdd_setpair(pairs.get(), oldv, newv);
           }
         else
           {
@@ -64,7 +64,7 @@ namespace spot
                                 return false;
                               });
             bdd newb = formula_to_bdd(p.second, d, aut);
-            bdd_setbddpair(pairs, oldv, newb);
+            bdd_setbddpair(pairs.get(), oldv, newb);
             bool_subst = true;
           }
       }
@@ -75,7 +75,7 @@ namespace spot
       static_cast<op_t>(bdd_veccompose) : static_cast<op_t>(bdd_replace);
     for (auto& t: aut->edges())
       {
-        bdd c = (*op)(t.cond, pairs);
+        bdd c = (*op)(t.cond, pairs.get());
         t.cond = c;
         if (c == bddfalse)
           need_cleanup = true;
