@@ -24,7 +24,7 @@
 #include <argp.h>
 #include "common_setup.hh"
 
-const char argp_program_doc[] ="\
+static const char argp_program_doc[] = "\
 Common fine-tuning options for programs installed with Spot.\n\
 \n\
 The argument of -x or --extra-options is a comma-separated list of KEY=INT \

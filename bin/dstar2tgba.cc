@@ -48,7 +48,7 @@
 #include <spot/parseaut/public.hh>
 #include <spot/twaalgos/sccinfo.hh>
 
-static const char argp_program_doc[] ="\
+static const char argp_program_doc[] = "\
 Convert automata with any acceptance condition into variants of \
 Büchi automata.\n\nThis reads automata into any supported format \
 (HOA, LBTT, ltl2dstar, never claim) and outputs a \

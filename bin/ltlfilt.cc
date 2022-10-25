@@ -59,7 +59,7 @@
 #include <spot/twaalgos/totgba.hh>
 #include <spot/twaalgos/word.hh>
 
-const char argp_program_doc[] ="\
+static const char argp_program_doc[] = "\
 Read a list of formulas and output them back after some optional processing.\v\
 Exit status:\n\
   0  if some formulas were output (skipped syntax errors do not count)\n\

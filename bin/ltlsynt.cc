@@ -157,7 +157,7 @@ static const struct argp_child children[] =
     { nullptr, 0, nullptr, 0 }
   };
 
-const char argp_program_doc[] = "\
+static const char argp_program_doc[] = "\
 Synthesize a controller from its LTL specification.\v\
 Exit status:\n\
   0   if all input problems were realizable\n\

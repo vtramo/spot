@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2011-2020 Laboratoire de Recherche et Developpement
-// de l'Epita (LRDE)
+// Copyright (C) 2011-2020, 2022 Laboratoire de Recherche et
+// Developpement de l'Epita (LRDE)
 //
 // This file is part of Spot, a model checking library.
 //
@@ -45,7 +45,7 @@
 #include <spot/twacube/twacube.hh>
 #include <spot/twacube_algos/convert.hh>
 
-const char argp_program_doc[] =
+static const char argp_program_doc[] =
 "Process model and formula to check wether a "
 "model meets a specification.\v\
 Exit status:\n\

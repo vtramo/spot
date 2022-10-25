@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2014, 2015, 2016, 2017 Laboratoire de Recherche et
-// Développement de l'Epita (LRDE).
+// Copyright (C) 2014, 2015, 2016, 2017, 2022 Laboratoire de Recherche
+// et Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
 //
@@ -28,7 +28,7 @@
 #include <spot/misc/timer.hh>
 #include <argp.h>
 
-const char argp_program_doc[] ="";
+static const char argp_program_doc[] = "";
 
 const struct argp_child children[] =
   {

@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2013-2018 Laboratoire de Recherche et Développement
-// de l'Epita (LRDE).
+// Copyright (C) 2013-2018, 2022 Laboratoire de Recherche et
+// Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
 //
@@ -24,7 +24,8 @@
 #include <argp.h>
 #include "common_setup.hh"
 
-const char argp_program_doc[] ="Command-line tools installed by Spot.";
+static const char argp_program_doc[] =
+  "Command-line tools installed by Spot.";
 
 #define DOC(NAME, TXT) NAME, 0, nullptr, OPTION_DOC | OPTION_NO_USAGE, TXT, 0
 

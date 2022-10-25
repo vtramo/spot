@@ -45,7 +45,7 @@
 
 using namespace spot;
 
-const char argp_program_doc[] ="\
+static const char argp_program_doc[] = "\
 Generate temporal logic formulas from predefined patterns.";
 
 // We reuse the values from gen::ltl_pattern_id as option keys.

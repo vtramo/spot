@@ -75,7 +75,7 @@
 #include <spot/twaalgos/sum.hh>
 #include <spot/twaalgos/totgba.hh>
 
-static const char argp_program_doc[] ="\
+static const char argp_program_doc[] = "\
 Convert, transform, and filter omega-automata.\v\
 Exit status:\n\
   0  if some automata were output\n\

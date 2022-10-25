@@ -46,7 +46,7 @@
 #include <spot/taalgos/minimize.hh>
 #include <spot/misc/optionmap.hh>
 
-const char argp_program_doc[] ="\
+static const char argp_program_doc[] = "\
 Translate linear-time formulas (LTL/PSL) into Testing Automata.\n\n\
 By default it outputs a transition-based generalized Testing Automaton \
 the smallest Transition-based Generalized Büchi Automata, \

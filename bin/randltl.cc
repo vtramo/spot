@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2012-2016, 2018-2019 Laboratoire de Recherche
+// Copyright (C) 2012-2016, 2018-2019, 2022 Laboratoire de Recherche
 // et Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -40,7 +40,7 @@
 #include <spot/misc/random.hh>
 #include <spot/misc/optionmap.hh>
 
-const char argp_program_doc[] ="\
+static const char argp_program_doc[] = "\
 Generate random temporal logic formulas.\n\n\
 The formulas are built over the atomic propositions named by PROPS...\n\
 or, if N is a nonnegative number, using N arbitrary names.\v\

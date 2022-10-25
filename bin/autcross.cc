@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2017-2020, 2022 Laboratoire de Recherche et Développement de
-// l'Epita (LRDE).
+// Copyright (C) 2017-2020, 2022 Laboratoire de Recherche et
+// Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
 //
@@ -51,7 +51,7 @@
 #include <spot/misc/escape.hh>
 #include <spot/misc/timer.hh>
 
-const char argp_program_doc[] ="\
+static const char argp_program_doc[] = "\
 Call several tools that process automata and cross-compare their output \
 to detect bugs, or to gather statistics.  The list of automata to use \
 should be supplied on standard input, or using the -F option.\v\

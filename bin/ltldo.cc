@@ -47,7 +47,7 @@
 #include <spot/twaalgos/totgba.hh>
 #include <spot/parseaut/public.hh>
 
-const char argp_program_doc[] ="\
+static const char argp_program_doc[] = "\
 Run LTL/PSL formulas through another program, performing conversion\n\
 of input and output as required.";
 

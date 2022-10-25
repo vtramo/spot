@@ -39,7 +39,7 @@
 #include <spot/misc/optionmap.hh>
 #include <spot/misc/timer.hh>
 
-static const char argp_program_doc[] ="\
+static const char argp_program_doc[] = "\
 Translate linear-time formulas (LTL/PSL) into various types of automata.\n\n\
 By default it will apply all available optimizations to output \
 the smallest Transition-based Generalized Büchi Automata, \
