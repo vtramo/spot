@@ -83,7 +83,7 @@ thead tr{background:#ffe35e}
 .caveat::before{background:#d70079;content:"Caveat";padding:.5ex;position:relative;top:0;left:0;font-weight:bold}
 .spotlogo{transform-origin:50% 50%;animation-duration:2s;animation-name:animspotlogo}
 g.spotlogobg{transform-origin:50% 50%;animation-duration:2s;animation-name:animspotlogobg}
-g#version{transform-origin:50% 50%;animation-duration:3s;animation-name:animspotlogover}
+g.spotlogover{transform-origin:50% 50%;animation-duration:3s;animation-name:animspotlogover}
 @keyframes animspotlogo{
 0%{transform:rotateY(90deg)}
 80%{transform:rotateY(0deg)}
