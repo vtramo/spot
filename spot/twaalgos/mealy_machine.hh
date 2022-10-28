@@ -19,6 +19,9 @@
 
 #pragma once
 
+#include <queue>
+
+#include <spot/misc/bddlt.hh>
 #include <spot/twa/twagraph.hh>
 
 /// \addtogroup mealy Functions related to Mealy machines
@@ -225,4 +228,53 @@ namespace spot
   simplify_mealy_here(twa_graph_ptr& m, synthesis_info& si,
                       bool split_out);
   /// @}
+
+  class specialization_graph
+  {
+    public:
+    specialization_graph(twa_graph_ptr &aut, bool output_assignment = true,
+                         bool all_edges = true);
+
+    bool is_irreducible();
+
+    std::vector<unsigned>& representatives();
+
+    void
+    print_dot(std::ostream &os);
+
+    typedef std::map<bdd, std::list<unsigned>, bdd_less_than> map_bdd_lstate;
+
+    class bdd_graph
+    {
+    public:
+      bdd_graph() {}
+
+      bdd_graph(std::vector<bdd> &signatures, twa_graph_ptr &aut,
+                map_bdd_lstate &bdd_to_states);
+
+      void
+      compute_edges(bool fast);
+
+      void
+      extract_representatives();
+
+      std::vector<bdd> signatures_;
+      std::set<std::pair<unsigned, unsigned>> edges_;
+      // Is the signature i a leaf?
+      std::vector<bool> is_leaf_;
+      // Number of incomming edges
+      std::vector<unsigned> nb_in_;
+      // representatives_[i] is the index in signatures_ of a representative of
+      // signatures_[i]
+      std::vector<unsigned> representatives_;
+      bool is_irreducible_;
+      twa_graph_ptr aut_;
+      map_bdd_lstate bdd_to_states_;
+    };
+
+    bdd_graph graph_;
+    map_bdd_lstate bdd_to_states_;
+    unsigned num_states_;
+    std::vector<unsigned> representatives_;
+  };
 }

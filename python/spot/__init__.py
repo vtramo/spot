@@ -136,11 +136,19 @@ def __om_init_new(self, str=None):
 
 option_map.__init__ = __om_init_new
 
+
+@_extend(specialization_graph)
+class specialization_graph:
+    def _repr_svg_(self, opt=None):
+        ostr = ostringstream()
+        self.print_dot(ostr)
+        return _ostream_to_svg(ostr)
+
 @_extend(aig)
 class aig:
     def _repr_svg_(self, opt=None):
         ostr = ostringstream()
-        print_dot(ostr, self, opt)
+        print_dot(ostr, self)
         return _ostream_to_svg(ostr)
 
     def show(self, opt=None):
