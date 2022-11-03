@@ -2218,9 +2218,11 @@ namespace spot
     const auto acc_mark = res->set_buchi();
 
     size_t sn = namer->state_to_name.size();
+    auto names = new std::vector<std::string>(sn);
     for (size_t i = 0; i < sn; ++i)
       {
         formula g = namer->state_to_name[i];
+        (*names)[i] = str_psl(g);
         if (g.accepts_eword())
           {
             if (res->get_graph().state_storage(i).succ == 0)
@@ -2232,6 +2234,8 @@ namespace spot
               }
           }
       }
+
+    res->set_named_prop("state-names", names);
 
     return res;
   }
