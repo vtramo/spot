@@ -321,3 +321,41 @@ except RuntimeError as e:
     tc.assertIn("already registered", se)
 else:
     report_missing_exception()
+
+
+try:
+    spot.minimize_mealy(a, 100)
+except RuntimeError as e:
+    se = str(e)
+    tc.assertIn("minimize_mealy", se)
+    tc.assertIn("minimize_lvl", se)
+else:
+    report_missing_exception()
+
+opt = spot.synthesis_info()
+opt.minimize_lvl = 3
+try:
+    spot.minimize_mealy(a, opt)
+except RuntimeError as e:
+    se = str(e)
+    tc.assertIn("minimize_mealy", se)
+    tc.assertIn("synthesis-output", se)
+
+spot.set_synthesis_outputs(a, buddy.bdd_ithvar(a.register_ap("b")))
+filename = "/THIS-FILE/SHOULD/NOT/EXIST"
+opt.opt.set_str("satlogdimacs", filename)
+try:
+    spot.minimize_mealy(a, opt)
+except RuntimeError as e:
+    tc.assertIn(filename, str(e))
+else:
+    report_missing_exception()
+
+opt.opt.set_str("satlogdimacs", "")
+opt.opt.set_str("satlogcsv", filename)
+try:
+    spot.minimize_mealy(a, opt)
+except RuntimeError as e:
+    tc.assertIn(filename, str(e))
+else:
+    report_missing_exception()
