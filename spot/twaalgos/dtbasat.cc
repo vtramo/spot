@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2013-2018, 2021 Laboratoire de Recherche et
+// Copyright (C) 2013-2018, 2021, 2022 Laboratoire de Recherche et
 // Développement de l'Epita.
 //
 // This file is part of Spot, a model checking library.
@@ -585,7 +585,7 @@ namespace spot
 #if TRACE
       std::fstream out("dtba-sat.dbg",
                        std::ios_base::trunc | std::ios_base::out);
-      out.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+      out.exceptions(std::ofstream::failbit | std::ofstream::badbit);
 #endif
       std::set<int> acc_states;
       std::set<src_cond> seen_trans;

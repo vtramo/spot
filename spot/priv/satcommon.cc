@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2013-2019 Laboratoire de Recherche et Développement
+// Copyright (C) 2013-2019, 2022 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -167,7 +167,7 @@ namespace spot
       return;
 
     std::ofstream out(log, std::ios_base::ate | std::ios_base::app);
-    out.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+    out.exceptions(std::ofstream::failbit | std::ofstream::badbit);
     if (out.tellp() == 0)
       out <<
         ("input.states,target.states,reachable.states,edges,transitions,"
