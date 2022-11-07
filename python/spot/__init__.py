@@ -104,19 +104,22 @@ def setup(**kwargs):
     os.environ['SPOT_DOTDEFAULT'] = d
 
 
-# In version 3.0.2, Swig puts strongly typed enum in the main
-# namespace without prefixing them.  Latter versions fix this.  So we
-# can remove for following hack once 3.0.2 is no longer used in our
-# build farm.
-if 'op_ff' not in globals():
+# Swig versions prior to 4.1.0 export formula.X as formula_X as well,
+# for all operators.  Swig 4.1.0 stops doing this, breaking some
+# existing code.
+if 'formula_ff' not in globals():
     for i in ('ff', 'tt', 'eword', 'ap', 'Not', 'X', 'F', 'G',
               'Closure', 'NegClosure', 'NegClosureMarked',
               'Xor', 'Implies', 'Equiv', 'U', 'R', 'W', 'M',
               'EConcat', 'EConcatMarked', 'UConcat', 'Or',
               'OrRat', 'And', 'AndRat', 'AndNLM', 'Concat',
-              'Fusion', 'Star', 'FStar'):
-        globals()['op_' + i] = globals()[i]
-        del globals()[i]
+              'Fusion', 'Star', 'FStar', 'nested_unop_range',
+              'sugar_goto', 'sugar_equal', 'sugar_delay', 'unop',
+              'binop', 'bunop', 'multop', 'first_match', 'unbounded'):
+        globals()['formula_' + i] = formula.__dict__[i].__func__
+if 'trival_maybe' not in globals():
+    for i in ('maybe',):
+        globals()['trival_' + i] = trival.__dict__[i].__func__
 
 
 # Global BDD dict so that we do not have to create one in user code.

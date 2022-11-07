@@ -1011,6 +1011,7 @@ namespace spot
         return res;
       }
 
+#ifndef SWIG
       /// \brief Conjunct the current condition with \a r.
       acc_code operator&(acc_code&& r) const
       {
@@ -1018,6 +1019,7 @@ namespace spot
         res &= r;
         return res;
       }
+#endif // SWIG
 
       /// \brief Disjunct the current condition in place with \a r.
       acc_code& operator|=(const acc_code& r)
@@ -1106,6 +1108,7 @@ namespace spot
         return *this;
       }
 
+#ifndef SWIG
       /// \brief Disjunct the current condition with \a r.
       acc_code operator|(acc_code&& r) const
       {
@@ -1113,6 +1116,7 @@ namespace spot
         res |= r;
         return res;
       }
+#endif // SWIG
 
       /// \brief Disjunct the current condition with \a r.
       acc_code operator|(const acc_code& r) const
