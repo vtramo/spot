@@ -40,7 +40,7 @@ GREP=grep
 # Get some help from GNU grep.
 if (grep --color=auto -n --version)>/dev/null 2>&1; then
   GREP="$GREP --color=auto -n"
-  GREP_COLOR='1;31'
+  GREP_COLOR='mt=1;31'
   export GREP_COLOR
 fi
 
@@ -295,7 +295,7 @@ for dir in "$TOP/spot" "$TOP/bin" "$TOP/tests"; do
       fi
 
       # we want catch (const reftype&) or catch (...)
-      $GREP 'catch *([^.]' $tmp | $GREP -v 'const.*\&' &&
+      $GREP 'catch *([^.]' $tmp | $GREP -v 'const.*&' &&
 	diag 'Always capture exceptions by const reference.'
 
       case $file in
