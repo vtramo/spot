@@ -27,8 +27,10 @@
 #include <spot/twaalgos/isdet.hh>
 #include <spot/twaalgos/mealy_machine.hh>
 #include <spot/twaalgos/sbacc.hh>
+#include <spot/twaalgos/product.hh>
 #include <spot/twaalgos/synthesis.hh>
 #include <spot/twaalgos/translate.hh>
+#include <spot/twaalgos/hoa.hh>
 #include <spot/twaalgos/zlktree.hh>
 #include <spot/misc/minato.hh>
 #include <spot/twaalgos/totgba.hh>
@@ -37,6 +39,7 @@
 
 
 #include <algorithm>
+#include <queue>
 
 // Helper function/structures for split_2step
 namespace{
@@ -240,6 +243,8 @@ namespace{
             // Get the corresponding strat
             const auto& e_strat = arena->edge_storage(strat[e_env.dst]);
             // Check if already explored
+            if (e_strat.cond == bddfalse)
+              continue;
             if (env_map[e_strat.dst] == unseen_mark)
               todo.push(e_strat.dst);
             unsigned dst_envl = get_sel(e_strat.dst);
@@ -1152,6 +1157,34 @@ namespace spot
     return solved_game_to_split_mealy(arena, dummy);
   }
 
+  void
+  solved_game_to_parity_strategy_here(twa_graph_ptr arena)
+  {
+    auto &win = get_state_winners(arena);
+    assert(arena->get_named_prop<region_t>("state-player"));
+
+    if (!win.at(arena->get_init_state_number()))
+        throw std::runtime_error("Player does not win initial state, strategy "
+                                 "is not applicable");
+
+    // assert((sp[arena->get_init_state_number()] == false) && "Env needs to have first turn!");
+    // (void)sp;
+
+    if (std::find_if(win.begin(), win.end(), [](auto b) {return !b;}) == win.end())
+      return;
+
+    auto& ev = arena->edge_vector();
+    for (unsigned i = 1; i < ev.size(); ++i)
+    {
+      auto& e = ev[i];
+      if (win.at(e.dst) == 0)
+        e.cond = bddfalse;
+    }
+
+    arena->purge_dead_states();
+    alternate_players(arena);
+    solve_game(arena);
+  }
 }
 
 namespace spot
@@ -1845,6 +1878,99 @@ namespace // anonymous for subsformula
 
 namespace spot
 {
+  twa_graph_ptr
+  incredible_solver(const formula &f,
+                    const std::vector<std::string> &all_outs,
+                    synthesis_info &gi, bool need_parity_strat)
+  {
+    // Si f est un And, on peut construire une stratégie pour chaque
+    // partie (récursivement)
+    // TODO: Le op::Or
+    if (f.is(op::And))
+    {
+      auto comp = []( twa_graph_ptr a, twa_graph_ptr b ) { assert(a != nullptr); assert(b !=nullptr); return a->num_states() > b->num_states(); };
+      std::priority_queue<twa_graph_ptr, std::vector<twa_graph_ptr>, decltype(comp)> sub_strats( comp );
+      for (auto fi : f)
+      {
+        auto sub = incredible_solver(fi, all_outs, gi, true);
+        if (sub == nullptr)
+        {
+          if (f.is(op::And))
+            return nullptr;
+        }
+        else
+          sub_strats.push(sub);
+      }
+      if (sub_strats.empty())
+        return nullptr;
+      while (sub_strats.size() > 1)
+      {
+        auto a1 = sub_strats.top();
+        sub_strats.pop();
+        auto a2 = sub_strats.top();
+        sub_strats.pop();
+
+        twa_graph_ptr res = nullptr;
+        // Dans le cas d'une union, on n'a pas besoin de résoudre le jeu.
+        // Si tous les états sont gagnants c'est pareil pour l'union.w
+        if (f.is(op::And))
+          res = product(a1, a2);
+        else
+          res = product_or(a1, a2);
+        res = acd_transform(res, true);
+        alternate_players(res);
+        auto total_outs = bdd_and(get_synthesis_outputs(a1),
+                                  get_synthesis_outputs(a2));
+        set_synthesis_outputs(res, total_outs);
+        if (!solve_game(res))
+        {
+          if (f.is(op::And))
+            return nullptr;
+        }
+        else
+          solved_game_to_parity_strategy_here(res);
+        sub_strats.push(res);
+      }
+
+      if (sub_strats.empty())
+        return nullptr;
+      if (need_parity_strat && sub_strats.size() == 1)
+      {
+        auto x = sub_strats.top();
+        solved_game_to_parity_strategy_here(x);
+        return x;
+      }
+      else
+        return sub_strats.top();
+    }
+    else
+    {
+      auto game = ltl_to_game(f, all_outs, gi);
+      // TODO: ??
+      colorize_parity_here(game);
+      if (!solve_game(game))
+        return nullptr;
+      if (need_parity_strat)
+        solved_game_to_parity_strategy_here(game);
+      return game;
+    }
+  }
+
+  twa_graph_ptr
+  incredible_solver2(const formula &f,
+                     const std::vector<std::string> &all_outs,
+                     synthesis_info &gi)
+  {
+    formula_2_inout_props form2props(all_outs);
+    std::set<std::string> outs_set(all_outs.begin(), all_outs.end());
+
+    auto f2 = extract_and(f, outs_set, false, form2props);
+    auto aut = incredible_solver(f2, all_outs, gi, false);
+    if (aut != nullptr)
+      alternate_players(aut);
+    return aut;
+  }
+
   std::pair<std::vector<formula>, std::vector<std::set<formula>>>
   split_independant_formulas(formula f, const std::vector<std::string>& outs)
   {

@@ -189,6 +189,20 @@ namespace spot
   solved_game_to_split_mealy(twa_graph_ptr arena);
   /// @}
 
+  SPOT_API void
+  solved_game_to_parity_strategy_here(twa_graph_ptr arena);
+
+  SPOT_API twa_graph_ptr
+  incredible_solver(const formula &f,
+                    const std::vector<std::string> &all_outs,
+                    synthesis_info &gi,
+                    bool need_parity_strat);
+
+  SPOT_API twa_graph_ptr
+  incredible_solver2(const formula &f,
+                     const std::vector<std::string> &all_outs,
+                     synthesis_info &gi);
+
   /// \ingroup synthesis
   /// \brief A struct that represents different types of mealy like
   ///        objects

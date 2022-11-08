@@ -59,6 +59,7 @@ enum
   OPT_PRINT_AIGER,
   OPT_PRINT_HOA,
   OPT_REAL,
+  OPT_INCRE,
   OPT_SIMPLIFY,
   OPT_TLSF,
   OPT_VERBOSE,
@@ -115,6 +116,8 @@ static const argp_option options[] =
       "print the parity game in the HOA format, do not solve it", 0 },
     { "realizability", OPT_REAL, nullptr, 0,
       "realizability only, do not compute a winning strategy", 0 },
+    { "incred", OPT_INCRE, nullptr, 0,
+      "magic", 0 },
     { "aiger", OPT_PRINT_AIGER, "ite|isop|both[+ud][+dc]"
                                  "[+sub0|sub1|sub2]", OPTION_ARG_OPTIONAL,
       "encode the winning strategy as an AIG circuit and print it in AIGER"
@@ -172,6 +175,7 @@ static bool opt_print_pg = false;
 static bool opt_print_hoa = false;
 static const char* opt_print_hoa_args = nullptr;
 static bool opt_real = false;
+static bool opt_incredible = false;
 static bool opt_do_verify = false;
 static const char* opt_print_aiger = nullptr;
 static const char* opt_dot_arg = nullptr;
@@ -419,8 +423,6 @@ namespace
 
     const bool want_game = opt_print_pg || opt_print_hoa;
 
-    std::vector<spot::twa_graph_ptr> arenas;
-
     auto sub_f = sub_form.begin();
     auto sub_o = sub_outs_str.begin();
     std::vector<spot::mealy_like> mealy_machines;
@@ -439,7 +441,7 @@ namespace
               };
       // If we want to print a game,
       // we never use the direct approach
-      if (!want_game && opt_bypass)
+      if (!want_game && opt_bypass && !opt_incredible)
         m_like =
             spot::try_create_direct_strategy(*sub_f, *sub_o, *gi, !opt_real);
 
@@ -454,8 +456,20 @@ namespace
         }
       case spot::mealy_like::realizability_code::UNKNOWN:
         {
-          auto arena = spot::ltl_to_game(*sub_f, *sub_o, *gi);
-          if (gi->bv)
+          spot::twa_graph_ptr arena;
+          bool is_realizable = false;
+          // incredible is only called when we don't want a game.
+          if (!want_game && opt_incredible)
+          {
+            arena = incredible_solver2(*sub_f, *sub_o, *gi);
+            is_realizable = arena != nullptr;
+            if (is_realizable)
+              spot::reduce_parity_here(arena, true);
+          }
+          else
+          {
+            arena = spot::ltl_to_game(*sub_f, *sub_o, *gi);
+            if (gi->bv)
             {
               gi->bv->nb_states_arena += arena->num_states();
               auto spptr =
@@ -463,13 +477,15 @@ namespace
               assert(spptr);
               gi->bv->nb_states_arena_env +=
                   std::count(spptr->cbegin(), spptr->cend(), false);
-              assert((spptr->at(arena->get_init_state_number()) == false)
-                     && "Env needs first turn");
+              assert((spptr->at(arena->get_init_state_number()) == false) && "Env needs first turn");
             }
-          print_game(arena);
-          if (want_game)
-            continue;
-          if (!spot::solve_game(arena, *gi))
+            print_game(arena);
+            if (want_game)
+              continue;
+            is_realizable = spot::solve_game(arena, *gi);
+          }
+
+          if (!is_realizable)
             {
               if (show_status)
                 std::cout << "UNREALIZABLE" << std::endl;
@@ -482,18 +498,23 @@ namespace
           // only if we need it
           if (!opt_real)
             {
-              spot::mealy_like ml;
-              ml.success =
+            spot::mealy_like ml;
+            ml.success =
                 spot::mealy_like::realizability_code::REALIZABLE_REGULAR;
-              // By default this produces a split machine
-              ml.mealy_like =
-                  spot::solved_game_to_mealy(arena, *gi);
-              // Keep the machine split for aiger
-              // else -> separated
-              spot::simplify_mealy_here(ml.mealy_like, *gi,
-                                        opt_print_aiger);
-              ml.glob_cond = bddfalse;
-              mealy_machines.push_back(ml);
+            // By default this produces a split machine
+            // bug : G (! (o7 && ! (o6 || o8) <-> ! (o6 && ! o8 <-> o8 && ! o6) && ! o7) && ! (o4 && ! (o3 || o5) <-> ! (o3 && ! o5 <-> o5 && ! o3) && ! o4) && ! (o2 && ! o1 <-> o1 && ! o2)) && ((! i3 W o4) && G (! (i1 && i2)) && G (o4 -> X (i3 W o5)) && G (o5 -> X (! i3 W o4)) -> G (! i3 <-> o6) && G (i3 <-> o7) && G (i1 <-> i3 <-> X (! i3)) && G (i2 && i3 <-> o2))
+            std::cout << "Passage de " << std::endl;
+            print_hoa(std::cout, arena) << "\n";
+            ml.mealy_like =
+                spot::solved_game_to_mealy(arena, *gi);
+            std::cout << "à" << std::endl;
+            print_hoa(std::cout, ml.mealy_like) << "\n";
+            // Keep the machine split for aiger
+            // else -> separated
+            spot::simplify_mealy_here(ml.mealy_like, *gi,
+                                      opt_print_aiger);
+            ml.glob_cond = bddfalse;
+            mealy_machines.push_back(ml);
             }
           break;
         }
@@ -510,6 +531,7 @@ namespace
               // else -> separated
               spot::simplify_mealy_here(m_like.mealy_like, *gi,
                                         opt_print_aiger);
+              assert(is_mealy(m_like.mealy_like));
             }
           SPOT_FALLTHROUGH;
         }
@@ -529,7 +551,6 @@ namespace
         safe_tot_time();
         return 0;
       }
-
     if (show_status)
       std::cout << "REALIZABLE" << std::endl;
     if (opt_real)
@@ -968,6 +989,9 @@ parse_opt(int key, char *arg, struct argp_state *)
       break;
     case OPT_REAL:
       opt_real = true;
+      break;
+    case OPT_INCRE:
+      opt_incredible = true;
       break;
     case OPT_SIMPLIFY:
       gi->minimize_lvl = XARGMATCH("--simplify", arg,

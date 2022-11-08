@@ -41,7 +41,7 @@
 #include <picosat/picosat.h>
 
 
-//#define TRACE
+#define TRACE
 #ifdef TRACE
 #  define trace std::cerr
 #else
@@ -123,6 +123,7 @@ namespace spot
   bool
   is_mealy(const const_twa_graph_ptr& m)
   {
+    // print_hoa(trace, m) << '\n';
     if (!m->acc().is_t())
     {
       trace << "is_mealy(): Mealy machines must have "
