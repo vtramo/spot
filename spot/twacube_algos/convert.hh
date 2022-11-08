@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2015, 2016, 2020 Laboratoire de Recherche et Developpement de
-// l'Epita (LRDE).
+// Copyright (C) 2015, 2016, 2020, 2022 Laboratoire de Recherche et
+// Developpement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
 //
@@ -51,7 +51,7 @@ namespace spot
   twa_to_twacube(spot::const_twa_graph_ptr aut);
 
   /// \brief Convert a twacube into a twa.
-  /// When \d is specified, the BDD_dict in parameter is used rather than
+  /// When \a d is specified, the BDD_dict in parameter is used rather than
   /// creating a new one.
   SPOT_API spot::twa_graph_ptr
   twacube_to_twa(spot::twacube_ptr twacube,

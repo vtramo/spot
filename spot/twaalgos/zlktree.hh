@@ -481,7 +481,7 @@ namespace spot
   ///
   /// If \a colored is set, each output transition will have exactly
   /// one color, and the output automaton will use at most n+1 colors
-  /// if the input has n colors. If \colored is unsed (the default),
+  /// if the input has n colors. If \a colored is unsed (the default),
   /// output transitions will use at most one color, and output
   /// automaton will use at most n colors.
   ///

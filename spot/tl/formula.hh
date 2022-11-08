@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2015-2021 Laboratoire de Recherche et Développement
+// Copyright (C) 2015-2022 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -1227,12 +1227,12 @@ namespace spot
       return bunop(op::Name, std::move(f), min, max);       \
     }
 #endif
-    /// \brief Create SERE for f[*min..max]
+    /// \brief Create SERE for `f[*min..max]`
     /// @{
     SPOT_DEF_BUNOP(Star);
     /// @}
 
-    /// \brief Create SERE for f[:*min..max]
+    /// \brief Create SERE for `f[:*min..max]`
     ///
     /// This operator is a generalization of the (+) operator
     /// defined by Dax et al. \cite dax.09.atva
@@ -1259,24 +1259,24 @@ namespace spot
                                               f.ptr_->clone()));
     }
 
-    /// \brief Create a SERE equivalent to b[->min..max]
+    /// \brief Create a SERE equivalent to `b[->min..max]`
     ///
     /// The operator does not exist: it is handled as syntactic sugar
     /// by the parser and the printer.  This function is used by the
     /// parser to create the equivalent SERE.
     static formula sugar_goto(const formula& b, unsigned min, unsigned max);
 
-    /// Create the SERE b[=min..max]
+    /// \brief Create the SERE `b[=min..max]`
     ///
     /// The operator does not exist: it is handled as syntactic sugar
     /// by the parser and the printer.  This function is used by the
     /// parser to create the equivalent SERE.
     static formula sugar_equal(const formula& b, unsigned min, unsigned max);
 
-    /// Create the SERE a ##[n:m] b
+    /// \brief Create the SERE `a ##[n:m] b`
     ///
-    /// This ##[n:m] operator comes from SVA.  When n=m, it is simply
-    /// written ##n.
+    /// This `##[n:m]` operator comes from SVA.  When n=m, it is simply
+    /// written `##n`.
     ///
     /// The operator does not exist in Spot it is handled as syntactic
     /// sugar by the parser.  This function is used by the parser to

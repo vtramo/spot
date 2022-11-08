@@ -95,7 +95,7 @@ namespace spot
     /// registered in the automaton is not only ignored, but also
     /// removed from the alias list stored in the automaton.
     ///
-    /// The \a or_str, \a and_str, and \ap_printer arguments are
+    /// The \a or_str, \a and_str, and \a ap_printer arguments are
     /// used to print operators OR, AND, and to print atomic propositions
     /// that are not aliases.  \a lpar_str and \a rpar_str are used
     /// to group conjuncts that appear in a disjunction.
@@ -119,7 +119,7 @@ namespace spot
     ///
     /// - If an alias A exists for \a label, `"@A"` is returned.
     ///
-    /// - If an alias A exists for the negation of \a label, `"!@A`
+    /// - If an alias A exists for the negation of \a label, `"!@A"`
     ///   is returned.
     ///
     /// - If \a label is true or false, `true_str` or `false_str`

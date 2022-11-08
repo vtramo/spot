@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2020-2021 Laboratoire de Recherche et
+// Copyright (C) 2020-2022 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -36,8 +36,8 @@ namespace spot
   ///     p -- cond --> q                cond in 2^2^AP
   /// into a set of transitions of the form
   ///     p -- {a} --> (p,a) -- o --> q
-  /// for each a in cond \cap 2^2^I
-  /// and where o = (cond & a) \cap 2^2^(O)
+  /// for each a in cond ∪ 2^2^I
+  /// and where o = (cond & a) ∪ 2^2^O.
   ///
   /// By definition, the states p are deterministic,
   /// only the states of the form

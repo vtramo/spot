@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2013, 2017-2018, 2020 Laboratoire de Recherche et
-// Développement de l'Epita.
+// Copyright (C) 2013, 2017-2018, 2020, 2022 Laboratoire de Recherche
+// et Développement de l'Epita.
 //
 // This file is part of Spot, a model checking library.
 //
@@ -88,7 +88,7 @@ namespace spot
     /// \brief Add a single lit. to the current clause.
     void add(int v);
 
-    /// \breif Get the current number of clauses.
+    /// \brief Get the current number of clauses.
     int get_nb_clauses() const;
 
     /// \brief Get the current number of variables.
