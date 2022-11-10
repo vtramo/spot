@@ -29,11 +29,17 @@
 
 namespace spot
 {
+
+  struct derive_opts
+  {
+    bool concat_star_distribute = true;
+  };
+
   /// \ingroup tl_misc
   /// \brief Produce a SERE formula's partial derivative
   SPOT_API formula
   partial_derivation(formula f, const bdd var, const bdd_dict_ptr& d,
-                     void* owner);
+                     void* owner, derive_opts options = {});
 
   SPOT_API twa_graph_ptr
   derive_automaton(formula f, bool deterministic = true);
@@ -47,7 +53,7 @@ namespace spot
 
   SPOT_API twa_graph_ptr
   derive_finite_automaton_with_first(formula f, bdd_dict_ptr bdd_dict,
-                                     bool deterministic = true);
+                                     bool deterministic = true, derive_opts options = {});
 
   SPOT_API formula
   rewrite_and_nlm(formula f);
