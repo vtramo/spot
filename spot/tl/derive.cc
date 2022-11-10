@@ -204,7 +204,7 @@ namespace spot
 
   twa_graph_ptr
   derive_finite_automaton_with_first(formula f, bdd_dict_ptr bdd_dict,
-                                     bool deterministic)
+                                     bool deterministic, derive_opts options)
   {
     auto aut = make_twa_graph(bdd_dict);
 
@@ -264,7 +264,7 @@ namespace spot
         for (const bdd one : minterms_of(firsts, firsts_support))
           {
             formula derivative =
-              partial_derivation(curr_f, one, bdd_dict, aut.get());
+              partial_derivation(curr_f, one, bdd_dict, aut.get(), options);
 
             // no transition possible from this letter
             if (derivative.is(op::ff))
@@ -422,7 +422,7 @@ namespace spot
 
   formula
   partial_derivation(formula f, const bdd var, const bdd_dict_ptr& d,
-                     void* owner)
+                     void* owner, derive_opts options)
   {
     if (f.is_boolean())
       {
@@ -471,6 +471,17 @@ namespace spot
                          : (f.max() - 1);
 
             formula d_E = partial_derivation(f[0], var, d, owner);
+
+            if (options.concat_star_distribute && !f[0].is_finite() && d_E.is(op::OrRat))
+              {
+                std::vector<formula> distributed;
+                for (auto g : d_E)
+                  {
+                    distributed.push_back(formula::Concat({g, formula::Star(f[0], min, max)}));
+                  }
+
+                return formula::OrRat(distributed);
+              }
 
             return formula::Concat({ d_E, formula::Star(f[0], min, max) });
           }
