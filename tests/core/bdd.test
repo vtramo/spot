@@ -24,20 +24,21 @@ set -e
 # Make sure that setting the SPOT_BDD_TRACE envvar actually does
 # something.
 genltl --kr-n=3 |
-    SPOT_BDD_TRACE=1 ltl2tgba -x tls-max-states=0 -D >out 2>err
+  SPOT_BDD_TRACE=1 ltl2tgba -x tls-max-states=0,tls-max-ops=0 -D >out 2>err
 cat err
 grep spot: out && exit 1
 grep 'spot: BDD package initialized' err
 # This value below, which is the number of time we need to garbage
 # collect might change if we improve the tool or change the way BuDDy
 # is initialized.
-test 2 = `grep -c 'spot: BDD GC' err`
+test 15 = `grep -c 'spot: BDD GC' err`
 # Minimal size for this automaton.
 # See also https://www.lrde.epita.fr/dload/spot/mochart10-fixes.pdf
 test "2240,4214" = `autfilt --stats=%s,%e out`
 
 # With the default value of tls-max-states, no GC is needed
-genltl --kr-n=3 | SPOT_BDD_TRACE=1 ltl2tgba -D --stats=%s,%e >out 2>err
+genltl --kr-n=3 |
+  SPOT_BDD_TRACE=1 ltl2tgba -D -x tls-max-ops=0 --stats=%s,%e >out 2>err
 cat err
 grep 'spot: BDD package initialized' err
 test 0 = `grep -c 'spot: BDD GC' err`

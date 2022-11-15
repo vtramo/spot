@@ -1926,6 +1926,12 @@ Many of the above rules were collected from the
 literature~\cite{somenzi.00.cav,tauriainen.03.tr,babiak.12.tacas} and
 sometimes generalized to support operators such as $\M$ and $\W$.
 
+The first six rules, about n-ary operators $\AND$ and $\OR$, are
+implemented for $n$ operands by testing each operand against all
+other.  To prevent the complexity to escalate, this is only performed
+with up to 16 operands.  That value can be changed in
+``\verb|tl_simplifier_options::containment_max_ops|''.
+
 The following rules mix implication-based checks with formulas that
 are pure eventualities ($e$) or that are purely universal ($u$).
 

@@ -47,6 +47,9 @@ depends on the --low, --medium, or --high settings.") },
     { DOC("tls-max-states",
           "Maximum number of states of automata involved in automata-based \
 implication checks for formula simplifications.  Defaults to 64.") },
+    { DOC("tls-max-ops",
+          "Maximum number of operands in n-ary opertors (or, and) on which \
+implication-based simplifications are attempted.  Defaults to 16.") },
     { nullptr, 0, nullptr, 0, "Translation options:", 0 },
     { DOC("ltl-split", "Set to 0 to disable the translation of automata \
 as product or sum of subformulas.") },

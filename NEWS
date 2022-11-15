@@ -6,6 +6,11 @@ New in spot 2.11.2.dev  (not yet released)
     slower than necessary because the translator was configured to
     favor determinism unnecessarily.  (Issue #521.)
 
+  - Automata-based implication checks for f&g and f|g could be
+    very slow when those n-ary operator had two many arguments.
+    They have been limited to 16 operands, but this value can be changed
+    with option -x tls-max-ops=N.  (Issue #521 too.)
+
 New in spot 2.11.2  (2022-10-26)
 
   Command-line tools:

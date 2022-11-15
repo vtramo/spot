@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2011-2017, 2019, 2020 Laboratoire de Recherche et Developpement
+// Copyright (C) 2011-2022 Laboratoire de Recherche et Developpement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -96,6 +96,9 @@ namespace spot
     // If greater than 0, bound the number of states used by automata
     // in containment checks.
     unsigned containment_max_states = 0;
+    // If greater than 0, maximal number of terms in a multop to perform
+    // containment checks on this multop.
+    unsigned containment_max_ops = 16;
   };
 
   // fwd declaration to hide technical details.

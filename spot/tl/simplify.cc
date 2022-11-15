@@ -2507,8 +2507,11 @@ namespace spot
         unsigned mos = mo.size();
 
         if ((opt_.synt_impl | opt_.containment_checks)
-            && mo.is(op::Or, op::And))
+            && mo.is(op::Or, op::And)
+            && (opt_.containment_max_ops == 0
+                || opt_.containment_max_ops >= mos))
           {
+            bool is_and = mo.is(op::And);
             // Do not merge these two loops, as rewritings from the
             // second loop could prevent rewritings from the first one
             // to trigger.
@@ -2520,7 +2523,6 @@ namespace spot
                 // if fo => !fi, then fi & fo = false
                 // if !fi => fo, then fi | fo = true
                 // if !fo => fi, then fi | fo = true
-                bool is_and = mo.is(op::And);
                 if (c_->implication_neg(fi, fo, is_and)
                     || c_->implication_neg(fo, fi, is_and))
                   return recurse(is_and ? formula::ff() : formula::tt());
@@ -2531,8 +2533,8 @@ namespace spot
                 formula fo = mo.all_but(i);
                 // if fi => fo, then fi | fo = fo
                 // if fo => fi, then fi & fo = fo
-                if ((mo.is(op::Or) && c_->implication(fi, fo))
-                    || (mo.is(op::And) && c_->implication(fo, fi)))
+                if (((!is_and) && c_->implication(fi, fo))
+                    || (is_and && c_->implication(fo, fi)))
                   {
                     // We are about to pick fo, but hold on!
                     // Maybe we actually have fi <=> fo, in

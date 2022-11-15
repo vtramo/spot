@@ -155,7 +155,8 @@ namespace spot
     bool gf_guarantee_set_ = false;
     bool ltl_split_;
     int branchpost_ = -1;
-    unsigned tls_max_states_ = 0;
+    unsigned tls_max_states_ = 64;
+    unsigned tls_max_ops_ = 16;
     int exprop_;
     const option_map* opt_;
   };
