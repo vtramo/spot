@@ -11,6 +11,10 @@ New in spot 2.11.2.dev  (not yet released)
     They have been limited to 16 operands, but this value can be changed
     with option -x tls-max-ops=N.  (Issue #521 too.)
 
+  - Running ltl_to_tgba_fm() with an output_aborter (which is done
+    during automata-based implication checks) would leak memory on
+    abort.
+
 New in spot 2.11.2  (2022-10-26)
 
   Command-line tools:

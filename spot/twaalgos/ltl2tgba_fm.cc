@@ -2031,6 +2031,7 @@ namespace spot
       {
         if (aborter && aborter->too_large(a))
           {
+            a->release_formula_namer(namer, false);
             if (!simplifier)
               delete s;
             return nullptr;
