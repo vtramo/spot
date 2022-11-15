@@ -222,6 +222,7 @@ TESTS_misc = \
 
 TESTS_twa = \
   core/385.test \
+  core/521.test \
   core/acc.test \
   core/acc2.test \
   core/bdddict.test \

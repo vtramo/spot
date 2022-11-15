@@ -1,6 +1,10 @@
 New in spot 2.11.2.dev  (not yet released)
 
-  Nothing yet.
+  Bug fixes:
+
+  - Automata-based implication checks, used to simplify formulas where
+    slower than necessary because the translator was configured to
+    favor determinism unnecessarily.  (Issue #521.)
 
 New in spot 2.11.2  (2022-10-26)
 

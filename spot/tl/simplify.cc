@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2011-2021 Laboratoire de Recherche et Developpement
+// Copyright (C) 2011-2022 Laboratoire de Recherche et Developpement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -64,14 +64,14 @@ namespace spot
     }
 
     tl_simplifier_cache(const bdd_dict_ptr& d)
-      : dict(d), lcc(d, true, true, false, false)
+      : dict(d), lcc(d, false, true, false, false)
     {
     }
 
     tl_simplifier_cache(const bdd_dict_ptr& d,
                          const tl_simplifier_options& opt)
       : dict(d), options(opt),
-        lcc(d, true, true, false, false, opt.containment_max_states)
+        lcc(d, false, true, false, false, opt.containment_max_states)
     {
       options.containment_checks |= options.containment_checks_stronger;
       options.event_univ |= options.favor_event_univ;
