@@ -192,7 +192,7 @@ if test "x${enable_python:-yes}" = xyes; then
 
   AC_ARG_WITH([pythondir],
   [AS_HELP_STRING([--with-pythondir], [override the computed pythondir])],
-  [pythondir=$withval], [])
+  [pythondir=$withval pyexecdir=$withval], [])
 fi
 
 

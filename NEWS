@@ -15,6 +15,10 @@ New in spot 2.11.2.dev  (not yet released)
     during automata-based implication checks) would leak memory on
     abort.
 
+  - configure --with-pythondir should also redefine pyexecdir,
+    otherwise, libraries get installed in the wrong place on Debian.
+    (Issue #512.)
+
 New in spot 2.11.2  (2022-10-26)
 
   Command-line tools:
