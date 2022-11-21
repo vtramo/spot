@@ -451,12 +451,30 @@ namespace spot
             formula E = f[0];
             formula F = f.all_but(0);
 
-            auto res =
-              formula::Concat({ partial_derivation(E, var, d, owner), F });
+            formula d_E = partial_derivation(E, var, d, owner, options);
+
+            formula res;
+
+            if (options.concat_star_distribute && d_E.is(op::OrRat))
+              {
+                std::vector<formula> distributed;
+                for (auto g : d_E)
+                  {
+                    distributed.push_back(formula::Concat({g, F}));
+                  }
+
+                res = formula::OrRat(distributed);
+              }
+            else
+              {
+                res =
+                  formula::Concat({ partial_derivation(E, var, d, owner, options), F });
+              }
+
 
             if (E.accepts_eword())
                 res = formula::OrRat(
-                        { res, partial_derivation(F, var, d, owner) });
+                        { res, partial_derivation(F, var, d, owner, options) });
 
             return res;
           }
@@ -470,7 +488,7 @@ namespace spot
                          ? formula::unbounded()
                          : (f.max() - 1);
 
-            formula d_E = partial_derivation(f[0], var, d, owner);
+            formula d_E = partial_derivation(f[0], var, d, owner, options);
 
             if (options.concat_star_distribute && !f[0].is_finite() && d_E.is(op::OrRat))
               {
@@ -494,7 +512,7 @@ namespace spot
             if (f.min() == 0 && f.max() == 0)
               return formula::tt();
 
-            auto d_E = partial_derivation(E, var, d, owner);
+            auto d_E = partial_derivation(E, var, d, owner, options);
 
             auto min = f.min() == 0 ? 0 : (f.min() - 1);
             auto max = f.max() == formula::unbounded()
@@ -524,7 +542,7 @@ namespace spot
             for (auto subformula : f)
               {
                 auto subderivation =
-                  partial_derivation(subformula, var, d, owner);
+                  partial_derivation(subformula, var, d, owner, options);
                 subderivations.push_back(subderivation);
               }
             return formula::multop(f.kind(), std::move(subderivations));
@@ -533,7 +551,7 @@ namespace spot
         case op::AndNLM:
           {
             formula rewrite = rewrite_and_nlm(f);
-            return partial_derivation(rewrite, var, d, owner);
+            return partial_derivation(rewrite, var, d, owner, options);
           }
 
         // d(E:F) = {d(E):F} U {c(d(E)).d(F)}
@@ -542,12 +560,12 @@ namespace spot
             formula E = f[0];
             formula F = f.all_but(0);
 
-            auto d_E = partial_derivation(E, var, d, owner);
+            auto d_E = partial_derivation(E, var, d, owner, options);
             auto res = formula::Fusion({ d_E, F });
 
             if (d_E.accepts_eword())
               res =
-                formula::OrRat({ res, partial_derivation(F, var, d, owner) });
+                formula::OrRat({ res, partial_derivation(F, var, d, owner, options) });
 
             return res;
           }
@@ -555,7 +573,7 @@ namespace spot
         case op::first_match:
           {
             formula E = f[0];
-            auto d_E = partial_derivation(E, var, d, owner);
+            auto d_E = partial_derivation(E, var, d, owner, options);
             // if d_E.accepts_eword(), first_match(d_E) will return eword
             return formula::first_match(d_E);
           }
