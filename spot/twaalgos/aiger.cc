@@ -1500,7 +1500,7 @@ namespace
   state_to_vec(std::vector<unsigned>& v, unsigned s,
                unsigned offset)
   {
-    assert(s != -1u && "-1u is not a valid sstate");
+    assert(s != -1u && "-1u is not a valid state");
     v.clear();
     unsigned i = offset;
     while (s > 0)
@@ -1675,15 +1675,23 @@ namespace
           }
         else
           {
+            auto init_sn = astrat.first->get_init_state_number();
             if (sp_ptr)
               {
                 auto sp = *sp_ptr;
                 // Split
                 unsigned n_next = 0;
+                const bool change_first = sp[0];
+                unsigned n = 0;
+                if (change_first)
+                {
+                  sn[0] = n_next++;
+                  ++n;
+                }
                 // Player -1u
                 // Env: Succesively numbered according to appearance
-                for (unsigned n = 0; n < N; ++n)
-                  if (!sp[n])
+                for (; n < N; ++n)
+                  if (!sp[n] && (!change_first || n != init_sn))
                     sn[n] = n_next++;
                 max_index = n_next;
               }
@@ -1696,8 +1704,8 @@ namespace
 
             // Ensure 0 <-> init state
             std::swap(state_numbers.back()[0],
-                      state_numbers.back()[astrat.first->
-                                             get_init_state_number()]);
+                      state_numbers.back()[init_sn]);
+            assert(state_numbers.back()[init_sn] != -1U);
           }
         // Largest index to encode -> num_states()-1
         log2n.push_back(std::ceil(std::log2(max_index)));
