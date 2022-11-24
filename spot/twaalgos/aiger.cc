@@ -31,6 +31,7 @@
 #include <string>
 #include <sstream>
 #include <initializer_list>
+#include <optional>
 
 #include <spot/twa/twagraph.hh>
 #include <spot/misc/bddlt.hh>
@@ -57,8 +58,34 @@ namespace
   name_vector(unsigned n, const std::string& prefix)
   {
     std::vector<std::string> res;
+    res.reserve(n);
     for (unsigned i = 0; i != n; ++i)
       res.push_back(prefix + std::to_string(i));
+    return res;
+  }
+
+  static std::vector<std::string>
+  add_missing_name_vector(const std::string &prefix,
+                        std::unordered_set<std::string> &used,
+                        std::vector<std::optional<std::string>> &partial_names)
+  {
+    unsigned free_pos = 0;
+    auto fresh_variable = [&]()
+    {
+      while (true)
+      {
+        auto name = prefix + std::to_string(free_pos++);
+        if (used.insert(name).second)
+          return name;
+      }
+    };
+    std::vector<std::string> res;
+    unsigned nb_elem = partial_names.size();
+    for (unsigned i = 0; i < nb_elem; ++i)
+      if (partial_names[i].has_value())
+        res.push_back(*partial_names[i]);
+      else
+        res.push_back(fresh_variable());
     return res;
   }
 
@@ -74,6 +101,7 @@ namespace
   }
 
   std::tuple<std::vector<std::string>, std::vector<std::string>,
+             std::vector<std::string>,
              std::vector<unsigned>,
              std::vector<unsigned>,
              std::vector<std::pair<unsigned, unsigned>>
@@ -96,8 +124,9 @@ namespace
       };
 
     //results
-    std::vector<std::string> input_names;
-    std::vector<std::string> output_names;
+    std::vector<std::optional<std::string>> input_names;
+    std::vector<std::optional<std::string>> output_names;
+    std::vector<std::optional<std::string>> latch_names;
     std::vector<unsigned> latches;
     std::vector<unsigned> outputs;
     std::vector<std::pair<unsigned, unsigned>> gates;
@@ -121,39 +150,63 @@ namespace
     if (max_index < nb_inputs + nb_latches + nb_and)
       error_aig("more variables than indicated by max var", line_number);
 
-    latches.reserve(nb_latches);
-    outputs.reserve(nb_outputs);
-    gates.reserve(nb_and);
-
+    std::vector<bool> inputs_ok(nb_inputs);
     for (unsigned i = 0; i < nb_inputs; ++i)
       {
         nextline();
-        unsigned expected = 2 * (i + 1);
         unsigned num = 0;
         int end = 0;
         const char* buf = line.c_str();
-        if (!line.empty()
-            && (sscanf(buf, "%u %n", &num, &end) != 1 || buf[end]))
-          error_aig("invalid format for an input", line_number);
-        if (num != expected)
-          error_aig("expecting input number " + std::to_string(expected),
-                    line_number);
+        if (!line.empty())
+        {
+          if (sscanf(buf, "%u %n", &num, &end) != 1 || buf[end])
+            error_aig("invalid format for an input", line_number);
+          if (num%2 || num < 2 || num > 2 * nb_inputs)
+            error_aig("invalid input", line_number);
+          auto index = num / 2 - 1;
+          inputs_ok[index] = true;
+        }
+        else
+          break;
       }
-    for (unsigned i = 0; i < nb_latches; ++i)
+      // Check if every input is given
+      auto missing = std::find(inputs_ok.begin(), inputs_ok.end(), false);
+      if (missing != inputs_ok.end())
+      {
+        auto pos = std::distance(inputs_ok.begin(), missing);
+        auto expected = 2 * (pos + 1);
+        error_aig("expecting input number " + std::to_string(expected),
+                  line_number);
+      }
+      latches.resize(nb_latches);
+      std::fill(latches.begin(), latches.end(), -1U);
+      for (unsigned i = 0; i < nb_latches; ++i)
       {
         nextline();
-        unsigned expected = 2 * (1 + nb_inputs + i);
         unsigned latch_var = 0, next_state;
         int end = 0;
         const char* buf = line.c_str();
-        if (!line.empty()
-            && (sscanf(buf, "%u %u %n", &latch_var, &next_state, &end) != 2
-                || buf[end]))
-          error_aig("invalid format for a latch", line_number);
-        if (latch_var != expected)
-          error_aig("expecting latch number " + std::to_string(expected),
-                    line_number);
-        latches.push_back(next_state);
+        if (!line.empty())
+        {
+          if (sscanf(buf, "%u %u %n", &latch_var, &next_state, &end) != 2
+            || buf[end])
+            error_aig("invalid format for a latch", line_number);
+          if (latch_var % 2 || latch_var < 2 * (1 + nb_inputs)
+                            || latch_var > 2 * (nb_inputs + nb_latches))
+            error_aig("invalid latch", line_number);
+          auto pos = latch_var / 2 - 1 - nb_inputs;
+          latches[pos] = next_state;
+        }
+        else
+          break;
+      }
+      auto missing_latch = std::find(latches.begin(), latches.end(), -1U);
+      if (missing_latch != latches.end())
+      {
+        auto pos = std::distance(latches.begin(), missing_latch);
+        auto expected = 2 * (pos + 1 + nb_inputs);
+        error_aig("expecting latch number " + std::to_string(expected),
+                  line_number);
       }
     for (unsigned i = 0; i < nb_outputs; ++i)
       {
@@ -167,6 +220,8 @@ namespace
           error_aig("invalid format for an output", line_number);
         outputs.push_back(num_out);
       }
+    gates.resize(nb_and);
+    std::fill(gates.begin(), gates.end(), std::make_pair(-1U, -1U));
     for (unsigned i = 0; i < nb_and; ++i)
       {
         nextline();
@@ -178,19 +233,29 @@ namespace
             if (sscanf(buf, "%u %u %u %n", &and_gate, &lhs, &rhs, &end) != 3
                 || buf[end])
               error_aig("invalid format for an AND gate", line_number);
+            if (and_gate % 2 || and_gate < 2 * (1 + nb_inputs + nb_latches)
+                        || and_gate > 2 * (nb_and + nb_inputs + nb_latches))
+              error_aig("invalid AND gate", line_number);
+            auto pos = and_gate / 2 - 1 - nb_inputs - nb_latches;
+            gates[pos] = {lhs, rhs};
           }
-        unsigned expected = 2 * (1 + nb_inputs + nb_latches + i);
-        if (and_gate != expected)
-          error_aig("expecting AND gate number " + std::to_string(expected),
-                    line_number);
-        gates.emplace_back(lhs, rhs);
+          else
+            break;
       }
+    auto missing_and = std::find_if(gates.begin(), gates.end(),
+        [](std::pair<unsigned, unsigned>& x) { return x.first == -1U; });
+    if (missing_and != gates.end())
+    {
+        auto pos = std::distance(gates.begin(), missing_and);
+        unsigned expected = 2 * (1 + nb_inputs + nb_latches + pos);
+        error_aig("expecting AND gate number " + std::to_string(expected),
+                  line_number);
+    }
     nextline();
     bool comment_sec = false;
-    unsigned first_input_line = 0;
-    unsigned last_input_line = 0;
-    unsigned first_output_line = 0;
-    unsigned last_output_line = 0;
+    input_names = {nb_inputs, std::nullopt};
+    output_names = {nb_outputs, std::nullopt};
+    latch_names = {nb_latches, std::nullopt};
     while (iss && !comment_sec)
       {
         unsigned pos_var_name;
@@ -199,10 +264,21 @@ namespace
         const char* buf = line.c_str();
         switch (buf[0])
           {
-          case 'l':               // latches names non supported
+          case 'l':
             {
+              if (sscanf(buf, "l%u %255[^\n]%n",
+                         &pos_var_name, var_name, &end) != 2
+                  || !var_name[0] || buf[end])
+                error_aig("could not parse as latch name", line_number);
+              if (pos_var_name >= nb_latches)
+                error_aig("value " + std::to_string(pos_var_name)
+                          + " exceeds latch count", line_number);
+              if (!names.insert(var_name).second)
+                error_aig(std::string("name '") + var_name
+                          + "' already used", line_number);
+              latch_names[pos_var_name].emplace(var_name);
               nextline();
-              continue;
+              break;
             }
           case 'i':
             {
@@ -210,21 +286,13 @@ namespace
                          &pos_var_name, var_name, &end) != 2
                   || !var_name[0] || buf[end])
                 error_aig("could not parse as input name", line_number);
-              unsigned expected = input_names.size();
               if (pos_var_name >= nb_inputs)
                 error_aig("value " + std::to_string(pos_var_name)
                           + " exceeds input count", line_number);
-              if (pos_var_name != expected)
-                error_aig("expecting name for input "
-                          + std::to_string(expected), line_number);
               if (!names.insert(var_name).second)
                 error_aig(std::string("name '") + var_name
                           + "' already used", line_number);
-              input_names.push_back(var_name);
-              if (!first_input_line)
-                first_input_line = line_number;
-              else
-                last_input_line = line_number;
+              input_names[pos_var_name].emplace(var_name);
               nextline();
               break;
             }
@@ -234,21 +302,13 @@ namespace
                          &pos_var_name, var_name, &end) != 2
                   || !var_name[0] || buf[end])
                 error_aig("could not parse as output name", line_number);
-              unsigned expected = output_names.size();
               if (pos_var_name >= nb_outputs)
                 error_aig("value " + std::to_string(pos_var_name)
                           + " exceeds output count", line_number);
-              if (pos_var_name != expected)
-                error_aig("expecting name for output "
-                          + std::to_string(expected), line_number);
               if (!names.insert(var_name).second)
                 error_aig(std::string("name '") + var_name
                           + "' already used", line_number);
-              output_names.push_back(var_name);
-              if (!first_output_line)
-                first_output_line = line_number;
-              else
-                last_output_line = line_number;
+              output_names[pos_var_name].emplace(var_name);
               nextline();
               break;
             }
@@ -263,27 +323,12 @@ namespace
             }
           }
       }
-    if (!input_names.empty())
-      {
-        if (input_names.size() != nb_inputs)
-          error_aig("either all or none of the inputs should be named",
-                    first_input_line, last_input_line);
-      }
-    else
-      {
-        input_names = name_vector(nb_inputs, "i");
-      }
-    if (!output_names.empty())
-      {
-        if (output_names.size() != nb_outputs)
-          error_aig("either all or none of the outputs should be named",
-                    first_output_line, last_output_line);
-      }
-    else
-      {
-        output_names = name_vector(nb_outputs, "o");
-      }
-    return { input_names, output_names, latches, outputs, gates };
+    auto input_names_res = add_missing_name_vector("i", names, input_names);
+    auto output_names_res = add_missing_name_vector("o", names, output_names);
+    auto latch_names_res = add_missing_name_vector("L", names, latch_names);
+
+    return {input_names_res, output_names_res, latch_names_res,
+            latches, outputs, gates};
   }
 }
 
@@ -303,6 +348,10 @@ namespace spot
              outputs_(outputs.size(), -1u),
              dict_{dict}
   {
+    latch_names_ = std::vector<std::string>();
+    latch_names_.reserve(num_latches);
+    for (unsigned i = 0; i < num_latches; ++i)
+      latch_names_.push_back("L" + std::to_string(i));
     // check that in/out names are unique
     check_double_names(inputs, "spot/twaalgos/aiger.cc:" STR_LINE ": input"
                                " name appears multiple times: ");
@@ -353,7 +402,7 @@ namespace spot
   void aig::register_new_lit_(unsigned v, const bdd& b)
   {
     assert(!var2bdd_.count(v) || var2bdd_.at(v) == b);
-    assert(!bdd2var_.count(b.id()) || bdd2var_.at(b.id()) == v);
+    // assert(!bdd2var_.count(b.id()) || bdd2var_.at(b.id()) == v);
     var2bdd_[v] = b;
     bdd2var_[b.id()] = v;
     // Also store negation
@@ -1163,8 +1212,8 @@ namespace spot
                  bdd_dict_ptr dict)
   {
     //result
-    auto [in_names__, out_names__, next_latches__, outputs__, gates__] =
-        parse_aag_impl_(iss, filename);
+    auto [in_names__, out_names__, latch_names__,
+          next_latches__, outputs__, gates__] = parse_aag_impl_(iss, filename);
 
     aig_ptr res_ptr =
         std::make_shared<aig>(in_names__, out_names__,
@@ -1175,6 +1224,7 @@ namespace spot
     std::swap(res_ptr->next_latches_, next_latches__);
     std::swap(res_ptr->outputs_, outputs__);
     std::swap(res_ptr->and_gates_, gates__);
+    res_ptr->latch_names_= latch_names__;
 
     // Create all the bdds/vars
     // true/false/latches/inputs already exist

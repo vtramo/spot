@@ -3442,7 +3442,7 @@ try:
 3
 """)
 except SyntaxError as e:
-    tc.assertEqual(str(e), "\n<string>:2: expecting input number 2")
+    tc.assertEqual(str(e), "\n<string>:2: invalid input")
 else:
     report_missing_exception()
 
@@ -3482,7 +3482,7 @@ try:
 1 1
 """)
 except SyntaxError as e:
-    tc.assertEqual(str(e), "\n<string>:4: expecting latch number 6")
+    tc.assertEqual(str(e), "\n<string>:4: invalid latch")
 else:
     report_missing_exception()
 
@@ -3623,8 +3623,18 @@ except SyntaxError as e:
 else:
     report_missing_exception()
 
-try:
-    spot.aiger_circuit("""aag 7 2 2 1 2
+expected = """aag 6 2 2 1 2
+2
+4
+6 1
+8 7
+9
+10 3 8
+12 8 10
+i0 foo
+i1 bar
+o0 o0"""
+c = spot.aiger_circuit("""aag 6 2 2 1 2
 2
 4
 6 1
@@ -3635,10 +3645,8 @@ try:
 i1 bar
 i0 foo
 """)
-except SyntaxError as e:
-    tc.assertEqual(str(e), "\n<string>:9: expecting name for input 0")
-else:
-    report_missing_exception()
+
+tc.assertEqual(c.to_str(), expected)
 
 try:
     spot.aiger_circuit("""aag 7 2 2 1 2
@@ -3676,8 +3684,22 @@ except SyntaxError as e:
 else:
     report_missing_exception()
 
-try:
-    spot.aiger_circuit("""aag 7 2 2 2 2
+
+expected = """aag 6 2 2 2 2
+2
+4
+6 1
+8 7
+9
+10
+10 3 8
+12 8 10
+i0 name with spaces
+i1 bar
+o0 foo bar baz
+o1 hmm"""
+
+c = spot.aiger_circuit("""aag 7 2 2 2 2
 2
 4
 6 1
@@ -3689,12 +3711,8 @@ try:
 i0 name with spaces
 i1 bar
 o1 hmm
-o0 foo bar baz
-""")
-except SyntaxError as e:
-    tc.assertEqual(str(e), "\n<string>:12: expecting name for output 0")
-else:
-    report_missing_exception()
+o0 foo bar baz""")
+tc.assertEqual(c.to_str(), expected)
 
 try:
     spot.aiger_circuit("""aag 7 2 2 2 2
@@ -3777,8 +3795,20 @@ except SyntaxError as e:
 else:
     report_missing_exception()
 
-try:
-    spot.aiger_circuit("""aag 7 2 2 2 2
+expected = """aag 6 2 2 2 2
+2
+4
+6 1
+8 7
+9
+10
+10 3 8
+12 8 10
+i0 name with spaces
+i1 i0
+o0 foo
+o1 baz"""
+c = spot.aiger_circuit("""aag 7 2 2 2 2
 2
 4
 6 1
@@ -3793,14 +3823,24 @@ o1 baz
 c
 this is not a bug
 """)
-except SyntaxError as e:
-    tc.assertEqual(str(e), \
-        "\n<string>:10: either all or none of the inputs should be named")
-else:
-    report_missing_exception()
+tc.assertEqual(c.to_str(), expected)
 
-try:
-    spot.aiger_circuit("""aag 7 3 2 2 2
+expected = """aag 7 3 2 2 2
+2
+4
+6
+8 1
+10 7
+9
+10
+12 3 8
+14 8 10
+i0 name0
+i1 name1
+i2 i0
+o0 foo
+o1 baz"""
+c = spot.aiger_circuit("""aag 7 3 2 2 2
 2
 4
 6
@@ -3817,14 +3857,27 @@ o1 baz
 c
 this is not a bug
 """)
-except SyntaxError as e:
-    tc.assertEqual(str(e), \
-        "\n<string>:11-12: either all or none of the inputs should be named")
-else:
-    report_missing_exception()
 
-try:
-    spot.aiger_circuit("""aag 7 3 2 3 2
+tc.assertEqual(c.to_str(), expected)
+
+expected = """aag 7 3 2 3 2
+2
+4
+6
+8 1
+10 7
+9
+10
+8
+12 3 8
+14 8 10
+i0 name0
+i1 name1
+i2 name2
+o0 foo
+o1 baz
+o2 o0"""
+c = spot.aiger_circuit("""aag 7 3 2 3 2
 2
 4
 6
@@ -3843,11 +3896,8 @@ o1 baz
 c
 this is not a bug
 """)
-except SyntaxError as e:
-    tc.assertEqual(str(e), \
-        "\n<string>:14-16: either all or none of the outputs should be named")
-else:
-    report_missing_exception()
+
+tc.assertEqual(c.to_str(), expected)
 
 x = spot.aiger_circuit("""aag 7 3 2 3 2
 2
@@ -3870,3 +3920,28 @@ c
 this is not a bug
 """).to_str()
 tc.assertEqual(x, spot.aiger_circuit(x).to_str())
+
+# Named latch + input o0
+expected = """aag 5 2 2 1 1
+2
+4
+6 1
+8 7
+9
+10 3 8
+i0 o0
+i1 i0
+o0 o1"""
+
+c = spot.aiger_circuit("""aag 5 2 2 1 1
+2
+4
+6 1
+8 7
+9
+10 3 8
+i0 o0
+l1 x
+""")
+
+tc.assertEqual(c.to_str(), expected)

@@ -1297,7 +1297,8 @@ namespace spot
         for (unsigned i = 0; i < num_latches; ++i)
           {
             auto first_m_mod = circuit->latch_var(i) & ~1;
-            os_ << "    " << first_m_mod << " [label=\"L" << i << "_out\"]\n";
+            os_ << "    " << first_m_mod << " [label=\""
+                << circuit->latch_names()[i] << "_out\"]\n";
           }
         os_ << "  }\n";
         if (num_gates)
@@ -1315,7 +1316,7 @@ namespace spot
               "fillcolor=\"#ffe6cc\",label=\"\\N_in\"]\n";
             for (unsigned i = 0; i < num_latches; ++i)
               {
-                os_ << "    L" << i << '\n';
+                os_ << "    " << circuit->latch_names()[i] << '\n';
                 if (latches[i] <= 1)
                   has_false = true;
               }
@@ -1359,7 +1360,8 @@ namespace spot
           }
         for (unsigned i = 0; i < num_latches; ++i)
           {
-            os_ << "  " << (latches[i] & ~1) << " -> L" << i;
+            os_ << "  " << (latches[i] & ~1) << " -> "
+                << circuit->latch_names()[i];
             if (latches[i] & 1)
               os_ << " [arrowhead=dot]";
             os_ << '\n';

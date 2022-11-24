@@ -63,6 +63,7 @@ namespace spot
     const unsigned num_latches_;
     const std::vector<std::string> input_names_;
     const std::vector<std::string> output_names_;
+    std::vector<std::string> latch_names_;
     unsigned max_var_;
 
     std::vector<unsigned> next_latches_;
@@ -193,6 +194,11 @@ namespace spot
     unsigned num_latches() const
     {
       return num_latches_;
+    }
+    /// \brief Get the set of latch names
+    const std::vector<std::string> &latch_names() const
+    {
+      return latch_names_;
     }
     /// \brief Get the variables associated to the state of the latches
     ///        in the next iteration
@@ -351,11 +357,9 @@ namespace spot
 
     /// \brief Create a circuit from an aag file with restricted syntax.
     ///
-    /// \note Additional constraints are:
-    ///       - inputs, latches, and gates have to appear in increasing order.
+    /// \note Additional constraint is:
     ///       - Inputs are expected to have variable numbers from 2-2*n_i+1
     ///         with n_i being the number of inputs
-    ///       - Latches cannot be named
     static aig_ptr
     parse_aag(const std::string& aig_file,
               bdd_dict_ptr dict = make_bdd_dict());
