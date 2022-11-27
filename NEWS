@@ -19,6 +19,10 @@ New in spot 2.11.2.dev  (not yet released)
     otherwise, libraries get installed in the wrong place on Debian.
     (Issue #512.)
 
+  - Calling solve_parity_game() multiple times on the same automaton
+    appends the new strategy to the existing one.
+    Thanks to Dávid Smolka for reporting this bug.
+
 New in spot 2.11.2  (2022-10-26)
 
   Command-line tools:

@@ -371,3 +371,17 @@ for kind in [spot.parity_kind_min, spot.parity_kind_max]:
         tc.assertTrue(spot.solve_parity_game(g_test_split1))
         c_strat1 = spot.get_strategy(g_test_split1)
         tc.assertTrue(c_strat == c_strat1)
+
+# Test that strategies are not appended
+# if solve is called multiple times
+aut = spot.make_twa_graph()
+aut.set_buchi()
+aut.new_states(2)
+aut.new_edge(0,1,buddy.bddtrue, [0])
+aut.new_edge(1,0,buddy.bddtrue, [])
+spot.set_state_players(aut, [False, True])
+spot.solve_game(aut)
+S1 = list(spot.get_strategy(aut))
+spot.solve_game(aut)
+S2 = list(spot.get_strategy(aut))
+tc.assertEqual(S1, S2)
