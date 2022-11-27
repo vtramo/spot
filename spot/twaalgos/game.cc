@@ -227,6 +227,7 @@ namespace spot
         region_t &w = *arena->get_or_set_named_prop<region_t>("state-winner");
         strategy_t &s = *arena->get_or_set_named_prop<strategy_t>("strategy");
         w.swap(w_.winner_);
+        s.clear();
         s.reserve(s_.size());
         for (auto as : s_)
           s.push_back(as == no_strat_mark ? 0 : (unsigned) as);

@@ -26,6 +26,10 @@ New in spot 2.11.2.dev  (not yet released)
   - 'autfilt -c ...' should display a match count even in present of
     parse errors.
 
+  - Calling solve_parity_game() multiple times on the same automaton
+    used to append the new strategy to the existing one instead of
+    overwriting it.
+
 New in spot 2.11.2  (2022-10-26)
 
   Command-line tools:
