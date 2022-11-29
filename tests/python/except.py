@@ -359,3 +359,18 @@ except RuntimeError as e:
     tc.assertIn(filename, str(e))
 else:
     report_missing_exception()
+
+
+# Relabeling must use new variables
+aut = spot.make_twa_graph()
+aut.new_states(2)
+ap = buddy.bdd_ithvar(aut.register_ap("__nv0"))
+aut.new_edge(0,1,ap)
+
+try:
+    spot.partitioned_relabel_here(aut)
+except RuntimeError as e:
+    tc.assertIn("The given prefix for new variables",
+                str(e))
+else:
+    report_missing_exception()
