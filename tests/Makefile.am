@@ -436,6 +436,7 @@ TESTS_python = \
   python/origstate.py \
   python/otfcrash.py \
   python/parsetgba.py \
+  python/_partitioned_relabel.ipynb \
   python/parity.py \
   python/pdegen.py \
   python/prodexpt.py \
