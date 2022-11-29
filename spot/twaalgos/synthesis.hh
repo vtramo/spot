@@ -21,6 +21,7 @@
 
 #include <spot/twa/twagraph.hh>
 #include <spot/twaalgos/game.hh>
+#include <spot/twaalgos/relabel.hh>
 #include <bddx.h>
 
 namespace spot
@@ -255,5 +256,40 @@ namespace spot
   /// single argument.  This one measure the runtime and update \a gi.
   SPOT_API bool
   solve_game(twa_graph_ptr arena, synthesis_info& gi);
+
+  struct SPOT_API game_relabeling_map
+  {
+    relabeling_map env_map;
+    relabeling_map player_map;
+  };
+
+  /// \ingroup synthesis
+  /// \brief Tries to relabel a SPLIT game \a arena using fresh propositions.
+  /// Can be applied to env or player depending on \a relabel_env
+  /// and \a relabel_play. The arguments \a split_env and \a split_play
+  /// determine whether or not env and player edges are to
+  /// be split into several transitions labelled by letters not conditions.
+  ///
+  /// \return pair of relabeling_map, first is for env, second is for player.
+  /// The maps are empty if no relabeling was performed
+  /// \note Can also be applied to split mealy machine.
+  /// \note partitioned_relabel_here can not be used directly if there are
+  /// T (true conditions)
+  SPOT_API game_relabeling_map
+  partitioned_game_relabel_here(twa_graph_ptr& arena,
+                                bool relabel_env,
+                                bool relabel_play,
+                                bool split_env = false,
+                                bool split_play = false,
+                                unsigned max_letter = -1u,
+                                unsigned max_letter_mult = -1u);
+
+  /// \ingroup synthesis
+  /// \brief Undoes a relabeling done by partitioned_game_relabel_here.
+  /// A dedicated function is necessary in order to remove the
+  /// variables tagging env and player conditions
+  SPOT_API void
+  relabel_game_here(twa_graph_ptr& arena,
+                    game_relabeling_map& rel_maps);
 
 }

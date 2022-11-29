@@ -36,7 +36,9 @@
 #include <spot/twaalgos/game.hh>
 #include <spot/twaalgos/hoa.hh>
 #include <spot/twaalgos/product.hh>
+#include <spot/twaalgos/relabel.hh>
 #include <spot/twaalgos/synthesis.hh>
+#include <spot/priv/partitioned_relabel.hh>
 
 #include <picosat/picosat.h>
 
@@ -869,7 +871,7 @@ namespace
            split_cstr_time, prob_init_build_time, sat_time,
            build_time, refine_time, total_time;
     long long n_classes, n_refinement, n_lit, n_clauses,
-              n_iteration, n_bisim_let, n_min_states, done;
+              n_iteration, n_letters_part, n_bisim_let, n_min_states, done;
     std::string task;
     const std::string instance;
 
@@ -892,6 +894,7 @@ namespace
       , n_lit{-1}
       , n_clauses{-1}
       , n_iteration{-1}
+      , n_letters_part{-1}
       , n_bisim_let{-1}
       , n_min_states{-1}
       , done{-1}
@@ -935,8 +938,8 @@ namespace
               << "player_incomp_time,incomp_time,split_all_let_time,"
               << "split_min_let_time,split_cstr_time,prob_init_build_time,"
               << "sat_time,build_time,refine_time,total_time,n_classes,"
-              << "n_refinement,n_lit,n_clauses,n_iteration,n_bisim_let,"
-              << "n_min_states,done\n";
+              << "n_refinement,n_lit,n_clauses,n_iteration,n_letters_part,"
+              << "n_bisim_let,n_min_states,done\n";
         }
 
       assert(!task.empty());
@@ -965,6 +968,7 @@ namespace
       f(ss, n_lit);
       f(ss, n_clauses);
       f(ss, n_iteration);
+      f(ss, n_letters_part);
       f(ss, n_bisim_let);
       f(ss, n_min_states);
       f(ss, done, false);
@@ -1280,8 +1284,8 @@ namespace
   }
 
   square_matrix<bool, true>
-  compute_incomp(const_twa_graph_ptr mm, const unsigned n_env,
-                 satprob_info& si)
+  compute_incomp_impl_(const_twa_graph_ptr mm, const unsigned n_env,
+                       satprob_info& si, bool is_partitioned)
   {
     const unsigned n_tot = mm->num_states();
 
@@ -1291,20 +1295,6 @@ namespace
     // Helper
     // Have two states already been checked for common pred
     square_matrix<bool, true> checked_pred(n_env, false);
-
-    // We also need a transposed_graph
-    auto mm_t = make_twa_graph(mm->get_dict());
-    mm_t->copy_ap_of(mm);
-    mm_t->new_states(n_env);
-
-    for (unsigned s = 0; s < n_env; ++s)
-      {
-        for (const auto& e_env : mm->out(s))
-          {
-            unsigned dst_env = mm->out(e_env.dst).begin()->dst;
-            mm_t->new_edge(dst_env, s, e_env.cond);
-          }
-      }
 
     // Utility function
     auto get_cond = [&mm](unsigned s)->const bdd&
@@ -1367,15 +1357,28 @@ namespace
 #endif
     // direct incomp: Two env states can reach incompatible player states
     // under the same input
+    // The original graph mm is not sorted, and most of the
+    // sorting is not rentable
+    // However, bdd_have_common_assignment simply becomes equality
     auto direct_incomp = [&](unsigned s1, unsigned s2)
       {
         for (const auto& e1 : mm->out(s1))
           for (const auto& e2 : mm->out(s2))
             {
+              if (is_partitioned && (e1.cond != e2.cond))
+                continue;
               if (!is_p_incomp(e1.dst - n_env, e2.dst - n_env))
                 continue; //Compatible -> no prob
               // Reachable under same letter?
-              if (bdd_have_common_assignment(e1.cond, e2.cond))
+              if (is_partitioned) // -> Yes
+                {
+                  trace << s1 << " and " << s2 << " directly incomp "
+                        "due to successors " << e1.dst << " and " << e2.dst
+                        << '\n';
+                  return true;
+                }
+              else if (!is_partitioned
+                       && bdd_have_common_assignment(e1.cond, e2.cond))
                 {
                   trace << s1 << " and " << s2 << " directly incomp "
                         "due to successors " << e1.dst << " and " << e2.dst
@@ -1388,7 +1391,27 @@ namespace
 
     // If two states can reach an incompatible state
     // under the same input, then they are incompatible as well
-    auto tag_predec = [&](unsigned s1, unsigned s2)
+
+    // Version if the input is not partitioned
+    // We also need a transposed_graph
+    twa_graph_ptr mm_t = nullptr;
+    if (!is_partitioned)
+    {
+      mm_t = make_twa_graph(mm->get_dict());
+      mm_t->copy_ap_of(mm);
+      mm_t->new_states(n_env);
+
+      for (unsigned s = 0; s < n_env; ++s)
+        {
+          for (const auto& e_env : mm->out(s))
+            {
+              unsigned dst_env = mm->out(e_env.dst).begin()->dst;
+              mm_t->new_edge(dst_env, s, e_env.cond);
+            }
+        }
+    }
+
+    auto tag_predec_unpart = [&](unsigned s1, unsigned s2)
       {
         static std::vector<std::pair<unsigned, unsigned>> todo_;
         assert(todo_.empty());
@@ -1422,17 +1445,98 @@ namespace
         // Done tagging all pred
       };
 
+    // Version of taging taking advantaged of partitioned conditions
+    struct S
+    {
+    };
+    struct T
+    {
+      int id;
+    };
+    std::unique_ptr<digraph<S, T>> mm_t_part;
+    if (is_partitioned)
+      {
+        mm_t_part = std::make_unique<digraph<S, T>>(n_env, mm->num_edges());
+        mm_t_part->new_states(n_env);
+
+        for (unsigned s = 0; s < n_env; ++s)
+          {
+            for (const auto& e_env : mm->out(s))
+              {
+                unsigned dst_env = mm->out(e_env.dst).begin()->dst;
+                mm_t_part->new_edge(dst_env, s, e_env.cond.id());
+              }
+          }
+
+        // Now we need to sort the edge to ensure that
+        // the next algo works correctly
+        mm_t_part->sort_edges_srcfirst_([](const auto& e1, const auto& e2)
+                                          {return e1.id < e2.id; });
+        mm_t_part->chain_edges_();
+      }
+
+    auto tag_predec_part = [&](unsigned s1, unsigned s2)
+      {
+        static std::vector<std::pair<unsigned, unsigned>> todo_;
+        assert(todo_.empty());
+
+        todo_.emplace_back(s1, s2);
+
+        while (!todo_.empty())
+          {
+            auto [i, j] = todo_.back();
+            todo_.pop_back();
+            if (checked_pred.get(i, j))
+              continue;
+            // If predecs are already marked incomp
+            auto e_it_i = mm_t_part->out(i);
+            auto e_it_j = mm_t_part->out(j);
+
+            auto e_it_i_e = e_it_i.end();
+            auto e_it_j_e = e_it_j.end();
+
+            auto e_i = e_it_i.begin();
+            auto e_j = e_it_j.begin();
+
+            // Joint iteration over both edge groups
+            while ((e_i != e_it_i_e) && (e_j != e_it_j_e))
+              {
+                if (e_i->id < e_j->id)
+                  ++e_i;
+                else if (e_j->id < e_i->id)
+                  ++e_j;
+                else
+                  {
+                    assert(e_j->id == e_i->id);
+                    trace << e_i->dst << " and " << e_j->dst << " tagged incomp"
+                            " due to " << e_i->id << '\n';
+                    inc_env.set(e_i->dst, e_j->dst, true);
+                    todo_.emplace_back(e_i->dst, e_j->dst);
+                    ++e_i;
+                    ++e_j;
+                  }
+              }
+            checked_pred.set(i, j, true);
+          }
+        // Done tagging all pred
+      };
+
     for (unsigned s1 = 0; s1 < n_env; ++s1)
       for (unsigned s2 = s1 + 1; s2 < n_env; ++s2)
         {
           if (inc_env.get(s1, s2))
             continue; // Already done
+
           // Check if they are incompatible for some letter
           // We have to check all pairs of edges
           if (direct_incomp(s1, s2))
             {
               inc_env.set(s1, s2, true);
-              tag_predec(s1, s2);
+              if (is_partitioned)
+                tag_predec_part(s1, s2);
+              else
+                tag_predec_unpart(s1, s2);
+
             }
         }
 
@@ -1442,9 +1546,38 @@ namespace
 #endif
     si.incomp_time = si.restart();
     return inc_env;
+  } // incomp no partition
+
+  square_matrix<bool, true>
+  compute_incomp(const_twa_graph_ptr mm, const unsigned n_env,
+                 satprob_info& si, int max_letter_mult)
+  {
+    // Try to generate a graph with partitioned env transitions
+    auto mm2 = make_twa_graph(mm, twa::prop_set::all());
+    set_state_players(mm2, get_state_players(mm));
+    set_synthesis_outputs(mm2, get_synthesis_outputs(mm));
+
+    // todo get a good value for cutoff
+    auto relabel_maps
+        = partitioned_game_relabel_here(mm2, true, false, true,
+                                        false, -1u, max_letter_mult);
+    bool succ = !relabel_maps.env_map.empty();
+
+    si.n_letters_part = relabel_maps.env_map.size();
+
+#ifdef TRACE
+    if (succ)
+      std::cout << "Relabeling succesfull with " << relabel_maps.env_map.size()
+                << " letters\n";
+    else
+      std::cout << "Relabeling aborted\n";
+#endif
+
+    return compute_incomp_impl_(succ ? const_twa_graph_ptr(mm2) : mm,
+                                n_env, si, succ);
   }
 
-    struct part_sol_t
+  struct part_sol_t
   {
     std::vector<unsigned> psol;
     std::vector<unsigned> is_psol;
@@ -1602,6 +1735,11 @@ namespace
     return std::make_pair(n_group, which_group);
   }
 
+  // Helper function
+  // Computes the set of all original letters implied by the leaves
+  // This avoids transposing the graph
+
+
   // Computes the letters of each group
   // Letters here means bdds such that for all valid
   // assignments of the bdd we go to the same dst from the same source
@@ -1611,7 +1749,9 @@ namespace
   {
     //To avoid recalc
     std::set<int> all_bdd;
-    std::set<int> treated_bdd;
+    std::vector<bdd> all_bdd_v;
+    std::unordered_map<unsigned, unsigned> node2idx;
+
     std::unordered_multimap<size_t, std::pair<unsigned, std::set<int>>>
         sigma_map;
 
@@ -1649,6 +1789,11 @@ namespace
             continue;
           else
             {
+              // Store bdds as vector for compatibility
+              all_bdd_v.clear(); // Note: sorted automatically by id
+              std::transform(all_bdd.begin(), all_bdd.end(),
+                            std::back_inserter(all_bdd_v),
+                            [](int i){return bdd_from_int(i); });
               // Insert it already into the sigma_map
               trace << "Group " << groupidx << " generates a new alphabet\n";
               sigma_map.emplace(std::piecewise_construct,
@@ -1658,62 +1803,60 @@ namespace
             }
         }
 
+        // Result
         red.share_sigma_with.push_back(groupidx);
         red.all_letters.emplace_back();
         auto& group_letters = red.all_letters.back();
 
-        treated_bdd.clear();
+        // Compute it
+        auto this_part = try_partition_me(all_bdd_v, -1u);
+        assert(this_part.relabel_succ);
 
-        for (unsigned s = 0; s < n_env; ++s)
+        // Transform it
+        // group_letters is pair<new_letter, set of implied orig letters as id>
+        // There are as many new_letters as treated bdds in the partition
+        group_letters.clear();
+        group_letters.reserve(this_part.treated.size());
+        node2idx.clear();
+        node2idx.reserve(this_part.treated.size());
+
+        for (const auto& [label, node] : this_part.treated)
           {
-            if (red.which_group[s] != groupidx)
-              continue;
-            for (const auto& e : mmw->out(s))
-              {
-                bdd rcond = e.cond;
-                const int econd_id = rcond.id();
-                trace << rcond << " - " << econd_id << std::endl;
-                if (treated_bdd.count(econd_id))
-                  {
-                    trace << "Already treated" << std::endl;
-                    continue;
-                  }
-                treated_bdd.insert(econd_id);
-
-                assert(rcond != bddfalse && "Deactivated edges are forbiden");
-                // Check against all currently used "letters"
-                const size_t osize = group_letters.size();
-                for (size_t i = 0; i < osize; ++i)
-                  {
-                    if (group_letters[i].first == rcond)
-                      {
-                        rcond = bddfalse;
-                        group_letters[i].second.insert(econd_id);
-                        break;
-                      }
-                    bdd inter = group_letters[i].first & rcond;
-                    if (inter == bddfalse)
-                      continue; // No intersection
-                    if (group_letters[i].first == inter)
-                      group_letters[i].second.insert(econd_id);
-                    else
-                      {
-                        group_letters[i].first -= inter;
-                        group_letters.emplace_back(inter,
-                                                   group_letters[i].second);
-                        group_letters.back().second.insert(econd_id);
-                      }
-
-                    rcond -= inter;
-                    // Early exit?
-                    if (rcond == bddfalse)
-                      break;
-                  }
-                // Leftovers?
-                if (rcond != bddfalse)
-                  group_letters.emplace_back(rcond, std::set<int>{econd_id});
-              }
+            node2idx[node] = group_letters.size();
+            group_letters.emplace_back(std::piecewise_construct,
+                                       std::forward_as_tuple(label),
+                                       std::forward_as_tuple());
           }
+
+        // Go through the graph for each original letter
+        auto search_leaves
+            = [&ig = *this_part.ig, &group_letters, &node2idx]
+                (int orig_letter_id, unsigned s, auto&& search_leaves_) -> void
+          {
+            if (ig.state_storage(s).succ == 0)
+              {
+                // Leaf
+                unsigned idx = node2idx[s];
+                auto& setidx = group_letters[idx].second;
+                setidx.emplace_hint(setidx.end(), orig_letter_id);
+              }
+            else
+              {
+                // Traverse
+                for (const auto& e : ig.out(s))
+                  search_leaves_(orig_letter_id, e.dst, search_leaves_);
+              }
+          };
+
+        const unsigned Norig = all_bdd_v.size();
+        for (unsigned s = 0; s < Norig; ++s)
+          search_leaves(all_bdd_v[s].id(), s, search_leaves);
+
+        // Verify that all letters imply at least one original letter
+        assert(std::all_of(group_letters.begin(), group_letters.end(),
+                           [](const auto& l){return !l.second.empty(); }));
+
+
 #ifdef TRACE
         trace << "this group letters" << std::endl;
         auto sp = [&](const auto& c)
@@ -3467,6 +3610,7 @@ namespace
         for (unsigned letter_idx = 0; letter_idx < n_ml; ++letter_idx)
           {
             const auto& ml_list = group_map[letter_idx];
+            assert(ml_list.begin() != ml_list.end());
             // Incompatibility is commutative
             // new / new constraints
             const auto it_end = ml_list.end();
@@ -3794,12 +3938,9 @@ namespace
         return minmach;
       } // while loop
   } // try_build_machine
-} // namespace
 
-namespace spot
-{
-  twa_graph_ptr minimize_mealy(const const_twa_graph_ptr& mm,
-                               int premin)
+  twa_graph_ptr minimize_mealy_(const const_twa_graph_ptr& mm,
+                               int premin, int max_letter_mult)
   {
     bdd outputs = ensure_mealy("minimize_mealy", mm);
 
@@ -3866,8 +4007,9 @@ namespace spot
     si.reorg_time = si.restart();
 
     // Compute incompatibility based on bdd
-    auto incompmat = compute_incomp(mmw, n_env, si);
+    auto incompmat = compute_incomp(mmw, n_env, si, max_letter_mult);
 #ifdef TRACE
+    std::cerr << "Final incomp mat\n";
     incompmat.print(std::cerr);
 #endif
 
@@ -3944,6 +4086,15 @@ namespace spot
       minmachine));
     return minmachine;
   }
+} // namespace
+
+namespace spot
+{
+  twa_graph_ptr minimize_mealy(const const_twa_graph_ptr& mm,
+                               int premin)
+  {
+    return minimize_mealy_(mm, premin, 10);
+  }
 
   twa_graph_ptr
   minimize_mealy(const const_twa_graph_ptr& mm,
@@ -3970,7 +4121,8 @@ namespace spot
       sat_dimacs_file
         = std::make_unique<fwrapper>(dimacsfile);
     sat_instance_name = si.opt.get_str("satinstancename");
-    auto res = minimize_mealy(mm, si.minimize_lvl-4);
+    auto res = minimize_mealy_(mm, si.minimize_lvl-4,
+                               si.opt.get("max_letter_mult", 10));
     sat_csv_file.reset();
     sat_dimacs_file.reset();
     return res;
@@ -4161,7 +4313,7 @@ namespace spot
         reduce_mealy_here(m, minimize_lvl == 2);
       }
     else if (3 <= minimize_lvl)
-      m = minimize_mealy(m, minimize_lvl - 4);
+      m = minimize_mealy(m, si);
 
     // Convert to demanded output format
     bool is_split = m->get_named_prop<region_t>("state-player");

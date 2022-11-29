@@ -37,6 +37,7 @@
 
 
 #include <algorithm>
+#include <string>
 
 // Helper function/structures for split_2step
 namespace{
@@ -1933,6 +1934,100 @@ namespace spot
       *(gi.verbose_stream) << "game solved in "
                            << gi.bv->solve_time << " seconds\n";
     return res;
+  }
+
+  namespace
+  {
+    const std::string in_mark_s("__AP_IN__");
+    const std::string out_mark_s("__AP_OUT__");
+  }
+
+  game_relabeling_map
+  partitioned_game_relabel_here(twa_graph_ptr& arena,
+                                bool relabel_env,
+                                bool relabel_play,
+                                bool split_env,
+                                bool split_play,
+                                unsigned max_letter,
+                                unsigned max_letter_mult)
+  {
+    if (!arena)
+      throw std::runtime_error("arena is null.");
+    auto& arena_r = *arena;
+
+    const auto& sp = get_state_players(arena);
+    bdd all_ap = arena->ap_vars();
+
+    if (std::find_if(arena->ap().cbegin(), arena->ap().cend(),
+                     [](const auto& ap)
+                       {
+                         return ap.ap_name() == out_mark_s
+                                || ap.ap_name() == in_mark_s;
+                       }) != arena->ap().cend())
+      throw std::runtime_error("partitioned_game_relabel_here(): "
+                               "You can not use "
+                               + in_mark_s + " or " + out_mark_s +
+                               " as propositions if relabeling.");
+
+    bdd out_mark = bdd_ithvar(arena_r.register_ap(out_mark_s));
+    bdd in_mark = bdd_ithvar(arena_r.register_ap(in_mark_s));
+
+    bdd outs = get_synthesis_outputs(arena) & out_mark;
+    bdd ins = bdd_exist(all_ap, outs) & in_mark;
+
+    for (auto& e : arena_r.edges())
+      e.cond = e.cond & (sp[e.src] ? out_mark : in_mark);
+
+    game_relabeling_map res;
+
+    if (relabel_env)
+      res.env_map
+        = partitioned_relabel_here(arena, split_env, max_letter,
+                                   max_letter_mult, ins, "__nv_in");
+    if (relabel_play)
+      res.player_map
+        = partitioned_relabel_here(arena, split_play, max_letter,
+                                   max_letter_mult, outs, "__nv_out");
+    return res;
+  }
+
+  void
+  relabel_game_here(twa_graph_ptr& arena,
+                    game_relabeling_map& rel_maps)
+  {
+    if (!arena)
+      throw std::runtime_error("arena is null.");
+    auto& arena_r = *arena;
+
+    // Check that it was partitioned_game_relabel_here
+    if (!((std::find_if(arena->ap().cbegin(), arena->ap().cend(),
+                        [](const auto& ap)
+                          { return ap.ap_name() == out_mark_s; })
+             != arena->ap().cend())
+          && (std::find_if(arena->ap().cbegin(), arena->ap().cend(),
+                           [](const auto& ap)
+                             { return ap.ap_name() == in_mark_s; }))
+               != arena->ap().cend()))
+      throw std::runtime_error("relabel_game_here(): " +
+                               in_mark_s + " or " + out_mark_s +
+                               " not registered with arena. "
+                               "Not relabeled?");
+
+    if (!rel_maps.env_map.empty())
+      relabel_here(arena, &rel_maps.env_map);
+    if (!rel_maps.player_map.empty())
+      relabel_here(arena, &rel_maps.player_map);
+
+    bdd dummy_ap = bdd_ithvar(arena_r.register_ap(in_mark_s))
+                   & bdd_ithvar(arena_r.register_ap(out_mark_s));
+
+    for (auto& e : arena_r.edges())
+      e.cond = bdd_exist(e.cond, dummy_ap);
+
+    arena_r.unregister_ap(arena_r.register_ap(in_mark_s));
+    arena_r.unregister_ap(arena_r.register_ap(out_mark_s));
+
+    return;
   }
 
 } // spot

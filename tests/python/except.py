@@ -374,3 +374,21 @@ except RuntimeError as e:
                 str(e))
 else:
     report_missing_exception()
+
+# Relabeling games must not use the
+# globally reserved aps
+aut = spot.make_twa_graph()
+aut.new_states(2)
+apin = buddy.bdd_ithvar(aut.register_ap("__AP_IN__"))
+apout = buddy.bdd_ithvar(aut.register_ap("__AP_OUT__"))
+aut.new_edge(0,1,apin & apout)
+aut.new_edge(1,0,buddy.bdd_not(apin & apout))
+spot.set_state_players(aut, [False, True])
+
+try:
+    spot.partitioned_game_relabel_here(aut, True, True)
+except RuntimeError as e:
+    tc.assertIn("You can not use __AP_IN__ or __AP_OUT__",
+                str(e))
+else:
+    report_missing_exception()
