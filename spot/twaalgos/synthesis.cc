@@ -1948,8 +1948,10 @@ namespace spot
                                 bool relabel_play,
                                 bool split_env,
                                 bool split_play,
-                                unsigned max_letter,
-                                unsigned max_letter_mult)
+                                unsigned max_letter_env,
+                                unsigned max_letter_play,
+                                unsigned max_letter_mult_env,
+                                unsigned max_letter_mult_play)
   {
     if (!arena)
       throw std::runtime_error("arena is null.");
@@ -1982,8 +1984,8 @@ namespace spot
 
     if (relabel_env)
         res.env_map
-          = partitioned_relabel_here(arena, split_env, max_letter,
-                                    max_letter_mult, ins, "__nv_in");
+          = partitioned_relabel_here(arena, split_env, max_letter_env,
+                                    max_letter_mult_env, ins, "__nv_in");
 
     // If no relabeling took place, we restore the old edges
     if (res.env_map.empty())
@@ -1999,8 +2001,8 @@ namespace spot
 
     if (relabel_play)
       res.player_map
-        = partitioned_relabel_here(arena, split_play, max_letter,
-                                    max_letter_mult, outs, "__nv_out");
+        = partitioned_relabel_here(arena, split_play, max_letter_play,
+                                    max_letter_mult_play, outs, "__nv_out");
 
     // If no relabeling took place, we restore the old edges
     if (res.player_map.empty())

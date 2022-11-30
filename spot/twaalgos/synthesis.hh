@@ -281,8 +281,10 @@ namespace spot
                                 bool relabel_play,
                                 bool split_env = false,
                                 bool split_play = false,
-                                unsigned max_letter = -1u,
-                                unsigned max_letter_mult = -1u);
+                                unsigned max_letter_env = -1u,
+                                unsigned max_letter_play = -1u,
+                                unsigned max_letter_mult_env = -1u,
+                                unsigned max_letter_mult_play = -1u);
 
   /// \ingroup synthesis
   /// \brief Undoes a relabeling done by partitioned_game_relabel_here.

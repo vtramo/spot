@@ -771,6 +771,49 @@ namespace spot
   {
     ensure_mealy("reduce_mealy_here", mm);
 
+    bool is_split = mm->get_named_prop<region_t>("state-player");
+    auto nb_aps = mm->ap().size();
+    auto nb_outs = get_synthesis_output_aps(mm).size();
+    auto nb_ins = nb_aps - nb_outs;
+    // edge_vector is dangerous in my opinion
+    //auto& edges = mm->edge_vector();
+    std::set<bdd, bdd_less_than> conds_in;
+    std::set<bdd, bdd_less_than> conds_out;
+    //std::transform(
+    //    edges.begin(), edges.end(),
+    //    std::inserter(conds, conds.begin()),
+    //    [](auto &e)
+    //    { return e.cond; });
+    auto* splayers = mm->get_named_prop<region_t>("state-player");
+    for (const auto& e : mm->edges())
+      {
+        if (!splayers || !(*splayers)[e.src])
+          conds_in.insert(e.cond);
+        else
+          conds_out.insert(e.cond);
+      }
+
+    relabeling_map rm; // unsplit
+    game_relabeling_map rmg; // split
+    if (is_split)
+      {
+        bool relab_in = conds_in.size() < std::pow(2, nb_ins) / 2;
+        bool relab_out = conds_out.size() < std::pow(2, nb_outs) / 2;
+        rmg = partitioned_game_relabel_here(mm, relab_in, relab_out,
+                                            false, false,
+                                            relab_in, relab_out,
+                                            std::pow(2, nb_ins/2),
+                                            std::pow(2, nb_outs/2)
+                                            );
+      }
+    else
+      {
+        bool relab = conds_in.size() < std::pow(2, nb_aps) / 2;
+        if (relab)
+          rm = partitioned_relabel_here(mm, false, std::pow(2, nb_aps/ 2));
+      }
+    // WARNING: Do you need synthesis_outputs somewhere?!?
+
     // Only consider infinite runs
     mm->purge_dead_states();
     auto sp = specialization_graph(mm, output_assignment, false);
@@ -799,6 +842,11 @@ namespace spot
               todo.emplace(repr_dst);
           }
       }
+
+    if (is_split)
+      relabel_game_here(mm, rmg);
+    else
+      relabel_here(mm, &rm); // Does nothing if empty
 
     mm->purge_unreachable_states();
     assert(is_mealy(mm));
