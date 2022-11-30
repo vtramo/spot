@@ -73,6 +73,7 @@ check_PROGRAMS = \
   core/cube \
   core/emptchk \
   core/equals \
+  core/expand \
   core/graph \
   core/kind \
   core/length \
@@ -115,6 +116,7 @@ core_bricks_SOURCES = core/bricks.cc
 core_checkpsl_SOURCES = core/checkpsl.cc
 core_checkta_SOURCES = core/checkta.cc
 core_emptchk_SOURCES  = core/emptchk.cc
+core_expand_SOURCES  = core/expand.cc
 core_graph_SOURCES = core/graph.cc
 core_ikwiad_SOURCES = core/ikwiad.cc
 core_intvcomp_SOURCES = core/intvcomp.cc

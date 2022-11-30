@@ -32,6 +32,7 @@ tl_HEADERS =					\
   dot.hh					\
   environment.hh				\
   exclusive.hh					\
+  expansions.hh					\
   formula.hh					\
   hierarchy.hh					\
   length.hh					\
@@ -57,6 +58,7 @@ libtl_la_SOURCES =				\
   derive.cc					\
   dot.cc					\
   exclusive.cc					\
+  expansions.cc					\
   formula.cc					\
   hierarchy.cc					\
   length.cc					\
