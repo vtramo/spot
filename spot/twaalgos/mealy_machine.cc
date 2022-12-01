@@ -185,6 +185,7 @@ namespace spot
       {
         trace << "is_split_mealy(): Split mealy machine must define the named "
                  "property \"state-player\"!\n";
+        return false;
       }
 
     auto sp = get_state_players(m);
@@ -3937,7 +3938,10 @@ namespace spot
     si.total_time = sglob.stop();
     si.write();
 
-    assert(is_split_mealy_specialization(mm, minmachine));
+    assert(is_split_mealy_specialization(
+      mm->get_named_prop<region_t>("state-player") ? mm
+                                                   :split_2step(mm, false),
+      minmachine));
     return minmachine;
   }
 

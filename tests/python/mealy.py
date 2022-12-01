@@ -626,3 +626,55 @@ exp = """digraph "" {
 }
 """
 tc.assertEqual(res.to_str("dot", "g"), exp)
+
+# assertion bug: original machine is not always
+# correctly split before testing inside minimize_mealy
+aut = spot.automaton("""HOA: v1
+States: 2
+Start: 0
+AP: 11 "u0accel0accel" "u0accel0f1dcon23p81b" "u0accel0f1dcon231b"
+  "u0gear0f1dmin0f1dcon61b0f1dadd0gear0f1dcon241b1b1b"
+  "u0gear0gear" "u0gear0f1dmax0f1dcon241b0f1dsub0gear0f1dcon241b1b1b"
+  "u0steer0f1dsteering0angle0trackpos1b" "u0steer0steer"
+  "p0p0gt0rpm0f1dcon5523231b" "p0p0lt0rpm0f1dcon32323231b"
+  "p0p0lt0speed0f1dsub0target2speed0f1dmultp0f1dabs0steer1b0f1dcon248881b1b1b"
+acc-name: all
+Acceptance: 0 t
+properties: trans-labels explicit-labels state-acc deterministic
+controllable-AP: 0 1 2 3 4 5 6 7
+--BODY--
+State: 0
+[!0&!1&2&!3&4&!5&6&!7&!8&!9&!10] 0
+[!0&1&!2&!3&4&!5&6&!7&!8&!9&10] 0
+[!0&!1&2&!3&!4&5&6&!7&!8&9&!10] 0
+[!0&1&!2&!3&!4&5&6&!7&!8&9&10] 0
+[!0&!1&2&3&!4&!5&6&!7&8&!9&!10] 0
+[!0&1&!2&3&!4&!5&6&!7&8&!9&10] 0
+[!0&!1&2&!3&!4&5&!6&7&8&9 | !0&!1&2&!3&!4&5&6&!7&8&9 | !0&!1&2&!3&4&!5&!6&7&8&9
+                          | !0&!1&2&!3&4&!5&6&!7&8&9 | !0&!1&2&3&!4&!5&!6&7&8&9
+                          | !0&!1&2&3&!4&!5&6&!7&8&9 | !0&1&!2&!3&!4&5&!6&7&8&9
+                          | !0&1&!2&!3&!4&5&6&!7&8&9 | !0&1&!2&!3&4&!5&!6&7&8&9
+                          | !0&1&!2&!3&4&!5&6&!7&8&9 | !0&1&!2&3&!4&!5&!6&7&8&9
+                          | !0&1&!2&3&!4&!5&6&!7&8&9 | 0&!1&!2&!3&!4&5&!6&7&8&9
+                          | 0&!1&!2&!3&!4&5&6&!7&8&9 | 0&!1&!2&!3&4&!5&!6&7&8&9
+                          | 0&!1&!2&!3&4&!5&6&!7&8&9 | 0&!1&!2&3&!4&!5&!6&7&8&9
+                          | 0&!1&!2&3&!4&!5&6&!7&8&9] 1
+State: 1
+[!0&!1&2&!3&!4&5&!6&7 | !0&!1&2&!3&!4&5&6&!7 | !0&!1&2&!3&4&!5&!6&7
+                      | !0&!1&2&!3&4&!5&6&!7 | !0&!1&2&3&!4&!5&!6&7
+                      | !0&!1&2&3&!4&!5&6&!7 | !0&1&!2&!3&!4&5&!6&7
+                      | !0&1&!2&!3&!4&5&6&!7 | !0&1&!2&!3&4&!5&!6&7
+                      | !0&1&!2&!3&4&!5&6&!7 | !0&1&!2&3&!4&!5&!6&7
+                      | !0&1&!2&3&!4&!5&6&!7 | 0&!1&!2&!3&!4&5&!6&7
+                      | 0&!1&!2&!3&!4&5&6&!7 | 0&!1&!2&!3&4&!5&!6&7
+                      | 0&!1&!2&!3&4&!5&6&!7 | 0&!1&!2&3&!4&!5&!6&7
+                      | 0&!1&!2&3&!4&!5&6&!7] 1
+--END--""")
+
+spot.minimize_mealy(aut, -1)
+spot.minimize_mealy(aut, 0)
+spot.minimize_mealy(aut, 1)
+auts = spot.split_2step(aut)
+spot.minimize_mealy(auts, -1)
+spot.minimize_mealy(auts, 0)
+spot.minimize_mealy(auts, 1)
