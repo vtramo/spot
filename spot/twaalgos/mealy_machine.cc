@@ -3937,7 +3937,10 @@ namespace spot
     si.total_time = sglob.stop();
     si.write();
 
-    assert(is_split_mealy_specialization(mm, minmachine));
+    assert(is_split_mealy_specialization(
+      mm->get_named_prop<region_t>("state-player") ? mm
+                                                   :split_2step(mm),
+      minmachine));
     return minmachine;
   }
 
