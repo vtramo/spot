@@ -963,7 +963,8 @@ EOF
 test `autfilt -c --is-inherently-weak input7` = 1
 test `autfilt -c --is-weak input7` = 0
 test `autfilt -c --is-stutter-invariant input7` = 1
-autfilt --check input7 -H >output7
+autfilt --check input7 -H >output7 && exit 0
+test $? -eq 2
 cat >expected7 <<EOF
 HOA: v1
 States: 3
@@ -1004,11 +1005,11 @@ EOF
 test `autfilt -c --is-inherently-weak input8` = 0
 test `autfilt -c --is-weak input8` = 0
 
-autfilt input8 -Hl >oneline.hoa
-autfilt input8 --stats='%h' >oneline2.hoa
-autfilt input8 --stats='%H' >oneline3.hoa
-autfilt input8 --randomize --stats='%h' >oneline4.hoa
-autfilt input8 --randomize --stats='%H' >oneline5.hoa
+autfilt input8 -Hl >oneline.hoa && exit 1
+autfilt input8 --stats='%h' >oneline2.hoa && exit 1
+autfilt input8 --stats='%H' >oneline3.hoa && exit 1
+autfilt input8 --randomize --stats='%h' >oneline4.hoa && exit 1
+autfilt input8 --randomize --stats='%H' >oneline5.hoa && exit 1
 diff oneline.hoa oneline2.hoa
 diff oneline.hoa oneline3.hoa
 diff oneline.hoa oneline4.hoa && exit 1

@@ -1763,14 +1763,16 @@ main(int argc, char** argv)
       post.set_level(level);
 
       autfilt_processor processor(post, o.dict);
-      if (processor.run())
-        return 2;
-
-      // Diagnose unused -x options
-      extra_options.report_unused_options();
+      int err = processor.run();
 
       if (automaton_format == Count)
         std::cout << match_count << std::endl;
+
+      // Diagnose unused -x options
+      if (!err)
+        extra_options.report_unused_options();
+      else
+        return 2;
 
       check_cout();
       return match_count ? 0 : 1;
