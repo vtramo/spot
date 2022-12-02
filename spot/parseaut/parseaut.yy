@@ -1231,6 +1231,7 @@ body: states
 	// diagnostic, so let not add another one.
 	if (res.states >= 0)
 	  n = res.states;
+        std::vector<unsigned> unused_undeclared;
 	for (unsigned i = 0; i < n; ++i)
 	  {
 	    auto& p = res.info_states[i];
@@ -1239,17 +1240,43 @@ body: states
                 if (p.used)
                   error(p.used_loc,
                         "state " + std::to_string(i) + " has no definition");
-                if (!p.used && res.complete)
-                  if (auto p = res.prop_is_true("complete"))
-                    {
-                      error(res.states_loc,
-                            "state " + std::to_string(i) +
-                            " has no definition...");
-                      error(p.loc, "... despite 'properties: complete'");
-                    }
+                if (!p.used)
+                  unused_undeclared.push_back(i);
                 res.complete = false;
               }
 	  }
+        if (!unused_undeclared.empty())
+          {
+            std::ostringstream out;
+            unsigned uus = unused_undeclared.size();
+            int rangestart = -2;
+            int rangecur = -2;
+            const char* sep = uus > 1 ? "states " : "state ";
+            auto print_range = [&]() {
+              if (rangecur < 0)
+                return;
+              out << sep << rangestart;
+              if (rangecur != rangestart)
+                out << '-' << rangecur;
+              sep = ",";
+            };
+            for (unsigned s: unused_undeclared)
+              {
+                if ((int)s != rangecur + 1)
+                  {
+                    print_range();
+                    rangestart = s;
+                  }
+                rangecur = s;
+              }
+            print_range();
+            out << (uus > 1 ? " are" : " is") << " unused and undefined";
+            error(res.states_loc, out.str());
+
+            if (auto p = res.prop_is_true("complete"))
+              error(p.loc, "automaton is incomplete because it has "
+                    "undefined states");
+          }
         if (res.complete)
           if (auto p = res.prop_is_false("complete"))
             {

@@ -19,6 +19,10 @@ New in spot 2.11.2.dev  (not yet released)
     otherwise, libraries get installed in the wrong place on Debian.
     (Issue #512.)
 
+  - The HOA parser used to silently declare unused and undefined states
+    (e.g., when the State: header declare many more states than the body
+    of the file).  It now warns about those.
+
 New in spot 2.11.2  (2022-10-26)
 
   Command-line tools:
