@@ -2,7 +2,7 @@ New in spot 2.11.2.dev  (not yet released)
 
   Bug fixes:
 
-  - Automata-based implication checks, used to simplify formulas where
+  - Automata-based implication checks, used to simplify formulas were
     slower than necessary because the translator was configured to
     favor determinism unnecessarily.  (Issue #521.)
 
@@ -23,7 +23,7 @@ New in spot 2.11.2.dev  (not yet released)
     (e.g., when the State: header declare many more states than the body
     of the file).  It now warns about those.
 
-  - 'autfilt -c ...' should display a match count even in present of
+  - 'autfilt -c ...' should display a match count even in presence of
     parse errors.
 
   - Calling solve_parity_game() multiple times on the same automaton
