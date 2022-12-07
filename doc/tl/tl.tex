@@ -668,20 +668,17 @@ $a$ is an atomic proposition.
   \sigma\VDash f\FUSION g&\iff \exists k\in\N,\,(\sigma^{0..k} \VDash f)\land(\sigma^{k..} \VDash g)\\
   \sigma\VDash f\STAR{\mvar{i}..\mvar{j}}& \iff
   \begin{cases}
-    \text{either} & \mvar{i}=0 \land \sigma=\varepsilon \\
-    \text{or} & \mvar{i}=0 \land \mvar{j}>0 \land (\exists k\in\N,\,
-      (\sigma^{0..k-1}\VDash f) \land (\sigma^{k..}
-      \VDash f\STAR{\mvar{0}..\mvar{j-1}}))\\
+    \text{either} & \mvar{i}=0 \land\mvar{j}=0\land \sigma=\varepsilon \\
+    \text{or} & \mvar{i}=0 \land \mvar{j}>0 \land \bigl((\sigma = \varepsilon) \lor (\sigma
+      \VDash f\STAR{\mvar{1}..\mvar{j}})\bigr)\\
     \text{or} & \mvar{i}>0 \land \mvar{j}>0 \land (\exists k\in\N,\,
       (\sigma^{0..k-1}\VDash f) \land (\sigma^{k..}
       \VDash f\STAR{\mvar{i-1}..\mvar{j-1}}))\\
   \end{cases}\\
   \sigma\VDash f\STAR{\mvar{i}..} & \iff
   \begin{cases}
-    \text{either} & \mvar{i}=0 \land \sigma=\varepsilon \\
-    \text{or} & \mvar{i}=0 \land (\exists k\in\N,\,
-      (\sigma^{0..k-1}\VDash f) \land (\sigma^{k..}
-      \VDash f\STAR{\mvar{0}..}))\\
+    \text{either} & \mvar{i}=0 \land \bigl((\sigma=\varepsilon)\lor(\sigma
+      \VDash f\STAR{\mvar{1}..})\bigr)\\
     \text{or} & \mvar{i}>0 \land (\exists k\in\N,\,
       (\sigma^{0..k-1}\VDash f) \land (\sigma^{k..}
       \VDash f\STAR{\mvar{i-1}..}))\\
@@ -689,19 +686,16 @@ $a$ is an atomic proposition.
   \sigma\VDash f\FSTAR{\mvar{i}..\mvar{j}}& \iff
   \begin{cases}
     \text{either} & \mvar{i}=0 \land \mvar{j}=0 \land \sigma\VDash\1 \\
-    \text{or} & \mvar{i}=0 \land \mvar{j}>0 \land (\exists k\in\N,\,
-      (\sigma^{0..k}\VDash f) \land (\sigma^{k..}
-      \VDash f\FSTAR{\mvar{0}..\mvar{j-1}}))\\
+    \text{or} & \mvar{i}=0 \land \mvar{j}>0 \land \bigl((\sigma\VDash\1)\lor(\sigma
+      \VDash f\FSTAR{\mvar{1}..\mvar{j}})\bigr)\\
     \text{or} & \mvar{i}>0 \land \mvar{j}>0 \land (\exists k\in\N,\,
       (\sigma^{0..k}\VDash f) \land (\sigma^{k..}
       \VDash f\FSTAR{\mvar{i-1}..\mvar{j-1}}))\\
   \end{cases}\\
   \sigma\VDash f\FSTAR{\mvar{i}..} & \iff
   \begin{cases}
-    \text{either} & \mvar{i}=0 \land \sigma\VDash\1 \\
-    \text{or} & \mvar{i}=0 \land (\exists k\in\N,\,
-      (\sigma^{0..k}\VDash f) \land (\sigma^{k..}
-      \VDash f\FSTAR{\mvar{0}..}))\\
+    \text{either} & \mvar{i}=0 \land \bigl((\sigma\VDash\1)
+                    \lor(\sigma \VDash f\FSTAR{\mvar{1}..})\bigr)\\
     \text{or} & \mvar{i}>0 \land (\exists k\in\N,\,
       (\sigma^{0..k}\VDash f) \land (\sigma^{k..}
       \VDash f\FSTAR{\mvar{i-1}..}))\\
