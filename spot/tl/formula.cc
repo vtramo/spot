@@ -307,11 +307,14 @@ namespace spot
 
     unsigned orig_size = v.size();
 
-    const fnode* neutral;
-    const fnode* neutral2;
-    const fnode* abs;
-    const fnode* abs2;
-    const fnode* weak_abs;
+    const fnode* neutral;       // neutral element
+    const fnode* neutral2;      // second neutral element (if any)
+    const fnode* abs;           // absorbent element
+    const fnode* abs2;          // second absorbent element (if any)
+    const fnode* weak_abs;      // almost absorbent element (if any)
+    // The notion of "almost absorbent" captures situation where the
+    // present of the element can be simplified in itself or another
+    // element depending on a condition on the rest of the formula.
     switch (o)
       {
       case op::And:
@@ -323,7 +326,17 @@ namespace spot
         break;
       case op::AndRat:
         neutral = one_star();
-        neutral2 = nullptr;
+        {
+          // If this AndRat contains an operand that does not accept
+          // the empty word, and that is not [+], then any [+] can be
+          // removed.
+          bool one_non_eword_non_plus =
+          std::find_if(v.begin(), v.end(),
+                       [o = one_plus()](const fnode* f) {
+                         return !f->accepts_eword() && f != o;
+                       }) != v.end();
+          neutral2 = one_non_eword_non_plus ? one_plus() : nullptr;
+        }
         abs = ff();
         abs2 = nullptr;
         weak_abs = eword();
@@ -349,7 +362,7 @@ namespace spot
         neutral2 = nullptr;
         abs = one_star();
         abs2 = nullptr;
-        weak_abs = nullptr;
+        weak_abs = one_plus();
         gather_bool(v, op::Or);
         break;
       case op::Concat:
@@ -506,11 +519,10 @@ namespace spot
               else
                 return abs;
             }
-          else
+          else if (o == op::AndNLM)
             {
               // Similarly,  a* & 1 & (c;d) = c;d
               //             a* & 1 & c* = 1
-              assert(o == op::AndNLM);
               vec tmp;
               for (auto i: v)
                 {
@@ -526,6 +538,27 @@ namespace spot
               if (tmp.empty())
                 tmp.emplace_back(weak_abs);
               v.swap(tmp);
+            }
+          else if (o == op::OrRat)
+            {
+              // We have    a[*] | [+] | c = [*]
+              //     and    a | [+] | c = [+]
+              // So if [+] has been seen, check if some term
+              // recognize the empty word.
+              bool acc_eword = false;
+              for (i = v.begin(); i != v.end(); ++i)
+                {
+                  acc_eword |= (*i)->accepts_eword();
+                  (*i)->destroy();
+                }
+              if (acc_eword)
+                return abs;
+              else
+                return weak_abs;
+            }
+          else
+            {
+              SPOT_UNREACHABLE();
             }
         }
       else if (o == op::Concat || o == op::Fusion)
@@ -611,6 +644,81 @@ namespace spot
                   const fnode* newfs = bunop(bop, f->clone(), min, max);
                   (*fpos)->destroy();
                   *fpos = newfs;
+                }
+            }
+          // also
+          //   b[*i..j]:b -> b[*max(1,i),j]
+          //   b:b[*i..j] -> b[*max(1,i),j]
+          //   b[*i..j]:b[*k..l] -> b[*max(i,1)+max(j,1)-1,j+l-1]
+          if (o == op::Fusion && v.size() > 1)
+            {
+              i = v.begin();
+              while (i != v.end())
+                {
+                  if (!(((*i)->is(op::Star) && (*i)->nth(0)->is_boolean())
+                        || (*i)->is_boolean()))
+                    {
+                      ++i;
+                      continue;
+                    }
+                  const fnode *b;
+                  unsigned min;
+                  unsigned max;
+                  if ((*i)->is_boolean())
+                    {
+                      min = max = 1;
+                      b = *i;
+                    }
+                  else
+                    {
+                      b = (*i)->nth(0);
+                      min = (*i)->min();
+                      max = (*i)->max();
+                    }
+                  vec::iterator prev = i;
+                  ++i;
+                  bool changed = false;
+                  while (i != v.end())
+                    {
+                      unsigned min2;
+                      unsigned max2;
+                      if ((*i)->is_boolean())
+                        {
+                          if (*i != b)
+                            break;
+                          min2 = max2 = 1;
+                        }
+                      else if ((*i)->is(op::Star) && (*i)->nth(0)->is_boolean())
+                        {
+                          if ((*i)->nth(0) != b)
+                            break;
+                          min2 = (*i)->min();
+                          max2 = (*i)->max();
+                        }
+                      else
+                        {
+                          break;
+                        }
+                      // Now we can merge prev and i.
+                      min = min + (min == 0) + min2 + (min2 == 0) - 1;
+                      assert(max != 0 && max2 != 0);
+                      if (max2 == unbounded() || max == unbounded())
+                        max = unbounded();
+                      else if (max + max2 < unbounded())
+                        max = max + max2 - 1;
+                      else
+                        break;
+                      changed = true;
+                      (*i)->destroy();
+                      i = v.erase(i);
+                    }
+                  if (changed)
+                    {
+                      const fnode* newf =
+                        fnode::bunop(op::Star, b->clone(), min, max);
+                      (*prev)->destroy();
+                      *prev = newf;
+                    }
                 }
             }
         }

@@ -1,5 +1,14 @@
 New in spot 2.11.2.dev  (not yet released)
 
+  Library:
+
+  - The following new trivial simplifications have been implemented for SEREs:
+    - f|[+] = [+] if f rejects [*0]
+    - f|[*] = [*] if f accepts [*0]
+    - f&&[+] = f if f rejects [*0]
+    - b:b[*i..j] = b[*max(i,1)..j]
+    - b[*i..j]:b[*k..l] = b[*max(i,1)+max(k,1)-1,1), j+l-1]
+
   Bug fixes:
 
   - Automata-based implication checks, used to simplify formulas were

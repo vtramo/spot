@@ -853,10 +853,18 @@ The following rules are all valid with the two arguments swapped.
   \1\OR b &\equiv \1 &
   \1 \FUSION f & \equiv f\mathrlap{\text{~if~}\varepsilon\nVDash f}\\
   &&
-  \STAR{} \AND f &\equiv f &
-  \STAR{} \OR f &\equiv \1\mathrlap{\STAR{}} &
+  \STAR{} \ANDALT f &\equiv f &
+  \STAR{} \OR f &\equiv \mathrlap{\STAR{}} &
   &&
-  \STAR{} \CONCAT f &\equiv \STAR{}\mathrlap{\text{~if~}\varepsilon\VDash f}& \\
+  \STAR{} \CONCAT f &\equiv \STAR{}\text{~if~}\varepsilon\VDash f& \\
+  &&
+  \PLUS{} \ANDALT f &\equiv f \text{~if~}\varepsilon\nVDash f&
+  \PLUS{} \OR f &\equiv \begin{cases}
+    \mathrlap{\STAR{}\text{~if~} \varepsilon\VDash f} \\
+    \mathrlap{\PLUS{}\text{~if~} \varepsilon\nVDash f} \\
+  \end{cases} &
+  &&
+  && \\
   \eword\AND f &\equiv f &
   \eword\ANDALT f &\equiv
   \begin{cases}
@@ -880,7 +888,9 @@ The following rules are all valid with the two arguments swapped.
 f\STAR{\mvar{i}..\mvar{j}}\CONCAT f&\equiv f\STAR{\mvar{i+1}..\mvar{j+1}} &
 f\STAR{\mvar{i}..\mvar{j}}\CONCAT f\STAR{\mvar{k}..\mvar{l}}&\equiv f\STAR{\mvar{i+k}..\mvar{j+l}}\\
 f\FSTAR{\mvar{i}..\mvar{j}}\FUSION f&\equiv f\FSTAR{\mvar{i+1}..\mvar{j+1}} &
-f\FSTAR{\mvar{i}..\mvar{j}}\FUSION f\FSTAR{\mvar{k}..\mvar{l}}&\equiv f\FSTAR{\mvar{i+k}..\mvar{j+l}}
+f\FSTAR{\mvar{i}..\mvar{j}}\FUSION f\FSTAR{\mvar{k}..\mvar{l}}&\equiv f\FSTAR{\mvar{i+k}..\mvar{j+l}}\\
+b\STAR{\mvar{i}..\mvar{j}}\FUSION b &\equiv b\STAR{\mvar{\max(i,1)}..\mvar{j}} &
+b\STAR{\mvar{i}..\mvar{j}}\FUSION b\STAR{\mvar{k}..\mvar{l}} &\equiv b\mathrlap{\STAR{\mvar{\max(i,1)+\max(k,1)-1}..\mvar{j+l-1}}}
 \end{align*}
 \section{SERE-LTL Binding Operators}
 

@@ -1,6 +1,6 @@
 #! /bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2009-2012, 2014-2015, 2021 Laboratoire de Recherche et
+# Copyright (C) 2009-2012, 2014-2015, 2021, 2022 Laboratoire de Recherche et
 # Développement de l'Epita (LRDE).
 # Copyright (C) 2003, 2004 Laboratoire d'Informatique de Paris 6 (LIP6),
 # département Systèmes Répartis Coopératifs (SRC), Université Pierre
@@ -196,6 +196,12 @@ G({1}<>->1), 1
 {(a*;b|c)[:*0]}, 1
 {(a*;b|c)[:*1]}, {(a*;b|c)}
 {(a;b):(a;b):(a;b)[:*2]:(a;b):b*:b*:(c;d)[:*1]}, {(a;b)[:*5]:b*[:*2]:(c;d)}
+{((a;b)|[+]|(c;d[*]));a}, {[+];a}
+{((a;b)|[+]|(d[*]));a}, {[*];a}
+{((a;b)&&[+]&&(d[*]));a}, {((a;b)&&(d[*]));a}
+{((a;b|[*0])&&[+]&&(d[*]));a}, {((a;b|[*0])&&[+]&&(d[*]));a}
+{(a;c):b[*3..5]:b[*10]:(a;c)}, {(a;c):b[*12..14]:(a;c)}
+{(a;c):b:b[*3..5]:b:b[*0..4]:(a;c)}, {(a;c):b[*3..8]:(a;c)}
 EOF
 
 
