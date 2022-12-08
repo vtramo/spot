@@ -1026,11 +1026,16 @@ namespace spot
           bool coacc = false;
           auto& st = sm->states_of(n);
           for (auto l: st)
-            if (namer->get_name(l).accepts_eword())
-              {
-                coacc = true;
-                break;
-              }
+            {
+              formula lf = namer->get_name(l);
+              // Somehow gcc 12.2.0 thinks lf can be nullptr.
+              SPOT_ASSUME(lf != nullptr);
+              if (lf.accepts_eword())
+                {
+                  coacc = true;
+                  break;
+                }
+            }
           if (!coacc)
             {
               // ... or if any of its successors is coaccessible.

@@ -294,7 +294,9 @@ namespace spot
       {
         if (SPOT_UNLIKELY(i >= size()))
           report_non_existing_child();
-        return children[i];
+        const fnode* c = children[i];
+        SPOT_ASSUME(c != nullptr);
+        return c;
       }
 
       /// \see formula::ff

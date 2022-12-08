@@ -209,9 +209,12 @@ namespace spot
         if (!rest.empty() && !oblg.empty())
           {
             auto safety = [](formula f)
-              {
-                return f.is_syntactic_safety();
-              };
+            {
+              // Prevent gcc 12.2.0 from warning us that f could be a
+              // nullptr formula.
+              SPOT_ASSUME(f != nullptr);
+              return f.is_syntactic_safety();
+            };
             auto i = std::remove_if(oblg.begin(), oblg.end(), safety);
             rest.insert(rest.end(), i, oblg.end());
             oblg.erase(i, oblg.end());
