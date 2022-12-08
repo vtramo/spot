@@ -149,7 +149,7 @@ namespace spot
       {
         if (SPOT_LIKELY(refs_))
           --refs_;
-        else if (SPOT_LIKELY(id_ > 2) && SPOT_LIKELY(!saturated_))
+        else if (SPOT_LIKELY(!saturated_))
           // last reference to a node that is not a constant
           destroy_aux();
       }
@@ -351,8 +351,16 @@ namespace spot
       static const fnode* one_star()
       {
         if (!one_star_)
-          one_star_ = bunop(op::Star, tt(), 0);
+          one_star_ = new fnode(op::Star, tt_, 0, unbounded(), true);
         return one_star_;
+      }
+
+      /// \see formula::one_plus
+      static const fnode* one_plus()
+      {
+        if (!one_plus_)
+          one_plus_ = new fnode(op::Star, tt_, 1, unbounded(), true);
+        return one_plus_;
       }
 
       /// \see formula::ap_name
@@ -536,7 +544,7 @@ namespace spot
 
 
       template<class iter>
-      fnode(op o, iter begin, iter end)
+      fnode(op o, iter begin, iter end, bool saturated = false)
         // Clang has some optimization where is it able to combine the
         // 4 movb initializing op_,min_,max_,saturated_ into a single
         // movl.  Also it can optimize the three byte-comparisons of
@@ -551,7 +559,7 @@ namespace spot
 #if __llvm__
          min_(0), max_(0),
 #endif
-         saturated_(0)
+         saturated_(saturated)
       {
         size_t s = std::distance(begin, end);
         if (SPOT_UNLIKELY(s > (size_t) UINT16_MAX))
@@ -563,13 +571,15 @@ namespace spot
         setup_props(o);
       }
 
-      fnode(op o, std::initializer_list<const fnode*> l)
-        : fnode(o, l.begin(), l.end())
+      fnode(op o, std::initializer_list<const fnode*> l,
+            bool saturated = false)
+        : fnode(o, l.begin(), l.end(), saturated)
       {
       }
 
-      fnode(op o, const fnode* f, uint8_t min, uint8_t max)
-        : op_(o), min_(min), max_(max), saturated_(0), size_(1)
+      fnode(op o, const fnode* f, uint8_t min, uint8_t max,
+            bool saturated = false)
+        : op_(o), min_(min), max_(max), saturated_(saturated), size_(1)
       {
         children[0] = f;
         setup_props(o);
@@ -579,6 +589,7 @@ namespace spot
       static const fnode* tt_;
       static const fnode* ew_;
       static const fnode* one_star_;
+      static const fnode* one_plus_;
 
       op op_;                      // operator
       uint8_t min_;                // range minimum (for star-like operators)
@@ -1552,7 +1563,15 @@ namespace spot
     /// \brief Return a copy of the formula 1[*].
     static formula one_star()
     {
-      return formula(fnode::one_star()->clone());
+      // no need to clone, 1[*] is not reference counted
+      return formula(fnode::one_star());
+    }
+
+    /// \brief Return a copy of the formula 1[+].
+    static formula one_plus()
+    {
+      // no need to clone, 1[+] is not reference counted
+      return formula(fnode::one_plus());
     }
 
     /// \brief Whether the formula is an atomic proposition or its

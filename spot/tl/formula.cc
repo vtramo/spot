@@ -660,6 +660,16 @@ namespace spot
     switch (o)
       {
       case op::Star:
+        if (max == unbounded() && child == tt_)
+          {
+            // bypass normal construction: 1[*] and 1[+] are
+            // frequently used, so they are not reference counted.
+            if (min == 0)
+              return one_star();
+            if (min == 1)
+              return one_plus();
+          }
+
         neutral = eword();
         break;
       case op::FStar:
@@ -810,7 +820,7 @@ namespace spot
             return tt();
           // ![*0] = 1[+]
           if (f->is_eword())
-            return bunop(op::Star, tt(), 1);
+            return one_plus();
 
           auto fop = f->kind();
           // "Not" is an involution.
@@ -1138,10 +1148,11 @@ namespace spot
     return id;
   }
 
-  const fnode* fnode::ff_ = new fnode(op::ff, {});
-  const fnode* fnode::tt_ = new fnode(op::tt, {});
-  const fnode* fnode::ew_ = new fnode(op::eword, {});
+  const fnode* fnode::ff_ = new fnode(op::ff, {}, true);
+  const fnode* fnode::tt_ = new fnode(op::tt, {}, true);
+  const fnode* fnode::ew_ = new fnode(op::eword, {}, true);
   const fnode* fnode::one_star_ = nullptr; // Only built when necessary.
+  const fnode* fnode::one_plus_ = nullptr; // Only built when necessary.
 
   void fnode::setup_props(op o)
   {
@@ -1817,7 +1828,7 @@ namespace spot
   {
     unsigned cnt = 0;
     for (auto i: m.uniq)
-      if (i->id() > 3 && i != one_star_)
+      if (!i->saturated_)
         {
           if (!cnt++)
             std::cerr << "*** m.uniq is not empty ***\n";
