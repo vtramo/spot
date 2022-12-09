@@ -1,5 +1,5 @@
 ## -*- coding: utf-8 -*-
-## Copyright (C) 2013-2019, 2021 Laboratoire de Recherche et
+## Copyright (C) 2013-2019, 2021-2022 Laboratoire de Recherche et
 ## Développement de l'Epita (LRDE).
 ##
 ## This file is part of Spot, a model checking library.
@@ -24,7 +24,6 @@ AM_CXXFLAGS = $(WARNING_CXXFLAGS)
 noinst_LTLIBRARIES = libpriv.la
 libpriv_la_SOURCES = \
   accmap.hh \
-  allocator.hh \
   bddalloc.cc \
   bddalloc.hh \
   freelist.cc \

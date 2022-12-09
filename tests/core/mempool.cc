@@ -23,9 +23,6 @@
 
 #include <spot/misc/fixpool.hh>
 #include <spot/misc/mspool.hh>
-#include <spot/priv/allocator.hh>
-
-#include <set>
 
 namespace
 {
@@ -157,32 +154,6 @@ int main()
     c->incr();
     // no delete: valgrind should find a leak
   }
-  {
-    std::set<int, std::less<int>, spot::pool_allocator<int>> s;
-    s.insert(1);
-    s.insert(2);
-    s.insert(1);
-    s.erase(1);
-    s.insert(3);
-    s.insert(4);
-
-    s.clear();
-
-    auto t = s;
-    t.insert(5);
-    t.insert(6);
-
-    std::swap(s, t);
-
-    s.erase(5);
-    s.erase(6);
-
-    if (s != t)
-      return 1;
-    else
-      return 0;
-  }
-
 
   return 0;
 }
