@@ -1,4 +1,4 @@
-New in spot 2.11.2.dev  (not yet released)
+New in spot 2.11.3.dev  (not yet released)
 
   Library:
 
@@ -7,7 +7,9 @@ New in spot 2.11.2.dev  (not yet released)
     - f|[*] = [*] if f accepts [*0]
     - f&&[+] = f if f rejects [*0]
     - b:b[*i..j] = b[*max(i,1)..j]
-    - b[*i..j]:b[*k..l] = b[*max(i,1)+max(k,1)-1,1), j+l-1]
+    - b[*i..j]:b[*k..l] = b[*max(i,1)+max(k,1)-1, j+l-1]
+
+New in spot 2.11.3  (2022-12-09)
 
   Bug fixes:
 
