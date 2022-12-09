@@ -1,6 +1,8 @@
 New in spot 2.11.3.dev  (not yet released)
 
-  Nothing yet.
+  Python:
+
+  - spot.acd() no longer depends on jQuery for interactivity.
 
 New in spot 2.11.3  (2022-12-09)
 
