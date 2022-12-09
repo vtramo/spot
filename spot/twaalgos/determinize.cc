@@ -472,15 +472,23 @@ namespace spot
       std::vector<safra_state::safra_node_t> res;
       for (const auto& n: s.nodes_)
         {
-          int brace = n.second;
-          std::vector<int> tmp;
-          while (brace >= 0)
+          // First, count the number of braces.
+          unsigned nbraces = 0;
+          for (int brace = n.second; brace >= 0; brace = s.braces_[brace])
+            ++nbraces;
+          // Then list them in reverse order.  Since we know the
+          // number of braces, we can allocate exactly what we need.
+          if (nbraces > 0)
             {
-              // FIXME: is there a smarter way?
-              tmp.insert(tmp.begin(), brace);
-              brace = s.braces_[brace];
+              std::vector<int> tmp(nbraces, 0);
+              for (int brace = n.second; brace >= 0; brace = s.braces_[brace])
+                tmp[--nbraces] = brace;
+              res.emplace_back(n.first, std::move(tmp));
             }
-          res.emplace_back(n.first, std::move(tmp));
+          else
+            {
+              res.emplace_back(n.first, std::vector<int>{});
+            }
         }
       std::sort(res.begin(), res.end(), compare());
       return res;
