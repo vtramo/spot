@@ -527,7 +527,8 @@ namespace
     {
       unsigned int nb_partition_before = 0;
       unsigned int nb_po_before = po_size_ - 1;
-      while (nb_partition_before != bdd_lstate_.size() || nb_po_before != po_size_)
+      while (nb_partition_before != bdd_lstate_.size()
+             || nb_po_before != po_size_)
       {
           update_previous_class();
           nb_partition_before = bdd_lstate_.size();
@@ -545,26 +546,33 @@ namespace
     {
       bdd res = bddfalse;
 
-      assert(!is_split || (*a_->get_named_prop<std::vector<bool>>("state-player"))[src] == 0);
-      for (auto &t : a_->out(src))
-      {
-          bdd to_add = bddfalse;
-          if (is_split)
+      auto verif_player
+        = [sp = a_->get_named_prop<region_t>("state-player")](unsigned s,
+                                                              bool is_player)
           {
-          assert(
-              (*a_->get_named_prop<std::vector<bool>>("state-player"))[t.dst] == 1);
-          for (auto &e : a_->out(t.dst))
-          {
-            assert(
-                (*a_->get_named_prop<std::vector<bool>>("state-player"))[e.dst] == 0);
-            to_add |= t.cond & e.cond & relation_[previous_class_[e.dst]];
-          }
-          }
-          else
-          to_add = t.cond & relation_[previous_class_[t.dst]];
+            assert(sp->at(s) == is_player);
+          };
 
-          res |= to_add;
-      }
+      assert(!is_split
+             || (*a_->get_named_prop<region_t>("state-player"))[src] == 0);
+      for (auto &t : a_->out(src))
+        {
+            bdd to_add = bddfalse;
+            if (is_split)
+              {
+                verif_player(t.dst, true);
+                for (auto &e : a_->out(t.dst))
+                  {
+                    verif_player(e.dst, false);
+                    to_add |= t.cond & e.cond
+                              & relation_[previous_class_[e.dst]];
+                  }
+              }
+            else
+              to_add = t.cond & relation_[previous_class_[t.dst]];
+
+            res |= to_add;
+        }
 
       return res;
     }
@@ -603,7 +611,7 @@ namespace
       // variables.
       for (int i = 0; i < nb_new_color; ++i)
       {
-          SPOT_ASSERT(!free_var_.empty());
+          assert(!free_var_.empty());
           used_var_.emplace_back(bdd_ithvar(free_var_.front()));
           free_var_.pop();
       }
@@ -612,12 +620,14 @@ namespace
       // in the free_var_ list.
       for (int i = 0; i > nb_new_color; --i)
       {
-          SPOT_ASSERT(!used_var_.empty());
+          assert(!used_var_.empty());
           free_var_.push(bdd_var(used_var_.front()));
           used_var_.pop_front();
       }
 
-      SPOT_ASSERT((bdd_lstate_.size() == used_var_.size()) || (bdd_lstate_.find(bddfalse) != bdd_lstate_.end() && bdd_lstate_.size() == used_var_.size() + 1));
+      assert((bdd_lstate_.size() == used_var_.size())
+              || (bdd_lstate_.find(bddfalse) != bdd_lstate_.end()
+                  && bdd_lstate_.size() == used_var_.size() + 1));
 
       // This vector links the tuple "C^(i-1), N^(i-1)" to the
       // new class coloring for the next iteration.
@@ -781,7 +791,8 @@ namespace spot
 {
   specialization_graph::specialization_graph(twa_graph_ptr &aut,
                                              bool output_assignment,
-                                             bool all_edges) : num_states_(aut->num_states())
+                                             bool all_edges)
+  : num_states_(aut->num_states())
   {
     sig_calculator sig_cal(aut, output_assignment);
     bdd_to_states_ = sig_cal.bdd_lstate_;
@@ -835,7 +846,7 @@ namespace spot
     auto add_list = [&os](std::list<unsigned> &l)
     {
       os << '{';
-      SPOT_ASSERT(!l.empty());
+      assert(!l.empty());
       auto it = l.begin();
       for (; it != std::prev(l.end()); ++it)
         os << *it << ',';
@@ -853,7 +864,8 @@ namespace spot
     {
       auto left_id = bdd_to_states_[graph_.signatures_[l]].front();
       auto right_id = bdd_to_states_[graph_.signatures_[r]].front();
-      bool is_col = !representatives_.empty() && representatives_[left_id] == right_id;
+      bool is_col = !representatives_.empty()
+                    && representatives_[left_id] == right_id;
       os << "Node" << left_id << " -> Node" << right_id << "[arrowsize=.5";
       if (is_col)
           os << ", color=red";
@@ -864,9 +876,10 @@ namespace spot
 
   specialization_graph::bdd_graph::bdd_graph(std::vector<bdd> &signatures,
                                              twa_graph_ptr &aut,
-                                             map_bdd_lstate &bdd_to_states) : signatures_(signatures),
-                                                                              aut_(aut),
-                                                                              bdd_to_states_(bdd_to_states)
+                                             map_bdd_lstate &bdd_to_states)
+  : signatures_(signatures),
+    aut_(aut),
+    bdd_to_states_(bdd_to_states)
   {
     auto nb_sig = signatures.size();
     is_leaf_ = std::vector<bool>(nb_sig, true);
