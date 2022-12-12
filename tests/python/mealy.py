@@ -529,12 +529,13 @@ tc.assertTrue(spot.generic_emptiness_check(prod))
 
 aut = spot.automaton("""
 HOA: v1
-States: 4
+States: 5
 Start: 0
 AP: 2 "a" "b"
 acc-name: all
 Acceptance: 0 t
 properties: trans-labels explicit-labels state-acc deterministic
+controllable-AP: 1
 --BODY--
 State: 0
 [!0&!1] 1
@@ -542,10 +543,14 @@ State: 0
 [0] 3
 State: 1
 [0] 1
+[!0] 4
 State: 2
 [1] 2
 State: 3
 [0&1] 3
+[!0] 4
+State: 4
+[t] 4
 --END--
 """)
 
@@ -561,7 +566,7 @@ properties: trans-labels explicit-labels state-acc deterministic
 controllable-AP: 1
 --BODY--
 State: 0
-[0&1] 0
+[1] 0
 --END--"""
 
 # An example that shows that we should not build a tree when we use inclusion.
@@ -570,12 +575,13 @@ tc.assertEqual(res.to_str(), exp)
 
 aut = spot.automaton("""
 HOA: v1
-States: 4
+States: 5
 Start: 0
 AP: 2 "a" "b"
 acc-name: all
 Acceptance: 0 t
-properties: trans-labels explicit-labels state-acc
+properties: trans-labels explicit-labels state-acc deterministic
+controllable-AP: 1
 --BODY--
 State: 0
 [!0&!1] 1
@@ -583,10 +589,14 @@ State: 0
 [0&!1] 3
 State: 1
 [0] 1
+[!0] 4
 State: 2
 [1] 2
 State: 3
 [0&1] 3
+[!0] 4
+State: 4
+[t] 4
 --END--
 """)
 
@@ -606,7 +616,7 @@ State: 0
 [!0&1] 1
 [0&!1] 1
 State: 1
-[0&1] 1
+[1] 1
 --END--"""
 
 res = spot.reduce_mealy(aut, True)
