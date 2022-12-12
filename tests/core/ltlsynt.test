@@ -420,7 +420,7 @@ ltlsynt --outs=p1 -f "$f" -x"dpa-simul=1" --simpl=bwoa | grep 'States: 6'
 ltlsynt --outs=p1 -f "$f" -x"dpa-simul=1" | grep 'States: 6'
 ltlsynt --outs=p1 -f "$f" -x"dpa-simul=1" --simpl=sat | grep 'States: 3'
 ltlsynt --outs=p1 -f "$f" -x"dpa-simul=1" --simpl=bisim-sat | grep 'States: 3'
-ltlsynt --outs=p1 -f "$f" -x"dpa-simul=1" --simpl=bwoa-sat | grep 'States: 6'
+ltlsynt --outs=p1 -f "$f" -x"dpa-simul=1" --simpl=bwoa-sat | grep 'States: 3'
 
 # The following used to raise an exception because of a bug in
 # split_2step_fast_here().
@@ -997,7 +997,7 @@ digraph "" {
   I [label="", style=invis, width=0]
   I -> 0
   0 [label="0"]
-  0 -> 0 [label="i / o"]
+  0 -> 1 [label="i / o"]
   0 -> 1 [label="!i / !o"]
   1 [label="1"]
   1 -> 1 [label="1 / !o"]
