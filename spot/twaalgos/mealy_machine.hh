@@ -88,6 +88,29 @@ namespace spot
   SPOT_API bool
   is_input_deterministic_mealy(const const_twa_graph_ptr& m);
 
+  /// \brief Checks whether a mealy machine \a m is input complete
+  ///
+  /// A machine is input complete if for every valuation over the input
+  /// propositions there exists a compatible outgoing transition
+  /// for every state.
+  ///
+  /// \param m The automaton to be verified
+  SPOT_API bool
+  is_input_complete_mealy(const const_twa_graph_ptr& m);
+
+  /// \brief Makes a mealy machine \a m insput complete by adding a
+  /// "sink"-state if necessary.
+  ///
+  /// \note the machine can be split or unsplit
+  /// \returns true iff the machine was already complete
+  /// @{
+  SPOT_API std::pair<bool, twa_graph_ptr>
+  make_input_complete_mealy(const const_twa_graph_ptr& m);
+
+  SPOT_API bool
+  make_input_complete_mealy_here(const twa_graph_ptr& m);
+  /// @}
+
 
   /// \ingroup mealy
   /// \brief split a separated mealy machine
@@ -133,6 +156,7 @@ namespace spot
   ///
   /// \note If mm is separated, the returned machine is separated as
   /// well.
+  /// \pre The machine \a mm needs to be input complete
   /// @{
   SPOT_API twa_graph_ptr
   reduce_mealy(const const_twa_graph_ptr& mm,
@@ -141,6 +165,14 @@ namespace spot
   SPOT_API void
   reduce_mealy_here(twa_graph_ptr& mm,
                     bool output_assignment = true);
+
+  SPOT_API twa_graph_ptr
+  reduce_mealy(const const_twa_graph_ptr& mm,
+               synthesis_info& si);
+
+  SPOT_API void
+  reduce_mealy_here(twa_graph_ptr& mm,
+                    synthesis_info& si);
   /// @}
 
   /// \ingroup mealy
