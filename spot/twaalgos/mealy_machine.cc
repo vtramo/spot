@@ -550,6 +550,8 @@ namespace
         = [sp = a_->get_named_prop<region_t>("state-player")](unsigned s,
                                                               bool is_player)
           {
+            (void) s;
+            (void) is_player;
             assert(sp->at(s) == is_player);
           };
 
