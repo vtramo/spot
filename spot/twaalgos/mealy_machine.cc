@@ -44,7 +44,7 @@
 #include <picosat/picosat.h>
 
 
-//#define TRACE
+#define TRACE
 #ifdef TRACE
 #  define trace std::cerr
 #else
@@ -778,11 +778,18 @@ namespace
     mmc->copy_ap_of(mm);
     mmc->copy_acceptance_of(mm);
 
+    std::cout << mm->get_named_prop<region_t>("state-player") << std::endl;
+    std::cout << mmc->get_named_prop<region_t>("state-player") << std::endl;
+
     reduce_mealy_here_(mmc, output_assignment, fact_div_conds, fact_div_aps);
 
-    assert(is_mealy(mmc)
-           && (!mm->get_named_prop<region_t>("state-player")
-               || is_split_mealy_specialization(mm, mmc)));
+    std::cout << mmc->get_named_prop<region_t>("state-player") << std::endl;
+
+//    assert(is_mealy(mmc)
+//           && (!mm->get_named_prop<region_t>("state-player")
+//               || is_split_mealy_specialization(mm,
+//                    mmc->get_named_prop<region_t>("state-player") ?
+//                      mmc : split_2step(mmc))));
     return mmc;
   }
 } // anonymous
