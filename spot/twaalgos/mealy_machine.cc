@@ -691,14 +691,14 @@ namespace
     assert(is_input_complete_mealy(mm));
     ensure_mealy("reduce_mealy", mm);
 
-    bool is_split = mm->get_named_prop<region_t>("state-player");
+    auto* splayers = mm->get_named_prop<region_t>("state-player");
+    bool is_split = splayers != nullptr;
     auto nb_aps = mm->ap().size();
     auto nb_outs = get_synthesis_output_aps(mm).size();
     auto nb_ins = nb_aps - nb_outs;
 
     std::set<bdd, bdd_less_than> conds_in;
     std::set<bdd, bdd_less_than> conds_out;
-    auto* splayers = mm->get_named_prop<region_t>("state-player");
     for (const auto& e : mm->edges())
       {
         if (!splayers || !(*splayers)[e.src])
@@ -736,7 +736,7 @@ namespace
     auto sp = specialization_graph(mm, output_assignment, false);
 
     auto repr = sp.representatives();
-    if (repr[0] == -1U)
+    if (sp.is_irreducible())
       return;
 
     // Change the destination of transitions using a DFT to avoid useless
@@ -750,13 +750,17 @@ namespace
       {
         auto current = todo.top();
         todo.pop();
+        if (done[current])
+          continue;
         done[current] = true;
+        bool is_one_current = !is_split || (*splayers)[current];
         for (auto& e : mm->out(current))
           {
-            auto repr_dst = repr[e.dst];
-            e.dst = repr_dst;
-            if (!done[repr_dst])
-              todo.emplace(repr_dst);
+            if (is_one_current)
+              e.dst = repr[e.dst];
+
+            if (!done[e.dst])
+                todo.emplace(e.dst);
           }
       }
 
