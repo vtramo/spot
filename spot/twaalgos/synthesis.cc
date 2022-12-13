@@ -1981,13 +1981,38 @@ namespace spot
     game_relabeling_map res;
 
     if (relabel_env)
-      res.env_map
-        = partitioned_relabel_here(arena, split_env, max_letter,
-                                   max_letter_mult, ins, "__nv_in");
+        res.env_map
+          = partitioned_relabel_here(arena, split_env, max_letter,
+                                    max_letter_mult, ins, "__nv_in");
+
+    // If no relabeling took place, we restore the old edges
+    if (res.env_map.empty())
+      {
+        for (auto& e : arena_r.edges())
+          {
+            if (sp[e.src])
+              continue; // player
+            e.cond = bdd_exist(e.cond, in_mark);
+          }
+        arena_r.unregister_ap(arena_r.register_ap(in_mark_s));
+      }
+
     if (relabel_play)
       res.player_map
         = partitioned_relabel_here(arena, split_play, max_letter,
-                                   max_letter_mult, outs, "__nv_out");
+                                    max_letter_mult, outs, "__nv_out");
+
+    // If no relabeling took place, we restore the old edges
+    if (res.player_map.empty())
+      {
+        for (auto& e : arena_r.edges())
+          {
+            if (!sp[e.src])
+              continue; // env
+            e.cond = bdd_exist(e.cond, out_mark);
+          }
+        arena_r.unregister_ap(arena_r.register_ap(out_mark_s));
+      }
     return res;
   }
 
@@ -2000,23 +2025,33 @@ namespace spot
     auto& arena_r = *arena;
 
     // Check that it was partitioned_game_relabel_here
-    if (!((std::find_if(arena->ap().cbegin(), arena->ap().cend(),
-                        [](const auto& ap)
-                          { return ap.ap_name() == out_mark_s; })
-             != arena->ap().cend())
-          && (std::find_if(arena->ap().cbegin(), arena->ap().cend(),
-                           [](const auto& ap)
-                             { return ap.ap_name() == in_mark_s; }))
-               != arena->ap().cend()))
-      throw std::runtime_error("relabel_game_here(): " +
-                               in_mark_s + " or " + out_mark_s +
-                               " not registered with arena. "
-                               "Not relabeled?");
-
+    // at least for the relabeled parts
     if (!rel_maps.env_map.empty())
-      relabel_here(arena, &rel_maps.env_map);
+      {
+        if (std::find_if(arena->ap().cbegin(), arena->ap().cend(),
+                         [](const auto& ap)
+                           { return ap.ap_name() == in_mark_s; })
+               == arena->ap().cend())
+          throw std::runtime_error("relabel_game_here(): " +
+                               in_mark_s +
+                               " not registered with arena. "
+                               "But env was relabeled.");
+        relabel_here(arena, &rel_maps.env_map);
+      }
+
     if (!rel_maps.player_map.empty())
-      relabel_here(arena, &rel_maps.player_map);
+      {
+        if (std::find_if(arena->ap().cbegin(), arena->ap().cend(),
+                         [](const auto& ap)
+                           { return ap.ap_name() == out_mark_s; })
+               == arena->ap().cend())
+          throw std::runtime_error("relabel_game_here(): " +
+                               out_mark_s +
+                               " not registered with arena. "
+                               "But player was relabeled.");
+        relabel_here(arena, &rel_maps.player_map);
+      }
+
 
     bdd dummy_ap = bdd_ithvar(arena_r.register_ap(in_mark_s))
                    & bdd_ithvar(arena_r.register_ap(out_mark_s));
