@@ -150,12 +150,12 @@ namespace spot
   /// a choice in order to favor more reductions.  Only infinite
   /// traces are considered.  See \cite renkin.22.forte for details.
   ///
-  /// \param mm The mealy machine to be minimized, has to be unsplit.
+  /// \param mm The machine to be reduced
   /// \param output_assignment Whether or not to use output assignment
   /// \return A specialization of \c mm.
   ///
-  /// \note If mm is separated, the returned machine is separated as
-  /// well.
+  /// \note The reduced machine will be unsplit/separated/split
+  /// if the original machine is unsplit/separated/split
   /// \pre The machine \a mm needs to be input complete
   /// @{
   SPOT_API twa_graph_ptr
@@ -247,7 +247,7 @@ namespace spot
   ///   - 4: 1 then 3
   ///   - 5: 2 then 3
   ///
-  /// Minimizes the given machine \a m inplace, the parameter
+  /// Reduces/Minimizes the given machine \a m, the parameter
   /// \a split_out specifies if the result should be split.
   /// @{
   SPOT_API void
@@ -257,6 +257,14 @@ namespace spot
   SPOT_API void
   simplify_mealy_here(twa_graph_ptr& m, synthesis_info& si,
                       bool split_out);
+
+  SPOT_API twa_graph_ptr
+  simplify_mealy(const const_twa_graph_ptr& m, int minimize_lvl,
+                 bool split_out);
+
+  SPOT_API twa_graph_ptr
+  simplify_mealy(const const_twa_graph_ptr& m, synthesis_info& si,
+                 bool split_out);
   /// @}
 
   class SPOT_API specialization_graph

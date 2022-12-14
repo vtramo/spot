@@ -4451,38 +4451,20 @@ namespace spot
     if (si.bv)
       sw.start();
 
-    bool is_separated = false;
+    // Reduction now takes split/unsplit
+    // unsplit if necessary
     if (0 < minimize_lvl && minimize_lvl < 3)
-      {
-        // unsplit if necessary
-        if (m->get_named_prop<region_t>("state-player"))
-          {
-            m = unsplit_mealy(m);
-            is_separated = true;
-          }
-        reduce_mealy_here(m, minimize_lvl == 2);
-      }
+      reduce_mealy_here(m, si);
     else if (3 <= minimize_lvl)
       m = minimize_mealy(m, si);
 
     // Convert to demanded output format
     bool is_split = m->get_named_prop<region_t>("state-player");
-    if (minimize_lvl == 0)
-      {
-        if (is_split && !split_out)
-          m = unsplit_mealy(m);
-        else if (!is_split && split_out)
-          m = split_2step(m, false);
-      }
-    else if (0 < minimize_lvl && minimize_lvl < 3 && split_out)
-      {
-      if (is_separated)
-        split_separated_mealy_here(m);
-      else
-        m = split_2step(m, false);
-      }
-    else if (3 <= minimize_lvl && !split_out)
-      m = unsplit_mealy(m);
+    // This is now unified as well
+    if (is_split && !split_out)
+      m = unsplit_2step(m);
+    else if (!is_split && split_out)
+      m = split_2step(m, false);
 
     if (si.bv)
       {
@@ -4512,4 +4494,23 @@ namespace spot
         si.bv->nb_simpl_strat_edges += n_e_env;
       }
   }
+
+  twa_graph_ptr
+  simplify_mealy(const const_twa_graph_ptr& m, int minimize_lvl,
+                      bool split_out)
+  {
+    auto mc = make_twa_graph(m, twa::prop_set::all(), true);
+    simplify_mealy_here(mc, minimize_lvl, split_out);
+    return mc;
+  }
+
+  twa_graph_ptr
+  simplify_mealy(const const_twa_graph_ptr& m, synthesis_info& si,
+                 bool split_out)
+  {
+    auto mc = make_twa_graph(m, twa::prop_set::all(), true);
+    simplify_mealy_here(mc, si, split_out);
+    return mc;
+  }
+
 }
