@@ -142,12 +142,13 @@ namespace spot
 
 
       // When split we need to distiguish effectively new and old edges
-      if (split)
-        {
-          aut.get_graph().remove_dead_edges_();
-          aut.get_graph().sort_edges_();
-          aut.get_graph().chain_edges_();
-        }
+      //if (split)
+      //  {
+      //    aut.get_graph().remove_dead_edges_();
+      //    aut.get_graph().sort_edges_();
+      //    aut.get_graph().chain_edges_();
+      //  }
+      // This takes too long
 
       // Get all conditions present in the automaton
       std::vector<bdd> all_cond;
@@ -213,7 +214,9 @@ namespace spot
       // An original condition is represented by all leaves that imply it
       auto& ig = *this_partition.ig;
       const unsigned Ns = aut.num_states();
-      const unsigned Nt = aut.num_edges();
+      //const unsigned Nt = aut.num_edges();
+      // new edges are always pushed back
+      const unsigned Nt = aut.edge_vector().size() - 1;
       for (unsigned s = 0; s < Ns; ++s)
         {
           for (auto& e : aut.out(s))
