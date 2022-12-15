@@ -305,7 +305,6 @@ namespace spot
           }
 
         case op::AndRat:
-        case op::OrRat:
           {
             expansion_t res;
             for (const auto& sub_f : f)
@@ -314,9 +313,6 @@ namespace spot
 
                 if (exps.empty())
                   {
-                    if (f.kind() == op::OrRat)
-                      continue;
-
                     // op::AndRat: one of the expansions was empty (the only
                     //             edge was `false`), so the AndRat is empty as
                     //             well
@@ -337,19 +333,32 @@ namespace spot
                       {
                         if ((l_key & r_key) != bddfalse)
                           insert_or_merge(new_res, l_key & r_key, formula::multop(f.kind(), {l_val, r_val}));
-
-                        if (f.is(op::OrRat))
-                          {
-                            if ((l_key & !r_key) != bddfalse)
-                              insert_or_merge(new_res, l_key & !r_key, l_val);
-
-                            if ((!l_key & r_key) != bddfalse)
-                              insert_or_merge(new_res, !l_key & r_key, r_val);
-                          }
                       }
                   }
 
                 res = std::move(new_res);
+              }
+
+            return res;
+          }
+
+        case op::OrRat:
+          {
+            expansion_t res;
+            for (const auto& sub_f : f)
+              {
+                auto exps = expansion(sub_f, d, owner);
+                if (exps.empty())
+                  continue;
+
+                if (res.empty())
+                  {
+                    res = std::move(exps);
+                    continue;
+                  }
+
+                for (const auto& [label, dest] : exps)
+                  insert_or_merge(res, label, dest);
               }
 
             return res;
