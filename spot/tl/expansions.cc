@@ -236,10 +236,45 @@ namespace spot
           {
             auto exps = expansion(f[0], d, owner);
 
-            expansion_t res;
+            expansion_t ndet_res;
             for (const auto& [bdd_l, form] : exps)
               {
-                res.insert({bdd_l, formula::first_match(form)});
+                ndet_res.insert({bdd_l, form});
+              }
+
+            bdd or_labels = bddfalse;
+            bdd support = bddtrue;
+            bool is_det = true;
+            for (const auto& [l, _] : ndet_res)
+              {
+                support &= bdd_support(l);
+                if (is_det)
+                  is_det = !bdd_have_common_assignment(l, or_labels);
+                or_labels |= l;
+              }
+
+            if (is_det)
+              {
+                // we don't need to determinize the expansion, it's already
+                // deterministic
+                for (auto& [_, dest] : ndet_res)
+                  dest = formula::first_match(dest);
+                return ndet_res;
+              }
+
+            expansion_t res;
+            // TODO: extraire en fonction indépendante + lambda choix wrapper
+            std::vector<formula> dests;
+            for (bdd l: minterms_of(or_labels, support))
+              {
+                for (const auto& [ndet_label, ndet_dest] : ndet_res)
+                  {
+                    if (bdd_implies(l, ndet_label))
+                      dests.push_back(ndet_dest);
+                  }
+                formula or_dests = formula::OrRat(dests);
+                res.insert({l, formula::first_match(or_dests)});
+                dests.clear();
               }
 
             return res;
