@@ -1314,6 +1314,12 @@ namespace spot
       auto g_bdd = formula_to_bdd(f_g, dict, &tmp);
       if (bdd_exist(g_bdd, output_bdd_tmp) != bddtrue)
         return ret_sol_none();
+      // We don't translate so ltlsynt could report unused options
+      if (f_other.is_tt())
+      {
+        gi.opt.get("tls-impl");
+        gi.opt.get("wdba-minimize");
+      }
     }
 
     if (f_other.is(op::Equiv))
