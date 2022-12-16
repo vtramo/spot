@@ -38,11 +38,12 @@ namespace spot
   /// condition.
   ///
   /// \param m The automaton to be verified
+  /// \param verbose If true, violation is printed to cerr
   /// \see is_separated_mealy
   /// \see is_split_mealy
   /// \see is_input_deterministic_mealy
   SPOT_API bool
-  is_mealy(const const_twa_graph_ptr& m);
+  is_mealy(const const_twa_graph_ptr& m, bool verbose = false);
 
   /// \ingroup mealy
   /// \brief Checks whether the automaton is a separated mealy machine
@@ -52,11 +53,12 @@ namespace spot
   /// `out` are BDDs over the input and output propositions.
   ///
   /// \param m The automaton to be verified
+  /// \param verbose If true, violation is printed to cerr
   ///
   /// \see is_mealy
   /// \see is_split_mealy
   SPOT_API bool
-  is_separated_mealy(const const_twa_graph_ptr& m);
+  is_separated_mealy(const const_twa_graph_ptr& m, bool verbose = false);
 
   /// \ingroup mealy
   /// \brief Checks whether or not the automaton is a split mealy machine
@@ -70,10 +72,11 @@ namespace spot
   /// controller) should use only output propositions.
   ///
   /// \param m The automaton to be verified
+  /// \param verbose If true, violation is printed to cerr
   /// \see is_mealy
   /// \see is_separated_mealy
   SPOT_API bool
-  is_split_mealy(const const_twa_graph_ptr& m);
+  is_split_mealy(const const_twa_graph_ptr& m, bool verbose = false);
 
   /// \brief Checks whether a mealy machine is input deterministic
   ///
@@ -84,9 +87,11 @@ namespace spot
   /// (the environment).
   ///
   /// \param m The automaton to be verified
+  /// \param verbose If true, violation is printed to cerr
   /// \see is_mealy
   SPOT_API bool
-  is_input_deterministic_mealy(const const_twa_graph_ptr& m);
+  is_input_deterministic_mealy(const const_twa_graph_ptr& m,
+                               bool verbose = false);
 
   /// \brief Checks whether a mealy machine \a m is input complete
   ///
@@ -95,8 +100,10 @@ namespace spot
   /// for every state.
   ///
   /// \param m The automaton to be verified
+  /// \param verbose If true, violation is printed to cerr
   SPOT_API bool
-  is_input_complete_mealy(const const_twa_graph_ptr& m);
+  is_input_complete_mealy(const const_twa_graph_ptr& m,
+                          bool verbose = false);
 
   /// \brief Makes a mealy machine \a m insput complete by adding a
   /// "sink"-state if necessary.

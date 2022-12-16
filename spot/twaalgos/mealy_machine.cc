@@ -44,7 +44,7 @@
 #include <picosat/picosat.h>
 
 
-//#define TRACE
+#define TRACE
 #ifdef TRACE
 #  define trace std::cerr
 #else
@@ -72,7 +72,8 @@ namespace
   }
 
   bool is_complete_(const const_twa_graph_ptr& m,
-                    const bdd& outs)
+                    const bdd& outs,
+                    bool verbose = false)
   {
     auto* sp = m->get_named_prop<region_t>("state-player");
     const auto N = m->num_states();
@@ -84,7 +85,13 @@ namespace
         for (const auto& e : m->out(s))
           all_cond |= bdd_exist(e.cond, outs);
         if (all_cond != bddtrue)
-          return false;
+          {
+            if (verbose)
+              std::cerr << "is_complete_(): State " << s << " is not input "
+                        << "complete; Missing condition is \n"
+                        << (bddtrue - all_cond) << '\n';
+            return false;
+          }
       }
     return true;
   }
@@ -138,18 +145,20 @@ namespace spot
   }
 
   bool
-  is_mealy(const const_twa_graph_ptr& m)
+  is_mealy(const const_twa_graph_ptr& m, bool verbose)
   {
     if (!m->acc().is_t())
       {
-        trace << "is_mealy(): Mealy machines must have "
-          "true acceptance condition.\n";
+        if (verbose)
+              std::cerr << "is_mealy(): Mealy machines must have "
+                           "true acceptance condition.\n";
         return false;
       }
 
     if (!m->get_named_prop<bdd>("synthesis-outputs"))
       {
-        trace << "is_mealy(): \"synthesis-outputs\" not found!\n";
+        if (verbose)
+              std::cerr << "is_mealy(): \"synthesis-outputs\" not found!\n";
         return false;
       }
 
@@ -157,9 +166,9 @@ namespace spot
   }
 
   bool
-  is_separated_mealy(const const_twa_graph_ptr& m)
+  is_separated_mealy(const const_twa_graph_ptr& m, bool verbose)
   {
-    if (!is_mealy(m))
+    if (!is_mealy(m, verbose))
       return false;
 
     auto outs = get_synthesis_outputs(m);
@@ -167,9 +176,11 @@ namespace spot
     for (const auto& e : m->edges())
       if ((bdd_exist(e.cond, outs) & bdd_existcomp(e.cond, outs)) != e.cond)
         {
-          trace << "is_separated_mealy_machine(): Edge number "
-                << m->edge_number(e) << " from " << e.src << " to " << e.dst
-                << " with " << e.cond << " is not separated!\n";
+          if (verbose)
+              std::cerr << "is_separated_mealy_machine(): Edge number "
+                        << m->edge_number(e) << " from " << e.src << " to "
+                        << e.dst << " with "
+                        << e.cond << " is not separated!\n";
           return false;
         }
 
@@ -177,15 +188,16 @@ namespace spot
   }
 
   bool
-  is_split_mealy(const const_twa_graph_ptr& m)
+  is_split_mealy(const const_twa_graph_ptr& m, bool verbose)
   {
-    if (!is_mealy(m))
+    if (!is_mealy(m, verbose))
       return false;
 
     if (!m->get_named_prop<region_t>("state-player"))
       {
-        trace << "is_split_mealy(): Split mealy machine must define the named "
-                 "property \"state-player\"!\n";
+        if (verbose)
+          std::cerr << "is_split_mealy(): Split mealy machine must define "
+                       "the named property \"state-player\"!\n";
         return false;
       }
 
@@ -193,40 +205,67 @@ namespace spot
 
     if (sp.size() != m->num_states())
       {
-        trace << "\"state-player\" has not the same size as the "
-                 "automaton!\n";
+        if (verbose)
+          std::cerr << "\"state-player\" has not the same size as the "
+                       "automaton!\n";
         return false;
       }
 
     if (sp[m->get_init_state_number()])
       {
-        trace << "is_split_mealy(): Initial state must be owned by env!\n";
+        if (verbose)
+          std::cerr << "is_split_mealy(): "
+                       "Initial state must be owned by env!\n";
         return false;
       }
 
     auto outs = get_synthesis_outputs(m);
 
+    auto check_1_out = [verbose](const const_twa_graph_ptr& aut,
+                                 const auto& sp)
+      {
+        for (unsigned s = 0; s < aut->num_states(); ++s)
+          if (sp.at(s))
+            if (((++aut->out(s).begin()) != aut->out(s).end())
+                || (aut->out(s).begin() == aut->out(s).end()))
+              {
+                if (verbose)
+                  std::cerr << "is_split_mealy(): State " << s << "has "
+                            << "none OR more than one successor!\n";
+                return false;
+              }
+        return true;
+      };
+
+    if (!check_1_out(m, sp))
+      return false;
+
     for (const auto& e : m->edges())
       {
         if (sp[e.src] == sp[e.dst])
           {
-            trace << "is_split_mealy(): Edge number "
-                  << m->edge_number(e) << " from " << e.src << " to " << e.dst
-                  << " is not alternating!\n";
+            if (verbose)
+              std::cerr << "is_split_mealy(): Edge number "
+                        << m->edge_number(e) << " from " << e.src << " to "
+                        << e.dst << " is not alternating!\n";
             return false;
           }
         if (sp[e.src] && (bdd_exist(e.cond, outs) != bddtrue))
           {
-            trace << "is_split_mealy(): Edge number "
-                  << m->edge_number(e) << " from " << e.src << " to " << e.dst
-                  << " depends on inputs, but should be labeled by outputs!\n";
+            if (verbose)
+              std::cerr << "is_split_mealy(): Edge number "
+                        << m->edge_number(e) << " from " << e.src << " to "
+                        << e.dst << "depends on inputs, "
+                        << "but should be labeled by outputs!\n";
             return false;
           }
         if (!sp[e.src] && (bdd_existcomp(e.cond, outs) != bddtrue))
           {
-            trace << "is_split_mealy(): Edge number "
-                  << m->edge_number(e) << " from " << e.src << " to " << e.dst
-                  << " depends on outputs, but should be labeled by inputs!\n";
+            if (verbose)
+              std::cerr << "is_split_mealy(): Edge number "
+                        << m->edge_number(e) << " from " << e.src << " to "
+                        << e.dst << " depends on outputs, "
+                        << "but should be labeled by inputs!\n";
             return false;
           }
       }
@@ -234,16 +273,16 @@ namespace spot
   }
 
   bool
-  is_input_deterministic_mealy(const const_twa_graph_ptr& m)
+  is_input_deterministic_mealy(const const_twa_graph_ptr& m, bool verbose)
   {
-    if (!is_mealy(m))
+    if (!is_mealy(m, verbose))
       return false;
 
     const unsigned N = m->num_states();
 
     auto sp_ptr = m->get_named_prop<region_t>("state-player");
     // Unsplit mealy -> sp_ptr == nullptr
-    if (sp_ptr && !is_split_mealy(m))
+    if (sp_ptr && !is_split_mealy(m, verbose))
       return false;
 
     auto outs = get_synthesis_outputs(m);
@@ -259,8 +298,9 @@ namespace spot
                                : bdd_exist(e.cond, outs));
         if (!is_deterministic_(ins))
           {
-            trace << "is_input_deterministic_mealy(): State number "
-                  << s << " is not input determinisc!\n";
+            if (verbose)
+              std::cerr << "is_input_deterministic_mealy(): State number "
+                        << s << " is not input determinisc!\n";
             return false;
           }
       }
@@ -268,12 +308,12 @@ namespace spot
   }
 
   bool
-  is_input_complete_mealy(const const_twa_graph_ptr& m)
+  is_input_complete_mealy(const const_twa_graph_ptr& m, bool verbose)
   {
-    if (!is_mealy(m))
+    if (!is_mealy(m, verbose))
       return false;
 
-    return is_complete_(m, get_synthesis_outputs(m));
+    return is_complete_(m, get_synthesis_outputs(m), verbose);
   }
 
   std::pair<bool, twa_graph_ptr>
@@ -3138,8 +3178,15 @@ namespace
         assert(std::all_of(edge_it.begin(), edge_it.end(),
                            [](auto& eit)
                            {
-                             return ((eit.first == eit.second)
-                                     || ((++eit.first) == eit.second));
+                              if ((eit.first == eit.second)
+                                   || ((++eit.first) == eit.second))
+                                return true;
+                              for (; eit.first != eit.second; ++eit.first)
+                                trace << "Untreated edge "
+                                      << eit.first->src << " - "
+                                      << eit.first->cond
+                                      << " -> " << eit.first->dst << '\n';
+                              return false;
                            }));
       } // group
     // Done building the initial problem
@@ -4133,7 +4180,7 @@ namespace
       };
 
     const_twa_graph_ptr mmw = do_premin();
-    assert(is_split_mealy(mmw));
+    assert(is_split_mealy(mmw, true));
     si.premin_time = si.restart();
 
 
@@ -4149,7 +4196,11 @@ namespace
     // second black : player-states
     unsigned n_env = -1u;
     std::tie(mmw, n_env) = reorganize_mm(mmw, spref);
-    assert(is_split_mealy(mmw));
+#ifdef TRACE
+    std::cerr << "Reorganized problem:\n";
+    print_hoa(std::cerr, mmw);
+#endif
+    assert(is_split_mealy(mmw, true));
 #ifdef TRACE
     print_hoa(std::cerr, mmw);
 #endif
@@ -4175,10 +4226,10 @@ namespace
         si.write();
         // Always keep machines split
         if (mm->get_named_prop<region_t>("state-player"))
-          assert(is_split_mealy_specialization(mm, mmw));
+          assert(is_split_mealy_specialization(mm, mmw, true));
         else
           assert(is_split_mealy_specialization(split_2step(mm, false),
-                                               mmw));
+                                               mmw, true));
         return std::const_pointer_cast<twa_graph>(mmw);
       };
 
@@ -4192,6 +4243,10 @@ namespace
     // Get the reduced alphabet
     auto [split_mmw, reduced_alphabet] =
         reduce_and_split(mmw, n_env, incompmat, si);
+#ifdef TRACE
+    std::cerr << "Reduced problem:\n";
+    print_hoa(std::cerr, split_mmw);
+#endif
 
     auto mm_pb = build_init_prob<true>(split_mmw, incompmat,
                                        reduced_alphabet, partsol, n_env, si);
@@ -4230,10 +4285,14 @@ namespace
     si.total_time = sglob.stop();
     si.write();
 
+#ifdef TRACE
+    std::cerr << "Minimized machine:\n";
+    print_hoa(std::cerr, minmachine);
+#endif
     assert(is_split_mealy_specialization(
       mm->get_named_prop<region_t>("state-player") ? mm
                                                    :split_2step(mm, false),
-      minmachine));
+      minmachine, true));
     return minmachine;
   }
 } // namespace
@@ -4285,35 +4344,28 @@ namespace spot
                                      const_twa_graph_ptr right,
                                      bool verbose)
   {
-    assert(is_split_mealy(left));
-    assert(is_split_mealy(right));
+    if (!is_split_mealy(left, verbose))
+      {
+        if (verbose)
+          std::cerr << "is_split_mealy_specialization(): "
+                       "Left machine is not a split_mealy\n";
+        return false;
+      }
+    if (!is_split_mealy(right, verbose))
+      {
+        if (verbose)
+          std::cerr << "is_split_mealy_specialization(): "
+                       "Right machine is not a split_mealy\n";
+        return false;
+      }
 
     const unsigned initl = left->get_init_state_number();
     const unsigned initr = right->get_init_state_number();
 
-    auto& spr = get_state_players(right);
-#ifndef NDEBUG
-    auto& spl = get_state_players(left);
-    // todo
-    auto check_out = [](const const_twa_graph_ptr& aut,
-                        const auto& sp)
-      {
-        for (unsigned s = 0; s < aut->num_states(); ++s)
-          if (sp.at(s))
-            if (((++aut->out(s).begin()) != aut->out(s).end())
-                || (aut->out(s).begin() == aut->out(s).end()))
-              {
-                std::cerr << "Failed for " << s << '\n';
-                return false;
-              }
+    const auto& spr = get_state_players(right);
 
-        return true;
-      };
-    assert(check_out(left, spl) &&
-           "Left mealy machine has multiple or no player edges for a state");
-    assert(check_out(right, spr) &&
-           "Right mealy machine has multiple or no player edges for a state");
-#endif
+    const auto& spl = get_state_players(left);
+
     // Get for each env state of right the uncovered input letters
     std::vector<bdd> ucr(right->num_states(), bddtrue);
     const unsigned nsr = right->num_states();
