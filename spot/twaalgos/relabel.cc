@@ -99,7 +99,7 @@ namespace spot
           // For split only leaves is ok,
           // disjunction is done via transitions
           // This will compute the new_label for all states in the ig
-          const unsigned Norig = part.all_cond_ptr->size();
+          const unsigned Norig = part.all_cond_.size();
           for (unsigned i = 0; i < Norig; ++i)
             relabel_impl(i, relabel_impl);
         }
@@ -204,7 +204,7 @@ namespace spot
                             (unsigned) (max_letter_mult*all_cond.size()));
         }
 
-      auto this_partition = try_partition_me(all_cond, stop);
+      auto this_partition = try_partition_me(all_cond, aut.ap(), stop);
 
       if (!this_partition.relabel_succ)
         return abandon();

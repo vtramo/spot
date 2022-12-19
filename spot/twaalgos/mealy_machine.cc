@@ -1998,8 +1998,15 @@ namespace
         auto& group_letters = red.all_letters.back();
 
         // Compute it
-        auto this_part = try_partition_me(all_bdd_v, -1u);
+        for (const auto& b : all_bdd_v)
+          trace << b << '\n';
+        auto this_part = try_partition_me(all_bdd_v,
+                                          mmw->ap(), -1u);
         assert(this_part.relabel_succ);
+#ifdef TRACE
+        std::cerr << "Computed partition of " << groupidx << '\n';
+        this_part.dump(std::cerr);
+#endif
 
         // Transform it
         // group_letters is pair<new_letter, set of implied orig letters as id>

@@ -20,14 +20,91 @@
 #include "config.h"
 
 #include <spot/priv/partitioned_relabel.hh>
+#include <spot/twaalgos/hoa.hh>
 
+#include <sstream>
+
+void bdd_partition::dump(std::ostream& os) const
+{
+  if (!ig)
+    throw std::runtime_error("bdd_partition::dump(): "
+                             "No implication graph available!\n");
+
+  auto& igr = *ig;
+
+  auto m = make_twa_graph(make_bdd_dict());
+  auto& mr = *m;
+
+  auto rm = to_relabeling_map(*m);
+
+  mr.new_states(igr.num_states());
+
+  unsigned init = mr.new_state();
+
+  // Edge to all initial states
+  for (unsigned s = 0; s < init; ++s)
+    mr.new_edge(init, s, bddtrue);
+
+  mr.set_init_state(init);
+
+  // copy transitions
+  for (const auto& e : igr.edges())
+    mr.new_edge(e.src, e.dst, bddtrue);
+
+  auto* nvec = new std::vector<std::string>(mr.num_states());
+
+  mr.set_named_prop<std::vector<std::string>>("state-names", nvec);
+
+  // Original conditions
+  for (unsigned i = 0; i < all_cond_.size(); ++i)
+    {
+      std::stringstream ss;
+      ss << all_cond_[i];
+      (*nvec)[i] = ss.str();
+    }
+
+  // "letters" of the partition
+  for (const auto& p : treated)
+    {
+      std::stringstream ss;
+      ss << p.first;
+      (*nvec)[p.second] = ss.str();
+    }
+
+  // Letters over new labels
+  for (unsigned s = 0; s < igr.num_states(); ++s)
+    {
+      const auto& sd = igr.state_storage(s);
+      if (sd.new_label == bddfalse)
+        continue;
+
+      mr.new_edge(s, s, sd.new_label);
+    }
+
+  // Print it
+  print_hoa(os, m);
+}
+
+relabeling_map
+bdd_partition::to_relabeling_map(const twa_graph_ptr& for_me) const
+{
+  assert(for_me && "to_relabeling_map(): Graph is null.\n");
+  return to_relabeling_map(*for_me);
+}
 
 relabeling_map
 bdd_partition::to_relabeling_map(twa_graph& for_me) const
 {
-  relabeling_map res;
   // Change to unordered_map?
+  relabeling_map res;
+
   bdd_dict_ptr bdddict = for_me.get_dict();
+
+  for (const auto& ap : all_orig_ap_)
+    for_me.register_ap(ap);
+
+  for (const auto& ap : new_aps)
+    for_me.register_ap(ap);
 
   bool use_inner = ig->state_storage(0).new_label != bddfalse;
   std::vector<bool> doskip
@@ -41,6 +118,7 @@ bdd_partition::to_relabeling_map(twa_graph& for_me) const
 
   for (const auto& [old_letter, s] : treated)
     {
+      std::cout << ig->state_storage(s).new_label << std::endl;
       formula new_letter_form = bdd2form(ig->state_storage(s).new_label);
       assert(res.count(new_letter_form) == 0);
       if (use_inner)
@@ -52,8 +130,7 @@ bdd_partition::to_relabeling_map(twa_graph& for_me) const
     {
       // This implies that the split option was false,
       // so we can store further info
-      auto& all_cond = *all_cond_ptr;
-      const unsigned Norig = all_cond.size();
+      const unsigned Norig = all_cond_.size();
 
       for (unsigned i = 0; i < Norig; ++i)
         {
@@ -67,10 +144,10 @@ bdd_partition::to_relabeling_map(twa_graph& for_me) const
           formula new_letter_form
               = bdd2form(ig->state_storage(i).new_label);
 #ifdef NDEBUG
-          res[new_letter_form] = bdd2form(all_cond[i]);
+          res[new_letter_form] = bdd2form(all_cond_[i]);
 #else
           // Check if they are the same
-          formula old_form = bdd2form(all_cond[i]);
+          formula old_form = bdd2form(all_cond_[i]);
           if (res.count(new_letter_form) == 0)
               res[new_letter_form] = old_form;
           else
@@ -87,13 +164,14 @@ bdd_partition::to_relabeling_map(twa_graph& for_me) const
 /// \note A pointer to all_cond is captured internally, it needs
 /// to outlive the returned bdd_partition
 bdd_partition
-try_partition_me(const std::vector<bdd>& all_cond, unsigned max_letter)
+try_partition_me(const std::vector<bdd>& all_cond,
+                 const std::vector<formula>& ap, unsigned max_letter)
 {
   // We create vector that will be succesively filled.
   // Each entry corresponds to a "letter", of the partition
   const size_t Norig = all_cond.size();
 
-  bdd_partition result(all_cond);
+  bdd_partition result(all_cond, ap);
 
   auto& treated = result.treated;
   auto& ig = *result.ig;

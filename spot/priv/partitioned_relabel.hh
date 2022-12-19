@@ -41,8 +41,9 @@ struct bdd_partition
   };
   using implication_graph = digraph<S, T>;
 
-  // A pointer to the conditions to be partitioned
-  const std::vector<bdd>* all_cond_ptr;
+  // The original conditions and aps to be partitioned
+  const std::vector<bdd> all_cond_;
+  const std::vector<formula> all_orig_ap_;
   // Graph with the invariant that
   // children imply parents
   // Leaves from the partition
@@ -57,8 +58,10 @@ struct bdd_partition
   bool relabel_succ = false;
 
   bdd_partition() = default;
-  bdd_partition(const std::vector<bdd>& all_cond)
-    : all_cond_ptr(&all_cond)
+  bdd_partition(const std::vector<bdd>& all_cond,
+                const std::vector<formula>& all_orig_ap)
+    : all_cond_(all_cond)
+    , all_orig_ap_(all_orig_ap)
     , ig{std::make_unique<implication_graph>(2*all_cond.size(),
                                              2*all_cond.size())}
   {
@@ -74,8 +77,20 @@ struct bdd_partition
   // been computed
   relabeling_map
   to_relabeling_map(twa_graph& for_me) const;
+
+  relabeling_map
+  to_relabeling_map(const twa_graph_ptr& for_me) const;
+
+  // Dump as hoa to stream
+  // Old conditions are shown as state name;
+  // New conditions are shown as self-loop
+  // Can only be called when leters have already been
+  // computed
+  void dump(std::ostream& os) const;
 }; // bdd_partition
 
 
 bdd_partition
-try_partition_me(const std::vector<bdd>& all_cond, unsigned max_letter);
+try_partition_me(const std::vector<bdd>& all_cond,
+                 const std::vector<formula>& ap,
+                 unsigned max_letter);
