@@ -19,12 +19,13 @@
 
 #include "config.h"
 
-#include <spot/priv/partitioned_relabel.hh>
-#include <spot/twaalgos/hoa.hh>
+#include "spot/priv/partitioned_relabel.hh"
 
+#include <spot/twaalgos/hoa.hh>
 #include <sstream>
 
-void bdd_partition::dump(std::ostream& os) const
+void
+bdd_partition::dump(std::ostream& os) const
 {
   if (!ig)
     throw std::runtime_error("bdd_partition::dump(): "
@@ -35,14 +36,19 @@ void bdd_partition::dump(std::ostream& os) const
   auto m = make_twa_graph(make_bdd_dict());
   auto& mr = *m;
 
-  auto rm = to_relabeling_map(*m);
+  for (const auto& ap : all_orig_ap_)
+    mr.register_ap(ap);
+
+  for (const auto& ap : new_aps)
+    mr.register_ap(ap);
 
   mr.new_states(igr.num_states());
 
   unsigned init = mr.new_state();
 
   // Edge to all initial states
-  for (unsigned s = 0; s < init; ++s)
+  const unsigned Norig = all_cond_.size();
+  for (unsigned s = 0; s < Norig; ++s)
     mr.new_edge(init, s, bddtrue);
 
   mr.set_init_state(init);
@@ -158,6 +164,81 @@ bdd_partition::to_relabeling_map(twa_graph& for_me) const
   return res;
 }
 
+bool
+bdd_partition::verify(bool verbose)
+{
+  const unsigned Nl = treated.size();
+
+  // Check if no intersection
+  for (unsigned l1 = 0; l1 < Nl; ++l1)
+    {
+      for (unsigned l2 = l1 + 1; l2 < Nl; ++l2)
+        {
+          if (bdd_have_common_assignment(treated[l1].first, treated[l2].first))
+            {
+              if (verbose)
+                std::cerr << "letter " << l1 << ": " << treated[l1].first
+                          << "and letter " << l2 << ": " << treated[l2].first
+                          << " intersect.\n";
+              return false;
+            }
+        }
+    }
+
+  // Check for completeness
+  const unsigned No = all_cond_.size();
+
+  auto search_leaves
+        = [&](unsigned s, auto&& search_leaves_) -> bdd
+    {
+      if (ig->state_storage(s).succ == 0)
+        {
+          // Leaf
+          return ig->state_storage(s).new_label;
+        }
+      else
+        {
+          // Traverse
+          bdd full_cond = bddfalse;
+          for (const auto& e : ig->out(s))
+            full_cond |= search_leaves_(e.dst, search_leaves_);
+          return full_cond;
+        }
+    };
+
+  for (unsigned so = 0; so < No; ++so)
+    {
+      bdd full_cond = search_leaves(so, search_leaves);
+      if (all_cond_[so] != full_cond)
+        {
+          if (verbose)
+            {
+              std::cerr << "Orig cond of " << so << " was " << all_cond_[so]
+                        << " but obtained " << full_cond << '\n';
+              return false;
+            }
+        }
+    }
+
+  // Test all intermediate as well
+  for (const auto& p : all_inter_)
+    {
+      bdd full_cond = search_leaves(p.second, search_leaves);
+      if (p.first != full_cond)
+        {
+          if (verbose)
+            {
+              std::cerr << "Intermediate cond of " << p.second << " was "
+                        << p.first << " but obtained " << full_cond << '\n';
+              return false;
+            }
+        }
+    }
+
+  return true;
+
+}
+
 /// \brief Tries to partition the given condition vector \a all_cond
 /// abandons at \a max_letter.
 /// \return The corresponding bdd_partition
@@ -175,51 +256,95 @@ try_partition_me(const std::vector<bdd>& all_cond,
 
   auto& treated = result.treated;
   auto& ig = *result.ig;
+  auto& all_inter = result.all_inter_;
 
   for (unsigned io = 0; io < Norig; ++io)
     {
       bdd cond = all_cond[io];
+
       const auto Nt = treated.size();
       for (size_t in = 0; in < Nt; ++in)
         {
+          assert(treated[in].first != bddfalse);
           if (cond == bddfalse)
             break;
-          if (treated[in].first == cond)
+
+          // Check if exists
+          if (auto cond_it = all_inter.find(cond);
+              cond_it != all_inter.end())
             {
-              // Found this very condition -> make transition
-              ig.new_edge(io, treated[in].second);
+              ig.new_edge(io, cond_it->second);
               cond = bddfalse;
-              break;
+              break; // Done
             }
+
           if (bdd_have_common_assignment(treated[in].first, cond))
             {
+              bdd propwocond = treated[in].first - cond;
               bdd inter = treated[in].first & cond;
-              // Create two new states
-              unsigned ssplit = ig.new_states(2);
-              // ssplit becomes the state without the intersection
-              // ssplit + 1 becomes the intersection
-              // Both of them are implied by the original node,
-              // Only inter is implied by the current letter
-              ig.new_edge(treated[in].second, ssplit);
-              ig.new_edge(treated[in].second, ssplit+1);
-              ig.new_edge(io, ssplit+1);
-              treated.emplace_back(inter, ssplit+1);
-              // Update
-              cond -= inter;
-              treated[in].first -= inter;
-              treated[in].second = ssplit;
+              bdd condwoprop =  cond - treated[in].first;
+
+              assert(inter != bddfalse);
+
+              if (propwocond == bddfalse)
+                {
+                  // prop = treated[in].first is a subset of cond
+                  // and therefore implies the original letter
+                  ig.new_edge(io, treated[in].second);
+                  assert(inter == treated[in].first);
+                  cond = condwoprop;
+                }
+              else
+                {
+                  // They truly intersect and we need to search
+                  // if they alreay exist
+                  auto pwoc_it
+                    = std::find_if(treated.cbegin(), treated.cend(),
+                                    [propwocond](const auto& p)
+                                      {
+                                        return p.first == propwocond;
+                                      });
+                  auto inter_it
+                    = std::find_if(treated.cbegin(), treated.cend(),
+                                    [inter](const auto& p)
+                                      {
+                                        return p.first == inter;
+                                      });
+
+                  // Only implies prop
+                  unsigned dst =
+                      pwoc_it == treated.cend() ? ig.new_state()
+                                                : pwoc_it->second;
+                  ig.new_edge(treated[in].second, dst);
+                  if (pwoc_it == treated.cend())
+                    all_inter[propwocond] = dst;
+
+                  // Implies prop and cond
+                  dst = inter_it == treated.cend() ? ig.new_state()
+                                                   : inter_it->second;
+                  ig.new_edge(treated[in].second, dst);
+                  ig.new_edge(io, dst);
+                  if (inter_it == treated.cend())
+                    all_inter[inter] = dst;
+
+                  // Update
+                  cond = condwoprop;
+                }
+
               if (treated.size() > max_letter)
                 return bdd_partition{};
             }
         }
-        if (cond != bddfalse)
-          {
-            unsigned sc = ig.new_state();
-            treated.emplace_back(cond, sc);
-            ig.new_edge(io, sc);
-          }
+      if (cond != bddfalse)
+        {
+          unsigned sc = ig.new_state();
+          treated.emplace_back(cond, sc);
+          ig.new_edge(io, sc);
+          all_inter[cond] = sc;
+        }
     }
 
   result.relabel_succ = true;
+  assert(result.verify(true));
   return result;
 }

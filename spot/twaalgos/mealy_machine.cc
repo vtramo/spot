@@ -39,7 +39,7 @@
 #include <spot/twaalgos/product.hh>
 #include <spot/twaalgos/relabel.hh>
 #include <spot/twaalgos/synthesis.hh>
-#include <spot/priv/partitioned_relabel.hh>
+#include "spot/priv/partitioned_relabel.hh"
 #include <spot/twaalgos/relabel.hh>
 #include <picosat/picosat.h>
 
@@ -2006,6 +2006,7 @@ namespace
 #ifdef TRACE
         std::cerr << "Computed partition of " << groupidx << '\n';
         this_part.dump(std::cerr);
+        std::cerr << '\n';
 #endif
 
         // Transform it

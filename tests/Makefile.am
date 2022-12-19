@@ -90,6 +90,7 @@ check_PROGRAMS = \
   core/nenoform \
   core/ngraph \
   core/parity \
+  core/partitionedrelabel \
   core/randtgba \
   core/reduc \
   core/reduccmp \
@@ -141,6 +142,7 @@ core_nenoform_CPPFLAGS = $(AM_CPPFLAGS) -DNENOFORM
 core_nequals_SOURCES = core/equalsf.cc
 core_nequals_CPPFLAGS = $(AM_CPPFLAGS) -DNEGATE
 core_parity_SOURCES = core/parity.cc
+core_partitionedrelabel_SOURCES = core/partitionedrelabel.cc
 core_reduc_SOURCES = core/reduc.cc
 core_reduccmp_SOURCES = core/equalsf.cc
 core_reduccmp_CPPFLAGS = $(AM_CPPFLAGS) -DREDUC
@@ -218,7 +220,8 @@ TESTS_misc = \
   core/minterm.test \
   core/minusx.test \
   core/full.test \
-  core/trival.test
+  core/trival.test \
+  core/partitionedrelabel.test
 
 TESTS_twa = \
   core/385.test \

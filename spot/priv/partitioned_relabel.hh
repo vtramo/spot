@@ -26,6 +26,7 @@
 #include <spot/twa/bdddict.hh>
 #include <spot/twa/formula2bdd.hh>
 #include <spot/twa/twagraph.hh>
+#include <spot/misc/bddlt.hh>
 
 
 using namespace spot;
@@ -54,10 +55,15 @@ struct bdd_partition
   // All conditions currently part of the partition
   // unsigned corresponds to the associated node
   std::vector<std::pair<bdd, unsigned>> treated;
+  std::unordered_map<bdd, unsigned, bdd_hash> all_inter_;
   std::vector<formula> new_aps;
   bool relabel_succ = false;
 
-  bdd_partition() = default;
+  bdd_partition()
+    : all_cond_()
+    , all_orig_ap_()
+  {
+  }
   bdd_partition(const std::vector<bdd>& all_cond,
                 const std::vector<formula>& all_orig_ap)
     : all_cond_(all_cond)
@@ -87,6 +93,10 @@ struct bdd_partition
   // Can only be called when leters have already been
   // computed
   void dump(std::ostream& os) const;
+
+  // Verify if condition is valid
+  bool verify(bool verbose);
+
 }; // bdd_partition
 
 
