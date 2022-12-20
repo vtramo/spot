@@ -749,8 +749,8 @@ namespace
           conds_out.insert(e.cond);
       }
 
-    relabeling_map rm; // unsplit
-    game_relabeling_map rmg; // split
+    // We are only allowed to relabel when split
+    game_relabeling_map rmg;
     if (fact_div_conds && is_split)
       {
         bool relab_in
@@ -763,13 +763,6 @@ namespace
                                             std::pow(2, nb_ins / fact_div_aps),
                                             std::pow(2,
                                                      nb_outs / fact_div_aps));
-      }
-    else if (fact_div_conds)
-      {
-        bool relab = conds_in.size() < std::pow(2, nb_aps) / fact_div_conds;
-        if (relab)
-          rm = partitioned_relabel_here(mm, false,
-                                        std::pow(2, nb_aps / fact_div_aps));
       }
     // WARNING: Do you need synthesis_outputs somewhere?!?
 
@@ -808,8 +801,6 @@ namespace
 
     if (is_split)
       relabel_game_here(mm, rmg);
-    else
-      relabel_here(mm, &rm); // Does nothing if empty
 
     mm->purge_unreachable_states();
     assert(is_mealy(mm));
