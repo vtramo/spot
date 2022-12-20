@@ -1309,16 +1309,22 @@ namespace spot
       output_bdd_tmp &= bdd_ithvar(
         dict->register_proposition(formula::ap(out), &tmp));
 
+    auto use_options = [&]() {
+        gi.opt.get("tls-impl");
+        gi.opt.get("wdba-minimize");
+    };
+
+    if (f_other.is_tt()) {
+      // We don't translate so ltlsynt could report unused options
+      use_options();
+    }
     if (!f_g.is_tt())
     {
       auto g_bdd = formula_to_bdd(f_g, dict, &tmp);
       if (bdd_exist(g_bdd, output_bdd_tmp) != bddtrue)
-        return ret_sol_none();
-      // We don't translate so ltlsynt could report unused options
-      if (f_other.is_tt())
       {
-        gi.opt.get("tls-impl");
-        gi.opt.get("wdba-minimize");
+        use_options();
+        return ret_sol_none();
       }
     }
 
