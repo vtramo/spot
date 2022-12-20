@@ -739,32 +739,37 @@ namespace
     auto nb_outs = get_synthesis_output_aps(mm).size();
     auto nb_ins = nb_aps - nb_outs;
 
-    std::set<bdd, bdd_less_than> conds_in;
-    std::set<bdd, bdd_less_than> conds_out;
-    for (const auto& e : mm->edges())
-      {
-        if (!splayers || !(*splayers)[e.src])
-          conds_in.insert(e.cond);
-        else
-          conds_out.insert(e.cond);
-      }
 
     // We are only allowed to relabel when split
     game_relabeling_map rmg;
-    if (fact_div_conds && is_split)
+    if (is_split)
       {
-        bool relab_in
-            = conds_in.size() < std::pow(2, nb_ins) / fact_div_conds;
-        bool relab_out
-            = conds_out.size() < std::pow(2, nb_outs) / fact_div_conds;
-        rmg = partitioned_game_relabel_here(mm, relab_in, relab_out,
-                                            false, false,
-                                            relab_in, relab_out,
-                                            std::pow(2, nb_ins / fact_div_aps),
-                                            std::pow(2,
-                                                     nb_outs / fact_div_aps));
+        std::set<bdd, bdd_less_than> conds_in;
+        std::set<bdd, bdd_less_than> conds_out;
+        for (const auto& e : mm->edges())
+          {
+            if (!splayers || !(*splayers)[e.src])
+              conds_in.insert(e.cond);
+            else
+              conds_out.insert(e.cond);
+          }
+
+        if (fact_div_conds && is_split)
+          {
+            bool relab_in
+                = conds_in.size() < std::pow(2, nb_ins) / fact_div_conds;
+            bool relab_out
+                = conds_out.size() < std::pow(2, nb_outs) / fact_div_conds;
+            rmg = partitioned_game_relabel_here(mm, relab_in, relab_out,
+                                          false, false,
+                                          relab_in, relab_out,
+                                          std::pow(2, nb_ins / fact_div_aps),
+                                          std::pow(2,
+                                                   nb_outs / fact_div_aps));
+          }
       }
-    // WARNING: Do you need synthesis_outputs somewhere?!?
+
+
 
     // Only consider infinite runs
     mm->purge_dead_states();
@@ -772,7 +777,11 @@ namespace
 
     auto repr = sp.representatives();
     if (sp.is_irreducible())
-      return;
+      {
+        if (is_split)
+          relabel_game_here(mm, rmg);
+        return;
+      }
 
     // Change the destination of transitions using a DFT to avoid useless
     // modifications.
