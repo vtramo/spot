@@ -817,11 +817,9 @@ namespace
 
     reduce_mealy_here_(mmc, output_assignment, fact_div_conds, fact_div_aps);
 
-    //assert(is_mealy(mmc)
-    //       && (!mm->get_named_prop<region_t>("state-player")
-    //           || is_split_mealy_specialization(mm,
-    //                mmc->get_named_prop<region_t>("state-player") ?
-    //                  mmc : split_2step(mmc))));
+    assert(is_mealy(mmc)
+           && (!mm->get_named_prop<region_t>("state-player")
+               || is_split_mealy_specialization(mm, mmc)));
     return mmc;
   }
 } // anonymous
