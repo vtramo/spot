@@ -763,7 +763,7 @@ namespace
                                             std::pow(2, nb_ins / fact_div_aps),
                                             std::pow(2,
                                                      nb_outs / fact_div_aps));
-  }
+      }
     else if (fact_div_conds)
       {
         bool relab = conds_in.size() < std::pow(2, nb_aps) / fact_div_conds;
