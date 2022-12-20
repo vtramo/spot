@@ -880,7 +880,7 @@ OUT='g_0, g_1'
 ltlsynt --outs="$OUT" -f "$LTL" --aiger=both+ud\
   --algo=acd | grep "aag 8 2 2 2 4"
 ltlsynt --outs="$OUT" -f "$LTL" --aiger=both+ud\
-  --algo=lar | grep "aag 34 2 3 2 29"
+  --algo=lar | grep "aag 36 2 3 2 31"
 
 ltlsynt -f 'G(c) & (G(a) <-> GFb)' --outs=b,c --decompose=yes\
                                    --verbose --realizability 2> out
