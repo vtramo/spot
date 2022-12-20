@@ -125,7 +125,6 @@ bdd_partition::to_relabeling_map(twa_graph& for_me) const
 
   for (const auto& [old_letter, s] : treated)
     {
-      std::cout << ig->state_storage(s).new_label << std::endl;
       formula new_letter_form = bdd2form(ig->state_storage(s).new_label);
       assert(res.count(new_letter_form) == 0);
       if (use_inner)
