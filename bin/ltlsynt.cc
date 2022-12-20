@@ -1004,14 +1004,21 @@ main(int argc, char **argv)
     // before all global variables.
     spot::synthesis_info gi_;
     gi = &gi_;
-    //gi_.opt.set("simul", 0);     // no simulation, except...
-    //gi_.opt.set("dpa-simul", 1); // ... after determinization
-    gi_.opt.set("tls-impl", 1);  // no automata-based implication check
-    gi_.opt.set("wdba-minimize", 2); // minimize only syntactic oblig
     const argp ap = { options, parse_opt, nullptr,
                       argp_program_doc, children, nullptr, nullptr };
     if (int err = argp_parse(&ap, argc, argv, ARGP_NO_HELP, nullptr, nullptr))
       exit(err);
+
+    bool need_translate =
+      std::find_if(jobs.begin(), jobs.end(),
+                   [](auto x) { return x.type != job_type::AUT_FILENAME;})
+      != jobs.end();
+
+    if (need_translate)
+    {
+      gi_.opt.set("tls-impl", 1);  // no automata-based implication check
+      gi_.opt.set("wdba-minimize", 2); // minimize only syntactic oblig
+    }
 
     check_no_formula();
 
