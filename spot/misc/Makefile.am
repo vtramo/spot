@@ -50,6 +50,7 @@ misc_HEADERS = \
   memusage.hh \
   mspool.hh \
   optionmap.hh \
+  partitioned_relabel.hh \
   position.hh \
   random.hh \
   satsolver.hh \
@@ -70,6 +71,7 @@ libmisc_la_SOURCES = \
   memusage.cc \
   minato.cc \
   optionmap.cc \
+  partitioned_relabel.cc \
   random.cc \
   satsolver.cc \
   timer.cc \

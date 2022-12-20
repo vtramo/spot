@@ -18,11 +18,24 @@
 
 #include "config.h"
 #include <iostream>
-#include "spot/priv/partitioned_relabel.hh"
+#include <spot/misc/partitioned_relabel.hh>
 
 using namespace spot;
 
-void
+static void
+show(const std::vector<bdd>& all_cond,
+     const std::vector<formula>& ap)
+{
+  auto part = try_partition_me(all_cond, ap, -1u);
+
+  for (const auto& p : part.treated)
+    part.ig->state_storage(p.second).new_label = p.first;
+
+  part.dump(std::cout);
+  part.verify(true);
+}
+
+static void
 test_partitioned()
 {
   auto g = make_twa_graph(make_bdd_dict());
@@ -37,14 +50,10 @@ test_partitioned()
   all_cond.push_back(a&b);
   all_cond.push_back(na&nb);
 
-  auto part = try_partition_me(all_cond, g->ap(), -1u);
-
-  part.verify(true);
-  part.dump(std::cout);
-  std::cout << '\n';
+  show(all_cond, g->ap());
 }
 
-void
+static void
 test_simple1()
 {
   auto g = make_twa_graph(make_bdd_dict());
@@ -57,15 +66,10 @@ test_simple1()
   all_cond.push_back(a);
   all_cond.push_back(a&b);
 
-  auto part = try_partition_me(all_cond, g->ap(), -1u);
-
-  part.verify(true);
-  part.dump(std::cout);
-  std::cout << '\n';
-
+  show(all_cond, g->ap());
 }
 
-void
+static void
 test_simple2()
 {
   auto g = make_twa_graph(make_bdd_dict());
@@ -78,14 +82,10 @@ test_simple2()
   all_cond.push_back(a&b);
   all_cond.push_back(a);
 
-  auto part = try_partition_me(all_cond, g->ap(), -1u);
-
-  part.verify(true);
-  part.dump(std::cout);
-  std::cout << '\n';
+  show(all_cond, g->ap());
 }
 
-void
+static void
 test_simple3()
 {
   auto g = make_twa_graph(make_bdd_dict());
@@ -100,51 +100,126 @@ test_simple3()
 
   auto part = try_partition_me(all_cond, g->ap(), -1u);
 
-  part.verify(true);
-  part.dump(std::cout);
-  std::cout << '\n';
+  show(all_cond, g->ap());
 }
 
 
-void
-test_cascade()
+static void
+test_cascade(unsigned nap)
 {
   auto g = make_twa_graph(make_bdd_dict());
 
   std::vector<bdd> all_cond;
 
   bdd thiscond = bddtrue;
-  for (unsigned i = 0; i < 6; ++i)
+  for (unsigned i = 0; i < nap; ++i)
     {
       bdd a = bdd_ithvar(g->register_ap("i" + std::to_string(i)));
       thiscond &= a;
       all_cond.push_back(thiscond);
     }
 
-  {
-    auto part = try_partition_me(all_cond, g->ap(), -1u);
 
-    part.verify(true);
-    part.dump(std::cout);
-    std::cout << '\n';
-  }
+  show(all_cond, g->ap());
 
   std::reverse(all_cond.begin(), all_cond.end());
 
-  {
-    auto part = try_partition_me(all_cond, g->ap(), -1u);
-
-    part.verify(true);
-    part.dump(std::cout);
-    std::cout << '\n';
-  }
+  show(all_cond, g->ap());
 }
+
+static void
+test_double_cascade(unsigned nap)
+{
+  auto g = make_twa_graph(make_bdd_dict());
+
+  std::vector<bdd> all_cond;
+
+  bdd thiscond1 = bddtrue;
+  bdd thiscond2 = bddtrue;
+  for (unsigned i = 0; i < nap; ++i)
+    {
+      bdd a = bdd_ithvar(g->register_ap("i" + std::to_string(i)));
+      bdd na = bdd_nithvar(g->register_ap("i" + std::to_string(i)));
+
+      thiscond1 &= a;
+      thiscond2 &= i&1 ? na : a;
+
+      all_cond.push_back(thiscond1);
+      all_cond.push_back(thiscond2);
+    }
+
+
+  show(all_cond, g->ap());
+
+  std::reverse(all_cond.begin(), all_cond.end());
+
+  show(all_cond, g->ap());
+}
+
+static void
+test_bytwo(unsigned nap)
+{
+  auto g = make_twa_graph(make_bdd_dict());
+
+  std::vector<bdd> all_ap;
+  std::vector<bdd> all_nap;
+
+  for (unsigned i = 0; i < nap; ++i)
+    {
+      all_ap.push_back(bdd_ithvar(g->register_ap("i" + std::to_string(i))));
+      all_nap.push_back(bdd_nithvar(g->register_ap("i" + std::to_string(i))));
+    }
+
+  bdd thiscond1 = bddfalse;
+  bdd thiscond2 = bddfalse;
+
+  std::vector<bdd> all_cond;
+
+  for (unsigned i = 0; i < nap-1; ++i)
+    {
+      thiscond1 = bdd_or(thiscond1, all_ap[i]&all_ap[i+1]);
+      thiscond2
+        = bdd_or(thiscond2,
+                 (i&1 ? all_ap[i]&all_nap[i+1] : all_ap[i]&all_ap[i+1]));
+      all_cond.push_back(thiscond1);
+      all_cond.push_back(thiscond2);
+    }
+
+  show(all_cond, g->ap());
+
+  std::reverse(all_cond.begin(), all_cond.end());
+
+  show(all_cond, g->ap());
+}
+
+
 
 int main()
 {
+  std::cout << "/* Partitioned */\n";
   test_partitioned();
+  std::cout << "/* Simple 1 */\n";
   test_simple1();
+  std::cout << "/* Simple 2 */\n";
   test_simple2();
+  std::cout << "/* Simple 3 */\n";
   test_simple3();
-  test_cascade();
+  std::cout << "/* Cascade 3 */\n";
+  test_cascade(3);
+  std::cout << "/* Cascade 6 */\n";
+  test_cascade(6);
+  std::cout << "/* Cascade 12 */\n";
+  test_cascade(12);
+  std::cout << "/* Double Cascade 3 */\n";
+  test_double_cascade(3);
+  std::cout << "/* Double Cascade 6 */\n";
+  test_double_cascade(6);
+  std::cout << "/* Double Cascade 11 */\n";
+  test_double_cascade(11);
+  std::cout << "/* By Two 4 */\n";
+  test_bytwo(4);
+  std::cout << "/* By Two 6 */\n";
+  test_bytwo(6);
+  std::cout << "/* By Two 11 */\n";
+  test_bytwo(11);
 }

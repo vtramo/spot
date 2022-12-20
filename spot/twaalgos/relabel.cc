@@ -22,7 +22,7 @@
 #include <spot/twa/formula2bdd.hh>
 #include <spot/tl/formula.hh>
 
-#include "spot/priv/partitioned_relabel.hh"
+#include <spot/misc/partitioned_relabel.hh>
 
 #include <cmath>
 #include <algorithm>

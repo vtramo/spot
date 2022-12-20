@@ -31,7 +31,7 @@
 
 using namespace spot;
 
-struct bdd_partition
+struct SPOT_API bdd_partition
 {
   struct S
   {
@@ -100,7 +100,7 @@ struct bdd_partition
 }; // bdd_partition
 
 
-bdd_partition
+SPOT_API bdd_partition
 try_partition_me(const std::vector<bdd>& all_cond,
                  const std::vector<formula>& ap,
                  unsigned max_letter);

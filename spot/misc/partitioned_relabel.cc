@@ -19,7 +19,7 @@
 
 #include "config.h"
 
-#include "spot/priv/partitioned_relabel.hh"
+#include <spot/misc/partitioned_relabel.hh>
 
 #include <spot/twaalgos/hoa.hh>
 #include <sstream>
@@ -89,6 +89,7 @@ bdd_partition::dump(std::ostream& os) const
 
   // Print it
   print_hoa(os, m);
+  os.put('\n');
 }
 
 relabeling_map
@@ -187,6 +188,15 @@ bdd_partition::verify(bool verbose)
 
   // Check for completeness
   const unsigned No = all_cond_.size();
+  std::unordered_map<unsigned, bdd> node2oldcond;
+  node2oldcond.reserve(treated.size());
+  std::for_each(treated.cbegin(), treated.cend(),
+                [&node2oldcond](const auto& p)
+                  {
+                    assert(node2oldcond.find(p.second)
+                           == node2oldcond.cend());
+                    node2oldcond[p.second] = p.first;
+                  });
 
   auto search_leaves
         = [&](unsigned s, auto&& search_leaves_) -> bdd
@@ -194,7 +204,7 @@ bdd_partition::verify(bool verbose)
       if (ig->state_storage(s).succ == 0)
         {
           // Leaf
-          return ig->state_storage(s).new_label;
+          return node2oldcond.at(s);
         }
       else
         {
@@ -261,6 +271,9 @@ try_partition_me(const std::vector<bdd>& all_cond,
   for (unsigned io = 0; io < Norig; ++io)
     {
       bdd cond = all_cond[io];
+      if (cond == bddfalse)
+        throw std::runtime_error("try_partition_me(): bddfalse can not "
+                                 "be part of the original letters!\n");
 
       const auto Nt = treated.size();
       for (size_t in = 0; in < Nt; ++in)
@@ -298,36 +311,31 @@ try_partition_me(const std::vector<bdd>& all_cond,
                 {
                   // They truly intersect and we need to search
                   // if they alreay exist
-                  auto pwoc_it
-                    = std::find_if(treated.cbegin(), treated.cend(),
-                                    [propwocond](const auto& p)
-                                      {
-                                        return p.first == propwocond;
-                                      });
-                  auto inter_it
-                    = std::find_if(treated.cbegin(), treated.cend(),
-                                    [inter](const auto& p)
-                                      {
-                                        return p.first == inter;
-                                      });
+                  // subsets of current letter should never exist
+                  // or the partition precond is violated
+                  assert(all_inter.find(propwocond) == all_inter.end());
+
+                  auto inter_it = all_inter.find(inter);
 
                   // Only implies prop
-                  unsigned dst =
-                      pwoc_it == treated.cend() ? ig.new_state()
-                                                : pwoc_it->second;
-                  ig.new_edge(treated[in].second, dst);
-                  if (pwoc_it == treated.cend())
-                    all_inter[propwocond] = dst;
+                  unsigned dst_pwoc = ig.new_state();
+                  ig.new_edge(treated[in].second, dst_pwoc);
 
                   // Implies prop and cond
-                  dst = inter_it == treated.cend() ? ig.new_state()
+                  unsigned dst_inter
+                    = inter_it == all_inter.cend() ? ig.new_state()
                                                    : inter_it->second;
-                  ig.new_edge(treated[in].second, dst);
-                  ig.new_edge(io, dst);
-                  if (inter_it == treated.cend())
-                    all_inter[inter] = dst;
+                  ig.new_edge(treated[in].second, dst_inter);
+                  ig.new_edge(io, dst_inter);
+                  if (inter_it == all_inter.cend())
+                    {
+                      all_inter[inter] = dst_inter;
+                      treated.emplace_back(inter, dst_inter);
+                    }
 
                   // Update
+                  treated[in].first = propwocond;
+                  treated[in].second = dst_pwoc;
                   cond = condwoprop;
                 }
 
@@ -345,6 +353,6 @@ try_partition_me(const std::vector<bdd>& all_cond,
     }
 
   result.relabel_succ = true;
-  assert(result.verify(true));
+  //assert(result.verify(true));
   return result;
 }

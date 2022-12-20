@@ -39,12 +39,12 @@
 #include <spot/twaalgos/product.hh>
 #include <spot/twaalgos/relabel.hh>
 #include <spot/twaalgos/synthesis.hh>
-#include "spot/priv/partitioned_relabel.hh"
+#include <spot/misc/partitioned_relabel.hh>
 #include <spot/twaalgos/relabel.hh>
 #include <picosat/picosat.h>
 
 
-#define TRACE
+//#define TRACE
 #ifdef TRACE
 #  define trace std::cerr
 #else
