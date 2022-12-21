@@ -60,6 +60,213 @@
 
 namespace
 {
+  // loggers
+
+  static std::unique_ptr<std::ofstream> sat_csv_file;
+  static std::unique_ptr<std::ofstream> red_csv_file;
+
+  struct fwrapper{
+    std::string fname;
+    std::FILE* f;
+    fwrapper(const std::string& name)
+      : fname{name}
+      , f{std::fopen(name.c_str(), "a")}
+    {
+      if (!f)
+        throw std::runtime_error("`" + name +
+                                 "' could not be oppened for writing.");
+    }
+    ~fwrapper()
+    {
+      std::fclose(f);
+      f = nullptr;
+    }
+    fwrapper& operator=(const fwrapper&) = delete;
+    fwrapper& operator=(fwrapper&&) = delete;
+    fwrapper(const fwrapper&) = delete;
+    fwrapper(fwrapper&&) = delete;
+  };
+  static std::unique_ptr<fwrapper> sat_dimacs_file;
+  static std::string sat_instance_name = "";
+  static std::string red_instance_name = "";
+
+  struct stopwatcher
+  {
+    stopwatch sw;
+
+    void start()
+    {
+      sw.start();
+    }
+    double stop()
+    {
+      return sw.stop();
+    }
+    double restart()
+    {
+      double res = sw.stop();
+      sw.start();
+      return res;
+    }
+  };
+
+  struct satprob_info: public stopwatcher
+  {
+
+    double premin_time, reorg_time, partsol_time, player_incomp_time,
+           incomp_time, split_all_let_time, split_min_let_time,
+           split_cstr_time, prob_init_build_time, sat_time,
+           build_time, refine_time, total_time;
+    long long n_classes, n_refinement, n_lit, n_clauses,
+              n_iteration, n_letters_part, n_bisim_let, n_min_states, done;
+    std::string task;
+    const std::string instance;
+
+    satprob_info(const std::string& instance)
+      : stopwatcher()
+      , premin_time{-1}
+      , reorg_time{-1}
+      , partsol_time{-1}
+      , player_incomp_time{-1}
+      , incomp_time{-1}
+      , split_all_let_time{-1}
+      , split_min_let_time{-1}
+      , split_cstr_time{-1}
+      , prob_init_build_time{-1}
+      , sat_time{-1}
+      , build_time{-1}
+      , refine_time{-1}
+      , total_time{-1}
+      , n_classes{-1}
+      , n_refinement{-1}
+      , n_lit{-1}
+      , n_clauses{-1}
+      , n_iteration{-1}
+      , n_letters_part{-1}
+      , n_bisim_let{-1}
+      , n_min_states{-1}
+      , done{-1}
+      , task{}
+      , instance{instance+","}
+    {
+    }
+
+    // Writing also "flushes"
+    void write()
+    {
+      if (!sat_csv_file)
+        return;
+      auto f = [](std::ostream& o, auto& v, bool sep = true)
+        {
+          if (v >= 0)
+            o << v;
+          if (sep)
+            o.put(',');
+          v = -1;
+        };
+
+      auto& out = *sat_csv_file;
+      if (out.tellp() == 0)
+        {
+          out << "instance,task,premin_time,reorg_time,partsol_time,"
+              << "player_incomp_time,incomp_time,split_all_let_time,"
+              << "split_min_let_time,split_cstr_time,prob_init_build_time,"
+              << "sat_time,build_time,refine_time,total_time,n_classes,"
+              << "n_refinement,n_lit,n_clauses,n_iteration,n_letters_part,"
+              << "n_bisim_let,n_min_states,done\n";
+        }
+
+      assert(!task.empty());
+      out << instance;
+      out << task;
+      task = "";
+      out.put(',');
+
+      std::stringstream ss;
+
+      f(ss, premin_time);
+      f(ss, reorg_time);
+      f(ss, partsol_time);
+      f(ss, player_incomp_time);
+      f(ss, incomp_time);
+      f(ss, split_all_let_time);
+      f(ss, split_min_let_time);
+      f(ss, split_cstr_time);
+      f(ss, prob_init_build_time);
+      f(ss, sat_time);
+      f(ss, build_time);
+      f(ss, refine_time);
+      f(ss, total_time);
+      f(ss, n_classes);
+      f(ss, n_refinement);
+      f(ss, n_lit);
+      f(ss, n_clauses);
+      f(ss, n_iteration);
+      f(ss, n_letters_part);
+      f(ss, n_bisim_let);
+      f(ss, n_min_states);
+      f(ss, done, false);
+      out << ss.str();
+      out.put('\n');
+    }
+  };
+
+  struct redprob_info: public stopwatcher
+  {
+
+    double relabel_partition_time, relabel_time, total_time;
+    long long n_letters_part_env, n_letters_part_play, n_states;
+    std::string task;
+    const std::string instance;
+
+    redprob_info(const std::string& instance)
+      : stopwatcher()
+      , relabel_partition_time{-1}
+      , relabel_time{-1}
+      , total_time{-1}
+      , n_letters_part_env{-1}
+      , n_letters_part_play{-1}
+      , n_states{-1}
+      , instance{instance+","}
+    {
+    }
+
+    // Writing also "flushes"
+    void write()
+    {
+      if (!red_csv_file)
+        return;
+      auto f = [](std::ostream& o, auto& v, bool sep = true)
+        {
+          if (v >= 0)
+            o << v;
+          if (sep)
+            o.put(',');
+          v = -1;
+        };
+
+      auto& out = *red_csv_file;
+      if (out.tellp() == 0)
+        {
+          out << "instance,relabel_partition_time,relabel_time,total_time,"
+              << "n_letters_part_env,n_letters_part_play,n_states\n";
+        }
+
+      out << instance;
+
+      std::stringstream ss;
+
+      f(ss, relabel_partition_time);
+      f(ss, relabel_time);
+      f(ss, total_time);
+      f(ss, n_letters_part_env);
+      f(ss, n_letters_part_play);
+      f(ss, n_states, false);
+      out << ss.str();
+      out.put('\n');
+    }
+  };
+
   using namespace spot;
   bool is_deterministic_(const std::vector<bdd>& ins)
   {
@@ -96,35 +303,6 @@ namespace
     return true;
   }
 }
-
-namespace
-{
-  static std::unique_ptr<std::ofstream> sat_csv_file;
-  struct fwrapper{
-    std::string fname;
-    std::FILE* f;
-    fwrapper(const std::string& name)
-      : fname{name}
-      , f{std::fopen(name.c_str(), "a")}
-    {
-      if (!f)
-        throw std::runtime_error("`" + name +
-                                 "' could not be oppened for writing.");
-    }
-    ~fwrapper()
-    {
-      std::fclose(f);
-      f = nullptr;
-    }
-    fwrapper& operator=(const fwrapper&) = delete;
-    fwrapper& operator=(fwrapper&&) = delete;
-    fwrapper(const fwrapper&) = delete;
-    fwrapper(fwrapper&&) = delete;
-  };
-  static std::unique_ptr<fwrapper> sat_dimacs_file;
-  static std::string sat_instance_name = "";
-}
-
 
 namespace spot
 {
@@ -733,17 +911,35 @@ namespace
     assert(is_input_complete_mealy(mm));
     ensure_mealy("reduce_mealy", mm);
 
+    redprob_info ri(red_instance_name);
+    stopwatch sglob;
+    sglob.start();
+    ri.start();
+
     auto* splayers = mm->get_named_prop<region_t>("state-player");
     bool is_split = splayers != nullptr;
     auto nb_aps = mm->ap().size();
     auto nb_outs = get_synthesis_output_aps(mm).size();
     auto nb_ins = nb_aps - nb_outs;
 
+    // Only consider infinite runs
+    const unsigned Norig = mm->num_states();
+    mm->purge_dead_states();
+    const unsigned Npurged = mm->num_states();
+    // Check if purging invalidated state_players
+    if (is_split && (Norig != Npurged))
+      {
+        alternate_players(mm, false, false);
+        assert(is_input_complete_mealy(mm)
+               && "Purging finite traces caused input incompleteness.\n");
+      }
 
     // We are only allowed to relabel when split
     game_relabeling_map rmg;
     if (is_split)
       {
+        assert(is_split_mealy(mm, true));
+        ri.start();
         std::set<bdd, bdd_less_than> conds_in;
         std::set<bdd, bdd_less_than> conds_out;
         for (const auto& e : mm->edges())
@@ -757,29 +953,39 @@ namespace
         if (fact_div_conds && is_split)
           {
             bool relab_in
-                = conds_in.size() < std::pow(2, nb_ins) / fact_div_conds;
+                = conds_in.size() < (std::pow(2, nb_ins) / fact_div_conds);
             bool relab_out
-                = conds_out.size() < std::pow(2, nb_outs) / fact_div_conds;
+                = conds_out.size() < (std::pow(2, nb_outs) / fact_div_conds);
             rmg = partitioned_game_relabel_here(mm, relab_in, relab_out,
                                           false, false,
-                                          relab_in, relab_out,
                                           std::pow(2, nb_ins / fact_div_aps),
                                           std::pow(2,
                                                    nb_outs / fact_div_aps));
+            // Optimize and use direcly bdd_partition?
+            ri.n_letters_part_env = rmg.env_map.size();
+            ri.n_letters_part_play = rmg.player_map.size();
           }
+        ri.relabel_partition_time = ri.stop();
       }
 
-
-
-    // Only consider infinite runs
-    mm->purge_dead_states();
     auto sp = specialization_graph(mm, output_assignment, false);
 
     auto repr = sp.representatives();
     if (sp.is_irreducible())
       {
         if (is_split)
-          relabel_game_here(mm, rmg);
+          {
+            ri.start();
+            relabel_game_here(mm, rmg);
+            ri.relabel_time = ri.stop();
+            const auto& sp = get_state_players(mm);
+            ri.n_states = std::count(sp.cbegin(), sp.cend(), false);
+          }
+        else
+          ri.n_states = mm->num_states();
+
+        ri.total_time = sglob.stop();
+        ri.write();
         return;
       }
 
@@ -808,28 +1014,28 @@ namespace
           }
       }
 
-    if (is_split)
-      relabel_game_here(mm, rmg);
-
     mm->purge_unreachable_states();
+    const unsigned Nreduced = mm->num_states();
+
+    if (is_split)
+      {
+        if (Nreduced != Npurged)
+          alternate_players(mm, false, false);
+        ri.start();
+        relabel_game_here(mm, rmg);
+        ri.relabel_time = ri.stop();
+        ri.n_states = mm->num_states();
+        auto& sp = get_state_players(mm);
+        ri.n_states = std::count(sp.cbegin(), sp.cend(), false);
+        assert(is_split_mealy(mm, true)
+               && "Machine is no longer a split mealy after reduction");
+      }
+    else
+      ri.n_states = mm->num_states();
+
     assert(is_mealy(mm));
-  }
-
-  twa_graph_ptr reduce_mealy_(const const_twa_graph_ptr& mm,
-                              bool output_assignment,
-                              unsigned fact_div_conds = 10,
-                              unsigned fact_div_aps = 4)
-  {
-    auto mmc = make_twa_graph(mm, twa::prop_set::all(), true);
-    mmc->copy_ap_of(mm);
-    mmc->copy_acceptance_of(mm);
-
-    reduce_mealy_here_(mmc, output_assignment, fact_div_conds, fact_div_aps);
-
-    assert(is_mealy(mmc)
-           && (!mm->get_named_prop<region_t>("state-player")
-               || is_split_mealy_specialization(mm, mmc)));
-    return mmc;
+    ri.total_time = sglob.stop();
+    ri.write();
   }
 } // anonymous
 
@@ -987,7 +1193,18 @@ namespace spot
   twa_graph_ptr reduce_mealy(const const_twa_graph_ptr& mm,
                              bool output_assignment)
   {
-    return reduce_mealy_(mm, output_assignment);
+
+    auto mmc = make_twa_graph(mm, twa::prop_set::all(), true);
+    mmc->copy_ap_of(mm);
+    mmc->copy_acceptance_of(mm);
+
+    reduce_mealy_here(mmc, output_assignment);
+
+    assert(is_mealy(mmc)
+        && (!mm->get_named_prop<region_t>("state-player")
+            || is_split_mealy_specialization(mm, mmc)));
+
+    return mmc;
   }
 
   void reduce_mealy_here(twa_graph_ptr& mm, bool output_assignment)
@@ -1001,19 +1218,46 @@ namespace spot
     if ((si.minimize_lvl < 1) || (si.minimize_lvl > 2))
       throw std::runtime_error("reduce_mealy(): minimize_lvl "
                                "must be 1 or 2 for reduce_mealy().");
-    return reduce_mealy_(mm, si.minimize_lvl == 2,
-                         si.opt.get("red_fact_div_conds", 10),
-                         si.opt.get("red_fact_div_aps", 4));
+
+    auto mmc = make_twa_graph(mm, twa::prop_set::all(), true);
+    mmc->copy_ap_of(mm);
+    mmc->copy_acceptance_of(mm);
+
+    reduce_mealy_here(mmc, si);
+
+    assert(is_mealy(mmc)
+        && (!mm->get_named_prop<region_t>("state-player")
+            || is_split_mealy_specialization(mm, mmc)));
+
+    return mmc;
   }
 
-  void reduce_mealy_here(twa_graph_ptr& mm, synthesis_info& si)
+  void
+  reduce_mealy_here(twa_graph_ptr& mm, synthesis_info& si)
   {
     if ((si.minimize_lvl < 1) || (si.minimize_lvl > 2))
       throw std::runtime_error("reduce_mealy(): minimize_lvl "
                                "must be 1 or 2 for reduce_mealy().");
+
+    std::string csvfile = si.opt.get_str("redlogcsv");
+
+    if (!csvfile.empty())
+      {
+        red_csv_file = std::make_unique<std::ofstream>
+          (csvfile, std::ios_base::ate | std::ios_base::app);
+        if (!*red_csv_file)
+          throw std::runtime_error("could not open `" + csvfile
+                                   + "' for writing");
+        red_csv_file->exceptions(std::ofstream::failbit
+                                 | std::ofstream::badbit);
+      }
+
+    red_instance_name = si.opt.get_str("redinstancename");
+
     reduce_mealy_here_(mm, si.minimize_lvl == 2,
                        si.opt.get("red_fact_div_conds", 10),
                        si.opt.get("red_fact_div_aps", 4));
+    red_csv_file.reset();
   }
 
 }
@@ -1044,121 +1288,6 @@ namespace
 #else
   void trace_clause(const std::vector<int>&){}
 #endif
-  struct satprob_info
-  {
-    stopwatch sw;
-
-    double premin_time, reorg_time, partsol_time, player_incomp_time,
-           incomp_time, split_all_let_time, split_min_let_time,
-           split_cstr_time, prob_init_build_time, sat_time,
-           build_time, refine_time, total_time;
-    long long n_classes, n_refinement, n_lit, n_clauses,
-              n_iteration, n_letters_part, n_bisim_let, n_min_states, done;
-    std::string task;
-    const std::string instance;
-
-    satprob_info(const std::string& instance)
-      : premin_time{-1}
-      , reorg_time{-1}
-      , partsol_time{-1}
-      , player_incomp_time{-1}
-      , incomp_time{-1}
-      , split_all_let_time{-1}
-      , split_min_let_time{-1}
-      , split_cstr_time{-1}
-      , prob_init_build_time{-1}
-      , sat_time{-1}
-      , build_time{-1}
-      , refine_time{-1}
-      , total_time{-1}
-      , n_classes{-1}
-      , n_refinement{-1}
-      , n_lit{-1}
-      , n_clauses{-1}
-      , n_iteration{-1}
-      , n_letters_part{-1}
-      , n_bisim_let{-1}
-      , n_min_states{-1}
-      , done{-1}
-      , task{}
-      , instance{instance+","}
-    {
-    }
-
-    void start()
-    {
-      sw.start();
-    }
-    double stop()
-    {
-      return sw.stop();
-    }
-    double restart()
-    {
-      double res = sw.stop();
-      sw.start();
-      return res;
-    }
-    // Writing also "flushes"
-    void write()
-    {
-      if (!sat_csv_file)
-        return;
-      auto f = [](std::ostream& o, auto& v, bool sep = true)
-        {
-          if (v >= 0)
-            o << v;
-          if (sep)
-            o.put(',');
-          v = -1;
-        };
-
-      auto& out = *sat_csv_file;
-      if (out.tellp() == 0)
-        {
-          out << "instance,task,premin_time,reorg_time,partsol_time,"
-              << "player_incomp_time,incomp_time,split_all_let_time,"
-              << "split_min_let_time,split_cstr_time,prob_init_build_time,"
-              << "sat_time,build_time,refine_time,total_time,n_classes,"
-              << "n_refinement,n_lit,n_clauses,n_iteration,n_letters_part,"
-              << "n_bisim_let,n_min_states,done\n";
-        }
-
-      assert(!task.empty());
-      out << instance;
-      out << task;
-      task = "";
-      out.put(',');
-
-      std::stringstream ss;
-
-      f(ss, premin_time);
-      f(ss, reorg_time);
-      f(ss, partsol_time);
-      f(ss, player_incomp_time);
-      f(ss, incomp_time);
-      f(ss, split_all_let_time);
-      f(ss, split_min_let_time);
-      f(ss, split_cstr_time);
-      f(ss, prob_init_build_time);
-      f(ss, sat_time);
-      f(ss, build_time);
-      f(ss, refine_time);
-      f(ss, total_time);
-      f(ss, n_classes);
-      f(ss, n_refinement);
-      f(ss, n_lit);
-      f(ss, n_clauses);
-      f(ss, n_iteration);
-      f(ss, n_letters_part);
-      f(ss, n_bisim_let);
-      f(ss, n_min_states);
-      f(ss, done, false);
-      out << ss.str();
-      out.put('\n');
-    }
-  };
-
 
   template <class CONT>
   bool all_of(const CONT& c)

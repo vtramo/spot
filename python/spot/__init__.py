@@ -1343,6 +1343,63 @@ def minimize_mealy(mm, opt = -1, display_log = False, return_log = False):
     else:
         return minmealy(mm, opt)
 
+def reduce_mealy_here(mm, opt = True, display_log = False, return_log = False):
+    from spot.impl import reduce_mealy_here as redmealy
+
+    if (isinstance(opt, (bool, int))):
+        lvl = int(opt)
+        opt = synthesis_info()
+        opt.minimize_lvl = lvl + 1
+    else:
+        assert isinstance(opt, synthesis_info)
+
+    if display_log or return_log:
+        import pandas as pd
+        with tempfile.NamedTemporaryFile(dir='.', suffix='.minlog') as t:
+            opt.opt.set_str("redlogcsv", t.name)
+            redmealy(mm, opt)
+
+            dfrm = pd.read_csv(t.name, dtype=object)
+            if display_log:
+                from IPython.display import display
+                del dfrm['instance']
+                display(dfrm)
+            if return_log:
+                return dfrm
+            else:
+                return None
+    else:
+        redmealy(mm, opt)
+        return None
+
+def reduce_mealy(mm, opt=True, display_log = False, return_log = False):
+    from spot.impl import reduce_mealy as redmealy
+
+    if (isinstance(opt, (bool, int))):
+        lvl = int(opt)
+        opt = synthesis_info()
+        opt.minimize_lvl = lvl + 1
+    else:
+        assert isinstance(opt, synthesis_info)
+
+    if display_log or return_log:
+        import pandas as pd
+        with tempfile.NamedTemporaryFile(dir='.', suffix='.minlog') as t:
+            opt.opt.set_str("redlogcsv", t.name)
+            mmr = redmealy(mm, opt)
+
+            dfrm = pd.read_csv(t.name, dtype=object)
+            if display_log:
+                from IPython.display import display
+                del dfrm['instance']
+                display(dfrm)
+            if return_log:
+                return mmr, dfrm
+            else:
+                return mmr
+    else:
+        mmr = redmealy(mm, opt)
+        return mmr
 
 
 def parse_word(word, dic=_bdd_dict):
