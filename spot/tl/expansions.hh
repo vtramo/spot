@@ -32,6 +32,18 @@ namespace spot
 {
   using expansion_t = std::map<bdd, formula, bdd_less_than>;
 
+  class expansion_builder
+  {
+  public:
+    using exp_map = std::map<bdd, formula, bdd_less_than>;
+
+    virtual void insert(bdd letter, formula suffix) = 0;
+    virtual void finalize() = 0;
+    virtual exp_map& result() = 0;
+    virtual bool empty() = 0;
+    virtual void clear() = 0;
+  };
+
   SPOT_API expansion_t
   expansion(formula f, const bdd_dict_ptr& d, void *owner);
 
