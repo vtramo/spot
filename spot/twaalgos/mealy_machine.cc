@@ -60,6 +60,7 @@
 
 namespace
 {
+  using namespace spot;
   // loggers
 
   static std::unique_ptr<std::ofstream> sat_csv_file;

@@ -28,79 +28,79 @@
 #include <spot/twa/twagraph.hh>
 #include <spot/misc/bddlt.hh>
 
-
-using namespace spot;
-
-struct SPOT_API bdd_partition
+namespace spot
 {
-  struct S
+  struct SPOT_API bdd_partition
   {
-    bdd new_label = bddfalse;
-  };
-  struct T
-  {
-  };
-  using implication_graph = digraph<S, T>;
+    struct S
+    {
+      bdd new_label = bddfalse;
+    };
+    struct T
+    {
+    };
+    using implication_graph = digraph<S, T>;
 
-  // The original conditions and aps to be partitioned
-  const std::vector<bdd> all_cond_;
-  const std::vector<formula> all_orig_ap_;
-  // Graph with the invariant that
-  // children imply parents
-  // Leaves from the partition
-  // original conditions are "root" nodes
-  std::unique_ptr<implication_graph> ig;
-  // todo: technically there are at most two successors, so a graph
-  // is "too" generic
-  // All conditions currently part of the partition
-  // unsigned corresponds to the associated node
-  std::vector<std::pair<bdd, unsigned>> treated;
-  std::unordered_map<bdd, unsigned, bdd_hash> all_inter_;
-  std::vector<formula> new_aps;
-  bool relabel_succ = false;
+    // The original conditions and aps to be partitioned
+    const std::vector<bdd> all_cond_;
+    const std::vector<formula> all_orig_ap_;
+    // Graph with the invariant that
+    // children imply parents
+    // Leaves from the partition
+    // original conditions are "root" nodes
+    std::unique_ptr<implication_graph> ig;
+    // todo: technically there are at most two successors, so a graph
+    // is "too" generic
+    // All conditions currently part of the partition
+    // unsigned corresponds to the associated node
+    std::vector<std::pair<bdd, unsigned>> treated;
+    std::unordered_map<bdd, unsigned, bdd_hash> all_inter_;
+    std::vector<formula> new_aps;
+    bool relabel_succ = false;
 
-  bdd_partition()
-    : all_cond_()
-    , all_orig_ap_()
-  {
-  }
-  bdd_partition(const std::vector<bdd>& all_cond,
-                const std::vector<formula>& all_orig_ap)
-    : all_cond_(all_cond)
-    , all_orig_ap_(all_orig_ap)
-    , ig{std::make_unique<implication_graph>(2*all_cond.size(),
-                                             2*all_cond.size())}
-  {
-    // Create the roots of all old conditions
-    // Each condition is associated to the state with
-    // the same index
-    const unsigned Norig = all_cond.size();
-    ig->new_states(Norig);
-  }
+    bdd_partition()
+      : all_cond_()
+      , all_orig_ap_()
+    {
+    }
+    bdd_partition(const std::vector<bdd>& all_cond,
+                  const std::vector<formula>& all_orig_ap)
+      : all_cond_(all_cond)
+      , all_orig_ap_(all_orig_ap)
+      , ig{std::make_unique<implication_graph>(2*all_cond.size(),
+                                              2*all_cond.size())}
+    {
+      // Create the roots of all old conditions
+      // Each condition is associated to the state with
+      // the same index
+      const unsigned Norig = all_cond.size();
+      ig->new_states(Norig);
+    }
 
-  // Facilitate conversion
-  // This can only be called when letters have already
-  // been computed
-  relabeling_map
-  to_relabeling_map(twa_graph& for_me) const;
+    // Facilitate conversion
+    // This can only be called when letters have already
+    // been computed
+    relabeling_map
+    to_relabeling_map(twa_graph& for_me) const;
 
-  relabeling_map
-  to_relabeling_map(const twa_graph_ptr& for_me) const;
+    relabeling_map
+    to_relabeling_map(const twa_graph_ptr& for_me) const;
 
-  // Dump as hoa to stream
-  // Old conditions are shown as state name;
-  // New conditions are shown as self-loop
-  // Can only be called when leters have already been
-  // computed
-  void dump(std::ostream& os) const;
+    // Dump as hoa to stream
+    // Old conditions are shown as state name;
+    // New conditions are shown as self-loop
+    // Can only be called when leters have already been
+    // computed
+    void dump(std::ostream& os) const;
 
-  // Verify if condition is valid
-  bool verify(bool verbose);
+    // Verify if condition is valid
+    bool verify(bool verbose);
 
-}; // bdd_partition
+  }; // bdd_partition
 
 
-SPOT_API bdd_partition
-try_partition_me(const std::vector<bdd>& all_cond,
-                 const std::vector<formula>& ap,
-                 unsigned max_letter);
+  SPOT_API bdd_partition
+  try_partition_me(const std::vector<bdd>& all_cond,
+                   const std::vector<formula>& ap,
+                   unsigned max_letter);
+}
