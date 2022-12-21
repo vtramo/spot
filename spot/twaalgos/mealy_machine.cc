@@ -217,7 +217,6 @@ namespace
 
     double relabel_partition_time, relabel_time, total_time;
     long long n_letters_part_env, n_letters_part_play, n_states;
-    std::string task;
     const std::string instance;
 
     redprob_info(const std::string& instance)
@@ -4253,8 +4252,9 @@ namespace
             // Remove the variable clauses
             // This is suboptimal but the contexts form a stack so...
             auto oldrefine = si.n_refinement;
-            si.write();
             si.task = "refinement";
+            si.write();
+            si.task = "sat";
             si.n_classes = n_classes;
             si.n_refinement = oldrefine + infeasible_classes.size();
             mm_pb.unset_variable_clauses();
@@ -4359,6 +4359,8 @@ namespace
       {
         si.done = 1;
         si.total_time = sglob.stop();
+        if (si.task.empty())
+          si.task = "early_exit";
         si.write();
         // Always keep machines split
         if (mm->get_named_prop<region_t>("state-player"))
