@@ -28,14 +28,138 @@ namespace spot
 {
   namespace
   {
-    static void
-    insert_or_merge(expansion_t& exp, bdd letter, formula suffix)
+    class expansion_basic final : expansion_builder
     {
-      auto res = exp.insert({letter, suffix});
+    public:
+      using exp_map = expansion_builder::exp_map;
+
+      expansion_basic()
+      {}
+
+      expansion_basic(exp_map&& m)
+        : bdd2formula_(m)
+        , formula2bdd_()
+      {}
+
+      void insert(bdd letter, formula suffix) final;
+
+      void finalize() final
+      {}
+
+      exp_map& result() final
+      {
+        return bdd2formula_;
+      }
+
+      bool empty() final
+      {
+        return bdd2formula_.empty();
+      }
+
+      void clear() final
+      {
+        bdd2formula_.clear();
+      }
+
+    private:
+      exp_map bdd2formula_;
+      std::map<formula, exp_map::iterator> formula2bdd_;
+    };
+
+    void expansion_basic::insert(bdd letter, formula suffix)
+    {
+      auto res = bdd2formula_.insert({letter, suffix});
       if (!res.second)
         {
           auto it = res.first;
           it->second = formula::OrRat({it->second, suffix});
+        }
+    }
+
+    class expansion_merge_formulas final : expansion_builder
+    {
+    public:
+      using exp_map = expansion_builder::exp_map;
+
+      expansion_merge_formulas()
+      {}
+
+      expansion_merge_formulas(exp_map&& m)
+        : res_()
+        , terms_(m.begin(), m.end())
+      {}
+
+      void insert(bdd letter, formula suffix) final;
+
+      void finalize() final;
+
+      exp_map& result() final
+      {
+        return res_;
+      }
+
+      bool empty() final
+      {
+        return terms_.empty();
+      }
+
+      void clear() final
+      {
+        terms_.clear();
+        res_.clear();
+      }
+
+    private:
+      std::vector<std::pair<bdd, formula>> terms_;
+      exp_map res_;
+    };
+
+    void expansion_merge_formulas::insert(bdd letter, formula suffix)
+    {
+      terms_.push_back({letter, suffix});
+    }
+
+    void expansion_merge_formulas::finalize()
+    {
+      res_.clear();
+
+      // Given such terms:
+      //
+      // - a . ϕ1
+      // - a . ϕ2
+      // - b . ϕ1
+      //
+      // Merge them by suffix:
+      //
+      // - (a ∨ b) . ϕ1
+      // - a . ϕ2
+      std::map<formula, bdd> suffix2letter;
+      for (const auto& [letter, suffix]: terms_)
+        {
+          auto res = suffix2letter.insert({suffix, letter});
+          if (!res.second)
+            {
+              auto it = res.first;
+              it->second |= letter;
+            }
+        }
+
+      // Given such terms:
+      //
+      // - a . ϕ1
+      // - a . ϕ2
+      //
+      // Merge them by letter:
+      //
+      // - a . (ϕ1 ∨ ϕ2)
+      for (const auto& [suffix, letter]: suffix2letter)
+        {
+          auto res = res_.insert({letter, suffix});
+          if (!res.second)
+            {
+              auto it = res.first;
+              it->second = formula::OrRat({it->second, suffix});
+            }
         }
     }
 
@@ -58,6 +182,7 @@ namespace spot
 
       return std::vector(res.begin(), res.end());
     }
+
   formula
   rewrite_and_nlm(formula f)
     {
@@ -130,6 +255,8 @@ namespace spot
   expansion_t
   expansion(formula f, const bdd_dict_ptr& d, void *owner)
   {
+    using expansion_type = expansion_merge_formulas;
+
     if (f.is_boolean())
       {
         auto f_bdd = formula_to_bdd(f, d, owner);
@@ -155,10 +282,10 @@ namespace spot
           {
             auto exps = expansion(f[0], d, owner);
 
-            expansion_t res;
+            expansion_type res;
             for (const auto& [bdd_l, form] : exps)
               {
-                res.insert({bdd_l, formula::Concat({form, f.all_but(0)})});
+                res.insert(bdd_l, formula::Concat({form, f.all_but(0)}));
               }
 
             if (f[0].accepts_eword())
@@ -166,10 +293,12 @@ namespace spot
                 auto exps_rest = expansion(f.all_but(0), d, owner);
                 for (const auto& [bdd_l, form] : exps_rest)
                   {
-                    insert_or_merge(res, bdd_l, form);
+                    res.insert(bdd_l, form);
                   }
               }
-            return res;
+
+            res.finalize();
+            return res.result();
           }
 
         case op::FStar:
@@ -187,10 +316,10 @@ namespace spot
             auto E_i_j_minus = formula::FStar(E, min, max);
 
             auto exp = expansion(E, d, owner);
-            expansion_t res;
+            expansion_type res;
             for (const auto& [li, ei] : exp)
               {
-                insert_or_merge(res, li, formula::Fusion({ei, E_i_j_minus}));
+                res.insert(li, formula::Fusion({ei, E_i_j_minus}));
 
                 if (ei.accepts_eword() && f.min() != 0)
                   {
@@ -198,14 +327,15 @@ namespace spot
                       {
                         // FIXME: build bdd once
                         if ((li & ki) != bddfalse)
-                          insert_or_merge(res, li & ki, fi);
+                          res.insert(li & ki, fi);
                       }
                   }
               }
             if (f.min() == 0)
-              insert_or_merge(res, bddtrue, formula::eword());
+              res.insert(bddtrue, formula::eword());
 
-            return res;
+            res.finalize();
+            return res.result();
           }
 
         case op::Star:
@@ -217,13 +347,14 @@ namespace spot
 
             auto exps = expansion(f[0], d, owner);
 
-            expansion_t res;
+            expansion_type res;
             for (const auto& [bdd_l, form] : exps)
               {
-                res.insert({bdd_l, formula::Concat({form, formula::Star(f[0], min, max)})});
+                res.insert(bdd_l, formula::Concat({form, formula::Star(f[0], min, max)}));
               }
 
-            return res;
+            res.finalize();
+            return res.result();
           }
 
         case op::AndNLM:
@@ -236,16 +367,17 @@ namespace spot
           {
             auto exps = expansion(f[0], d, owner);
 
-            expansion_t ndet_res;
+            expansion_type ndet_res;
             for (const auto& [bdd_l, form] : exps)
               {
-                ndet_res.insert({bdd_l, form});
+                ndet_res.insert(bdd_l, form);
               }
 
             bdd or_labels = bddfalse;
             bdd support = bddtrue;
             bool is_det = true;
-            for (const auto& [l, _] : ndet_res)
+            ndet_res.finalize();
+            for (const auto& [l, _] : ndet_res.result())
               {
                 support &= bdd_support(l);
                 if (is_det)
@@ -257,32 +389,33 @@ namespace spot
               {
                 // we don't need to determinize the expansion, it's already
                 // deterministic
-                for (auto& [_, dest] : ndet_res)
+                for (auto& [_, dest] : ndet_res.result())
                   dest = formula::first_match(dest);
-                return ndet_res;
+                return ndet_res.result();
               }
 
-            expansion_t res;
+            expansion_type res;
             // TODO: extraire en fonction indépendante + lambda choix wrapper
             std::vector<formula> dests;
             for (bdd l: minterms_of(or_labels, support))
               {
-                for (const auto& [ndet_label, ndet_dest] : ndet_res)
+                for (const auto& [ndet_label, ndet_dest] : ndet_res.result())
                   {
                     if (bdd_implies(l, ndet_label))
                       dests.push_back(ndet_dest);
                   }
                 formula or_dests = formula::OrRat(dests);
-                res.insert({l, formula::first_match(or_dests)});
+                res.insert(l, formula::first_match(or_dests));
                 dests.clear();
               }
 
-            return res;
+            res.finalize();
+            return res.result();
           }
 
         case op::Fusion:
           {
-            expansion_t res;
+            expansion_type res;
             formula E = f[0];
             formula F = f.all_but(0);
 
@@ -296,17 +429,18 @@ namespace spot
                   {
                     for (const auto& [kj, fj] : Fj)
                         if ((li & kj) != bddfalse)
-                          insert_or_merge(res, li & kj, fj);
+                          res.insert(li & kj, fj);
                   }
-                insert_or_merge(res, li, formula::Fusion({ei, F}));
+                res.insert(li, formula::Fusion({ei, F}));
               }
 
-            return res;
+            res.finalize();
+            return res.result();
           }
 
         case op::AndRat:
           {
-            expansion_t res;
+            expansion_type res;
             for (const auto& sub_f : f)
               {
                 auto exps = expansion(sub_f, d, owner);
@@ -322,29 +456,32 @@ namespace spot
 
                 if (res.empty())
                   {
-                    res = std::move(exps);
+                    res = expansion_type(std::move(exps));
+                    res.finalize();
                     continue;
                   }
 
-                expansion_t new_res;
+                expansion_type new_res;
                 for (const auto& [l_key, l_val] : exps)
                   {
-                    for (const auto& [r_key, r_val] : res)
+                    for (const auto& [r_key, r_val] : res.result())
                       {
                         if ((l_key & r_key) != bddfalse)
-                          insert_or_merge(new_res, l_key & r_key, formula::multop(f.kind(), {l_val, r_val}));
+                          new_res.insert(l_key & r_key, formula::multop(f.kind(), {l_val, r_val}));
                       }
                   }
 
                 res = std::move(new_res);
+                res.finalize();
               }
 
-            return res;
+            res.finalize();
+            return res.result();
           }
 
         case op::OrRat:
           {
-            expansion_t res;
+            expansion_type res;
             for (const auto& sub_f : f)
               {
                 auto exps = expansion(sub_f, d, owner);
@@ -353,15 +490,16 @@ namespace spot
 
                 if (res.empty())
                   {
-                    res = std::move(exps);
+                    res = expansion_type(std::move(exps));
                     continue;
                   }
 
                 for (const auto& [label, dest] : exps)
-                  insert_or_merge(res, label, dest);
+                  res.insert(label, dest);
               }
 
-            return res;
+            res.finalize();
+            return res.result();
           }
 
         default:
