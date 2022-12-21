@@ -1014,10 +1014,10 @@ main(int argc, char **argv)
                    [](auto x) { return x.type != job_type::AUT_FILENAME;})
       != jobs.end();
 
-    if (need_translate)
+    if (!need_translate) // No translation -> no need for these options
     {
-      gi_.opt.set("tls-impl", 1);  // no automata-based implication check
-      gi_.opt.set("wdba-minimize", 2); // minimize only syntactic oblig
+      gi_.opt.get("tls-impl");  // no automata-based implication check
+      gi_.opt.get("wdba-minimize"); // minimize only syntactic oblig
     }
 
     check_no_formula();
