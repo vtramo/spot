@@ -1011,7 +1011,7 @@ main(int argc, char **argv)
 
     bool need_translate =
       std::find_if(jobs.begin(), jobs.end(),
-                   [](auto x) { return x.type != job_type::AUT_FILENAME;})
+                   [](auto x) { return x.type != job_type::AUT_FILENAME; })
       != jobs.end();
 
     if (!need_translate) // No translation -> no need for these options
