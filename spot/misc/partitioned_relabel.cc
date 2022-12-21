@@ -176,7 +176,8 @@ namespace spot
       {
         for (unsigned l2 = l1 + 1; l2 < Nl; ++l2)
           {
-            if (bdd_have_common_assignment(treated[l1].first, treated[l2].first))
+            if (bdd_have_common_assignment(treated[l1].first,
+                                           treated[l2].first))
               {
                 if (verbose)
                   std::cerr << "letter " << l1 << ": " << treated[l1].first
