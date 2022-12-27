@@ -117,7 +117,7 @@ namespace
     double premin_time, reorg_time, partsol_time, player_incomp_time,
            incomp_time, split_all_let_time, split_min_let_time,
            split_cstr_time, prob_init_build_time, sat_time,
-           build_time, refine_time, total_time;
+           build_time, refine_time, relabel_partition_time, total_time;
     long long n_classes, n_refinement, n_lit, n_clauses,
               n_iteration, n_letters_part, n_bisim_let, n_min_states, done;
     std::string task;
@@ -137,6 +137,7 @@ namespace
       , sat_time{-1}
       , build_time{-1}
       , refine_time{-1}
+      , relabel_partition_time{-1}
       , total_time{-1}
       , n_classes{-1}
       , n_refinement{-1}
@@ -172,9 +173,10 @@ namespace
           out << "instance,task,premin_time,reorg_time,partsol_time,"
               << "player_incomp_time,incomp_time,split_all_let_time,"
               << "split_min_let_time,split_cstr_time,prob_init_build_time,"
-              << "sat_time,build_time,refine_time,total_time,n_classes,"
-              << "n_refinement,n_lit,n_clauses,n_iteration,n_letters_part,"
-              << "n_bisim_let,n_min_states,done\n";
+              << "sat_time,build_time,refine_time,relabel_partition_time,"
+              << "total_time,n_classes,n_refinement,n_lit,"
+              << "n_clauses,n_iteration,n_letters_part,n_bisim_let,"
+              << "n_min_states,done\n";
         }
 
       assert(!task.empty());
@@ -197,6 +199,7 @@ namespace
       f(ss, sat_time);
       f(ss, build_time);
       f(ss, refine_time);
+      f(ss, relabel_partition_time);
       f(ss, total_time);
       f(ss, n_classes);
       f(ss, n_refinement);
@@ -1873,10 +1876,13 @@ namespace
     set_synthesis_outputs(mm2, get_synthesis_outputs(mm));
 
     // todo get a good value for cutoff
+    stopwatch sw;
+    sw.start();
     auto relabel_maps
         = partitioned_game_relabel_here(mm2, true, false, true,
                                         false, -1u, -1u,
                                         max_letter_mult, -1u);
+    si.relabel_partition_time = sw.stop();
     bool succ = !relabel_maps.env_map.empty();
 
     si.n_letters_part = relabel_maps.env_map.size();
