@@ -44,7 +44,7 @@
 #include <picosat/picosat.h>
 
 
-//#define TRACE
+#define TRACE
 #ifdef TRACE
 #  define trace std::cerr
 #else
@@ -1683,20 +1683,30 @@ namespace
         for (const auto& e1 : mm->out(s1))
           for (const auto& e2 : mm->out(s2))
             {
-              if (is_partitioned && (e1.cond != e2.cond))
-                continue;
+//              if (is_partitioned && (e1.cond != e2.cond))
+//                continue;
+//              if (!is_p_incomp(e1.dst - n_env, e2.dst - n_env))
+//                continue; //Compatible -> no prob
+//              // Reachable under same letter?
+//              if (is_partitioned) // -> Yes
+//                {
+//                  trace << s1 << " and " << s2 << " directly incomp "
+//                        "due to successors " << e1.dst << " and " << e2.dst
+//                        << '\n';
+//                  return true;
+//                }
+//              else if (!is_partitioned
+//                       && bdd_have_common_assignment(e1.cond, e2.cond))
+//                {
+//                  trace << s1 << " and " << s2 << " directly incomp "
+//                        "due to successors " << e1.dst << " and " << e2.dst
+//                        << '\n';
+//                  return true;
+//                }
+
               if (!is_p_incomp(e1.dst - n_env, e2.dst - n_env))
                 continue; //Compatible -> no prob
-              // Reachable under same letter?
-              if (is_partitioned) // -> Yes
-                {
-                  trace << s1 << " and " << s2 << " directly incomp "
-                        "due to successors " << e1.dst << " and " << e2.dst
-                        << '\n';
-                  return true;
-                }
-              else if (!is_partitioned
-                       && bdd_have_common_assignment(e1.cond, e2.cond))
+              if (bdd_have_common_assignment(e1.cond, e2.cond))
                 {
                   trace << s1 << " and " << s2 << " directly incomp "
                         "due to successors " << e1.dst << " and " << e2.dst
@@ -1727,6 +1737,10 @@ namespace
               mm_t->new_edge(dst_env, s, e_env.cond);
             }
         }
+#ifdef TRACE
+    trace << "Transposed incomp aut\n";
+    print_hoa(std::cerr, mm_t) << '\n';
+#endif
     }
 
     auto tag_predec_unpart = [&](unsigned s1, unsigned s2)
@@ -1769,7 +1783,8 @@ namespace
     };
     struct T
     {
-      int id;
+      //int id;
+      bdd id = bddfalse;
     };
     std::unique_ptr<digraph<S, T>> mm_t_part;
     if (is_partitioned)
@@ -1782,15 +1797,29 @@ namespace
             for (const auto& e_env : mm->out(s))
               {
                 unsigned dst_env = mm->out(e_env.dst).begin()->dst;
-                mm_t_part->new_edge(dst_env, s, e_env.cond.id());
+                //mm_t_part->new_edge(dst_env, s, e_env.cond.id());
+                mm_t_part->new_edge(dst_env, s, e_env.cond);
               }
           }
 
         // Now we need to sort the edge to ensure that
         // the next algo works correctly
         mm_t_part->sort_edges_srcfirst_([](const auto& e1, const auto& e2)
-                                          {return e1.id < e2.id; });
+                                          {return e1.id.id() < e2.id.id(); });
         mm_t_part->chain_edges_();
+
+#ifdef TRACE
+    auto printaut = make_twa_graph(mm->get_dict());
+    printaut->copy_ap_of(mm);
+    printaut->new_states(n_env);
+    for (const auto& e : mm_t_part->edges())
+      {
+        //printaut->new_edge(e.src, e.dst, bdd_from_int(e.id));
+        printaut->new_edge(e.src, e.dst, e.id);
+      }
+    trace << "Transposed incomp aut\n";
+    print_hoa(std::cerr, printaut) << '\n';
+#endif
       }
 
     auto tag_predec_part = [&](unsigned s1, unsigned s2)
@@ -1819,13 +1848,22 @@ namespace
             // Joint iteration over both edge groups
             while ((e_i != e_it_i_e) && (e_j != e_it_j_e))
               {
-                if (e_i->id < e_j->id)
+                trace << e_i->src << ", " << e_i->id << ", " << e_i->id.id() << ", " << e_i->dst << "; "
+                      << e_j->src << ", " << e_j->id << ", " << e_j->id.id() << ", " << e_j->dst << '\n';
+                if (e_i->id.id() < e_j->id.id())
                   ++e_i;
-                else if (e_j->id < e_i->id)
+                else if (e_j->id.id() < e_i->id.id())
                   ++e_j;
                 else
                   {
-                    assert(e_j->id == e_i->id);
+                    if (inc_env.get(e_i->dst, e_j->dst))
+                      {
+                        ++e_i;
+                        ++e_j;
+                        // Have already been treated
+                        continue;
+                      }
+                    assert(e_j->id.id() == e_i->id.id());
                     trace << e_i->dst << " and " << e_j->dst << " tagged incomp"
                             " due to " << e_i->id << '\n';
                     inc_env.set(e_i->dst, e_j->dst, true);
