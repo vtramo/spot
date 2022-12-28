@@ -44,7 +44,7 @@
 #include <picosat/picosat.h>
 
 
-#define TRACE
+//#define TRACE
 #ifdef TRACE
 #  define trace std::cerr
 #else
@@ -1846,30 +1846,54 @@ namespace
             auto e_j = e_it_j.begin();
 
             // Joint iteration over both edge groups
+            // Note that the transposed graph is not necessarily
+            // determinisitic
+            std::vector<unsigned> all_i_dsts;
+            std::vector<unsigned> all_j_dsts;
+
             while ((e_i != e_it_i_e) && (e_j != e_it_j_e))
               {
-                trace << e_i->src << ", " << e_i->id << ", " << e_i->id.id() << ", " << e_i->dst << "; "
-                      << e_j->src << ", " << e_j->id << ", " << e_j->id.id() << ", " << e_j->dst << '\n';
+                //trace << e_i->src << ", " << e_i->id << ", " << e_i->id.id() << ", " << e_i->dst << "; "
+                //      << e_j->src << ", " << e_j->id << ", " << e_j->id.id() << ", " << e_j->dst << '\n';
                 if (e_i->id.id() < e_j->id.id())
                   ++e_i;
                 else if (e_j->id.id() < e_i->id.id())
                   ++e_j;
                 else
                   {
-                    if (inc_env.get(e_i->dst, e_j->dst))
-                      {
-                        ++e_i;
-                        ++e_j;
-                        // Have already been treated
-                        continue;
-                      }
                     assert(e_j->id.id() == e_i->id.id());
-                    trace << e_i->dst << " and " << e_j->dst << " tagged incomp"
-                            " due to " << e_i->id << '\n';
-                    inc_env.set(e_i->dst, e_j->dst, true);
-                    todo_.emplace_back(e_i->dst, e_j->dst);
-                    ++e_i;
-                    ++e_j;
+                    trace << "Tagging for " << e_i->id.id() << '\n';
+                    // Collect all destinations
+                    all_i_dsts.clear();
+                    all_j_dsts.clear();
+
+                    int this_id = e_j->id.id();
+
+                    trace << "i src - dsts:\n";
+                    while(e_i->id.id() == this_id)
+                      {
+                        all_i_dsts.push_back(e_i->dst);
+                        trace << e_i->src << ':' << e_i->dst << '\n';
+                        ++e_i;
+                      }
+                    trace << "j src - dsts:\n";
+                    while(e_j->id.id() == this_id)
+                      {
+                        all_j_dsts.push_back(e_j->dst);
+                        trace << e_j->src << ':' << e_j->dst << '\n';
+                        ++e_j;
+                      }
+
+                    // Tag all possible combinations if untreated
+                    for (auto i_dst : all_i_dsts)
+                      for (auto j_dst: all_j_dsts)
+                        if (!inc_env.get(i_dst, j_dst))
+                          {
+                            trace << i_dst << " and "
+                                  << j_dst << " tagged incomp\n";
+                            inc_env.set(i_dst, j_dst, true);
+                            todo_.emplace_back(i_dst, j_dst);
+                          }
                   }
               }
             checked_pred.set(i, j, true);
