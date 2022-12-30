@@ -1940,14 +1940,16 @@ namespace
     // todo get a good value for cutoff
     stopwatch sw;
     sw.start();
-    auto relabel_maps
+    auto erl
         = partitioned_game_relabel_here(mm2, true, false, true,
                                         false, -1u, -1u,
-                                        max_letter_mult, -1u);
+                                        max_letter_mult, -1u,
+                                        false, false);
     si.relabel_partition_time = sw.stop();
-    bool succ = !relabel_maps.env_map.empty();
+    //bool succ = !relabel_maps.env_map.empty();
+    bool succ = erl.env_map.success();
 
-    si.n_letters_part = relabel_maps.env_map.size();
+    si.n_letters_part = 1;//relabel_maps.env_map.size();
 
 #ifdef TRACE
     if (succ)

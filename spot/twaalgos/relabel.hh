@@ -38,6 +38,75 @@ namespace spot
   SPOT_API void
   relabel_here(twa_graph_ptr& aut, relabeling_map* relmap);
 
+  /// \brief Helper structure for partitioned relabeling result
+  ///
+  /// Relabeling but may succeed, but the actual relabeling map
+  /// might not be needed.
+  class SPOT_API ext_relabeling_map
+  {
+  public:
+    ext_relabeling_map(bool succ = false)
+      : rel_map_{}
+      , success_(succ)
+    {
+    }
+
+    ext_relabeling_map(const relabeling_map& rl)
+      : rel_map_{rl}
+      , success_(rl.size())
+    {
+    }
+
+    ext_relabeling_map(relabeling_map&& rl)
+      : rel_map_{std::move(rl)}
+      , success_(rel_map_.size())
+    {
+    }
+
+    operator const relabeling_map&() const
+    {
+      return rel_map_;
+    }
+
+    operator relabeling_map&()
+    {
+      return rel_map_;
+    }
+
+    operator const relabeling_map*() const
+    {
+      return &rel_map_;
+    }
+
+    operator relabeling_map*()
+    {
+      return &rel_map_;
+    }
+
+    const relabeling_map& get_map() const
+    {
+      return rel_map_;
+    }
+
+    relabeling_map& get_map()
+    {
+      return rel_map_;
+    }
+
+    size_t size() const
+    {
+      return rel_map_.size();
+    }
+
+    bool success() const
+    {
+      return success_;
+    }
+
+  private:
+    relabeling_map rel_map_;
+    bool success_;
+  };
 
   /// \brief Replace conditions in \a aut with non-overlapping conditions
   /// over fresh variables.
@@ -59,11 +128,12 @@ namespace spot
   /// whose condition uses ap inside AND outside of concerned_ap.
   /// Mostly used in a game setting to distinguish between
   /// env and player transitions.
-  SPOT_API relabeling_map
+  SPOT_API ext_relabeling_map
   partitioned_relabel_here(twa_graph_ptr& aut, bool split = false,
                            unsigned max_letter = -1u,
                            unsigned max_letter_mult = -1u,
                            const bdd& concerned_ap = bddtrue,
-                           std::string var_prefix = "__nv");
+                           std::string var_prefix = "__nv",
+                           bool need_map = true);
 
 }

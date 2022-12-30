@@ -1963,7 +1963,9 @@ namespace spot
                                 unsigned max_letter_env,
                                 unsigned max_letter_play,
                                 unsigned max_letter_mult_env,
-                                unsigned max_letter_mult_play)
+                                unsigned max_letter_mult_play,
+                                bool need_env_map,
+                                bool need_play_map)
   {
     if (!arena)
       throw std::runtime_error("arena is null.");
@@ -1997,10 +1999,11 @@ namespace spot
     if (relabel_env)
         res.env_map
           = partitioned_relabel_here(arena, split_env, max_letter_env,
-                                    max_letter_mult_env, ins, "__nv_in");
+                                     max_letter_mult_env, ins, "__nv_in",
+                                     need_env_map);
 
     // If no relabeling took place, we restore the old edges
-    if (res.env_map.empty())
+    if (!res.env_map.success())
       {
         for (auto& e : arena_r.edges())
           {
@@ -2014,10 +2017,11 @@ namespace spot
     if (relabel_play)
       res.player_map
         = partitioned_relabel_here(arena, split_play, max_letter_play,
-                                    max_letter_mult_play, outs, "__nv_out");
+                                    max_letter_mult_play, outs, "__nv_out",
+                                    need_play_map);
 
     // If no relabeling took place, we restore the old edges
-    if (res.player_map.empty())
+    if (!res.player_map.success())
       {
         for (auto& e : arena_r.edges())
           {
@@ -2038,9 +2042,20 @@ namespace spot
       throw std::runtime_error("arena is null.");
     auto& arena_r = *arena;
 
+    if (rel_maps.env_map.success()
+        && (rel_maps.env_map.size() == 0))
+        throw std::runtime_error("relabel_game_here(): "
+         "env relabeling was successfull but map is empty. "
+         "Was need_map_env set to false?\n");
+    if (rel_maps.player_map.success()
+        && (rel_maps.player_map.size() == 0))
+        throw std::runtime_error("relabel_game_here(): "
+         "player relabeling was successfull but map is empty. "
+         "Was need_map_play set to false?\n");
+
     // Check that it was partitioned_game_relabel_here
     // at least for the relabeled parts
-    if (!rel_maps.env_map.empty())
+    if (rel_maps.env_map.success())
       {
         if (std::find_if(arena->ap().cbegin(), arena->ap().cend(),
                          [](const auto& ap)
@@ -2050,10 +2065,10 @@ namespace spot
                                in_mark_s +
                                " not registered with arena. "
                                "But env was relabeled.");
-        relabel_here(arena, &rel_maps.env_map);
+        relabel_here(arena, rel_maps.env_map);
       }
 
-    if (!rel_maps.player_map.empty())
+    if (rel_maps.player_map.success())
       {
         if (std::find_if(arena->ap().cbegin(), arena->ap().cend(),
                          [](const auto& ap)
@@ -2063,7 +2078,7 @@ namespace spot
                                out_mark_s +
                                " not registered with arena. "
                                "But player was relabeled.");
-        relabel_here(arena, &rel_maps.player_map);
+        relabel_here(arena, rel_maps.player_map);
       }
 
 

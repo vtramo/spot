@@ -257,10 +257,12 @@ namespace spot
   SPOT_API bool
   solve_game(twa_graph_ptr arena, synthesis_info& gi);
 
+  /// \brief Helper struct to bundle the relabeling maps
+  /// of env and player
   struct SPOT_API game_relabeling_map
   {
-    relabeling_map env_map;
-    relabeling_map player_map;
+    ext_relabeling_map env_map;
+    ext_relabeling_map player_map;
   };
 
   /// \ingroup synthesis
@@ -284,7 +286,9 @@ namespace spot
                                 unsigned max_letter_env = -1u,
                                 unsigned max_letter_play = -1u,
                                 unsigned max_letter_mult_env = -1u,
-                                unsigned max_letter_mult_play = -1u);
+                                unsigned max_letter_mult_play = -1u,
+                                bool need_env_map = true,
+                                bool need_play_map = true);
 
   /// \ingroup synthesis
   /// \brief Undoes a relabeling done by partitioned_game_relabel_here.

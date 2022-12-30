@@ -127,17 +127,18 @@ namespace spot
         }
     }
 
-    relabeling_map
+    ext_relabeling_map
     partitioned_relabel_here_(twa_graph& aut, bool split,
                               unsigned max_letter,
                               unsigned max_letter_mult,
                               const bdd& concerned_ap,
                               bool treat_all,
-                              const std::string& var_prefix)
+                              const std::string& var_prefix,
+                              bool need_map)
     {
       auto abandon = []()
         {
-          return relabeling_map{};
+          return ext_relabeling_map{};
         };
 
 
@@ -242,7 +243,10 @@ namespace spot
                 e.cond = ig.state_storage(idx).new_label;
             } // for edge
         } // for state
-      return this_partition.to_relabeling_map(aut);
+      if (need_map)
+        return ext_relabeling_map{this_partition.to_relabeling_map(aut)};
+      else
+        return ext_relabeling_map{true};
     }
 
     void
@@ -442,13 +446,14 @@ namespace spot
       relabel_here_gen_(aut, *relmap);
   }
 
-  relabeling_map
+  ext_relabeling_map
   partitioned_relabel_here(twa_graph_ptr& aut,
                            bool split,
                            unsigned max_letter,
                            unsigned max_letter_mult,
                            const bdd& concerned_ap,
-                           std::string var_prefix)
+                           std::string var_prefix,
+                           bool need_map)
   {
     if (!aut)
       throw std::runtime_error("aut is null!");
@@ -470,6 +475,7 @@ namespace spot
                                      max_letter, max_letter_mult,
                                      concerned_ap_,
                                      treat_all,
-                                     var_prefix);
+                                     var_prefix,
+                                     need_map);
   }
 }
