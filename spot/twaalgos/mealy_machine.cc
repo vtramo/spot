@@ -1783,8 +1783,8 @@ namespace
     };
     struct T
     {
-      //int id;
-      bdd id = bddfalse;
+      int id;
+      //bdd id = bddfalse;
     };
     std::unique_ptr<digraph<S, T>> mm_t_part;
     if (is_partitioned)
@@ -1792,20 +1792,23 @@ namespace
         mm_t_part = std::make_unique<digraph<S, T>>(n_env, mm->num_edges());
         mm_t_part->new_states(n_env);
 
+        std::vector<std::pair<int, unsigned>> edges;
+
         for (unsigned s = 0; s < n_env; ++s)
           {
+            edges.clear();
             for (const auto& e_env : mm->out(s))
               {
                 unsigned dst_env = mm->out(e_env.dst).begin()->dst;
-                //mm_t_part->new_edge(dst_env, s, e_env.cond.id());
-                mm_t_part->new_edge(dst_env, s, e_env.cond);
+                mm_t_part->new_edge(dst_env, s, e_env.cond.id());
+                //mm_t_part->new_edge(dst_env, s, e_env.cond);
               }
           }
 
         // Now we need to sort the edge to ensure that
         // the next algo works correctly
         mm_t_part->sort_edges_srcfirst_([](const auto& e1, const auto& e2)
-                                          {return e1.id.id() < e2.id.id(); });
+                                          {return e1.id < e2.id; });
         mm_t_part->chain_edges_();
 
 #ifdef TRACE
@@ -1855,29 +1858,29 @@ namespace
               {
                 //trace << e_i->src << ", " << e_i->id << ", " << e_i->id.id() << ", " << e_i->dst << "; "
                 //      << e_j->src << ", " << e_j->id << ", " << e_j->id.id() << ", " << e_j->dst << '\n';
-                if (e_i->id.id() < e_j->id.id())
+                if (e_i->id < e_j->id)
                   ++e_i;
-                else if (e_j->id.id() < e_i->id.id())
+                else if (e_j->id < e_i->id)
                   ++e_j;
                 else
                   {
-                    assert(e_j->id.id() == e_i->id.id());
-                    trace << "Tagging for " << e_i->id.id() << '\n';
+                    assert(e_j->id == e_i->id);
+                    trace << "Tagging for " << e_i->id << '\n';
                     // Collect all destinations
                     all_i_dsts.clear();
                     all_j_dsts.clear();
 
-                    int this_id = e_j->id.id();
+                    int this_id = e_j->id;
 
                     trace << "i src - dsts:\n";
-                    while(e_i->id.id() == this_id)
+                    while(e_i->id == this_id)
                       {
                         all_i_dsts.push_back(e_i->dst);
                         trace << e_i->src << ':' << e_i->dst << '\n';
                         ++e_i;
                       }
                     trace << "j src - dsts:\n";
-                    while(e_j->id.id() == this_id)
+                    while(e_j->id == this_id)
                       {
                         all_j_dsts.push_back(e_j->dst);
                         trace << e_j->src << ':' << e_j->dst << '\n';
@@ -1949,7 +1952,7 @@ namespace
     //bool succ = !relabel_maps.env_map.empty();
     bool succ = erl.env_map.success();
 
-    si.n_letters_part = 1;//relabel_maps.env_map.size();
+    si.n_letters_part = erl.env_map.success();//relabel_maps.env_map.size();
 
 #ifdef TRACE
     if (succ)
