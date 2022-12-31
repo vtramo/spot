@@ -1683,36 +1683,36 @@ namespace
         for (const auto& e1 : mm->out(s1))
           for (const auto& e2 : mm->out(s2))
             {
-//              if (is_partitioned && (e1.cond != e2.cond))
-//                continue;
-//              if (!is_p_incomp(e1.dst - n_env, e2.dst - n_env))
-//                continue; //Compatible -> no prob
-//              // Reachable under same letter?
-//              if (is_partitioned) // -> Yes
-//                {
-//                  trace << s1 << " and " << s2 << " directly incomp "
-//                        "due to successors " << e1.dst << " and " << e2.dst
-//                        << '\n';
-//                  return true;
-//                }
-//              else if (!is_partitioned
-//                       && bdd_have_common_assignment(e1.cond, e2.cond))
-//                {
-//                  trace << s1 << " and " << s2 << " directly incomp "
-//                        "due to successors " << e1.dst << " and " << e2.dst
-//                        << '\n';
-//                  return true;
-//                }
-
+              if (is_partitioned && (e1.cond != e2.cond))
+                continue;
               if (!is_p_incomp(e1.dst - n_env, e2.dst - n_env))
                 continue; //Compatible -> no prob
-              if (bdd_have_common_assignment(e1.cond, e2.cond))
+              // Reachable under same letter?
+              if (is_partitioned) // -> Yes
                 {
                   trace << s1 << " and " << s2 << " directly incomp "
                         "due to successors " << e1.dst << " and " << e2.dst
                         << '\n';
                   return true;
                 }
+              else if (!is_partitioned
+                       && bdd_have_common_assignment(e1.cond, e2.cond))
+                {
+                  trace << s1 << " and " << s2 << " directly incomp "
+                        "due to successors " << e1.dst << " and " << e2.dst
+                        << '\n';
+                  return true;
+                }
+
+//              if (!is_p_incomp(e1.dst - n_env, e2.dst - n_env))
+//                continue; //Compatible -> no prob
+//              if (bdd_have_common_assignment(e1.cond, e2.cond))
+//                {
+//                  trace << s1 << " and " << s2 << " directly incomp "
+//                        "due to successors " << e1.dst << " and " << e2.dst
+//                        << '\n';
+//                  return true;
+//                }
             }
         return false;
       };
