@@ -98,6 +98,11 @@ namespace spot
       return rel_map_.size();
     }
 
+    bool empty() const
+    {
+      return rel_map_.empty();
+    }
+    
     bool success() const
     {
       return success_;

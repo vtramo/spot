@@ -264,12 +264,30 @@ namespace spot
     SPOT_API std::string get_out_mark_s();
   }
 
-  /// \brief Helper struct to bundle the relabeling maps
+  /// \brief Helper class to bundle the relabeling maps
   /// of env and player
-  struct SPOT_API game_relabeling_map
+  class SPOT_API game_relabeling_map
   {
-    ext_relabeling_map env_map;
-    ext_relabeling_map player_map;
+  public:
+    ext_relabeling_map& get_env_map()
+    {
+      return env_map_;
+    }
+    const ext_relabeling_map& get_env_map() const
+    {
+      return env_map_;
+    }
+    ext_relabeling_map& get_player_map()
+    {
+      return player_map_;
+    }
+    const ext_relabeling_map& get_player_map() const
+    {
+      return player_map_;
+    }
+  private:
+    ext_relabeling_map env_map_;
+    ext_relabeling_map player_map_;
   };
 
   /// \ingroup synthesis

@@ -119,7 +119,7 @@ namespace
            split_cstr_time, prob_init_build_time, sat_time,
            build_time, refine_time, relabel_partition_time, total_time;
     long long n_classes, n_refinement, n_lit, n_clauses,
-              n_iteration, n_letters_part, n_bisim_let, n_min_states, done;
+              n_iteration, part_succ, n_bisim_let, n_min_states, done;
     std::string task;
     const std::string instance;
 
@@ -144,7 +144,7 @@ namespace
       , n_lit{-1}
       , n_clauses{-1}
       , n_iteration{-1}
-      , n_letters_part{-1}
+      , part_succ{-1}
       , n_bisim_let{-1}
       , n_min_states{-1}
       , done{-1}
@@ -175,7 +175,7 @@ namespace
               << "split_min_let_time,split_cstr_time,prob_init_build_time,"
               << "sat_time,build_time,refine_time,relabel_partition_time,"
               << "total_time,n_classes,n_refinement,n_lit,"
-              << "n_clauses,n_iteration,n_letters_part,n_bisim_let,"
+              << "n_clauses,n_iteration,part_succ,n_bisim_let,"
               << "n_min_states,done\n";
         }
 
@@ -206,7 +206,7 @@ namespace
       f(ss, n_lit);
       f(ss, n_clauses);
       f(ss, n_iteration);
-      f(ss, n_letters_part);
+      f(ss, part_succ);
       f(ss, n_bisim_let);
       f(ss, n_min_states);
       f(ss, done, false);
@@ -219,7 +219,7 @@ namespace
   {
 
     double relabel_partition_time, relabel_time, total_time;
-    long long n_letters_part_env, n_letters_part_play, n_states;
+    long long part_succ_env, part_succ_play, n_states;
     const std::string instance;
 
     redprob_info(const std::string& instance)
@@ -227,8 +227,8 @@ namespace
       , relabel_partition_time{-1}
       , relabel_time{-1}
       , total_time{-1}
-      , n_letters_part_env{-1}
-      , n_letters_part_play{-1}
+      , part_succ_env{-1}
+      , part_succ_play{-1}
       , n_states{-1}
       , instance{instance+","}
     {
@@ -252,7 +252,7 @@ namespace
       if (out.tellp() == 0)
         {
           out << "instance,relabel_partition_time,relabel_time,total_time,"
-              << "n_letters_part_env,n_letters_part_play,n_states\n";
+              << "part_succ_env,part_succ_play,n_states\n";
         }
 
       out << instance;
@@ -262,8 +262,8 @@ namespace
       f(ss, relabel_partition_time);
       f(ss, relabel_time);
       f(ss, total_time);
-      f(ss, n_letters_part_env);
-      f(ss, n_letters_part_play);
+      f(ss, part_succ_env);
+      f(ss, part_succ_play);
       f(ss, n_states, false);
       out << ss.str();
       out.put('\n');
@@ -1734,44 +1734,62 @@ namespace
     // The original graph mm is not sorted, and most of the
     // sorting is not rentable
     // However, bdd_have_common_assignment simply becomes equality
-    auto direct_incomp = [&](unsigned s1, unsigned s2)
+    auto direct_incomp_unpart = [&](unsigned s1, unsigned s2)
       {
         for (const auto& e1 : mm->out(s1))
           for (const auto& e2 : mm->out(s2))
             {
-              if (is_partitioned && (e1.cond != e2.cond))
-                continue;
               if (!is_p_incomp(e1.dst - n_env, e2.dst - n_env))
                 continue; //Compatible -> no prob
               // Reachable under same letter?
-              if (is_partitioned) // -> Yes
+              if (bdd_have_common_assignment(e1.cond, e2.cond))
                 {
                   trace << s1 << " and " << s2 << " directly incomp "
                         "due to successors " << e1.dst << " and " << e2.dst
                         << '\n';
                   return true;
                 }
-              else if (!is_partitioned
-                       && bdd_have_common_assignment(e1.cond, e2.cond))
-                {
-                  trace << s1 << " and " << s2 << " directly incomp "
-                        "due to successors " << e1.dst << " and " << e2.dst
-                        << '\n';
-                  return true;
-                }
-
-//              if (!is_p_incomp(e1.dst - n_env, e2.dst - n_env))
-//                continue; //Compatible -> no prob
-//              if (bdd_have_common_assignment(e1.cond, e2.cond))
-//                {
-//                  trace << s1 << " and " << s2 << " directly incomp "
-//                        "due to successors " << e1.dst << " and " << e2.dst
-//                        << '\n';
-//                  return true;
-//                }
             }
         return false;
       };
+
+    // Edges are sorted AND input deterministic
+    // -> ids cannot appear more than once
+    auto direct_incomp_part = [&](unsigned s1, unsigned s2)
+      {
+        auto e_it_i = mm->out(s1);
+        auto e_it_j = mm->out(s2);
+
+        auto e_it_i_e = e_it_i.end();
+        auto e_it_j_e = e_it_j.end();
+
+        auto e_i = e_it_i.begin();
+        auto e_j = e_it_j.begin();
+
+        while ((e_i != e_it_i_e) && (e_j != e_it_j_e))
+          {
+            if (e_i->cond.id() < e_j->cond.id())
+              ++e_i;
+            else if (e_j->cond.id() < e_i->cond.id())
+              ++e_j;
+            else
+              {
+                assert(e_i->cond.id() == e_j->cond.id());
+                if (!is_p_incomp(e_i->dst - n_env, e_j->dst - n_env))
+                  {
+                    ++e_i;
+                    ++e_j;
+                    continue; //Compatible -> no prob
+                  }
+                trace << s1 << " and " << s2 << " directly incomp "
+                      "due to successors " << e_i->dst << " and " << e_j->dst
+                      << '\n';
+                return true;
+              }
+          }
+        return false;
+      };
+
 
     // If two states can reach an incompatible state
     // under the same input, then they are incompatible as well
@@ -1912,8 +1930,6 @@ namespace
 
             while ((e_i != e_it_i_e) && (e_j != e_it_j_e))
               {
-                //trace << e_i->src << ", " << e_i->id << ", " << e_i->id.id() << ", " << e_i->dst << "; "
-                //      << e_j->src << ", " << e_j->id << ", " << e_j->id.id() << ", " << e_j->dst << '\n';
                 if (e_i->id < e_j->id)
                   ++e_i;
                 else if (e_j->id < e_i->id)
@@ -1929,14 +1945,14 @@ namespace
                     int this_id = e_j->id;
 
                     trace << "i src - dsts:\n";
-                    while(e_i->id == this_id)
+                    while (e_i->id == this_id)
                       {
                         all_i_dsts.push_back(e_i->dst);
                         trace << e_i->src << ':' << e_i->dst << '\n';
                         ++e_i;
                       }
                     trace << "j src - dsts:\n";
-                    while(e_j->id == this_id)
+                    while (e_j->id == this_id)
                       {
                         all_j_dsts.push_back(e_j->dst);
                         trace << e_j->src << ':' << e_j->dst << '\n';
@@ -1968,15 +1984,23 @@ namespace
 
           // Check if they are incompatible for some letter
           // We have to check all pairs of edges
-          if (direct_incomp(s1, s2))
+          if (is_partitioned)
             {
-              inc_env.set(s1, s2, true);
-              if (is_partitioned)
-                tag_predec_part(s1, s2);
-              else
-                tag_predec_unpart(s1, s2);
-
+              if (direct_incomp_part(s1, s2))
+                {
+                  inc_env.set(s1, s2, true);
+                  tag_predec_part(s1, s2);
+                }
             }
+          else
+            {
+              if (direct_incomp_unpart(s1, s2))
+                {
+                  inc_env.set(s1, s2, true);
+                  tag_predec_unpart(s1, s2);
+                }
+            }
+
         }
 
 #ifdef TRACE
@@ -2019,7 +2043,7 @@ namespace
         mm2->get_graph().chain_edges_();
       }
 
-    si.part_succ = erl.get_env_map().success();//relabel_maps.env_map.size();
+    si.part_succ = succ;
 
 #ifdef TRACE
     if (succ)
