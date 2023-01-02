@@ -257,6 +257,13 @@ namespace spot
   SPOT_API bool
   solve_game(twa_graph_ptr arena, synthesis_info& gi);
 
+
+  namespace internal
+  {
+    SPOT_API std::string get_in_mark_s();
+    SPOT_API std::string get_out_mark_s();
+  }
+
   /// \brief Helper struct to bundle the relabeling maps
   /// of env and player
   struct SPOT_API game_relabeling_map

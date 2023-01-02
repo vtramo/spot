@@ -938,11 +938,19 @@ namespace
       }
 
     // We are only allowed to relabel when split
+    // Store all original edge conditions.
+    std::vector<bdd> orig_cond;
     game_relabeling_map rmg;
     if (is_split)
       {
         assert(is_split_mealy(mm, true));
         ri.start();
+        // This way we do not need to undo the relabeling and
+        // we do not need to compute the maps
+        orig_cond.reserve(mm->num_edges());
+        for (const auto& e : mm->edges())
+          orig_cond.push_back(e.cond);
+
         std::set<bdd, bdd_less_than> conds_in;
         std::set<bdd, bdd_less_than> conds_out;
         for (const auto& e : mm->edges())
@@ -963,10 +971,12 @@ namespace
                                           false, false,
                                           std::pow(2, nb_ins / fact_div_aps),
                                           std::pow(2,
-                                                   nb_outs / fact_div_aps));
+                                                   nb_outs / fact_div_aps),
+                                          -1u, -1u,
+                                          false, false);
             // Optimize and use direcly bdd_partition?
-            ri.n_letters_part_env = rmg.env_map.size();
-            ri.n_letters_part_play = rmg.player_map.size();
+            ri.part_succ_env = rmg.get_env_map().size();
+            ri.part_succ_play = rmg.get_player_map().size();
           }
         ri.relabel_partition_time = ri.stop();
       }
@@ -979,7 +989,27 @@ namespace
         if (is_split)
           {
             ri.start();
-            relabel_game_here(mm, rmg);
+            if (ri.part_succ_env || ri.part_succ_play)
+              {
+                //relabel_game_here(mm, rmg);
+                // Do this
+                auto orig_it = orig_cond.begin();
+                auto e_cnt = mm->edges();
+                for (auto e_it = e_cnt.begin(); e_it != e_cnt.end();
+                    ++e_it, ++orig_it)
+                  e_it->cond = *orig_it;
+                assert(orig_it == orig_cond.end());
+                // unregister
+                mm->unregister_ap(mm->register_ap(internal::get_in_mark_s()));
+                mm->unregister_ap(mm->register_ap(internal::get_out_mark_s()));
+                for (auto& ap : mm->ap())
+                  {
+                    auto name = ap.ap_name();
+                    if ((name.find("__nv_in") == 0)
+                        || (name.find("__nv_out") == 0))
+                      mm->unregister_ap(mm->register_ap(ap));
+                  }
+              }
             ri.relabel_time = ri.stop();
             const auto& sp = get_state_players(mm);
             ri.n_states = std::count(sp.cbegin(), sp.cend(), false);
@@ -1017,6 +1047,32 @@ namespace
           }
       }
 
+    // This replace relabel -> must be done before purge
+
+    if (is_split && (ri.part_succ_env || ri.part_succ_play))
+      {
+        ri.start();
+        //relabel_game_here(mm, rmg);
+        // Do this
+        auto orig_it = orig_cond.begin();
+        auto e_cnt = mm->edges();
+        for (auto e_it = e_cnt.begin(); e_it != e_cnt.end();
+            ++e_it, ++orig_it)
+          e_it->cond = *orig_it;
+        assert(orig_it == orig_cond.end());
+        // unregister
+        mm->unregister_ap(mm->register_ap(internal::get_in_mark_s()));
+        mm->unregister_ap(mm->register_ap(internal::get_out_mark_s()));
+        for (auto& ap : mm->ap())
+          {
+            auto name = ap.ap_name();
+            if ((name.find("__nv_in") == 0)
+                || (name.find("__nv_out") == 0))
+              mm->unregister_ap(mm->register_ap(ap));
+          }
+        ri.relabel_time = ri.stop();
+      }
+
     mm->purge_unreachable_states();
     const unsigned Nreduced = mm->num_states();
 
@@ -1024,9 +1080,9 @@ namespace
       {
         if (Nreduced != Npurged)
           alternate_players(mm, false, false);
-        ri.start();
-        relabel_game_here(mm, rmg);
-        ri.relabel_time = ri.stop();
+        //ri.start();
+        //relabel_game_here(mm, rmg);
+        //ri.relabel_time = ri.stop();
         ri.n_states = mm->num_states();
         auto& sp = get_state_players(mm);
         ri.n_states = std::count(sp.cbegin(), sp.cend(), false);
@@ -1950,9 +2006,20 @@ namespace
                                         false, false);
     si.relabel_partition_time = sw.stop();
     //bool succ = !relabel_maps.env_map.empty();
-    bool succ = erl.env_map.success();
+    bool succ = erl.get_env_map().success();
 
-    si.n_letters_part = erl.env_map.success();//relabel_maps.env_map.size();
+    if (succ)
+      {
+        mm2->get_graph().sort_edges_srcfirst_(
+          [](const auto& e1, const auto& e2)
+            {
+              return e1.cond.id() < e2.cond.id();
+            }
+          );
+        mm2->get_graph().chain_edges_();
+      }
+
+    si.part_succ = erl.get_env_map().success();//relabel_maps.env_map.size();
 
 #ifdef TRACE
     if (succ)

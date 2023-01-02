@@ -1948,12 +1948,6 @@ namespace spot
     return res;
   }
 
-  namespace
-  {
-    const std::string in_mark_s("__AP_IN__");
-    const std::string out_mark_s("__AP_OUT__");
-  }
-
   game_relabeling_map
   partitioned_game_relabel_here(twa_graph_ptr& arena,
                                 bool relabel_env,
@@ -1977,16 +1971,17 @@ namespace spot
     if (std::find_if(arena->ap().cbegin(), arena->ap().cend(),
                      [](const auto& ap)
                        {
-                         return ap.ap_name() == out_mark_s
-                                || ap.ap_name() == in_mark_s;
+                         return ap.ap_name() == internal::get_out_mark_s()
+                                || ap.ap_name() == internal::get_in_mark_s();
                        }) != arena->ap().cend())
       throw std::runtime_error("partitioned_game_relabel_here(): "
                                "You can not use "
-                               + in_mark_s + " or " + out_mark_s +
+                               + internal::get_in_mark_s() + " or "
+                               + internal::get_out_mark_s() +
                                " as propositions if relabeling.");
 
-    bdd out_mark = bdd_ithvar(arena_r.register_ap(out_mark_s));
-    bdd in_mark = bdd_ithvar(arena_r.register_ap(in_mark_s));
+    bdd out_mark = bdd_ithvar(arena_r.register_ap(internal::get_out_mark_s()));
+    bdd in_mark = bdd_ithvar(arena_r.register_ap(internal::get_in_mark_s()));
 
     bdd outs = get_synthesis_outputs(arena) & out_mark;
     bdd ins = bdd_exist(all_ap, outs) & in_mark;
@@ -2011,7 +2006,7 @@ namespace spot
               continue; // player
             e.cond = bdd_exist(e.cond, in_mark);
           }
-        arena_r.unregister_ap(arena_r.register_ap(in_mark_s));
+        arena_r.unregister_ap(arena_r.register_ap(internal::get_in_mark_s()));
       }
 
     if (relabel_play)
@@ -2029,9 +2024,21 @@ namespace spot
               continue; // env
             e.cond = bdd_exist(e.cond, out_mark);
           }
-        arena_r.unregister_ap(arena_r.register_ap(out_mark_s));
+        arena_r.unregister_ap(arena_r.register_ap(internal::get_out_mark_s()));
       }
     return res;
+  }
+
+  namespace internal
+  {
+    std::string get_in_mark_s()
+    {
+      return "__AP_IN__";
+    }
+    std::string get_out_mark_s()
+    {
+      return "__AP_OUT__";
+    }
   }
 
   void
@@ -2059,10 +2066,10 @@ namespace spot
       {
         if (std::find_if(arena->ap().cbegin(), arena->ap().cend(),
                          [](const auto& ap)
-                           { return ap.ap_name() == in_mark_s; })
+                           { return ap.ap_name() == internal::get_in_mark_s(); })
                == arena->ap().cend())
           throw std::runtime_error("relabel_game_here(): " +
-                               in_mark_s +
+                               internal::get_in_mark_s() +
                                " not registered with arena. "
                                "But env was relabeled.");
         relabel_here(arena, rel_maps.env_map);
@@ -2072,24 +2079,24 @@ namespace spot
       {
         if (std::find_if(arena->ap().cbegin(), arena->ap().cend(),
                          [](const auto& ap)
-                           { return ap.ap_name() == out_mark_s; })
+                           { return ap.ap_name() == internal::get_out_mark_s(); })
                == arena->ap().cend())
           throw std::runtime_error("relabel_game_here(): " +
-                               out_mark_s +
+                               internal::get_out_mark_s() +
                                " not registered with arena. "
                                "But player was relabeled.");
         relabel_here(arena, rel_maps.player_map);
       }
 
 
-    bdd dummy_ap = bdd_ithvar(arena_r.register_ap(in_mark_s))
-                   & bdd_ithvar(arena_r.register_ap(out_mark_s));
+    bdd dummy_ap = bdd_ithvar(arena_r.register_ap(internal::get_in_mark_s()))
+                   & bdd_ithvar(arena_r.register_ap(internal::get_out_mark_s()));
 
     for (auto& e : arena_r.edges())
       e.cond = bdd_exist(e.cond, dummy_ap);
 
-    arena_r.unregister_ap(arena_r.register_ap(in_mark_s));
-    arena_r.unregister_ap(arena_r.register_ap(out_mark_s));
+    arena_r.unregister_ap(arena_r.register_ap(internal::get_in_mark_s()));
+    arena_r.unregister_ap(arena_r.register_ap(internal::get_out_mark_s()));
 
     return;
   }
