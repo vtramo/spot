@@ -1,5 +1,5 @@
 /* -*- coding: utf-8 -*-
-** Copyright (C) 2014-2022 Laboratoire de Recherche et Développement
+** Copyright (C) 2014-2023 Laboratoire de Recherche et Développement
 ** de l'Epita (LRDE).
 **
 ** This file is part of Spot, a model checking library.
@@ -2610,7 +2610,7 @@ static void fix_initial_state(result_& r)
   start.resize(std::distance(start.begin(), res));
 
   assert(start.size() >= 1);
-    if (start.size() == 1)
+  if (start.size() == 1)
     {
       if (r.opts.want_kripke)
 	r.h->ks->set_init_state(start.front().front());
@@ -2627,13 +2627,13 @@ static void fix_initial_state(result_& r)
 				    "a single initial state");
 	  return;
 	}
+      auto& aut = r.h->aut;
       // Fiddling with initial state may turn an incomplete automaton
       // into a complete one.
-      if (r.complete.is_false())
-        r.complete = spot::trival::maybe();
+      if (aut->prop_complete().is_false())
+        aut->prop_complete(spot::trival::maybe());
       // Multiple initial states.  We might need to add a fake one,
       // unless one of the actual initial state has no incoming edge.
-      auto& aut = r.h->aut;
       std::vector<unsigned char> has_incoming(aut->num_states(), 0);
       for (auto& t: aut->edges())
         for (unsigned ud: aut->univ_dests(t))
@@ -2672,6 +2672,9 @@ static void fix_initial_state(result_& r)
             {
               unsigned p = pp.front();
               if (p != init)
+                // FIXME: If p has no incoming we should be able to
+                // change the source of the edges of p instead of
+                // adding new edges.
                 for (auto& t: aut->out(p))
                   aut->new_edge(init, t.dst, t.cond);
             }
@@ -2693,6 +2696,24 @@ static void fix_initial_state(result_& r)
               comb_or |= comb_and;
             }
           combiner.new_dests(init, comb_or);
+        }
+
+      // Merging two states may break state-based acceptance
+      // make sure all outgoing edges have the same color.
+      if (aut->prop_state_acc().is_true())
+        {
+          bool first = true;
+          spot::acc_cond::mark_t prev;
+          for (auto& e: aut->out(init))
+            if (first)
+              {
+                first = false;
+                prev = e.acc;
+              }
+            else if (e.acc != prev)
+              {
+                e.acc = prev;
+              }
         }
     }
 }
@@ -2871,8 +2892,8 @@ namespace spot
         r.aut_or_ks->set_named_prop("aliases", p);
       }
     fix_acceptance(r);
+    fix_properties(r); // before fix_initial_state
     fix_initial_state(r);
-    fix_properties(r);
     if (r.h->aut && !r.h->aut->is_existential())
       r.h->aut->merge_univ_dests();
     return r.h;
