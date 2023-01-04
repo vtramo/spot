@@ -4,6 +4,12 @@ New in spot 2.11.3.dev  (not yet released)
 
   - spot.acd() no longer depends on jQuery for interactivity.
 
+  Bug fixes:
+
+  - When merging initial states from state-based automata with
+    multiple initial states (because Spot supports only one), the HOA
+    parser could break state-based acceptance.  (Issue #522.)
+
 New in spot 2.11.3  (2022-12-09)
 
   Bug fixes:
