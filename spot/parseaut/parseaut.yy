@@ -2671,12 +2671,30 @@ static void fix_initial_state(result_& r)
           for (auto& pp: start)
             {
               unsigned p = pp.front();
-              if (p != init)
-                // FIXME: If p has no incoming we should be able to
-                // change the source of the edges of p instead of
-                // adding new edges.
-                for (auto& t: aut->out(p))
-                  aut->new_edge(init, t.dst, t.cond);
+              if (p == init)
+                continue;
+              if (!has_incoming[p])
+                {
+                  // If p has no incoming edge, we can simply take
+                  // out its outgoing edges and "re-source" them on init.
+                  // This will avoid creating new edges.
+                  for (auto& t: aut->out(p))
+                    t.src = init;
+                  auto& gr = aut->get_graph();
+                  auto& ps = gr.state_storage(p);
+                  auto& is = gr.state_storage(init);
+                  gr.edge_storage(is.succ_tail).next_succ = ps.succ;
+                  is.succ_tail = ps.succ_tail;
+                  ps.succ = ps.succ_tail = 0;
+                  // we just created a state without successors
+                  aut->prop_complete(false);
+                }
+              else
+                {
+                  // duplicate all edges
+                  for (auto& t: aut->out(p))
+                    aut->new_edge(init, t.dst, t.cond);
+                }
             }
         }
       else

@@ -66,7 +66,7 @@ the HOA format, the output may not be exactly the same as the input.
   sets.
 
   This hard-coded limit can be augmented at configure time
-  using option `--enable-max-accsets=N`, but doing so will consume
+  using option =--enable-max-accsets=N=, but doing so will consume
   more memory and time.
 
 - Multiple (or missing) initial states are emulated.
@@ -76,7 +76,8 @@ the HOA format, the output may not be exactly the same as the input.
   is transformed into an equivalent TωA by merging the initial states
   into a single one.  The merged state can either be one of the
   original initial states (if one of those has no incoming edge) or a
-  new state introduced for that purpose.
+  new state introduced for that purpose.  This "conversion" may change
+  the completeness property of the automaton.
 
   Similarly, when an automaton with no initial state is loaded (this
   includes the case where the automaton has no state), a disconnected

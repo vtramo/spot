@@ -38,6 +38,40 @@ State: 0 {0} [t] 2 [t] 3 State: 1 {0} [t] 4 [t] 5 State: 2
 State: 5 {1} [t] 6 [t] 7 State: 6 [t] 6 [t] 7 State: 7 [t] 6 [t] 7
 --END--
 EOF
-# This command, even without --remove-dead, used to break during print_hoa()
-autfilt --remove-dead 552.hoa > out.hoa
-grep 'States: 7' out.hoa
+# This command used to break during print_hoa()
+autfilt 552.hoa > out.hoa
+test "8 1 16 0" = "`autfilt --stats='%[a]s %[u]s %[a]e %[u]e' out.hoa`"
+
+cat >552loop1.hoa <<EOF
+HOA: v1
+States: 8
+Start: 0
+Start: 1
+AP: 0
+acc-name: generalized-Buchi 2
+Acceptance: 2 Inf(0)&Inf(1)
+--BODY--
+State: 0 {0} [t] 2 [t] 3 [t] 0 State: 1 {0} [t] 4 [t] 5 State: 2
+{0} [t] 2 [t] 3 State: 3 {0} [t] 6 [t] 7 State: 4 {1} [t] 4 [t] 5
+State: 5 {1} [t] 6 [t] 7 State: 6 [t] 6 [t] 7 State: 7 [t] 6 [t] 7
+--END--
+EOF
+autfilt 552loop1.hoa > out.hoa
+test "8 0 20 0" = "`autfilt --stats='%[a]s %[u]s %[a]e %[u]e' out.hoa`"
+
+cat >552loop2.hoa <<EOF
+HOA: v1
+States: 8
+Start: 0
+Start: 1
+AP: 0
+acc-name: generalized-Buchi 2
+Acceptance: 2 Inf(0)&Inf(1)
+--BODY--
+State: 0 {0} [t] 2 [t] 3 [t] 0 State: 1 {0} [t] 4 [t] 5 [t] 1 State: 2
+{0} [t] 2 [t] 3 State: 3 {0} [t] 6 [t] 7 State: 4 {1} [t] 4 [t] 5
+State: 5 {1} [t] 6 [t] 7 State: 6 [t] 6 [t] 7 State: 7 [t] 6 [t] 7
+--END--
+EOF
+autfilt 552loop2.hoa > out.hoa
+test "9 0 24 0" = "`autfilt --stats='%[a]s %[u]s %[a]e %[u]e' out.hoa`"
