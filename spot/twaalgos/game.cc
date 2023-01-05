@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2017-2018, 2020-2022 Laboratoire de Recherche et
+// Copyright (C) 2017-2018, 2020-2023 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -1034,7 +1034,7 @@ namespace spot
         ("set_state_players(): There must be as many owners as states");
 
     arena->set_named_prop<region_t>("state-player",
-        new region_t(std::forward<region_t>(owners)));
+                                    new region_t(std::move(owners)));
   }
 
   void set_state_player(twa_graph_ptr arena, unsigned state, bool owner)
@@ -1101,7 +1101,7 @@ namespace spot
       throw std::runtime_error("set_strategy(): strategies need to have "
                                "the same size as the automaton.");
     arena->set_named_prop<strategy_t>("strategy",
-        new strategy_t(std::forward<strategy_t>(strat)));
+        new strategy_t(std::move(strat)));
   }
 
   void set_synthesis_outputs(const twa_graph_ptr& arena, const bdd& outs)
@@ -1152,7 +1152,7 @@ namespace spot
         ("set_state_winners(): There must be as many winners as states");
 
     arena->set_named_prop<region_t>("state-winner",
-        new region_t(std::forward<region_t>(winners)));
+                                    new region_t(std::move(winners)));
   }
 
   void set_state_winner(twa_graph_ptr arena, unsigned state, bool winner)
