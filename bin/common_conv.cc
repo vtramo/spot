@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2015, 2018 Laboratoire de Recherche et Développement
+// Copyright (C) 2015, 2018, 2023 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -25,9 +25,13 @@ int
 to_int(const char* s, const char* where)
 {
   char* endptr;
-  int res = strtol(s, &endptr, 10);
+  long int lres = strtol(s, &endptr, 10);
   if (*endptr)
     error(2, 0, "failed to parse '%s' as an integer (in argument of %s).",
+          s, where);
+  int res = lres;
+  if (res != lres)
+    error(2, 0, "value '%s' is too large for an int (in argument of %s).",
           s, where);
   return res;
 }
@@ -45,10 +49,15 @@ unsigned
 to_unsigned (const char *s, const char* where)
 {
   char* endptr;
-  unsigned res = strtoul(s, &endptr, 10);
+  unsigned long lres = strtoul(s, &endptr, 10);
   if (*endptr)
     error(2, 0,
           "failed to parse '%s' as an unsigned integer (in argument of %s).",
+          s, where);
+  unsigned res = lres;
+  if (res != lres)
+    error(2, 0,
+          "value '%s' is too large for a unsigned int (in argument of %s).",
           s, where);
   return res;
 }

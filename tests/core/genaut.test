@@ -1,7 +1,7 @@
 #!/bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2017, 2018, 2019, 2020 Laboratoire de Recherche et Développement
-# de l'Epita (LRDE).
+# Copyright (C) 2017-2020, 2023 Laboratoire de Recherche et
+# Développement de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
 #
@@ -60,7 +60,10 @@ genaut --l-nba='1..3?' 2>err && exit 1
 grep 'invalid range.*trailing garbage' err
 genaut --l-nba='1..' 2>err && exit 1
 grep 'invalid range.*missing end' err
-
+genaut --l-nba='9999999999999999999999999..' 2>err && exit 1
+grep 'start.*too large' err
+genaut --l-nba='1..9999999999999999999999999' 2>err && exit 1
+grep 'end.*too large' err
 
 # Tests for autfilt -N/--nth
 genaut --ks-nca=1..5 | autfilt -N 2..4 > range1.hoa
