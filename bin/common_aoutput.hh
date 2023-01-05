@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2014-2018, 2020, 2022 Laboratoire de Recherche et
-// Développement de l'Epita (LRDE).
+// Copyright (C) 2014-2018, 2020, 2022, 2023 Laboratoire de Recherche
+// et Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
 //
@@ -155,7 +155,7 @@ public:
     print(const spot::const_parsed_aut_ptr& haut,
         const spot::const_twa_graph_ptr& aut,
         spot::formula f,
-        const char* filename, int loc, spot::process_timer& ptimer,
+        const char* filename, int loc, const spot::process_timer& ptimer,
         const char* csv_prefix, const char* csv_suffix);
 
 private:
@@ -196,7 +196,7 @@ class automaton_printer
   std::map<std::string, std::unique_ptr<output_file>> outputfiles;
 
 public:
-  automaton_printer(stat_style input = no_input);
+  explicit automaton_printer(stat_style input = no_input);
   ~automaton_printer();
 
   void

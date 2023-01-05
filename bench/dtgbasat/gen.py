@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (C) 2016-2018 Laboratoire de Recherche et Développement de
+# Copyright (C) 2016-2018, 2023 Laboratoire de Recherche et Développement de
 # l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -55,12 +55,12 @@ class BenchConfig(object):
                 if line[0] == '#' or line.isspace():
                     continue
                 elif line[0:2] == "sh":
-                    sh = re.search('sh (.+?)$', line).group(1)
+                    sh = re.search('sh (.+)$', line).group(1)
                     continue
                 else:
                     name = re.search('(.+?):', line).group(1)
                     code = re.search(':(.+?)>', line).group(1)
-                    xoptions = re.search('>(.+?)$', line).group(1)
+                    xoptions = re.search('>(.+)$', line).group(1)
                     b = Bench(name=name, code=code, xoptions=xoptions)
                     self.l.append(b)
                     self.sh.append(sh)
