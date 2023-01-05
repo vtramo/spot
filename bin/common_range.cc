@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2012, 2014, 2016 Laboratoire de Recherche et
+// Copyright (C) 2012, 2014, 2016, 2023 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -36,13 +36,16 @@ parse_range(const char* str, int missing_left, int missing_right)
 {
   range res;
   char* end;
-  res.min = strtol(str, &end, 10);
+  long lres = strtol(str, &end, 10);
+  res.min = lres;
+  if (res.min != lres)
+    error(2, 0, "start of range '%s' is too large for an int.", str);
   if (end == str)
     {
       // No leading number.  It's OK as long as the string is not
       // empty.
       if (!*end)
-        error(1, 0, "invalid empty range");
+        error(2, 0, "invalid empty range");
       res.min = missing_left;
     }
   if (!*end)
@@ -66,19 +69,22 @@ parse_range(const char* str, int missing_left, int missing_right)
         {
           // Parse the next integer.
           char* end2;
-          res.max = strtol(end, &end2, 10);
+          lres = strtol(end, &end2, 10);
+          res.max = lres;
+          if (res.max != lres)
+            error(2, 0, "end of range '%s' is too large for an int.", str);
           if (str == end2)
-            error(1, 0, "invalid range '%s' "
+            error(2, 0, "invalid range '%s' "
                   "(should start with digits, dots, or colon)", str);
           if (end == end2)
-            error(1, 0, "invalid range '%s' (missing end?)", str);
+            error(2, 0, "invalid range '%s' (missing end?)", str);
           if (*end2)
-            error(1, 0, "invalid range '%s' (trailing garbage?)", str);
+            error(2, 0, "invalid range '%s' (trailing garbage?)", str);
         }
     }
 
   if (res.min < 0 || res.max < 0)
-    error(1, 0, "invalid range '%s': values must be positive", str);
+    error(2, 0, "invalid range '%s': values must be positive", str);
 
   return res;
 }
