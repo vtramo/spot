@@ -16,9 +16,9 @@ h1::before{content:"";position:absolute;z-index:-1;background-color:#ffe35e;left
 #table-of-contents #text-table-of-contents{text-align:left}
 #org-div-home-and-up{text-align:center;font-size:100%}
 .outline-2 h2{display:block;width:100%;position:relative}
-.outline-2 h2::before{content:"";height:100%;width:calc(100% + 2em);position:absolute;z-index:-1;bottom:0em;left:-1em;background-color:#ffe35e;background:linear-gradient(45deg,#ffe35e 50%,transparent 75%);transform:skew(10deg);border-radius:5px;}
+.outline-2 h2::before{content:"";height:100%;width:calc(100% + 2em);position:absolute;z-index:-1;bottom:0em;left:-1em;background:linear-gradient(45deg,#ffe35e 50%,transparent 75%);transform:skew(10deg);border-radius:5px;}
 .outline-3 h3{display:block;width:auto;position:relative}
-.outline-3 h3::before{content:"";position:absolute;z-index:-1;width:calc(100% + 2em);height:100%;left:-1em;bottom:0em;;background-color:#ffe35e;background:linear-gradient(45deg,#ffe35e 25%,transparent 50%);transform:skew(10deg);border-radius:3px}
+.outline-3 h3::before{content:"";position:absolute;z-index:-1;width:calc(100% + 2em);height:100%;left:-1em;bottom:0em;background:linear-gradient(45deg,#ffe35e 25%,transparent 50%);transform:skew(10deg);border-radius:3px}
 .outline-2 h2:hover::before,.outline-3 h3:hover::before{background-color:#ffe35e}
 pre{margin:1.2ex}
 pre.src{padding-top:8px;border-left-style:solid;border-color:#00adad;overflow:auto;margin-top:0;margin-bottom:0}
