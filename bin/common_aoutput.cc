@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2012-2022 Laboratoire de Recherche et Développement
+// Copyright (C) 2012-2023 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -453,7 +453,7 @@ hoa_stat_printer::print(const spot::const_parsed_aut_ptr& haut,
                         const spot::const_twa_graph_ptr& aut,
                         spot::formula f,
                         const char* filename, int loc,
-                        spot::process_timer& ptimer,
+                        const spot::process_timer& ptimer,
                         const char* csv_prefix, const char* csv_suffix)
 {
   timer_ = ptimer;
@@ -633,10 +633,10 @@ automaton_printer::print(const spot::twa_graph_ptr& aut,
       outputnamer.print(haut, aut, f, filename, loc, ptimer,
                         csv_prefix, csv_suffix);
       std::string fname = outputname.str();
-      auto p = outputfiles.emplace(fname, nullptr);
-      if (p.second)
-        p.first->second.reset(new output_file(fname.c_str()));
-      out = &p.first->second->ostream();
+      auto [it, b] = outputfiles.try_emplace(fname, nullptr);
+      if (b)
+        it->second.reset(new output_file(fname.c_str()));
+      out = &it->second->ostream();
     }
 
   // Output it.
