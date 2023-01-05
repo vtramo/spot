@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2013-2022 Laboratoire de Recherche
+// Copyright (C) 2013-2023 Laboratoire de Recherche
 // et Développement de l'Epita.
 //
 // This file is part of Spot, a model checking library.
@@ -98,11 +98,7 @@ namespace spot
           return true;
         if (this->acc_ref > other.acc_ref)
           return false;
-        if (this->acc_cand < other.acc_cand)
-          return true;
-        if (this->acc_cand > other.acc_cand)
-          return false;
-        return false;
+        return this->acc_cand < other.acc_cand;
       }
 
     };

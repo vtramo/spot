@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2012-2022 Laboratoire de Recherche et Développement
+// Copyright (C) 2012-2023 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -93,13 +93,7 @@ namespace spot
           return true;
         if (states > r.states)
           return false;
-
-        if (edges < r.edges)
-          return true;
-        if (edges > r.edges)
-          return false;
-
-        return false;
+        return edges < r.edges;
       }
 
       inline bool operator>(const automaton_size& r)
