@@ -734,6 +734,7 @@ def state_is_accepting(self, src) -> "bool":
 %include <spot/twaalgos/iscolored.hh>
 %include <spot/twaalgos/isunamb.hh>
 %include <spot/twaalgos/isweakscc.hh>
+%include <spot/twaalgos/relabel.hh>
 %include <spot/twaalgos/game.hh>
 %include <spot/twaalgos/simulation.hh>
 %include <spot/twaalgos/parity.hh>
@@ -748,7 +749,6 @@ def state_is_accepting(self, src) -> "bool":
 %include <spot/twaalgos/toweak.hh>
 %include <spot/twaalgos/hoa.hh>
 %include <spot/twaalgos/dtwasat.hh>
-%include <spot/twaalgos/relabel.hh>
 %include <spot/twaalgos/word.hh>
 %template(list_bdd) std::list<bdd>;
 %include <spot/twaalgos/are_isomorphic.hh>
