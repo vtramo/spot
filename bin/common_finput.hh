@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2012-2017, 2022 Laboratoire de Recherche et
+// Copyright (C) 2012-2017, 2022, 2023 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -56,9 +56,11 @@ spot::parsed_formula parse_formula(const std::string& s);
 class job_processor
 {
 protected:
-  bool abort_run;  // Set to true in process_formula() to abort run().
+  bool abort_run = false; // Set to true in process_formula() to abort run().
 public:
-  job_processor();
+  job_processor() = default;
+  job_processor(const job_processor&) = delete;
+  job_processor& operator=(const job_processor&) = delete;
 
   virtual ~job_processor();
 
@@ -84,10 +86,10 @@ public:
   virtual int
   run();
 
-  char* real_filename;
-  long int col_to_read;
-  char* prefix;
-  char* suffix;
+  char* real_filename = nullptr;
+  long int col_to_read = 0;
+  char* prefix = nullptr;
+  char* suffix = nullptr;
 };
 
 // Report and error message or add a default job depending on whether

@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2015, 2016, 2022 Laboratoire de Recherche et Développement de
-// l'Epita (LRDE).
+// Copyright (C) 2015-2016, 2022-2023 Laboratoire de Recherche et
+// Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
 //
@@ -21,13 +21,13 @@
 
 #include "common_sys.hh"
 #include <iosfwd>
+#include <memory>
 #include <fstream>
-#include <error.h>
 
 class output_file
 {
   std::ostream* os_;
-  std::ofstream* of_ = nullptr;
+  std::unique_ptr<std::ofstream> of_;
   bool append_ = false;
 public:
   // Open a file for output.  "-" is interpreted as stdout.
@@ -36,11 +36,6 @@ public:
   output_file(const char* name, bool force_append = false);
 
   void close(const std::string& name);
-
-  ~output_file()
-  {
-    delete of_;
-  }
 
   bool append() const
   {

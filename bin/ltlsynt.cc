@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2017-2022 Laboratoire de Recherche et Développement
+// Copyright (C) 2017-2023 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -152,7 +152,6 @@ static const struct argp_child children[] =
   {
     { &finput_argp_headless, 0, nullptr, 0 },
     { &aoutput_argp, 0, nullptr, 0 },
-    //{ &aoutput_o_format_argp, 0, nullptr, 0 },
     { &misc_argp, 0, nullptr, 0 },
     { nullptr, 0, nullptr, 0 }
   };
@@ -425,10 +424,6 @@ namespace
     auto sub_o = sub_outs_str.begin();
     std::vector<spot::mealy_like> mealy_machines;
 
-    auto print_game = want_game ?
-      [](const spot::twa_graph_ptr& game)->void { dispatch_print_hoa(game); }
-      : [](const spot::twa_graph_ptr&)->void{};
-
     for (; sub_f != sub_form.end(); ++sub_f, ++sub_o)
     {
       spot::mealy_like m_like
@@ -466,9 +461,11 @@ namespace
               assert((spptr->at(arena->get_init_state_number()) == false)
                      && "Env needs first turn");
             }
-          print_game(arena);
           if (want_game)
-            continue;
+            {
+              dispatch_print_hoa(arena);
+              continue;
+            }
           if (!spot::solve_game(arena, *gi))
             {
               if (show_status)
@@ -625,7 +622,7 @@ namespace
   }
 
   static void
-  split_aps(std::string arg, std::vector<std::string>& where)
+  split_aps(const std::string& arg, std::vector<std::string>& where)
   {
     std::istringstream aps(arg);
     std::string ap;

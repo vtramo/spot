@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2012-2020, 2022 Laboratoire de Recherche et
+// Copyright (C) 2012-2020, 2022, 2023 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -264,55 +264,32 @@ end_error()
 
 struct statistics
 {
-  statistics() noexcept
-    : ok(false),
-      alternating(false),
-      status_str(nullptr),
-      status_code(0),
-      time(0),
-      states(0),
-      edges(0),
-      transitions(0),
-      acc(0),
-      scc(0),
-      nonacc_scc(0),
-      terminal_scc(0),
-      weak_scc(0),
-      strong_scc(0),
-      nondetstates(0),
-      nondeterministic(false),
-      terminal_aut(false),
-      weak_aut(false),
-      strong_aut(false)
-  {
-  }
-
   // If OK is false, only the status_str, status_code, and time fields
   // should be valid.
-  bool ok;
-  bool alternating;
-  const char* status_str;
-  int status_code;
-  double time;
-  unsigned states;
-  unsigned edges;
-  unsigned long long transitions;
-  unsigned acc;
-  unsigned scc;
-  unsigned nonacc_scc;
-  unsigned terminal_scc;
-  unsigned weak_scc;
-  unsigned strong_scc;
-  unsigned nondetstates;
-  bool nondeterministic;
-  bool terminal_aut;
-  bool weak_aut;
-  bool strong_aut;
+  bool ok = false;
+  bool alternating = false;
+  const char* status_str = nullptr;
+  int status_code = 0;
+  double time = 0.0;
+  unsigned states = 0;
+  unsigned edges = 0;
+  unsigned long long transitions = 0;
+  unsigned acc = 0;
+  unsigned scc = 0;
+  unsigned nonacc_scc = 0;
+  unsigned terminal_scc = 0;
+  unsigned weak_scc = 0;
+  unsigned strong_scc = 0;
+  unsigned nondetstates = 0;
+  bool nondeterministic = false;
+  bool terminal_aut = false;
+  bool weak_aut = false;
+  bool strong_aut = false;
   std::vector<double> product_states;
   std::vector<double> product_transitions;
   std::vector<double> product_scc;
-  bool ambiguous;
-  bool complete;
+  bool ambiguous = false;
+  bool complete = false;
   std::string hoa_str;
 
   static void
@@ -581,7 +558,7 @@ namespace
   class xtranslator_runner final: public translator_runner
   {
   public:
-    xtranslator_runner(spot::bdd_dict_ptr dict)
+    explicit xtranslator_runner(spot::bdd_dict_ptr dict)
       : translator_runner(dict)
     {
     }
@@ -1095,17 +1072,14 @@ namespace
         }
 
       // Make sure we do not translate the same formula twice.
-      if (!allow_dups)
+      if (!allow_dups && !unique_set.insert(f).second)
         {
-          if (!unique_set.insert(f).second)
-            {
-              if (!quiet)
-                std::cerr
-                  << ("warning: This formula or its negation has already"
-                      " been checked.\n         Use --allow-dups if it "
-                      "should not be ignored.\n\n");
-              return 0;
-            }
+          if (!quiet)
+            std::cerr
+              << ("warning: This formula or its negation has already"
+                  " been checked.\n         Use --allow-dups if it "
+                  "should not be ignored.\n\n");
+          return 0;
         }
 
       int problems = 0;
