@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2012-2019 Laboratoire de Recherche et Développement
+// Copyright (C) 2012-2019, 2023 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -23,6 +23,7 @@
 #include "common_setup.hh"
 #include <iostream>
 #include <sstream>
+#include <memory>
 #include <spot/tl/print.hh>
 #include <spot/tl/length.hh>
 #include <spot/tl/apcollect.hh>
@@ -297,9 +298,9 @@ namespace
   };
 }
 
-static formula_printer* format = nullptr;
+static std::unique_ptr<formula_printer> format;
 static std::ostringstream outputname;
-static formula_printer* outputnamer = nullptr;
+static std::unique_ptr<formula_printer> outputnamer;
 static std::map<std::string, std::unique_ptr<output_file>> outputfiles;
 
 int
@@ -320,7 +321,7 @@ parse_opt_output(int key, char* arg, struct argp_state*)
       output_format = lbt_output;
       break;
     case 'o':
-      outputnamer = new formula_printer(outputname, arg);
+      outputnamer = std::make_unique<formula_printer>(outputname, arg);
       break;
     case 'p':
       full_parenth = true;
@@ -341,8 +342,7 @@ parse_opt_output(int key, char* arg, struct argp_state*)
       output_format = wring_output;
       break;
     case OPT_FORMAT:
-      delete format;
-      format = new formula_printer(std::cout, arg);
+      format = std::make_unique<formula_printer>(std::cout, arg);
       break;
     default:
       return ARGP_ERR_UNKNOWN;
@@ -417,10 +417,10 @@ output_formula_checked(spot::formula f, spot::process_timer* ptimer,
       formula_with_location fl = { f, filename, linenum, prefix, suffix };
       outputnamer->print(fl, ptimer);
       std::string fname = outputname.str();
-      auto p = outputfiles.emplace(fname, nullptr);
-      if (p.second)
-        p.first->second.reset(new output_file(fname.c_str()));
-      out = &p.first->second->ostream();
+      auto [it, b] = outputfiles.try_emplace(fname, nullptr);
+      if (b)
+        it->second.reset(new output_file(fname.c_str()));
+      out = &it->second->ostream();
     }
   output_formula(*out, f, ptimer, filename, linenum, prefix, suffix);
   *out << output_terminator;

@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2012-2022 Laboratoire de Recherche et Développement
+// Copyright (C) 2012-2023 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -20,13 +20,14 @@
 #include "common_setup.hh"
 #include "common_aoutput.hh"
 
-#include "argp.h"
-#include "closeout.h"
+#include <argp.h>
+#include <closeout.h>
 #include <cstdlib>
 #include <unistd.h>
 #include <iostream>
 #include <signal.h>
 #include <sys/wait.h>
+#include <error.h>
 #include <spot/misc/tmpfile.hh>
 
 static void

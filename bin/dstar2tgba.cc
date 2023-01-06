@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2013-2019, 2022 Laboratoire de Recherche et Développement
+// Copyright (C) 2013-2019, 2022, 2023 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -117,7 +117,7 @@ namespace
     spot::postprocessor& post;
     automaton_printer printer;
 
-    dstar_processor(spot::postprocessor& post)
+    explicit dstar_processor(spot::postprocessor& post)
       : hoa_processor(spot::make_bdd_dict()), post(post), printer(aut_input)
     {
     }

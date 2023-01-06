@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2015, 2016, 2022 Laboratoire de Recherche et
+// Copyright (C) 2015, 2016, 2022, 2023 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -21,7 +21,6 @@
 #include <error.h>
 #include <iostream>
 
-
 output_file::output_file(const char* name, bool force_append)
 {
   std::ios_base::openmode mode = std::ios_base::trunc;
@@ -39,10 +38,10 @@ output_file::output_file(const char* name, bool force_append)
       os_ = &std::cout;
       return;
     }
-  of_ = new std::ofstream(name, mode);
+  of_ = std::make_unique<std::ofstream>(name, mode);
   if (!*of_)
     error(2, errno, "cannot open '%s'", name);
-  os_ = of_;
+  os_ = of_.get();
 }
 
 

@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2012-2016, 2018-2019, 2022 Laboratoire de Recherche
-// et Développement de l'Epita (LRDE).
+// Copyright (C) 2012-2016, 2018-2019, 2022, 2023 Laboratoire de
+// Recherche et Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
 //
@@ -65,7 +65,6 @@ enum {
   OPT_DUMP_PRIORITIES,
   OPT_DUPS,
   OPT_LTL_PRIORITIES,
-  OPT_PSL_PRIORITIES,
   OPT_SEED,
   OPT_SERE_PRIORITIES,
   OPT_TREE_SIZE,
@@ -194,7 +193,6 @@ parse_opt(int key, char* arg, struct argp_state* as)
     case OPT_DUMP_PRIORITIES:
       opt_dump_priorities = true;
       break;
-      // case OPT_PSL_PRIORITIES: break;
     case OPT_SERE_PRIORITIES:
       opt_pS = arg;
       break;

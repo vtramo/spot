@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2012-2017, 2019, 2021, 2022 Laboratoire de Recherche
+// Copyright (C) 2012-2017, 2019, 2021-2023 Laboratoire de Recherche
 // et Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -94,12 +94,6 @@ parse_formula(const std::string& s)
   else
     return spot::parse_infix_psl
       (s, spot::default_environment::instance(), false, lenient);
-}
-
-job_processor::job_processor()
-  : abort_run(false), real_filename(nullptr),
-    col_to_read(0), prefix(nullptr), suffix(nullptr)
-{
 }
 
 job_processor::~job_processor()
@@ -370,7 +364,7 @@ int
 job_processor::run()
 {
   int error = 0;
-  for (auto& j: jobs)
+  for (const auto& j: jobs)
     {
       switch (j.type)
         {
