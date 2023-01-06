@@ -51,7 +51,8 @@ struct tool_spec
   // Whether the tool is a reference.
   bool reference;
 
-  tool_spec(const char* spec, shorthands_t* begin, shorthands_t* end,
+  tool_spec(const char* spec,
+            const shorthands_t* begin, const shorthands_t* end,
             bool is_ref) noexcept;
   tool_spec(const tool_spec& other) noexcept;
   tool_spec& operator=(const tool_spec& other);
@@ -71,7 +72,7 @@ struct quoted_formula final: public spot::printable_value<spot::formula>
 
 struct filed_formula final: public spot::printable
 {
-  filed_formula(const quoted_formula& ltl) : f_(ltl)
+  explicit filed_formula(const quoted_formula& ltl) : f_(ltl)
   {
   }
 
@@ -89,9 +90,7 @@ struct filed_formula final: public spot::printable
 
 struct filed_automaton final: public spot::printable
 {
-  filed_automaton()
-  {
-  }
+  filed_automaton() = default;
 
   void print(std::ostream& os, const char* pos) const override;
 
@@ -112,7 +111,7 @@ struct printable_result_filename final:
   unsigned translator_num;
 
   printable_result_filename();
-  ~printable_result_filename();
+  ~printable_result_filename() override;
   void reset(unsigned n);
   void cleanup();
 
@@ -126,7 +125,7 @@ protected:
   spot::bdd_dict_ptr dict;
   // Round-specific variables
   quoted_formula ltl_formula;
-  filed_formula filename_formula = ltl_formula;
+  filed_formula filename_formula{ltl_formula};
   // Run-specific variables
   printable_result_filename output;
 public:
@@ -151,9 +150,9 @@ protected:
 public:
   using spot::formater::has;
 
-  autproc_runner(// whether we accept the absence of output
-                 // specifier
-                 bool no_output_allowed = false);
+  explicit autproc_runner(// whether we accept the absence of output
+                          // specifier
+                          bool no_output_allowed = false);
   void round_automaton(spot::const_twa_graph_ptr aut, unsigned serial);
 };
 

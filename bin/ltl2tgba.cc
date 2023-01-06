@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2012-2019, 2022 Laboratoire de Recherche et
+// Copyright (C) 2012-2019, 2022-2023 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -124,10 +124,10 @@ namespace
   {
   public:
     spot::translator& trans;
-    automaton_printer printer;
+    automaton_printer printer{ltl_input};
 
-    trans_processor(spot::translator& trans)
-      : trans(trans), printer(ltl_input)
+    explicit trans_processor(spot::translator& trans)
+      : trans(trans)
     {
     }
 
