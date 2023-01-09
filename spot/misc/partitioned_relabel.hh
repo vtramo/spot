@@ -49,8 +49,6 @@ namespace spot
     // Leaves from the partition
     // original conditions are "root" nodes
     std::unique_ptr<implication_graph> ig;
-    // todo: technically there are at most two successors, so a graph
-    // is "too" generic
     // All conditions currently part of the partition
     // unsigned corresponds to the associated node
     std::vector<std::pair<bdd, unsigned>> treated;
