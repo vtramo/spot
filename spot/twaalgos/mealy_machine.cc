@@ -908,8 +908,9 @@ namespace
 {
 
   void reduce_mealy_here_(twa_graph_ptr& mm, bool output_assignment,
-                          unsigned fact_div_conds = 10,
-                          unsigned fact_div_aps = 4)
+                          unsigned fact_div_conds = 5,
+                          unsigned fact_div_aps = 2,
+                          unsigned max_letter_mult = 2)
   {
     assert(is_input_complete_mealy(mm));
     ensure_mealy("reduce_mealy", mm);
@@ -968,12 +969,11 @@ namespace
             bool relab_out
                 = conds_out.size() < (std::pow(2, nb_outs) / fact_div_conds);
             rmg = partitioned_game_relabel_here(mm, relab_in, relab_out,
-                                          false, false,
-                                          std::pow(2, nb_ins / fact_div_aps),
-                                          std::pow(2,
-                                                   nb_outs / fact_div_aps),
-                                          -1u, -1u,
-                                          false, false);
+                                    false, false,
+                                    std::pow(2, nb_ins / fact_div_aps) - 1,
+                                    std::pow(2, nb_outs / fact_div_aps) - 1,
+                                    max_letter_mult, max_letter_mult,
+                                    false, false);
             // Optimize and use direcly bdd_partition?
             ri.part_succ_env = rmg.get_env_map().size();
             ri.part_succ_play = rmg.get_player_map().size();
@@ -989,7 +989,7 @@ namespace
         if (is_split)
           {
             ri.start();
-            if (ri.part_succ_env || ri.part_succ_play)
+            if (ri.part_succ_env > 0 || ri.part_succ_play > 0)
               {
                 //relabel_game_here(mm, rmg);
                 // Do this
@@ -1049,7 +1049,7 @@ namespace
 
     // This replace relabel -> must be done before purge
 
-    if (is_split && (ri.part_succ_env || ri.part_succ_play))
+    if (is_split && (ri.part_succ_env > 0 || ri.part_succ_play > 0))
       {
         ri.start();
         //relabel_game_here(mm, rmg);
@@ -1314,8 +1314,9 @@ namespace spot
     red_instance_name = si.opt.get_str("redinstancename");
 
     reduce_mealy_here_(mm, si.minimize_lvl == 2,
-                       si.opt.get("red_fact_div_conds", 10),
-                       si.opt.get("red_fact_div_aps", 4));
+                       si.opt.get("red_fact_div_conds", 5),
+                       si.opt.get("red_fact_div_aps", 2),
+                       si.opt.get("red_max_letter_mult", 2));
     red_csv_file.reset();
   }
 
@@ -1891,8 +1892,8 @@ namespace
     printaut->new_states(n_env);
     for (const auto& e : mm_t_part->edges())
       {
-        //printaut->new_edge(e.src, e.dst, bdd_from_int(e.id));
-        printaut->new_edge(e.src, e.dst, e.id);
+        printaut->new_edge(e.src, e.dst, bdd_from_int(e.id));
+        //printaut->new_edge(e.src, e.dst, e.id);
       }
     trace << "Transposed incomp aut\n";
     print_hoa(std::cerr, printaut) << '\n';
@@ -1945,14 +1946,14 @@ namespace
                     int this_id = e_j->id;
 
                     trace << "i src - dsts:\n";
-                    while (e_i->id == this_id)
+                    while (e_i != e_it_i_e && e_i->id == this_id)
                       {
                         all_i_dsts.push_back(e_i->dst);
                         trace << e_i->src << ':' << e_i->dst << '\n';
                         ++e_i;
                       }
                     trace << "j src - dsts:\n";
-                    while (e_j->id == this_id)
+                    while (e_j != e_it_j_e && e_j->id == this_id)
                       {
                         all_j_dsts.push_back(e_j->dst);
                         trace << e_j->src << ':' << e_j->dst << '\n';
@@ -2047,8 +2048,7 @@ namespace
 
 #ifdef TRACE
     if (succ)
-      std::cout << "Relabeling succesfull with " << relabel_maps.env_map.size()
-                << " letters\n";
+      std::cout << "Relabeling succesfull\n";
     else
       std::cout << "Relabeling aborted\n";
 #endif
