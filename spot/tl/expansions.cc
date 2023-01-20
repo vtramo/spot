@@ -18,6 +18,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "config.h"
+#include <spot/misc/minato.hh>
 #include <spot/priv/robin_hood.hh>
 #include <spot/tl/expansions.hh>
 #include <spot/twa/bdddict.hh>
@@ -33,10 +34,10 @@ namespace spot
     public:
       using exp_map = expansion_builder::exp_map;
 
-      expansion_basic()
+      expansion_basic(bdd_dict_ptr d)
       {}
 
-      expansion_basic(exp_map&& m)
+      expansion_basic(exp_map&& m, bdd_dict_ptr d)
         : bdd2formula_(m)
         , formula2bdd_()
       {}
@@ -81,10 +82,10 @@ namespace spot
     public:
       using exp_map = expansion_builder::exp_map;
 
-      expansion_merge_formulas()
+      expansion_merge_formulas(bdd_dict_ptr d)
       {}
 
-      expansion_merge_formulas(exp_map&& m)
+      expansion_merge_formulas(exp_map&& m, bdd_dict_ptr d)
         : res_()
         , terms_(m.begin(), m.end())
       {}
@@ -159,6 +160,182 @@ namespace spot
             {
               auto it = res.first;
               it->second = formula::OrRat({it->second, suffix});
+            }
+        }
+    }
+
+    class expansion_bdd final : expansion_builder
+    {
+    public:
+      using exp_map = expansion_builder::exp_map;
+
+      expansion_bdd(bdd_dict_ptr d)
+        : anon_set_(bddtrue)
+        , d_(d)
+      {}
+
+      expansion_bdd(exp_map&& m, bdd_dict_ptr d)
+        : anon_set_(bddtrue)
+        , d_(d)
+      {
+        for (const auto& [letter, suffix] : m)
+          {
+            insert(letter, suffix);
+          }
+      }
+
+      expansion_bdd(const expansion_bdd&) = delete;
+
+      expansion_bdd&
+      operator=(const expansion_bdd& other) = delete;
+
+      expansion_bdd&
+      operator=(const expansion_bdd&& other)
+      {
+        d_->unregister_all_my_variables(this);
+
+        anon_set_ = std::move(other.anon_set_);
+        exp_ = std::move(other.exp_);
+        res_ = std::move(other.res_);
+        formula2bdd_ = std::move(other.formula2bdd_);
+        bdd2formula_ = std::move(other.bdd2formula_);
+
+        d_ = other.d_;
+        d_->register_all_variables_of(&other, this);
+
+        return *this;
+      }
+
+      ~expansion_bdd()
+      {
+        d_->unregister_all_my_variables(this);
+      }
+
+      void insert(bdd letter, formula suffix) final;
+
+      void finalize() final;
+
+      exp_map& result() final
+      {
+        return res_;
+      }
+
+      bool empty() final
+      {
+        return formula2bdd_.empty();
+      }
+
+      void clear() final
+      {
+        formula2bdd_.clear();
+        bdd2formula_.clear();
+        exp_ = bddfalse;
+        anon_set_ = bddtrue;
+        res_.clear();
+      }
+
+    private:
+        bdd exp_;
+        bdd anon_set_;
+        std::map<formula, int> formula2bdd_;
+        std::map<int, formula> bdd2formula_;
+        exp_map res_;
+        bdd_dict_ptr d_;
+
+        formula var_to_formula(int var);
+        formula conj_bdd_to_sere(bdd b);
+    };
+
+    formula
+    expansion_bdd::var_to_formula(int var)
+    {
+      formula f = bdd2formula_[var];
+      assert(f);
+      return f;
+    }
+
+    formula
+    expansion_bdd::conj_bdd_to_sere(bdd b)
+    {
+      if (b == bddtrue)
+        return formula::tt();
+      if (b == bddfalse)
+        return formula::ff();
+
+      // Unroll the first loop of the next do/while loop so that we
+      // do not have to create v when b is not a conjunction.
+      formula res = var_to_formula(bdd_var(b));
+      bdd high = bdd_high(b);
+      if (high == bddfalse)
+        {
+          res = formula::Not(res);
+          b = bdd_low(b);
+        }
+      else
+        {
+          assert(bdd_low(b) == bddfalse);
+          b = high;
+        }
+      if (b == bddtrue)
+        return res;
+      std::vector<formula> v{std::move(res)};
+      do
+        {
+          res = var_to_formula(bdd_var(b));
+          high = bdd_high(b);
+          if (high == bddfalse)
+            {
+              res = formula::Not(res);
+              b = bdd_low(b);
+            }
+          else
+            {
+              assert(bdd_low(b) == bddfalse);
+              b = high;
+            }
+          assert(b != bddfalse);
+          v.emplace_back(std::move(res));
+        }
+      while (b != bddtrue);
+      return formula::multop(op::AndRat, std::move(v));
+    }
+
+    void expansion_bdd::insert(bdd letter, formula suffix)
+    {
+
+      int anon_var_num;
+      auto it = formula2bdd_.find(suffix);
+      if (it != formula2bdd_.end())
+        {
+          anon_var_num = it->second;
+        }
+      else
+        {
+          anon_var_num = d_->register_anonymous_variables(1, this);
+          formula2bdd_.insert({suffix, anon_var_num});
+          bdd2formula_.insert({anon_var_num, suffix});
+        }
+
+      bdd var = bdd_ithvar(anon_var_num);
+      anon_set_ &= var;
+      exp_ |= letter & var;
+    }
+
+    void expansion_bdd::finalize()
+    {
+      minato_isop isop(exp_);
+      bdd cube;
+      while ((cube = isop.next()) != bddfalse)
+        {
+          bdd letter = bdd_exist(cube, anon_set_);
+          bdd suffix = bdd_existcomp(cube, anon_set_);
+          formula dest = conj_bdd_to_sere(suffix);
+
+          auto it = res_.insert({letter, dest});
+          if (!it.second)
+            {
+              auto it2 = it.first;
+              it2->second = formula::OrRat({it2->second, dest});
             }
         }
     }
@@ -252,11 +429,11 @@ namespace spot
     return formula::OrRat(res);
   }
 
-  expansion_t
-  expansion(formula f, const bdd_dict_ptr& d, void *owner)
-  {
-    using expansion_type = expansion_merge_formulas;
 
+  template<typename ExpansionBuilder>
+  expansion_t
+  expansion_impl(formula f, const bdd_dict_ptr& d, void *owner, expansion_builder::expand_opt opts)
+  {
     if (f.is_boolean())
       {
         auto f_bdd = formula_to_bdd(f, d, owner);
@@ -280,9 +457,9 @@ namespace spot
 
         case op::Concat:
           {
-            auto exps = expansion(f[0], d, owner);
+            auto exps = expansion(f[0], d, owner, opts);
 
-            expansion_type res;
+            ExpansionBuilder res(d);
             for (const auto& [bdd_l, form] : exps)
               {
                 res.insert(bdd_l, formula::Concat({form, f.all_but(0)}));
@@ -290,7 +467,7 @@ namespace spot
 
             if (f[0].accepts_eword())
               {
-                auto exps_rest = expansion(f.all_but(0), d, owner);
+                auto exps_rest = expansion(f.all_but(0), d, owner, opts);
                 for (const auto& [bdd_l, form] : exps_rest)
                   {
                     res.insert(bdd_l, form);
@@ -315,15 +492,15 @@ namespace spot
 
             auto E_i_j_minus = formula::FStar(E, min, max);
 
-            auto exp = expansion(E, d, owner);
-            expansion_type res;
+            auto exp = expansion(E, d, owner, opts);
+            ExpansionBuilder res(d);
             for (const auto& [li, ei] : exp)
               {
                 res.insert(li, formula::Fusion({ei, E_i_j_minus}));
 
                 if (ei.accepts_eword() && f.min() != 0)
                   {
-                    for (const auto& [ki, fi] : expansion(E_i_j_minus, d, owner))
+                    for (const auto& [ki, fi] : expansion(E_i_j_minus, d, owner, opts))
                       {
                         // FIXME: build bdd once
                         if ((li & ki) != bddfalse)
@@ -345,9 +522,9 @@ namespace spot
                          ? formula::unbounded()
                          : (f.max() - 1);
 
-            auto exps = expansion(f[0], d, owner);
+            auto exps = expansion(f[0], d, owner, opts);
 
-            expansion_type res;
+            ExpansionBuilder res(d);
             for (const auto& [bdd_l, form] : exps)
               {
                 res.insert(bdd_l, formula::Concat({form, formula::Star(f[0], min, max)}));
@@ -360,14 +537,14 @@ namespace spot
         case op::AndNLM:
           {
             formula rewrite = rewrite_and_nlm(f);
-            return expansion(rewrite, d, owner);
+            return expansion(rewrite, d, owner, opts);
           }
 
         case op::first_match:
           {
-            auto exps = expansion(f[0], d, owner);
+            auto exps = expansion(f[0], d, owner, opts);
 
-            expansion_type ndet_res;
+            ExpansionBuilder ndet_res(d);
             for (const auto& [bdd_l, form] : exps)
               {
                 ndet_res.insert(bdd_l, form);
@@ -394,7 +571,7 @@ namespace spot
                 return ndet_res.result();
               }
 
-            expansion_type res;
+            ExpansionBuilder res(d);
             // TODO: extraire en fonction indépendante + lambda choix wrapper
             std::vector<formula> dests;
             for (bdd l: minterms_of(or_labels, support))
@@ -415,13 +592,13 @@ namespace spot
 
         case op::Fusion:
           {
-            expansion_type res;
+            ExpansionBuilder res(d);
             formula E = f[0];
             formula F = f.all_but(0);
 
-            expansion_t Ei = expansion(E, d, owner);
+            expansion_t Ei = expansion(E, d, owner, opts);
             // TODO: std::option
-            expansion_t Fj = expansion(F, d, owner);
+            expansion_t Fj = expansion(F, d, owner, opts);
 
             for (const auto& [li, ei] : Ei)
               {
@@ -440,10 +617,10 @@ namespace spot
 
         case op::AndRat:
           {
-            expansion_type res;
+            ExpansionBuilder res(d);
             for (const auto& sub_f : f)
               {
-                auto exps = expansion(sub_f, d, owner);
+                auto exps = expansion(sub_f, d, owner, opts);
 
                 if (exps.empty())
                   {
@@ -456,12 +633,12 @@ namespace spot
 
                 if (res.empty())
                   {
-                    res = expansion_type(std::move(exps));
+                    res = ExpansionBuilder(std::move(exps), d);
                     res.finalize();
                     continue;
                   }
 
-                expansion_type new_res;
+                ExpansionBuilder new_res(d);
                 for (const auto& [l_key, l_val] : exps)
                   {
                     for (const auto& [r_key, r_val] : res.result())
@@ -481,16 +658,16 @@ namespace spot
 
         case op::OrRat:
           {
-            expansion_type res;
+            ExpansionBuilder res(d);
             for (const auto& sub_f : f)
               {
-                auto exps = expansion(sub_f, d, owner);
+                auto exps = expansion(sub_f, d, owner, opts);
                 if (exps.empty())
                   continue;
 
                 if (res.empty())
                   {
-                    res = expansion_type(std::move(exps));
+                    res = ExpansionBuilder(std::move(exps), d);
                     continue;
                   }
 
@@ -509,18 +686,29 @@ namespace spot
           SPOT_UNIMPLEMENTED();
       }
 
-      return {};
-    }
+    return {};
+  }
+
+  expansion_t
+  expansion(formula f, const bdd_dict_ptr& d, void *owner, expansion_builder::expand_opt opts)
+  {
+    if (opts & expansion_builder::Basic)
+      return expansion_impl<expansion_basic>(f, d, owner, opts);
+    else if (opts & expansion_builder::MergeSuffix)
+      return expansion_impl<expansion_merge_formulas>(f, d, owner, opts);
+    else // expansion_builder::Bdd
+      return expansion_impl<expansion_bdd>(f, d, owner, opts);
+  }
 
   twa_graph_ptr
-  expand_automaton(formula f, bdd_dict_ptr d)
+  expand_automaton(formula f, bdd_dict_ptr d, expansion_builder::expand_opt opts)
   {
-    auto finite = expand_finite_automaton(f, d);
+    auto finite = expand_finite_automaton(f, d, opts);
     return from_finite(finite);
   }
 
   twa_graph_ptr
-  expand_finite_automaton(formula f, bdd_dict_ptr d)
+  expand_finite_automaton(formula f, bdd_dict_ptr d, expansion_builder::expand_opt opts)
   {
     auto aut = make_twa_graph(d);
 
@@ -575,7 +763,7 @@ namespace spot
           ? acc_mark
           : acc_cond::mark_t();
 
-        auto exp = expansion(curr_f, d, aut.get());
+        auto exp = expansion(curr_f, d, aut.get(), opts);
 
         for (const auto& [letter, suffix] : exp)
           {
