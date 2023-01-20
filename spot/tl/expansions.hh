@@ -42,17 +42,23 @@ namespace spot
     virtual exp_map& result() = 0;
     virtual bool empty() = 0;
     virtual void clear() = 0;
+    enum expand_opt {
+      Deterministic = 1,
+      Basic = 2,
+      MergeSuffix = 4,
+      Bdd = 8,
+    };
   };
 
   SPOT_API expansion_t
-  expansion(formula f, const bdd_dict_ptr& d, void *owner);
+  expansion(formula f, const bdd_dict_ptr& d, void *owner, expansion_builder::expand_opt opts);
 
   SPOT_API formula
   expansion_to_formula(expansion_t e, bdd_dict_ptr& d);
 
   SPOT_API twa_graph_ptr
-  expand_automaton(formula f, bdd_dict_ptr d);
+  expand_automaton(formula f, bdd_dict_ptr d, expansion_builder::expand_opt opts);
 
   SPOT_API twa_graph_ptr
-  expand_finite_automaton(formula f, bdd_dict_ptr d);
+  expand_finite_automaton(formula f, bdd_dict_ptr d, expansion_builder::expand_opt opts);
 }
