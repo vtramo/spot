@@ -102,8 +102,8 @@ static const argp_option options[] =
       "whether to decompose the specification as multiple output-disjoint "
       "problems to solve independently (enabled by default)", 0 },
     { "simplify", OPT_SIMPLIFY, "no|bisim|bwoa|sat|bisim-sat|bwoa-sat", 0,
-      "simplification to apply to the controler (no) nothing, "
-      "(bisim) bisimulation-based reduction, (bwoa) bissimulation-based "
+      "simplification to apply to the controller (no) nothing, "
+      "(bisim) bisimulation-based reduction, (bwoa) bisimulation-based "
       "reduction with output assignment, (sat) SAT-based minimization, "
       "(bisim-sat) SAT after bisim, (bwoa-sat) SAT after bwoa.  Defaults "
       "to 'bwoa'.", 0 },
