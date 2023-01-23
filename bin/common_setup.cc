@@ -36,7 +36,7 @@ display_version(FILE *stream, struct argp_state*)
   fputs(program_name, stream);
   fputs(" (" PACKAGE_NAME ") " PACKAGE_VERSION "\n\
 \n\
-Copyright (C) 2022  Laboratoire de Recherche et Développement de l'Epita.\n\
+Copyright (C) 2023 Laboratoire de Recherche de l'Epita (LRE)\n\
 License GPLv3+: \
 GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.\n\
 This is free software: you are free to change and redistribute it.\n\
