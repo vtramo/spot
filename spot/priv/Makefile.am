@@ -1,5 +1,5 @@
 ## -*- coding: utf-8 -*-
-## Copyright (C) 2013-2019, 2021-2022 Laboratoire de Recherche et
+## Copyright (C) 2013-2019, 2021-2023 Laboratoire de Recherche et
 ## Développement de l'Epita (LRDE).
 ##
 ## This file is part of Spot, a model checking library.
@@ -43,5 +43,11 @@ RH = $(GH)/robin-hood-hashing/master/src/include/robin_hood.h
 .PHONY: update
 update:
 	wget $(RH) -O robin_hood.tmp || curl $(RH) -o robin_hood.tmp
-	sed 's/std::malloc/malloc/' robin_hood.tmp > $(srcdir)/robin_hood.hh
+## Do not use std::malloc but malloc, because gnulib may replace it by
+## rpl_malloc instead.  Also disable to tests of __GNUC__ about
+## ROBIN_HOOD_IS_TRIVIALLY_COPYABLE because (1) all versions of G++ we
+## support have std::is_trivially_copyable, and (2) clang define
+## __GNUC__ to some value that fail this test, and then warn that
+## __has_trivial_copy is obsoleted.
+	sed 's/std::malloc/malloc/;/https:\/\/stackoverflow.com\/a\/31798726/{n;s/defined.*/false/}' robin_hood.tmp > $(srcdir)/robin_hood.hh
 	rm -f robin_hood.tmp
