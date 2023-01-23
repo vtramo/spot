@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2022 Laboratoire de Recherche et Développement
+// Copyright (C) 2022-2023 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -118,27 +118,30 @@ namespace spot
                   continue;
                 }
               unsigned mergedst = it2->second;
-              // we have to merge canddst into mergedst.  This is as
-              // simple as:
+              // we have to merge canddst into mergedst.
+              // This is as simple as:
               // 1) connecting their list of transitions
-              unsigned& mergedfirst = g.state_storage(mergedst).succ;
-              unsigned& mergedlast = g.state_storage(mergedst).succ_tail;
-              unsigned& candfirst = g.state_storage(canddst).succ;
               unsigned& candlast = g.state_storage(canddst).succ_tail;
-              if (mergedlast)
-                aut->edge_storage(mergedlast).next_succ = candfirst;
-              else              // mergedst had now successor
-                mergedfirst = candfirst;
-              mergedlast = candlast;
-              // 2) updating the source of the merged transitions
-              for (unsigned e2 = candfirst; e2 != 0;)
+              if (candlast)
                 {
-                  auto& edge = aut->edge_storage(e2);
-                  edge.src = mergedst;
-                  e2 = edge.next_succ;
+                  unsigned& mergedfirst = g.state_storage(mergedst).succ;
+                  unsigned& mergedlast = g.state_storage(mergedst).succ_tail;
+                  unsigned& candfirst = g.state_storage(canddst).succ;
+                  if (mergedlast)
+                    aut->edge_storage(mergedlast).next_succ = candfirst;
+                  else              // mergedst had no successor
+                    mergedfirst = candfirst;
+                  mergedlast = candlast;
+                  // 2) updating the source of the merged transitions
+                  for (unsigned e2 = candfirst; e2 != 0;)
+                    {
+                      auto& edge = aut->edge_storage(e2);
+                      edge.src = mergedst;
+                      e2 = edge.next_succ;
+                    }
+                  // 3) deleting the edge to canddst.
+                  candfirst = candlast = 0;
                 }
-              // 3) deleting the edge to canddst.
-              candfirst = candlast = 0;
               it.erase();
               // 4) updating succ_cand
               succ_cand[mergedst] += succ_cand[canddst];
