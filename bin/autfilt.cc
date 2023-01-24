@@ -1667,13 +1667,8 @@ namespace
 
       if (!opt->hl_words.empty())
         for (auto& [word_aut, color]: opt->hl_words)
-          {
-            if (aut->acc().uses_fin_acceptance())
-              error(2, 0,
-                    "--highlight-word does not yet work with Fin acceptance");
-            if (auto run = spot::product(aut, word_aut)->accepting_run())
-              run->project(aut)->highlight(color);
-          }
+          if (auto run = spot::product(aut, word_aut)->accepting_run())
+            run->project(aut)->highlight(color);
 
       timer.stop();
       if (opt->uniq)

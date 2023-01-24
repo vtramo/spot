@@ -1,7 +1,7 @@
 #!/bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2016, 2017, 2018, 2019 Laboratoire de Recherche et Développement
-# de l'Epita (LRDE).
+# Copyright (C) 2016-2019, 2023 Laboratoire de Recherche
+# et Développement de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
 #
@@ -91,6 +91,15 @@ State: 1
 EOF
 diff expected out
 
+ltl2tgba -G '(GF(a & X!a) -> GF(b & XXb)) & GFc' > aut.hoa
+word='!a&!c;cycle{!a&b&!c;!a&c;!a&b&c}'
+autfilt -H1.1 aut.hoa --highlight-word="$word" > out.hoa
+grep spot.highlight.edges out.hoa >out.edges
+cat >expected <<EOF
+spot.highlight.edges: 3 1 11 1 12 1
+EOF
+diff out.edges expected
+
 ltl2tgba 'Fa & Fb' |
     autfilt -H1.1 \
             --highlight-word='2,!a&!b;cycle{!a&b;a&b}' \
@@ -133,11 +142,8 @@ for w in ',!a&!b;cycle{!a&b;a&b}' '-1,cycle{a}' '1 cycle{a}'; do
 done
 
 
-# highlight-word does not yet work with Fin acceptance
-ltl2tgba -G -D 'FGa' | autfilt --highlight-word='cycle{a}' 2>stderr && exit 1
-test $? -eq 2
-grep 'highlight-word.*Fin' stderr
-
+# highlight-word used not to work with Fin acceptance, but it's ok now
+ltl2tgba -G -D 'FGa' | autfilt --highlight-word='cycle{a}'
 
 ltlfilt -f 'GFa' --accept-word 'cycle{!a}' && exit 1
 ltlfilt -f 'GF!a' --accept-word 'cycle{!a}'
