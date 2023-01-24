@@ -10,6 +10,10 @@ New in spot 2.11.3.dev  (not yet released)
     multiple initial states (because Spot supports only one), the HOA
     parser could break state-based acceptance.  (Issue #522.)
 
+  - autfilt --highlight-word refused to work on automata with Fin
+    acceptance for historical reasons, however the code has been
+    perfectly able to handle this for a while.  (Issue #523.)
+
   - delay_branching_here(), a new optimization of Spot 2.11 had an
     incorrect handling of states without successors, causing some
     segfaults.  (Issue #524.)
