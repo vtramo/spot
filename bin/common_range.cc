@@ -36,9 +36,10 @@ parse_range(const char* str, int missing_left, int missing_right)
 {
   range res;
   char* end;
+  errno = 0;
   long lres = strtol(str, &end, 10);
   res.min = lres;
-  if (res.min != lres)
+  if (res.min != lres || errno == ERANGE)
     error(2, 0, "start of range '%s' is too large for an int.", str);
   if (end == str)
     {
@@ -69,9 +70,10 @@ parse_range(const char* str, int missing_left, int missing_right)
         {
           // Parse the next integer.
           char* end2;
+          errno = 0;
           lres = strtol(end, &end2, 10);
           res.max = lres;
-          if (res.max != lres)
+          if (res.max != lres || errno == ERANGE)
             error(2, 0, "end of range '%s' is too large for an int.", str);
           if (str == end2)
             error(2, 0, "invalid range '%s' "
