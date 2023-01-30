@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2021, 2022 Laboratoire de Recherche et Développement
+// Copyright (C) 2021, 2022, 2023 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -3995,7 +3995,7 @@ namespace
 
     // 0 -> "Env" next is input props
     // 1 -> "Player" next is output prop
-    const auto& spref = get_state_players(mmw);
+    const region_t& spref = get_state_players(mmw);
     assert((spref.size() == mmw->num_states())
            && "Inconsistent state players");
 
@@ -4146,9 +4146,9 @@ namespace spot
     const unsigned initl = left->get_init_state_number();
     const unsigned initr = right->get_init_state_number();
 
-    auto& spr = get_state_players(right);
+    const region_t& spr = get_state_players(right);
 #ifndef NDEBUG
-    auto& spl = get_state_players(left);
+    const region_t& spl = get_state_players(left);
     // todo
     auto check_out = [](const const_twa_graph_ptr& aut,
                         const auto& sp)
