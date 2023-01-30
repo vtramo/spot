@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2017-2022 Laboratoire de Recherche et Développement
+// Copyright (C) 2017-2023 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -163,14 +163,18 @@ namespace spot
 
   /// \ingroup games
   /// \brief Get the owner of all states
+  ///@{
   SPOT_API
-  const region_t& get_state_players(const_twa_graph_ptr arena);
+  const region_t& get_state_players(const const_twa_graph_ptr& arena);
+  SPOT_API
+  const region_t& get_state_players(twa_graph_ptr& arena);
+  ///@}
 
   /// \ingroup games
   /// \brief Get or set the strategy
   /// @{
   SPOT_API
-  const strategy_t& get_strategy(const_twa_graph_ptr arena);
+  const strategy_t& get_strategy(const const_twa_graph_ptr& arena);
   SPOT_API
   void set_strategy(twa_graph_ptr arena, const strategy_t& strat);
   SPOT_API
@@ -214,5 +218,5 @@ namespace spot
   /// \ingroup games
   /// \brief Get the winner of all states
   SPOT_API
-  const region_t& get_state_winners(const_twa_graph_ptr arena);
+  const region_t& get_state_winners(const const_twa_graph_ptr& arena);
 }

@@ -1056,7 +1056,18 @@ namespace spot
     (*owners)[state] = owner;
   }
 
-  const region_t& get_state_players(const_twa_graph_ptr arena)
+  const region_t& get_state_players(const const_twa_graph_ptr& arena)
+  {
+    region_t *owners = arena->get_named_prop<region_t>
+      ("state-player");
+    if (!owners)
+      throw std::runtime_error
+        ("get_state_players(): state-player property not defined, not a game?");
+
+    return *owners;
+  }
+
+  const region_t& get_state_players(twa_graph_ptr& arena)
   {
     region_t *owners = arena->get_named_prop<region_t>
       ("state-player");
@@ -1081,7 +1092,7 @@ namespace spot
   }
 
 
-  const strategy_t& get_strategy(const_twa_graph_ptr arena)
+  const strategy_t& get_strategy(const const_twa_graph_ptr& arena)
   {
     auto strat_ptr = arena->get_named_prop<strategy_t>("strategy");
     if (!strat_ptr)
@@ -1174,7 +1185,7 @@ namespace spot
     (*winners)[state] = winner;
   }
 
-  const region_t& get_state_winners(const_twa_graph_ptr arena)
+  const region_t& get_state_winners(const const_twa_graph_ptr& arena)
   {
     region_t *winners = arena->get_named_prop<region_t>("state-winner");
     if (!winners)
