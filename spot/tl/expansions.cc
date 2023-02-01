@@ -29,6 +29,18 @@ namespace spot
 {
   namespace
   {
+    class expansion_builder
+    {
+    public:
+      using exp_map = std::map<bdd, formula, bdd_less_than>;
+
+      virtual void insert(bdd letter, formula suffix) = 0;
+      virtual void finalize(bool deterministic, std::function<formula(formula)> wrap = formula_identity) = 0;
+      virtual exp_map& result() = 0;
+      virtual bool empty() = 0;
+      virtual void clear() = 0;
+    };
+
     class expansion_basic final : expansion_builder
     {
     public:
@@ -44,8 +56,7 @@ namespace spot
 
       void insert(bdd letter, formula suffix) final;
 
-      void finalize() final
-      {}
+      void finalize(bool deterministic, std::function<formula(formula)> wrap = formula_identity) final;
 
       exp_map& result() final
       {
@@ -77,6 +88,48 @@ namespace spot
         }
     }
 
+    void expansion_basic::finalize(bool deterministic, std::function<formula(formula)> wrap)
+    {
+      if (!deterministic)
+        return;
+
+      bdd or_labels = bddfalse;
+      bdd support = bddtrue;
+      bool is_det = true;
+      for (const auto& [l, _] : bdd2formula_)
+        {
+          support &= bdd_support(l);
+          if (is_det)
+            is_det = !bdd_have_common_assignment(l, or_labels);
+          or_labels |= l;
+        }
+
+      if (is_det)
+        {
+          // we don't need to determinize the expansion, it's already
+          // deterministic
+          for (auto& [_, dest] : bdd2formula_)
+            dest = wrap(dest);
+          return;
+        }
+
+      exp_map res;
+      std::vector<formula> dests;
+      for (bdd l: minterms_of(or_labels, support))
+        {
+          for (const auto& [ndet_label, ndet_dest] : bdd2formula_)
+            {
+              if (bdd_implies(l, ndet_label))
+                dests.push_back(ndet_dest);
+            }
+          formula or_dests = formula::OrRat(dests);
+          res.insert({l, wrap(or_dests)});
+          dests.clear();
+        }
+
+      bdd2formula_ = std::move(res);
+    }
+
     class expansion_merge_formulas final : expansion_builder
     {
     public:
@@ -92,7 +145,7 @@ namespace spot
 
       void insert(bdd letter, formula suffix) final;
 
-      void finalize() final;
+      void finalize(bool deterministic, std::function<formula(formula)> wrap = formula_identity) final;
 
       exp_map& result() final
       {
@@ -120,7 +173,7 @@ namespace spot
       terms_.push_back({letter, suffix});
     }
 
-    void expansion_merge_formulas::finalize()
+    void expansion_merge_formulas::finalize(bool deterministic, std::function<formula(formula)> wrap)
     {
       res_.clear();
 
@@ -162,6 +215,45 @@ namespace spot
               it->second = formula::OrRat({it->second, suffix});
             }
         }
+
+      if (!deterministic)
+        return;
+
+      bdd or_labels = bddfalse;
+      bdd support = bddtrue;
+      bool is_det = true;
+      for (const auto& [l, _] : res_)
+        {
+          support &= bdd_support(l);
+          if (is_det)
+            is_det = !bdd_have_common_assignment(l, or_labels);
+          or_labels |= l;
+        }
+
+      if (is_det)
+        {
+          // we don't need to determinize the expansion, it's already
+          // deterministic
+          for (auto& [_, dest] : res_)
+            dest = wrap(dest);
+          return;
+        }
+
+      exp_map res;
+      std::vector<formula> dests;
+      for (bdd l: minterms_of(or_labels, support))
+        {
+          for (const auto& [ndet_label, ndet_dest] : res_)
+            {
+              if (bdd_implies(l, ndet_label))
+                dests.push_back(ndet_dest);
+            }
+          formula or_dests = formula::OrRat(dests);
+          res.insert({l, wrap(or_dests)});
+          dests.clear();
+        }
+
+      res_ = std::move(res);
     }
 
     class expansion_bdd final : expansion_builder
@@ -213,7 +305,7 @@ namespace spot
 
       void insert(bdd letter, formula suffix) final;
 
-      void finalize() final;
+      void finalize(bool deterministic, std::function<formula(formula)> wrap = formula_identity) final;
 
       exp_map& result() final
       {
@@ -244,6 +336,7 @@ namespace spot
 
         formula var_to_formula(int var);
         formula conj_bdd_to_sere(bdd b);
+        formula bdd_to_sere(bdd b);
     };
 
     formula
@@ -320,22 +413,52 @@ namespace spot
       anon_set_ &= var;
       exp_ |= letter & var;
     }
+      formula
+      expansion_bdd::bdd_to_sere(bdd f)
+      {
+        if (f == bddfalse)
+          return formula::ff();
 
-    void expansion_bdd::finalize()
+        std::vector<formula> v;
+        minato_isop isop(f);
+        bdd cube;
+        while ((cube = isop.next()) != bddfalse)
+          v.emplace_back(conj_bdd_to_sere(cube));
+        return formula::OrRat(std::move(v));
+      }
+
+    void expansion_bdd::finalize(bool deterministic, std::function<formula(formula)> wrap)
     {
-      minato_isop isop(exp_);
-      bdd cube;
-      while ((cube = isop.next()) != bddfalse)
+      if (deterministic)
         {
-          bdd letter = bdd_exist(cube, anon_set_);
-          bdd suffix = bdd_existcomp(cube, anon_set_);
-          formula dest = conj_bdd_to_sere(suffix);
-
-          auto it = res_.insert({letter, dest});
-          if (!it.second)
+          bdd prop_set = bdd_exist(bdd_support(exp_), anon_set_);
+          bdd or_labels = bdd_exist(exp_, anon_set_);
+          for (bdd letter: minterms_of(exp_, prop_set))
             {
-              auto it2 = it.first;
-              it2->second = formula::OrRat({it2->second, dest});
+              bdd dest_bdd = bdd_restrict(exp_, letter);
+              formula dest = wrap(bdd_to_sere(dest_bdd));
+
+              auto it = res_.insert({letter, dest});
+              assert(it.second);
+              (void) it;
+            }
+        }
+      else
+        {
+          minato_isop isop(exp_);
+          bdd cube;
+          while ((cube = isop.next()) != bddfalse)
+            {
+              bdd letter = bdd_exist(cube, anon_set_);
+              bdd suffix = bdd_existcomp(cube, anon_set_);
+              formula dest = conj_bdd_to_sere(suffix);
+
+              auto it = res_.insert({letter, dest});
+              if (!it.second)
+                {
+                  auto it2 = it.first;
+                  it2->second = formula::OrRat({it2->second, dest});
+                }
             }
         }
     }
@@ -432,7 +555,7 @@ namespace spot
 
   template<typename ExpansionBuilder>
   expansion_t
-  expansion_impl(formula f, const bdd_dict_ptr& d, void *owner, expansion_builder::expand_opt opts)
+  expansion_impl(formula f, const bdd_dict_ptr& d, void *owner, exp_opts::expand_opt opts)
   {
     if (f.is_boolean())
       {
@@ -474,7 +597,7 @@ namespace spot
                   }
               }
 
-            res.finalize();
+            res.finalize(opts & exp_opts::Deterministic);
             return res.result();
           }
 
@@ -511,7 +634,7 @@ namespace spot
             if (f.min() == 0)
               res.insert(bddtrue, formula::eword());
 
-            res.finalize();
+            res.finalize(opts & exp_opts::Deterministic);
             return res.result();
           }
 
@@ -530,7 +653,7 @@ namespace spot
                 res.insert(bdd_l, formula::Concat({form, formula::Star(f[0], min, max)}));
               }
 
-            res.finalize();
+            res.finalize(opts & exp_opts::Deterministic);
             return res.result();
           }
 
@@ -544,49 +667,15 @@ namespace spot
           {
             auto exps = expansion(f[0], d, owner, opts);
 
-            ExpansionBuilder ndet_res(d);
+            ExpansionBuilder res(d);
             for (const auto& [bdd_l, form] : exps)
               {
-                ndet_res.insert(bdd_l, form);
+                res.insert(bdd_l, form);
               }
 
-            bdd or_labels = bddfalse;
-            bdd support = bddtrue;
-            bool is_det = true;
-            ndet_res.finalize();
-            for (const auto& [l, _] : ndet_res.result())
-              {
-                support &= bdd_support(l);
-                if (is_det)
-                  is_det = !bdd_have_common_assignment(l, or_labels);
-                or_labels |= l;
-              }
-
-            if (is_det)
-              {
-                // we don't need to determinize the expansion, it's already
-                // deterministic
-                for (auto& [_, dest] : ndet_res.result())
-                  dest = formula::first_match(dest);
-                return ndet_res.result();
-              }
-
-            ExpansionBuilder res(d);
-            // TODO: extraire en fonction indépendante + lambda choix wrapper
-            std::vector<formula> dests;
-            for (bdd l: minterms_of(or_labels, support))
-              {
-                for (const auto& [ndet_label, ndet_dest] : ndet_res.result())
-                  {
-                    if (bdd_implies(l, ndet_label))
-                      dests.push_back(ndet_dest);
-                  }
-                formula or_dests = formula::OrRat(dests);
-                res.insert(l, formula::first_match(or_dests));
-                dests.clear();
-              }
-
-            res.finalize();
+            res.finalize(true, [](formula f){
+              return formula::first_match(f);
+            });
             return res.result();
           }
 
@@ -611,7 +700,7 @@ namespace spot
                 res.insert(li, formula::Fusion({ei, F}));
               }
 
-            res.finalize();
+            res.finalize(opts & exp_opts::Deterministic);
             return res.result();
           }
 
@@ -634,7 +723,7 @@ namespace spot
                 if (res.empty())
                   {
                     res = ExpansionBuilder(std::move(exps), d);
-                    res.finalize();
+                    res.finalize(false);
                     continue;
                   }
 
@@ -649,10 +738,10 @@ namespace spot
                   }
 
                 res = std::move(new_res);
-                res.finalize();
+                res.finalize(false);
               }
 
-            res.finalize();
+            res.finalize(opts & exp_opts::Deterministic);
             return res.result();
           }
 
@@ -675,7 +764,7 @@ namespace spot
                   res.insert(label, dest);
               }
 
-            res.finalize();
+            res.finalize(opts & exp_opts::Deterministic);
             return res.result();
           }
 
@@ -690,25 +779,25 @@ namespace spot
   }
 
   expansion_t
-  expansion(formula f, const bdd_dict_ptr& d, void *owner, expansion_builder::expand_opt opts)
+  expansion(formula f, const bdd_dict_ptr& d, void *owner, exp_opts::expand_opt opts)
   {
-    if (opts & expansion_builder::Basic)
+    if (opts & exp_opts::Basic)
       return expansion_impl<expansion_basic>(f, d, owner, opts);
-    else if (opts & expansion_builder::MergeSuffix)
+    else if (opts & exp_opts::MergeSuffix)
       return expansion_impl<expansion_merge_formulas>(f, d, owner, opts);
-    else // expansion_builder::Bdd
+    else // exp_opts::Bdd
       return expansion_impl<expansion_bdd>(f, d, owner, opts);
   }
 
   twa_graph_ptr
-  expand_automaton(formula f, bdd_dict_ptr d, expansion_builder::expand_opt opts)
+  expand_automaton(formula f, bdd_dict_ptr d, exp_opts::expand_opt opts)
   {
     auto finite = expand_finite_automaton(f, d, opts);
     return from_finite(finite);
   }
 
   twa_graph_ptr
-  expand_finite_automaton(formula f, bdd_dict_ptr d, expansion_builder::expand_opt opts)
+  expand_finite_automaton(formula f, bdd_dict_ptr d, exp_opts::expand_opt opts)
   {
     auto aut = make_twa_graph(d);
 
