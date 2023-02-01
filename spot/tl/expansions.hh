@@ -32,16 +32,13 @@ namespace spot
 {
   using expansion_t = std::map<bdd, formula, bdd_less_than>;
 
-  class expansion_builder
+  formula formula_identity(formula f)
   {
-  public:
-    using exp_map = std::map<bdd, formula, bdd_less_than>;
+    return f;
+  }
 
-    virtual void insert(bdd letter, formula suffix) = 0;
-    virtual void finalize() = 0;
-    virtual exp_map& result() = 0;
-    virtual bool empty() = 0;
-    virtual void clear() = 0;
+  struct exp_opts
+  {
     enum expand_opt {
       Deterministic = 1,
       Basic = 2,
@@ -51,14 +48,14 @@ namespace spot
   };
 
   SPOT_API expansion_t
-  expansion(formula f, const bdd_dict_ptr& d, void *owner, expansion_builder::expand_opt opts);
+  expansion(formula f, const bdd_dict_ptr& d, void *owner, exp_opts::expand_opt opts);
 
   SPOT_API formula
   expansion_to_formula(expansion_t e, bdd_dict_ptr& d);
 
   SPOT_API twa_graph_ptr
-  expand_automaton(formula f, bdd_dict_ptr d, expansion_builder::expand_opt opts);
+  expand_automaton(formula f, bdd_dict_ptr d, exp_opts::expand_opt opts);
 
   SPOT_API twa_graph_ptr
-  expand_finite_automaton(formula f, bdd_dict_ptr d, expansion_builder::expand_opt opts);
+  expand_finite_automaton(formula f, bdd_dict_ptr d, exp_opts::expand_opt opts);
 }
