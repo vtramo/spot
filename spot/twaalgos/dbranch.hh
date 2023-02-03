@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2022 Laboratoire de Recherche et Développement
+// Copyright (C) 2022, 2023 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -26,10 +26,15 @@ namespace spot
   /// \ingroup twa_algorithms
   /// \brief Merge states to delay
   ///
-  /// If a state (x) has two outgoing transitions (x,l,m,y) and
-  /// (x,l,m,z) going to states (x) and (y) that have no other
-  /// incoming edges, then (y) and (z) can be merged (keeping the
-  /// union of their outgoing destinations).
+  /// In an automaton with transition-based acceptance, if a state (x)
+  /// has two outgoing transitions (x,l,m,y) and (x,l,m,z) going to
+  /// states (x) and (y) that have no other incoming edges, then (y)
+  /// and (z) can be merged (keeping the union of their outgoing
+  /// destinations).
+  ///
+  /// If the input automaton uses state-based acceptance, running this
+  /// function might make the acceptance transition-based, but only if
+  /// two states with different acceptance are merged at some point.
   ///
   /// \return true iff the automaton was modified.
   SPOT_API bool delay_branching_here(const twa_graph_ptr& aut);
