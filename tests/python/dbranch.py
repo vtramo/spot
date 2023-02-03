@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2022 Laboratoire de Recherche et
+# Copyright (C) 2022, 2023 Laboratoire de Recherche et
 # Développement de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -144,4 +144,31 @@ State: 5
 [t] 5
 State: 6
 [t] 6
+--END--""")
+
+# Running delay_branching_here on state-based acceptance may require
+# the output to use transition-based acceptance.  (Issue #525.)
+a = spot.automaton("""
+HOA: v1 States: 4 Start: 0 AP: 2 "a" "b" Acceptance: 1 Inf(0) --BODY--
+State: 0 [0] 1 [0] 2 State: 1 [1] 3 State: 2 {0} [!1] 3 State: 3 [t] 0
+--END--""")
+copy = spot.make_twa_graph(a, spot.twa_prop_set.all())
+if spot.delay_branching_here(a):
+    a.purge_unreachable_states()
+tc.assertTrue(spot.are_equivalent(a, copy))
+tc.assertEqual(a.to_str(), """HOA: v1
+States: 3
+Start: 0
+AP: 2 "b" "a"
+acc-name: Buchi
+Acceptance: 1 Inf(0)
+properties: trans-labels explicit-labels trans-acc deterministic
+--BODY--
+State: 0
+[1] 1
+State: 1
+[0] 2
+[!0] 2 {0}
+State: 2
+[t] 0
 --END--""")

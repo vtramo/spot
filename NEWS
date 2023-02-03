@@ -32,6 +32,10 @@ New in spot 2.11.3.dev  (not yet released)
     incorrectly handling of states without successors, causing some
     segfaults.  (Issue #524.)
 
+  - Running delay_branching_here() on state-based automata (this was not
+    done in Spot so far) may require the output to use transition-based
+    acceptance.  (Issue #525.)
+
 New in spot 2.11.3  (2022-12-09)
 
   Bug fixes:

@@ -66,6 +66,10 @@ namespace spot
       hashmap_t first_dest[1 + is_game];
       auto& g = aut->get_graph();
 
+      // Merging outgoing transitions may cause the automaton to need
+      // transition-based acceptance.
+      bool need_trans = !aut->prop_state_acc().is_true();
+
       // setup a DFS
       std::vector<bool> seen(ns);
       std::stack<unsigned> todo;
@@ -128,9 +132,18 @@ namespace spot
                   unsigned& mergedlast = g.state_storage(mergedst).succ_tail;
                   unsigned& candfirst = g.state_storage(canddst).succ;
                   if (mergedlast)
-                    aut->edge_storage(mergedlast).next_succ = candfirst;
+                    {
+                      aut->edge_storage(mergedlast).next_succ = candfirst;
+                      // Do we need to require transition-based acceptance?
+                      if (!need_trans)
+                        need_trans =
+                          (aut->edge_storage(candfirst).acc
+                           != aut->edge_storage(mergedfirst).acc);
+                    }
                   else              // mergedst had no successor
-                    mergedfirst = candfirst;
+                    {
+                      mergedfirst = candfirst;
+                    }
                   mergedlast = candlast;
                   // 2) updating the source of the merged transitions
                   for (unsigned e2 = candfirst; e2 != 0;)
@@ -149,6 +162,8 @@ namespace spot
               changed = true;
             }
         }
+      if (need_trans)
+        aut->prop_state_acc(false);
       return changed;
     }
   }
