@@ -32,14 +32,10 @@ namespace spot
 {
   using expansion_t = std::map<bdd, formula, bdd_less_than>;
 
-  formula formula_identity(formula f)
-  {
-    return f;
-  }
-
   struct exp_opts
   {
     enum expand_opt {
+      None = 0,
       Deterministic = 1,
       Basic = 2,
       MergeSuffix = 4,
