@@ -35,7 +35,7 @@ namespace spot
       using exp_map = std::map<bdd, formula, bdd_less_than>;
 
       virtual void insert(bdd letter, formula suffix) = 0;
-      virtual void finalize(bool deterministic, std::function<formula(formula)> wrap = formula_identity) = 0;
+      virtual void finalize(bool deterministic) = 0;
       virtual exp_map& result() = 0;
       virtual bool empty() = 0;
       virtual void clear() = 0;
@@ -56,7 +56,7 @@ namespace spot
 
       void insert(bdd letter, formula suffix) final;
 
-      void finalize(bool deterministic, std::function<formula(formula)> wrap = formula_identity) final;
+      void finalize(bool deterministic) final;
 
       exp_map& result() final
       {
@@ -88,7 +88,7 @@ namespace spot
         }
     }
 
-    void expansion_basic::finalize(bool deterministic, std::function<formula(formula)> wrap)
+    void expansion_basic::finalize(bool deterministic)
     {
       if (!deterministic)
         return;
@@ -108,8 +108,6 @@ namespace spot
         {
           // we don't need to determinize the expansion, it's already
           // deterministic
-          for (auto& [_, dest] : bdd2formula_)
-            dest = wrap(dest);
           return;
         }
 
@@ -123,7 +121,7 @@ namespace spot
                 dests.push_back(ndet_dest);
             }
           formula or_dests = formula::OrRat(dests);
-          res.insert({l, wrap(or_dests)});
+          res.insert({l, or_dests});
           dests.clear();
         }
 
@@ -145,7 +143,7 @@ namespace spot
 
       void insert(bdd letter, formula suffix) final;
 
-      void finalize(bool deterministic, std::function<formula(formula)> wrap = formula_identity) final;
+      void finalize(bool deterministic) final;
 
       exp_map& result() final
       {
@@ -173,7 +171,7 @@ namespace spot
       terms_.push_back({letter, suffix});
     }
 
-    void expansion_merge_formulas::finalize(bool deterministic, std::function<formula(formula)> wrap)
+    void expansion_merge_formulas::finalize(bool deterministic)
     {
       res_.clear();
 
@@ -234,8 +232,6 @@ namespace spot
         {
           // we don't need to determinize the expansion, it's already
           // deterministic
-          for (auto& [_, dest] : res_)
-            dest = wrap(dest);
           return;
         }
 
@@ -249,7 +245,7 @@ namespace spot
                 dests.push_back(ndet_dest);
             }
           formula or_dests = formula::OrRat(dests);
-          res.insert({l, wrap(or_dests)});
+          res.insert({l, or_dests});
           dests.clear();
         }
 
@@ -305,7 +301,7 @@ namespace spot
 
       void insert(bdd letter, formula suffix) final;
 
-      void finalize(bool deterministic, std::function<formula(formula)> wrap = formula_identity) final;
+      void finalize(bool deterministic) final;
 
       exp_map& result() final
       {
@@ -427,7 +423,7 @@ namespace spot
         return formula::OrRat(std::move(v));
       }
 
-    void expansion_bdd::finalize(bool deterministic, std::function<formula(formula)> wrap)
+    void expansion_bdd::finalize(bool deterministic)
     {
       if (deterministic)
         {
@@ -436,7 +432,7 @@ namespace spot
           for (bdd letter: minterms_of(exp_, prop_set))
             {
               bdd dest_bdd = bdd_restrict(exp_, letter);
-              formula dest = wrap(bdd_to_sere(dest_bdd));
+              formula dest = bdd_to_sere(dest_bdd);
 
               auto it = res_.insert({letter, dest});
               assert(it.second);
@@ -567,6 +563,10 @@ namespace spot
         return {{f_bdd, formula::eword()}};
       }
 
+    auto rec = [&d, owner](formula f){
+      return expansion_impl<ExpansionBuilder>(f, d, owner, exp_opts::None);
+    };
+
 
     switch (f.kind())
       {
@@ -580,7 +580,7 @@ namespace spot
 
         case op::Concat:
           {
-            auto exps = expansion(f[0], d, owner, opts);
+            auto exps = rec(f[0]);
 
             ExpansionBuilder res(d);
             for (const auto& [bdd_l, form] : exps)
@@ -590,7 +590,7 @@ namespace spot
 
             if (f[0].accepts_eword())
               {
-                auto exps_rest = expansion(f.all_but(0), d, owner, opts);
+                auto exps_rest = rec(f.all_but(0));
                 for (const auto& [bdd_l, form] : exps_rest)
                   {
                     res.insert(bdd_l, form);
@@ -615,7 +615,7 @@ namespace spot
 
             auto E_i_j_minus = formula::FStar(E, min, max);
 
-            auto exp = expansion(E, d, owner, opts);
+            auto exp = rec(E);
             ExpansionBuilder res(d);
             for (const auto& [li, ei] : exp)
               {
@@ -623,7 +623,7 @@ namespace spot
 
                 if (ei.accepts_eword() && f.min() != 0)
                   {
-                    for (const auto& [ki, fi] : expansion(E_i_j_minus, d, owner, opts))
+                    for (const auto& [ki, fi] : rec(E_i_j_minus))
                       {
                         // FIXME: build bdd once
                         if ((li & ki) != bddfalse)
@@ -645,7 +645,7 @@ namespace spot
                          ? formula::unbounded()
                          : (f.max() - 1);
 
-            auto exps = expansion(f[0], d, owner, opts);
+            auto exps = rec(f[0]);
 
             ExpansionBuilder res(d);
             for (const auto& [bdd_l, form] : exps)
@@ -660,12 +660,12 @@ namespace spot
         case op::AndNLM:
           {
             formula rewrite = rewrite_and_nlm(f);
-            return expansion(rewrite, d, owner, opts);
+            return rec(rewrite);
           }
 
         case op::first_match:
           {
-            auto exps = expansion(f[0], d, owner, opts);
+            auto exps = rec(f[0]);
 
             ExpansionBuilder res(d);
             for (const auto& [bdd_l, form] : exps)
@@ -673,10 +673,11 @@ namespace spot
                 res.insert(bdd_l, form);
               }
 
-            res.finalize(true, [](formula f){
-              return formula::first_match(f);
-            });
-            return res.result();
+            res.finalize(true);
+            auto res2 = res.result();
+            for (auto& [_, dest] : res2)
+              dest = formula::first_match(dest);
+            return res2;
           }
 
         case op::Fusion:
@@ -685,9 +686,9 @@ namespace spot
             formula E = f[0];
             formula F = f.all_but(0);
 
-            expansion_t Ei = expansion(E, d, owner, opts);
+            expansion_t Ei = rec(E);
             // TODO: std::option
-            expansion_t Fj = expansion(F, d, owner, opts);
+            expansion_t Fj = rec(F);
 
             for (const auto& [li, ei] : Ei)
               {
@@ -709,7 +710,7 @@ namespace spot
             ExpansionBuilder res(d);
             for (const auto& sub_f : f)
               {
-                auto exps = expansion(sub_f, d, owner, opts);
+                auto exps = rec(sub_f);
 
                 if (exps.empty())
                   {
@@ -750,7 +751,7 @@ namespace spot
             ExpansionBuilder res(d);
             for (const auto& sub_f : f)
               {
-                auto exps = expansion(sub_f, d, owner, opts);
+                auto exps = rec(sub_f);
                 if (exps.empty())
                   continue;
 
