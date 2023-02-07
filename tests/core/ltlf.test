@@ -1,6 +1,6 @@
 #! /bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2022 Laboratoire de Recherche et Développement de
+# Copyright (C) 2022, 2023 Laboratoire de Recherche et Développement de
 # l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -173,3 +173,52 @@ grep -v '\[f\]' out4 > out3
 cmp out3 out4 && exit 1 # make sure we did remove something
 autfilt out3 > out4
 diff out4 expected3
+
+# Issue #526
+ltlfilt -f '(i->XXo)|G(i<->Xo2)' --from-ltlf | ltl2tgba -D |\
+    autfilt -C --to-finite > out
+cat >exp <<EOF
+HOA: v1
+States: 9
+Start: 0
+AP: 3 "o" "o2" "i"
+acc-name: Buchi
+Acceptance: 1 Inf(0)
+properties: trans-labels explicit-labels state-acc complete
+properties: deterministic
+--BODY--
+State: 0 {0}
+[2] 6
+[!2] 7
+State: 1
+[!1&!2] 1
+[!1&2] 5
+[1] 8
+State: 2 {0}
+[0] 7
+[!0] 8
+State: 3 {0}
+[!0&!1&!2] 1
+[!0&!1&2] 5
+[0] 7
+[!0&1] 8
+State: 4 {0}
+[!0&1&!2] 1
+[!0&1&2] 5
+[0] 7
+[!0&!1] 8
+State: 5 {0}
+[1&!2] 1
+[1&2] 5
+[!1] 8
+State: 6 {0}
+[!1] 2
+[1&!2] 3
+[1&2] 4
+State: 7 {0}
+[t] 7
+State: 8
+[t] 8
+--END--
+EOF
+diff out exp
