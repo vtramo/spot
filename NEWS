@@ -36,6 +36,10 @@ New in spot 2.11.3.dev  (not yet released)
     done in Spot so far) may require the output to use transition-based
     acceptance.  (Issue #525.)
 
+  - to_finite(), introduce in 2.11, had a bug that could break the
+    completeness of automata and trigger an exception from the HOA
+    printer.  (Issue #526.)
+
 New in spot 2.11.3  (2022-12-09)
 
   Bug fixes:
