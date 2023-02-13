@@ -548,6 +548,255 @@ namespace spot
     return formula::OrRat(res);
   }
 
+  std::multimap<bdd, formula, bdd_less_than>
+  expansion_simple(formula f, const bdd_dict_ptr& d, void *owner)
+  {
+    using exp_t = std::multimap<bdd, formula, bdd_less_than>;
+
+    if (f.is_boolean())
+      {
+        auto f_bdd = formula_to_bdd(f, d, owner);
+
+        if (f_bdd == bddfalse)
+          return {};
+
+        return {{f_bdd, formula::eword()}};
+      }
+
+    auto rec = [&d, owner](formula f){
+      return expansion_simple(f, d, owner);
+    };
+
+
+    switch (f.kind())
+      {
+        case op::ff:
+        case op::tt:
+        case op::ap:
+          SPOT_UNREACHABLE();
+
+        case op::eword:
+          return {{bddfalse, formula::ff()}};
+
+        case op::Concat:
+          {
+            auto exps = rec(f[0]);
+
+            exp_t res;
+            for (const auto& [bdd_l, form] : exps)
+              {
+                res.insert({bdd_l, formula::Concat({form, f.all_but(0)})});
+              }
+
+            if (f[0].accepts_eword())
+              {
+                auto exps_rest = rec(f.all_but(0));
+                for (const auto& [bdd_l, form] : exps_rest)
+                  {
+                    res.insert({bdd_l, form});
+                  }
+              }
+
+            return res;
+          }
+
+        case op::FStar:
+          {
+            formula E = f[0];
+
+            if (f.min() == 0 && f.max() == 0)
+              return {{bddtrue, formula::eword()}};
+
+            auto min = f.min() == 0 ? 0 : (f.min() - 1);
+            auto max = f.max() == formula::unbounded()
+                         ? formula::unbounded()
+                         : (f.max() - 1);
+
+            auto E_i_j_minus = formula::FStar(E, min, max);
+
+            auto exp = rec(E);
+            exp_t res;
+            for (const auto& [li, ei] : exp)
+              {
+                res.insert({li, formula::Fusion({ei, E_i_j_minus})});
+
+                if (ei.accepts_eword() && f.min() != 0)
+                  {
+                    for (const auto& [ki, fi] : rec(E_i_j_minus))
+                      {
+                        // FIXME: build bdd once
+                        if ((li & ki) != bddfalse)
+                          res.insert({li & ki, fi});
+                      }
+                  }
+              }
+            if (f.min() == 0)
+              res.insert({bddtrue, formula::eword()});
+
+            return res;
+          }
+
+        case op::Star:
+          {
+            auto min = f.min() == 0 ? 0 : (f.min() - 1);
+            auto max = f.max() == formula::unbounded()
+                         ? formula::unbounded()
+                         : (f.max() - 1);
+
+            auto exps = rec(f[0]);
+
+            exp_t res;
+            for (const auto& [bdd_l, form] : exps)
+              {
+                res.insert({bdd_l, formula::Concat({form, formula::Star(f[0], min, max)})});
+              }
+
+            return res;
+          }
+
+        case op::AndNLM:
+          {
+            formula rewrite = rewrite_and_nlm(f);
+            return rec(rewrite);
+          }
+
+        case op::first_match:
+          {
+            auto exps = rec(f[0]);
+
+            exp_t res;
+            for (const auto& [bdd_l, form] : exps)
+              {
+                res.insert({bdd_l, form});
+              }
+
+            // determinize
+            bdd or_labels = bddfalse;
+            bdd support = bddtrue;
+            bool is_det = true;
+            for (const auto& [l, _] : res)
+              {
+                support &= bdd_support(l);
+                if (is_det)
+                  is_det = !bdd_have_common_assignment(l, or_labels);
+                or_labels |= l;
+              }
+
+            if (is_det)
+              return res;
+
+            exp_t res_det;
+            std::vector<formula> dests;
+            for (bdd l: minterms_of(or_labels, support))
+              {
+                for (const auto& [ndet_label, ndet_dest] : res)
+                  {
+                    if (bdd_implies(l, ndet_label))
+                      dests.push_back(ndet_dest);
+                  }
+                formula or_dests = formula::OrRat(dests);
+                res_det.insert({l, or_dests});
+                dests.clear();
+              }
+
+            for (auto& [_, dest] : res_det)
+              dest = formula::first_match(dest);
+            return res_det;
+          }
+
+        case op::Fusion:
+          {
+            exp_t res;
+            formula E = f[0];
+            formula F = f.all_but(0);
+
+            exp_t Ei = rec(E);
+            // TODO: std::option
+            exp_t Fj = rec(F);
+
+            for (const auto& [li, ei] : Ei)
+              {
+                if (ei.accepts_eword())
+                  {
+                    for (const auto& [kj, fj] : Fj)
+                        if ((li & kj) != bddfalse)
+                          res.insert({li & kj, fj});
+                  }
+                res.insert({li, formula::Fusion({ei, F})});
+              }
+
+            return res;
+          }
+
+        case op::AndRat:
+          {
+            exp_t res;
+            for (const auto& sub_f : f)
+              {
+                auto exps = rec(sub_f);
+
+                if (exps.empty())
+                  {
+                    // op::AndRat: one of the expansions was empty (the only
+                    //             edge was `false`), so the AndRat is empty as
+                    //             well
+                    res.clear();
+                    break;
+                  }
+
+                if (res.empty())
+                  {
+                    res = std::move(exps);
+                    continue;
+                  }
+
+                exp_t new_res;
+                for (const auto& [l_key, l_val] : exps)
+                  {
+                    for (const auto& [r_key, r_val] : res)
+                      {
+                        if ((l_key & r_key) != bddfalse)
+                          new_res.insert({l_key & r_key, formula::multop(f.kind(), {l_val, r_val})});
+                      }
+                  }
+
+                res = std::move(new_res);
+              }
+
+            return res;
+          }
+
+        case op::OrRat:
+          {
+            exp_t res;
+            for (const auto& sub_f : f)
+              {
+                auto exps = rec(sub_f);
+                if (exps.empty())
+                  continue;
+
+                if (res.empty())
+                  {
+                    res = std::move(exps);
+                    continue;
+                  }
+
+                for (const auto& [label, dest] : exps)
+                  res.insert({label, dest});
+              }
+
+            return res;
+          }
+
+        default:
+          std::cerr << "unimplemented kind "
+                    << static_cast<int>(f.kind())
+                    << std::endl;
+          SPOT_UNIMPLEMENTED();
+      }
+
+    return {};
+  }
 
   template<typename ExpansionBuilder>
   expansion_t
@@ -854,6 +1103,92 @@ namespace spot
           : acc_cond::mark_t();
 
         auto exp = expansion(curr_f, d, aut.get(), opts);
+
+        for (const auto& [letter, suffix] : exp)
+          {
+            if (suffix.is(op::ff))
+              continue;
+
+            auto dst = find_dst(suffix);
+            aut->new_edge(curr_state, dst, letter, curr_acc_mark);
+          }
+
+        // if state has no transitions and should be accepting, create
+        // artificial transition
+        if (aut->get_graph().state_storage(curr_state).succ == 0
+            && curr_f.accepts_eword())
+          aut->new_edge(curr_state, curr_state, bddfalse, acc_mark);
+      }
+
+    aut->set_named_prop("state-names", state_names);
+    aut->merge_edges();
+    return aut;
+  }
+
+  twa_graph_ptr
+  expand_simple_automaton(formula f, bdd_dict_ptr d)
+  {
+    auto finite = expand_simple_finite_automaton(f, d);
+    return from_finite(finite);
+  }
+
+  twa_graph_ptr
+  expand_simple_finite_automaton(formula f, bdd_dict_ptr d)
+  {
+    auto aut = make_twa_graph(d);
+
+    aut->prop_state_acc(true);
+    const auto acc_mark = aut->set_buchi();
+
+    auto formula2state = robin_hood::unordered_map<formula, unsigned>();
+
+    unsigned init_state = aut->new_state();
+    aut->set_init_state(init_state);
+    formula2state.insert({ f, init_state });
+
+    auto f_aps = formula_aps(f);
+    for (auto& ap : f_aps)
+        aut->register_ap(ap);
+
+    auto todo = std::vector<std::pair<formula, unsigned>>();
+    todo.push_back({f, init_state});
+
+    auto state_names = new std::vector<std::string>();
+    std::ostringstream ss;
+    ss << f;
+    state_names->push_back(ss.str());
+
+    auto find_dst = [&](formula suffix) -> unsigned
+      {
+        unsigned dst;
+        auto it = formula2state.find(suffix);
+        if (it != formula2state.end())
+        {
+          dst = it->second;
+        }
+        else
+        {
+          dst = aut->new_state();
+          todo.push_back({suffix, dst});
+          formula2state.insert({suffix, dst});
+          std::ostringstream ss;
+          ss << suffix;
+          state_names->push_back(ss.str());
+        }
+
+        return dst;
+      };
+
+    while (!todo.empty())
+      {
+        auto [curr_f, curr_state] = todo[todo.size() - 1];
+        todo.pop_back();
+
+        auto curr_acc_mark= curr_f.accepts_eword()
+          ? acc_mark
+          : acc_cond::mark_t();
+
+        auto exp = expansion_simple(curr_f, d, aut.get());
 
         for (const auto& [letter, suffix] : exp)
           {
