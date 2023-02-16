@@ -18,28 +18,6 @@ New in spot 2.11.4.dev  (not yet released)
 
   - spot.acd() no longer depends on jQuery for interactivity.
 
-  Bug fixes:
-
-  - When merging initial states from state-based automata with
-    multiple initial states (because Spot supports only one), the HOA
-    parser could break state-based acceptance.  (Issue #522.)
-
-  - autfilt --highlight-word refused to work on automata with Fin
-    acceptance for historical reason, but the cose is perfectly able
-    to handle this now.  (Issue #523.)
-
-  - delay_branching_here(), a new optimization of Spot 2.11 had an
-    incorrectly handling of states without successors, causing some
-    segfaults.  (Issue #524.)
-
-  - Running delay_branching_here() on state-based automata (this was not
-    done in Spot so far) may require the output to use transition-based
-    acceptance.  (Issue #525.)
-
-  - to_finite(), introduce in 2.11, had a bug that could break the
-    completeness of automata and trigger an exception from the HOA
-    printer.  (Issue #526.)
-
 New in spot 2.11.4  (2023-02-10)
 
   Python:
