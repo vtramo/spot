@@ -51,7 +51,6 @@
         (package-install ess)))))
 
 (require 'ox-publish)
-(require 'org-install)
 (require 'hoa-mode)
 
 ; See https://github.com/emacs-ess/ESS/issues/1052
