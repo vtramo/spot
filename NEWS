@@ -14,6 +14,9 @@ New in spot 2.11.4.dev  (not yet released)
     supports only one): it now reuse the edges leaving initial states
     without incoming transitions.
 
+  - spot::bdd_to_cnf_formula() is a new variant of spot::bdd_to_formula()
+    that converts a BDD into a CNF instead of a DNF.
+
   Python:
 
   - spot.acd() no longer depends on jQuery for interactivity.

@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2009-2019 Laboratoire de Recherche et Développement
+// Copyright (C) 2009-2019, 2023 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 // Copyright (C) 2003, 2004 Laboratoire d'Informatique de Paris
 // 6 (LIP6), département Systèmes Répartis Coopératifs (SRC),
@@ -30,11 +30,14 @@ namespace spot
   namespace
   {
     // Convert a BDD which is known to be a conjonction into a formula.
+    // If dual is true, dualize the result, i.e., negate literals, and
+    // exchange ∧ and ∨.
+    template<bool dual>
     static formula
     conj_to_formula(bdd b, const bdd_dict_ptr d)
     {
       if (b == bddfalse)
-        return formula::ff();
+        return dual ? formula::tt() : formula::ff();
       std::vector<formula> v;
       while (b != bddtrue)
         {
@@ -49,11 +52,14 @@ namespace spot
           bdd high = bdd_high(b);
           if (high == bddfalse)
             {
-              res = formula::Not(res);
+              if (!dual)
+                res = formula::Not(res);
               b = bdd_low(b);
             }
           else
             {
+              if (dual)
+                res = formula::Not(res);
               // If bdd_low is not false, then b was not a conjunction.
               assert(bdd_low(b) == bddfalse);
               b = high;
@@ -61,7 +67,7 @@ namespace spot
           assert(b != bddfalse);
           v.emplace_back(res);
         }
-      return formula::And(v);
+      return dual ? formula::Or(v) : formula::And(v);
     }
   } // anonymous
 
@@ -143,7 +149,23 @@ namespace spot
     minato_isop isop(f);
     bdd cube;
     while ((cube = isop.next()) != bddfalse)
-      v.emplace_back(conj_to_formula(cube, d));
+      v.emplace_back(conj_to_formula<false>(cube, d));
     return formula::Or(std::move(v));
   }
+
+  formula
+  bdd_to_cnf_formula(bdd f, const bdd_dict_ptr d)
+  {
+    if (f == bddtrue)
+      return formula::tt();
+
+    std::vector<formula> v;
+
+    minato_isop isop(!f);
+    bdd cube;
+    while ((cube = isop.next()) != bddfalse)
+      v.emplace_back(conj_to_formula<true>(cube, d));
+    return formula::And(std::move(v));
+  }
+
 }

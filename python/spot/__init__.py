@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2014-2022  Laboratoire de
-# Recherche et Développement de l'Epita (LRDE).
+# Copyright (C) 2014-2023 Laboratoire de Recherche et Développement de
+# l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
 #
@@ -1345,6 +1345,10 @@ def parse_word(word, dic=_bdd_dict):
 
 def bdd_to_formula(b, dic=_bdd_dict):
     from spot.impl import bdd_to_formula as bf
+    return bf(b, dic)
+
+def bdd_to_cnf_formula(b, dic=_bdd_dict):
+    from spot.impl import bdd_to_cnf_formula as bf
     return bf(b, dic)
 
 

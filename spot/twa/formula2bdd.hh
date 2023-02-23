@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2012, 2013, 2014, 2015 Laboratoire de Recherche et
+// Copyright (C) 2012-2015, 2023 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 // Copyright (C) 2003  Laboratoire d'Informatique de Paris 6 (LIP6),
 // département Systèmes Répartis Coopératifs (SRC), Université Pierre
@@ -52,12 +52,21 @@ namespace spot
 
   /// \brief Convert a BDD into a formula.
   ///
-  /// Format the BDD as an irredundant sum of product (see the
-  /// minato_isop class for details) and map the BDD variables back
-  /// into their atomic propositions.  This works only for Boolean
-  /// formulas, and all the BDD variables used in \a f should have
-  /// been registered in \a d.  Although the result has type
-  /// formula, it obviously does not use any temporal operator.
+  /// Format the BDD as a Boolean spot::formula object. This works only
+  /// for Boolean formulas, and all the BDD variables used in \a f
+  /// should have been registered in \a d.  Although the result has
+  /// type formula, it obviously does not use any temporal operator.
+  ///
+  /// The bdd_to_formula() version produces an irredundant sum of
+  /// product (see the minato_isop class for details) and map the BDD
+  /// variables back into their atomic propositions.
+  ///
+  /// The bdd_to_cnf_formula() version produces an irredundant product of
+  /// sum, using the dual construction.
+  /// @{
   SPOT_API
   formula bdd_to_formula(bdd f, const bdd_dict_ptr d);
+  SPOT_API
+  formula bdd_to_cnf_formula(bdd f, const bdd_dict_ptr d);
+  /// @}
 }
