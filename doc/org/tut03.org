@@ -81,7 +81,7 @@ simplifications called /trivial identities/.  For instance
 =formula::F(formula::X(formula::tt()))= will return the same formula
 as =formula::tt()=.  These simplifications are those that involve the
 true and false constants, impotence (=F(F(e))=F(e)=), involutions
-(=Not(Not(e)=e=), associativity
+(=Not(Not(e))=e=), associativity
 (=And({And({e1,e2},e3})=And({e1,e2,e3})=).  See [[https://spot.lrde.epita.fr/tl.pdf][tl.pdf]] for a list of
 these /trivial identities/.
 
@@ -113,7 +113,7 @@ detail of the top-level operator in the formula.
 
     std::cout << f << '\n';
 
-    // kindstar() prints the name of the operator
+    // kindstr() prints the name of the operator
     // size() return the number of operands of the operators
     std::cout << f.kindstr() << ", " << f.size() << " children\n";
     // operator[] accesses each operand
@@ -157,7 +157,7 @@ The Python equivalent is similar:
 
   print(f)
 
-  # kindstar() prints the name of the operator
+  # kindstr() prints the name of the operator
   # size() return the number of operands of the operators
   print("{}, {} children".format(f.kindstr(), f.size()))
   # [] accesses each operand
