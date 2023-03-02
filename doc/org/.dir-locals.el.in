@@ -27,6 +27,9 @@
 		      (setenv "SPOT_DOTEXTRA" "node[fontsize=12] fontsize=12 stylesheet=\"spot.css\" edge[arrowhead=vee, arrowsize=.7, fontsize=12]")
                       (setq org-babel-temporary-directory "@abs_top_builddir@/doc/org/tmp")
                       (make-directory org-babel-temporary-directory t)
+                      ; has to be set globally, not buffer-local
+                      (setq ess-ask-for-ess-directory nil)
+                      (setq ess-startup-directory 'default-directory)
 		      (org-babel-do-load-languages 'org-babel-load-languages
                                                    `((,(if (version< org-version "8.3") 'sh 'shell) . t)
 						     (python . t)
@@ -39,7 +42,6 @@
 	      (org-babel-python-command . "@PYTHON@")
 	      (org-babel-C++-compiler . "./g++wrap")
 	      (shell-file-name . "@SHELL@")
-              (ess-ask-for-ess-directory . nil)
               (org-export-html-postamble . nil)
               (org-html-table-header-tags
                  "<th scope=\"%s\"%s><div><span>" . "</span></div></th>")

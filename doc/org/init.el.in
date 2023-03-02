@@ -88,7 +88,9 @@
 (setq org-babel-C++-compiler "./g++wrap")
 (setq shell-file-name "@SHELL@")
 (setq ess-ask-for-ess-directory nil)
-
+; setting ess-startup-directory to 'default-directory is enough with
+; newer ESS version (after Fev 2022) but does not work with older ones.
+(setq ess-startup-directory "@abs_top_builddir@/doc/org")
 (setq org-babel-default-header-args:plantuml
       '((:results . "file")
         (:exports . "results")

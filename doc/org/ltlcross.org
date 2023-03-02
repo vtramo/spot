@@ -924,7 +924,7 @@ compare the number of states produced by the two configurations of
 =ltl2tgba= for each formula, we just need to plot column
 =dt2$state.small= against =dt2$state.deter=.
 
-#+BEGIN_SRC R :results output graphics :width 5 :height 5 :file ltlcross-r.svg
+#+BEGIN_SRC R :results output graphics file :width 5 :height 5 :file ltlcross-r.svg
 library(ggplot2)
 ggplot(dt2, aes(x=states.small, y=states.deter)) +
    geom_abline(colour='white') + geom_point()
@@ -937,7 +937,7 @@ ggplot(dt2, aes(x=states.small, y=states.deter)) +
 We should probably print the formulas for the cases where the two
 sizes differ.
 
-#+BEGIN_SRC R :results output graphics :width 5 :height 5 :file ltlcross-r2.svg
+#+BEGIN_SRC R :results output graphics file :width 5 :height 5 :file ltlcross-r2.svg
 ggplot(dt2, aes(x=states.small, y=states.deter)) +
    geom_abline(colour='white') + geom_point() +
    geom_text(data=subset(dt2, states.small != states.deter),
