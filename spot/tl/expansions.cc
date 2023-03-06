@@ -1759,7 +1759,11 @@ namespace spot
       }
 
     aut->set_named_prop("state-names", state_names);
-    aut->merge_edges();
+
+    if ((opts & exp_opts_new::MergeEdges)
+        && !(opts & exp_opts_new::UniqueSuffix))
+      aut->merge_edges();
+
     return aut;
   }
 }
