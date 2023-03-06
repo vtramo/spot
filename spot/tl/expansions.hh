@@ -43,6 +43,26 @@ namespace spot
     };
   };
 
+  struct exp_opts_new
+  {
+    enum expand_opt_new {
+      None = 0,
+      UniqueSuffix = 1,
+      UniquePrefix = 2,
+      BddIsop = 4,
+      BddMinterm = 8,
+    };
+  };
+
+  SPOT_API std::multimap<bdd, formula, bdd_less_than>
+  expansion_new(formula f, const bdd_dict_ptr& d, void *owner, exp_opts_new::expand_opt_new opts);
+
+  SPOT_API twa_graph_ptr
+  expand_new_automaton(formula f, bdd_dict_ptr d, exp_opts_new::expand_opt_new opts);
+
+  SPOT_API twa_graph_ptr
+  expand_new_finite_automaton(formula f, bdd_dict_ptr d, exp_opts_new::expand_opt_new opts);
+
   SPOT_API twa_graph_ptr
   expand_simple_automaton(formula f, bdd_dict_ptr d);
 
