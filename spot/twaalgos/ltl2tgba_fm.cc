@@ -102,7 +102,7 @@ namespace spot
     {
       typedef twa_graph::namer<formula> namer;
     public:
-      ratexp_to_dfa(translate_dict& dict);
+      ratexp_to_dfa(translate_dict& dict, bool disable_scc_trimming = false);
 
       std::vector<std::pair<bdd, formula>> succ(formula f);
       ~ratexp_to_dfa();
@@ -117,6 +117,7 @@ namespace spot
       typedef robin_hood::unordered_node_map<formula, labelled_aut> f2a_t;
       std::vector<labelled_aut> automata_;
       f2a_t f2a_;
+      bool disable_scc_trimming_;
     };
 
     // Helper dictionary.  We represent formulae using BDDs to
@@ -902,8 +903,9 @@ namespace spot
     }
 
 
-    ratexp_to_dfa::ratexp_to_dfa(translate_dict& dict)
+    ratexp_to_dfa::ratexp_to_dfa(translate_dict& dict, bool disable_scc_trimming)
       : dict_(dict)
+      , disable_scc_trimming_(disable_scc_trimming)
     {
     }
 
@@ -954,6 +956,12 @@ namespace spot
                 }
               namer->new_edge(now, dest, label);
             }
+        }
+
+      if (disable_scc_trimming_)
+        {
+          automata_.emplace_back(a, namer);
+          return labelled_aut(a, namer);
         }
 
       // The following code trims the automaton in a crude way by
@@ -2181,7 +2189,7 @@ namespace spot
   }
 
   twa_graph_ptr
-  sere_to_tgba(formula f, const bdd_dict_ptr& dict)
+  sere_to_tgba(formula f, const bdd_dict_ptr& dict, bool disable_scc_trimming)
   {
     f = negative_normal_form(f);
 
@@ -2189,7 +2197,7 @@ namespace spot
     twa_graph_ptr a = make_twa_graph(dict);
 
     translate_dict d(a, s, false, false, false);
-    ratexp_to_dfa sere2dfa(d);
+    ratexp_to_dfa sere2dfa(d, disable_scc_trimming);
 
     auto [dfa, namer, state] = sere2dfa.succ(f);
 

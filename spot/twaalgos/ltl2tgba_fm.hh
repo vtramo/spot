@@ -91,5 +91,5 @@ namespace spot
                  bool label_with_ltl = false);
 
   SPOT_API twa_graph_ptr
-  sere_to_tgba(formula f, const bdd_dict_ptr& dict);
+  sere_to_tgba(formula f, const bdd_dict_ptr& dict, bool disable_scc_trimming = false);
 }
