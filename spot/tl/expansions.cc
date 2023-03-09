@@ -892,6 +892,8 @@ namespace spot
 
             if (is_det)
               {
+                for (auto& [_, dest] : res)
+                  dest = formula::first_match(dest);
                 finalize_new(res, opts, d);
                 return res;
               }
