@@ -70,13 +70,19 @@ namespace spot
   /// This computes the winning strategy and winning region using
   /// Zielonka's recursive algorithm.  \cite zielonka.98.tcs
   ///
+  /// By default only a 'local' strategy is computed:
+  /// Only the part of the arena reachable from the init state is considered.
+  /// If you want to compute a strategy for ALL states, set
+  /// \a solve_globally to true
+  ///
   /// Also includes some inspiration from Oink.
   /// \cite vandijk.18.tacas
   ///
   /// Returns the player winning in the initial state, and sets
   /// the state-winner and strategy named properties.
   SPOT_API
-  bool solve_parity_game(const twa_graph_ptr& arena);
+  bool solve_parity_game(const twa_graph_ptr& arena,
+                         bool solve_globally = false);
 
   /// \ingroup games
   /// \brief Solve a safety game.

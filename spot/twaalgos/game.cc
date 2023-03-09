@@ -149,73 +149,133 @@ namespace spot
     {
     public:
 
-      bool solve(const twa_graph_ptr& arena)
+      bool solve(const twa_graph_ptr& arena, bool solve_globally)
       {
         // todo check if reordering states according to scc is worth it
         set_up(arena);
         // Start recursive zielonka in a bottom-up fashion on each scc
         subgame_info_t subgame_info;
-        for (c_scc_idx_ = 0; c_scc_idx_ < info_->scc_count(); ++c_scc_idx_)
+        while (true)
           {
-            // Testing
-            // Make sure that every state that has a winner also
-            // belongs to a subgame
-            assert([&]()
-                    {
-                      for (unsigned i = 0; i < arena_->num_states(); ++i)
-                        if (w_.has_winner_[i]
-                            && (subgame_[i] == unseen_mark))
-                          return false;
-                        return true;
-                    }());
-            // Useless SCCs are winning for player 0.
-            if (!info_->is_useful_scc(c_scc_idx_))
+            // If we solve globally,
+            auto maybe_useful = [&](unsigned scc_idx){
+              if (info_->is_useful_scc(scc_idx))
+                return true;
+              if (!solve_globally)
+                return false;
+              // Check if we have an out-edge to a winning state
+              // in another scc
+              return std::any_of(
+                  info_->states_of(scc_idx).begin(),
+                  info_->states_of(scc_idx).end(),
+                  [&](unsigned s){
+                    return std::any_of(
+                                arena->out(s).begin(),
+                                arena->out(s).end(),
+                                [&](const auto& e){
+                                  assert ((subgame_[e.dst] == unseen_mark)
+                                          || (info_->scc_of(e.dst) != scc_idx));
+                                  return (info_->scc_of(e.dst) != scc_idx)
+                                          && w_.winner(e.dst);
+                                });
+                  });
+            };
+
+            for (c_scc_idx_ = 0; c_scc_idx_ < info_->scc_count(); ++c_scc_idx_)
               {
-                // This scc also gets its own subgame
-                ++rd_;
-                for (unsigned v: c_states())
-                  {
-                    subgame_[v] = rd_;
-                    w_.set(v, false);
-                    // The strategy for player 0 is to take the first
-                    // available edge.
-                    if ((*owner_ptr_)[v] == false)
-                      for (const auto &e : arena_->out(v))
+                // Testing
+                // Make sure that every state that has a winner also
+                // belongs to a subgame
+                assert([&]()
                         {
-                          s_[v] = arena_->edge_number(e);
-                          break;
-                        }
-                  }
-                continue;
-              }
-            // Convert transitions leaving edges to self-loops
-            // and check if trivially solvable
-            subgame_info = fix_scc();
-            // If empty, the scc was trivially solved
-            if (!subgame_info.is_empty)
-              {
-                // Check for special cases
-                if (subgame_info.is_one_parity)
-                  one_par_subgame_solver(subgame_info, max_abs_par_);
-                else
+                          for (unsigned i = 0; i < arena_->num_states(); ++i)
+                            if (w_.has_winner_[i]
+                                && (subgame_[i] == unseen_mark))
+                              return false;
+                            return true;
+                        }());
+                // Useless SCCs are winning for player 0.
+                if (!maybe_useful(c_scc_idx_))
                   {
-                    // "Regular" solver
-                    max_abs_par_ = *subgame_info.all_parities.begin();
-                    w_stack_.emplace_back(0, 0,
-                                          min_par_graph_, max_abs_par_);
-                    zielonka();
+                    // This scc also gets its own subgame
+                    ++rd_;
+                    for (unsigned v: c_states())
+                      {
+                        subgame_[v] = rd_;
+                        w_.set(v, false);
+                        // The strategy for player 0 is to take the first
+                        // available edge.
+                        if ((*owner_ptr_)[v] == false)
+                          for (const auto &e : arena_->out(v))
+                            {
+                              s_[v] = arena_->edge_number(e);
+                              break;
+                            }
+                      }
+                    continue;
+                  }
+                // Convert transitions leaving edges to self-loops
+                // and check if trivially solvable
+                subgame_info = fix_scc();
+                // If empty, the scc was trivially solved
+                if (!subgame_info.is_empty)
+                  {
+                    // Check for special cases
+                    if (subgame_info.is_one_parity)
+                      one_par_subgame_solver(subgame_info, max_abs_par_);
+                    else
+                      {
+                        // "Regular" solver
+                        max_abs_par_ = *subgame_info.all_parities.begin();
+                        w_stack_.emplace_back(0, 0,
+                                              min_par_graph_, max_abs_par_);
+                        zielonka();
+                      }
                   }
               }
+            if (!solve_globally)
+              break;
+
+            // Update the scc_info and continue
+            unsigned new_init
+              = std::distance(subgame_.begin(),
+                              std::find(subgame_.begin(), subgame_.end(),
+                                        unseen_mark));
+            if (new_init == arena->num_states())
+              break; // All states have been solved
+            // Compute new sccs
+            scc_info::edge_filter ef
+              = [](const twa_graph::edge_storage_t&,
+                   unsigned dst, void* subgame){
+                const auto& sg = *static_cast<std::vector<unsigned>*>(subgame);
+                return sg[dst] == unseen_mark ?
+                          scc_info::edge_filter_choice::keep :
+                          scc_info::edge_filter_choice::ignore;
+              };
+            info_ = std::make_unique<scc_info>(arena, new_init, ef, &subgame_);
           }
-        // Every state needs a winner
-        assert(std::all_of(w_.has_winner_.cbegin(), w_.has_winner_.cend(),
-                           [](bool b)
-                           { return b; }));
+        // Every state needs a winner (solve_globally)
+        // Or only those reachable
+        assert((solve_globally
+                && std::all_of(w_.has_winner_.cbegin(), w_.has_winner_.cend(),
+                               [](bool b) { return b; }))
+                || (!solve_globally
+                    && [&](){
+                         for (unsigned s = 0; s < arena->num_states(); ++s)
+                            {
+                              if ((info_->scc_of(s) != -1u)
+                                  && !w_.has_winner_.at(s))
+                                return false;
+                            }
+                          return true;
+                        }()));
         // Only the states owned by the winner need a strategy
         assert([&]()
                {
                   for (unsigned v = 0; v < arena_->num_states(); ++v)
                     {
+                      if (!solve_globally && (info_->scc_of(v) == -1u))
+                        continue;
                       if (((*owner_ptr_)[v] == w_.winner(v))
                           && ((s_[v] <= 0) || (s_[v] > arena_->num_edges())))
                         return false;
@@ -817,10 +877,10 @@ namespace spot
   } // anonymous
 
 
-  bool solve_parity_game(const twa_graph_ptr& arena)
+  bool solve_parity_game(const twa_graph_ptr& arena, bool solve_globally)
   {
     parity_game pg;
-    return pg.solve(arena);
+    return pg.solve(arena, solve_globally);
   }
 
   bool solve_game(const twa_graph_ptr& arena)
