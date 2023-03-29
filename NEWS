@@ -17,9 +17,10 @@ New in spot 2.11.4.dev  (not yet released)
   - spot::bdd_to_cnf_formula() is a new variant of spot::bdd_to_formula()
     that converts a BDD into a CNF instead of a DNF.
 
-  Python:
+  Bug fixes:
 
-  - spot.acd() no longer depends on jQuery for interactivity.
+  - Fix spurious failure of ltlsynt2.test when Python is not installed
+    (issue #530).
 
 New in spot 2.11.4  (2023-02-10)
 
