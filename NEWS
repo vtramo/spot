@@ -5,6 +5,9 @@ New in spot 2.11.4.dev  (not yet released)
   - Fix spurious failure of ltlsynt2.test when Python is not installed
     (issue #530).
 
+  - Building from the git repository would fail to report a missing
+    emacs (issue #528).
+
 New in spot 2.11.4  (2023-02-10)
 
   Python:
