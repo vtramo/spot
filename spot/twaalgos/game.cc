@@ -214,10 +214,14 @@ namespace spot
         // Only the states owned by the winner need a strategy
         assert([&]()
                {
+                  std::unordered_set<unsigned> valid_strat;
+                  for (const auto& e : arena_->edges())
+                    valid_strat.insert(arena_->edge_number(e));
+
                   for (unsigned v = 0; v < arena_->num_states(); ++v)
                     {
                       if (((*owner_ptr_)[v] == w_.winner(v))
-                          && ((s_[v] <= 0) || (s_[v] > arena_->num_edges())))
+                          && (valid_strat.count(s_.at(v)) == 0))
                         return false;
                     }
                   return true;
