@@ -457,6 +457,7 @@ namespace spot
     color_env = aut->acc().is_parity(max_par, odd_par, true);
 
     split->copy_ap_of(aut);
+    split->prop_copy(aut, { true, true, true, false, false, false });
     split->new_states(aut->num_states());
     split->set_init_state(aut->get_init_state_number());
     set_synthesis_outputs(split, output_bdd);
@@ -703,6 +704,7 @@ namespace spot
     twa_graph_ptr out = make_twa_graph(aut->get_dict());
     out->copy_acceptance_of(aut);
     out->copy_ap_of(aut);
+    out->prop_copy(aut, { false, true, true, false, false, false });
 
     // split_2step is guaranteed to produce an alternating arena
     auto owner = get_state_players(aut);
