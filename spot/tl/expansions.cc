@@ -106,9 +106,10 @@ namespace spot
     class bdd_finalizer
     {
       public:
-        bdd_finalizer(std::multimap<bdd, formula, bdd_less_than>& exp, bdd_dict_ptr d)
+        bdd_finalizer(std::multimap<bdd, formula, bdd_less_than>& exp, bdd_dict_ptr d, bool opt_sigma_star)
           : anon_set_(bddtrue)
           , d_(d)
+          , opt_sigma_star_(opt_sigma_star)
         {
           for (const auto& [prefix, suffix] : exp)
           {
@@ -120,12 +121,25 @@ namespace spot
             }
             else
             {
-              anon_var_num = d_->register_anonymous_variables(1, this);
+              if (opt_sigma_star_ && (suffix.is(op::Star)
+                                      && suffix[0].is(op::tt)
+                                      && suffix.min() == 0
+                                      && suffix.max() == formula::unbounded()))
+                {
+                  anon_var_num = -1;
+                }
+              else
+                {
+                  anon_var_num = d_->register_anonymous_variables(1, this);
+                }
+
               formula2bdd_.insert({suffix, anon_var_num});
               bdd2formula_.insert({anon_var_num, suffix});
             }
 
-            bdd var = bdd_ithvar(anon_var_num);
+            bdd var = bddtrue;
+            if (anon_var_num != -1)
+              var = bdd_ithvar(anon_var_num);
             anon_set_ &= var;
             exp_ |= prefix & var;
           }
@@ -145,6 +159,7 @@ namespace spot
         std::map<formula, int> formula2bdd_;
         std::map<int, formula> bdd2formula_;
         bdd_dict_ptr d_;
+        bool opt_sigma_star_;
 
         formula var_to_formula(int var);
         formula conj_bdd_to_sere(bdd b);
@@ -177,7 +192,13 @@ namespace spot
     bdd_finalizer::conj_bdd_to_sere(bdd b)
     {
       if (b == bddtrue)
-        return formula::tt();
+        {
+          if (opt_sigma_star_){
+            return formula::Star(formula::tt(), 0, formula::unbounded());
+          } else {
+            return formula::tt();
+          }
+        }
       if (b == bddfalse)
         return formula::ff();
 
@@ -261,7 +282,7 @@ namespace spot
       if (opts & (exp_opts::expand_opt::BddIsop
                   | exp_opts::expand_opt::BddMinterm))
       {
-        bdd_finalizer bddf(exp, d);
+        bdd_finalizer bddf(exp, d, opts & exp_opts::expand_opt::BddSigmaStar);
         exp = bddf.simplify(opts);
       }
 
