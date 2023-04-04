@@ -40,7 +40,8 @@ namespace spot
       UniquePrefix = 2,
       BddIsop = 4,
       BddMinterm = 8,
-      MergeEdges = 16,
+      BddSigmaStar = 16,
+      MergeEdges = 32,
     };
   };
 
