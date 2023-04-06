@@ -511,9 +511,7 @@ namespace spot
                 (const auto& pstate)
               {
                 return spl->at(pstate.first) == spr->at(pstate.second);
-              }
-            )
-        );
+              }));
 
       return res;
     }

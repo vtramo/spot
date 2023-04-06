@@ -172,6 +172,24 @@ namespace spot
                            cond = bdd_restrict(bdd_exist(cond, exist),
                                                restrict_);
                          });
+    // Propagate game and synthesis properties
+    if (const auto* outs = aut->get_named_prop<bdd>("synthesis-outputs"))
+      res->set_named_prop<bdd>("synthesis-outputs",
+        new bdd(bdd_exist(bdd_exist(*outs, restrict_), exist)));
+
+    if (const auto* sp = aut->get_named_prop<std::vector<bool>>("state-player"))
+      {
+        const unsigned N = res->num_states();
+
+        const auto& ostates
+          = *(res->get_named_prop<std::vector<unsigned>>("original-states"));
+        auto& spnew =
+          *(res->get_or_set_named_prop<std::vector<bool>>("state-player"));
+        spnew.resize(N);
+
+        for (unsigned s = 0; s < N; ++s)
+          spnew[s] = (*sp)[ostates[s]];
+      }
     return res;
   }
 
