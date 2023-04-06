@@ -392,3 +392,42 @@ except RuntimeError as e:
                 str(e))
 else:
     report_missing_exception()
+
+
+# Making sure that products on games throw
+try:
+    left = spot.translate("G(i->(X(~i)))")
+    right = spot.ltl_to_game("i->G(i<->o1)", ["o1"])
+    prod = spot.product(left, right)
+except RuntimeError as e:
+    tc.assertIn("product: left and right automata",
+                str(e))
+else:
+    report_missing_exception()
+
+try:
+    si = spot.synthesis_info()
+    si.dict = spot.make_bdd_dict()
+
+    left = spot.ltl_to_game("a->G(a<->b) && GF(c)", ["b", "c"], si)
+    right = spot.ltl_to_game("G(b<->F(c))", ["c"], si)
+    prod = spot.product(left, right)
+except RuntimeError as e:
+    tc.assertIn("product(): Inputs of",
+                str(e))
+else:
+    report_missing_exception()
+
+try:
+    si = spot.synthesis_info()
+    si.dict = spot.make_bdd_dict()
+
+    left = spot.ltl_to_game("a->G(a<->b) && GF(c)", ["b", "c"], si)
+    right = spot.ltl_to_game("G(b<->F(c))", ["c"], si)
+    prod = spot.product(right, left)
+except RuntimeError as e:
+    tc.assertIn("product(): Inputs of",
+                str(e))
+else:
+    report_missing_exception()
+

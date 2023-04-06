@@ -117,6 +117,11 @@ namespace spot
       if (SPOT_UNLIKELY(left->get_dict() != right->get_dict()))
         throw std::runtime_error("product: left and right automata should "
                                  "share their bdd_dict");
+      if (SPOT_UNLIKELY(
+          (bool) left->get_named_prop<std::vector<bool>>("state-player")
+          != (bool) right->get_named_prop<std::vector<bool>>("state-player")))
+          throw std::runtime_error("product: Either both or non of "
+                                   "left and right have to be games.");
 
       auto res = make_twa_graph(left->get_dict());
       res->copy_ap_of(left);
@@ -437,6 +442,79 @@ namespace spot
           res->prop_state_acc(left->prop_state_acc()
                               && right->prop_state_acc());
         }
+
+      // Teaching the product synthesis outputs and games
+      // Make sure that inputs and outputs stay disjoint
+      auto neg_conj = [](bdd c)
+        {
+          bdd cn = bddtrue;
+          while (c != bddtrue)
+            {
+              int var = bdd_var(c);
+              cn &= bdd_nithvar(var);
+              c = bdd_high(c);
+            }
+          return cn;
+        };
+
+      bdd* outsl = left->get_named_prop<bdd>("synthesis-outputs");
+      bdd* outsr = right->get_named_prop<bdd>("synthesis-outputs");
+      bdd outsres = bddfalse;
+      if (outsl && outsr)
+        {
+          outsres = *outsl & *outsr;
+          bdd insl = bdd_exist(left->ap_vars(), *outsl);
+          bdd insr = bdd_exist(right->ap_vars(), *outsr);
+          if ((insl & neg_conj(*outsr)) == bddfalse)
+            throw std::runtime_error("product(): Inputs of left intersect with "
+                                     "outputs of right.\n");
+          if ((insr & neg_conj(*outsl)) == bddfalse)
+            throw std::runtime_error("product(): Inputs of right intersect with "
+                                     "outputs of left.\n");
+        }
+      else if (outsl)
+        outsres = *outsl;
+      else if (outsr)
+        outsres = *outsr;
+      if (outsres != bddfalse)
+        res->set_named_prop("synthesis-outputs", new bdd(outsres));
+
+      // Handling games
+      std::vector<bool>* spl
+        = left->get_named_prop<std::vector<bool>>("state-player");
+
+      product_states* prods = nullptr;
+
+      if (spl)
+        {
+          const unsigned N = res->num_states();
+          std::vector<bool>* spres
+            = res->get_or_set_named_prop<std::vector<bool>>("state-player");
+          spres->clear();
+          spres->reserve(N);
+          prods = res->get_named_prop<product_states>("product-states");
+
+          auto& spo = *spl;
+
+          std::transform(prods->begin(), prods->end(),
+                         std::back_insert_iterator(*spres),
+                         [&spo](const product_state& pstate)
+                          {
+                            return spo[pstate.first];
+                          });
+        }
+
+      assert(!spl ||
+        std::all_of(prods->begin(), prods->end(),
+            [&spl,
+             spr = right->get_named_prop<std::vector<bool>>("state-player")]
+                (const auto& pstate)
+              {
+                return spl->at(pstate.first) == spr->at(pstate.second);
+              }
+            )
+        );
+
       return res;
     }
   }
