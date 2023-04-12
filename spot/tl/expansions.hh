@@ -42,6 +42,7 @@ namespace spot
       BddMinterm = 8,
       BddSigmaStar = 16,
       MergeEdges = 32,
+      SignatureMerge = 64,
     };
   };
 
