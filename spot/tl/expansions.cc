@@ -614,19 +614,43 @@ namespace spot
     return from_finite(finite);
   }
 
+  struct signature_hash
+  {
+    std::size_t
+    operator() (const std::pair<bool, std::multimap<bdd, formula, bdd_less_than>>& sig) const
+    {
+      size_t hash = std::hash<bool>()(sig.first);
+
+      for (const auto& keyvalue : sig.second)
+        {
+          hash ^= (bdd_hash()(keyvalue.first) ^ std::hash<formula>()(keyvalue.second))
+            + 0x9e3779b9 + (hash << 6) + (hash >> 2);
+        }
+
+      return hash;
+    }
+  };
+
   twa_graph_ptr
   expand_finite_automaton(formula f, bdd_dict_ptr d, exp_opts::expand_opt opts)
   {
+    bool signature_merge = opts & exp_opts::expand_opt::SignatureMerge;
+
     auto aut = make_twa_graph(d);
 
     aut->prop_state_acc(true);
     const auto acc_mark = aut->set_buchi();
 
     auto formula2state = robin_hood::unordered_map<formula, unsigned>();
+    auto signature2state = std::unordered_map<std::pair<bool, expansion_t>, unsigned, signature_hash>();
 
     unsigned init_state = aut->new_state();
     aut->set_init_state(init_state);
     formula2state.insert({ f, init_state });
+
+    if (signature_merge)
+      signature2state.insert({ {f.accepts_eword(), expansion(f, d, aut.get(), opts)}, init_state});
+
 
     auto f_aps = formula_aps(f);
     for (auto& ap : f_aps)
@@ -650,9 +674,25 @@ namespace spot
         }
         else
         {
+          if (signature_merge)
+            {
+              auto exp = expansion(suffix, d, aut.get(), opts);
+              bool accepting = suffix.accepts_eword();
+              auto it2 = signature2state.find({accepting, exp});
+              if (it2 != signature2state.end())
+                {
+                  formula2state.insert({suffix, it2->second});
+                  return it2->second;
+                }
+            }
+
           dst = aut->new_state();
           todo.push_back({suffix, dst});
+
           formula2state.insert({suffix, dst});
+          if (signature_merge)
+            signature2state.insert({{suffix.accepts_eword(), expansion(suffix, d, aut.get(), opts)}, dst});
+
           std::ostringstream ss;
           ss << suffix;
           state_names->push_back(ss.str());
