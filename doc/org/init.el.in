@@ -160,7 +160,7 @@ up.html points to index.html, then the result is:
           (setq body res)
           (not cmp)))
     (concat "#+TITLE: " title
-            "\n#+SETUPFILE: setup.org\n#+HTML_LINK_UP: index.html\n\n"
+            "\n#+INCLUDE: setup.org\n#+HTML_LINK_UP: index.html\n\n"
             body)))
 
 (setq org-publish-project-alist
