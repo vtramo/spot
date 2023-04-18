@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2013, 2014, 2015, 2016, 2018, 2019 Laboratoire de Recherche et
-// Développement de l'Epita (LRDE).
+// Copyright (C) 2013-2016, 2018-2019, 2023 Laboratoire de Recherche
+// et Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
 //
@@ -79,6 +79,9 @@ namespace spot
     }
 
     /// \brief Convert the twa_word as an automaton.
+    ///
+    /// Convert the twa_word into a lasso-shapred automaton
+    /// with "true" acceptance condition.
     ///
     /// This is useful to evaluate a word on an automaton.
     twa_graph_ptr as_automaton() const;

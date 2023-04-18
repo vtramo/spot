@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2011, 2013-2018, 2020-2021 Laboratoire de
+// Copyright (C) 2011, 2013-2018, 2020-2021, 2023 Laboratoire de
 // Recherche et Developpement de l'Epita (LRDE).
 // Copyright (C) 2004, 2005 Laboratoire d'Informatique de Paris 6 (LIP6),
 // département Systèmes Répartis Coopératifs (SRC), Université Pierre
@@ -451,9 +451,9 @@ namespace spot
     /// Note that this works only if the automaton is a twa_graph_ptr.
     void highlight(unsigned color);
 
-    /// \brief Return a twa_graph_ptr corresponding to \a run
+    /// \brief Convert the run into a lasso-shaped automaton
     ///
-    /// Identical states are merged.
+    /// This preserves the original acceptance condition.
     ///
     /// If \a preserve_names is set, the created states are named
     /// using the format_state() result from the original state.

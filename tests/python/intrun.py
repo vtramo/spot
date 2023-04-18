@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2020, 2022 Laboratoire de Recherche et Développement
+# Copyright (C) 2020, 2022, 2023 Laboratoire de Recherche et Développement
 # de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -38,3 +38,41 @@ r = b.intersecting_run(spot.complement(a));
 c = spot.twa_word(r).as_automaton()
 tc.assertTrue(c.intersects(b))
 tc.assertFalse(c.intersects(a))
+
+# The next test came from Philipp Schlehuber-Caissier: running
+# as_twa() on a run built from a A.intersecting_run(B) failed to build
+# the automaton because it tried to rebuild the run on A and did not
+# find transitions matching exactly.  Additionally the idea of merging
+# states in as_twa() seems to be a way to create some disasters, so we
+# removed that too.
+a = spot.translate("a");
+b = spot.translate("{a;1;a}");
+r = a.intersecting_run(b)
+tc.assertEqual(str(r), """Prefix:
+  1
+  |  a
+  0
+  |  1	{0}
+  0
+  |  a	{0}
+Cycle:
+  0
+  |  1	{0}
+""")
+tc.assertEqual(r.as_twa().to_str(), """HOA: v1
+States: 4
+Start: 0
+AP: 1 "a"
+acc-name: Buchi
+Acceptance: 1 Inf(0)
+properties: trans-labels explicit-labels state-acc deterministic
+--BODY--
+State: 0
+[0] 1
+State: 1 {0}
+[t] 2
+State: 2 {0}
+[0] 3
+State: 3 {0}
+[t] 3
+--END--""")

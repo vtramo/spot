@@ -25,6 +25,11 @@ New in spot 2.11.4.dev  (not yet released)
   - Building from the git repository would fail to report a missing
     emacs (issue #528).
 
+  - Fix exception raised by aut1.intersecting_run(aut2).as_twa()
+    because the run did not match transitions present in aut1
+    verbatim.  We also changed the behavior of as_twa() to not merge
+    identical states.
+
 New in spot 2.11.4  (2023-02-10)
 
   Python:
