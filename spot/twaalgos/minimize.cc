@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2010-2020 Laboratoire de Recherche et Développement
+// Copyright (C) 2010-2020, 2023 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -394,8 +394,8 @@ namespace spot
       else
         {
           // Find any accepting sink state, to speed up the
-          // determinization by merging all states containing a sink
-          // state.
+          // determinization by merging all macro-states containing a
+          // sink state.
           std::vector<unsigned> acc_sinks;
           unsigned ns = a->num_states();
           if (!a->prop_terminal().is_true())

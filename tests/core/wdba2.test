@@ -1,7 +1,7 @@
 #!/bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2012, 2014, 2015, 2018, 2019 Laboratoire de Recherche et
-# Développement de l'Epita (LRDE).
+# Copyright (C) 2012, 2014-2015, 2018-2019, 2023 Laboratoire de
+# Recherche et Développement de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
 #
@@ -81,4 +81,37 @@ State: 3
 EOF
 
 autfilt --small --high -C -Hi input > output
+diff output expected
+
+# This test comes from a report from Raven Beutner and used to cause a
+# segfault.
+cat >input <<EOF
+HOA: v1
+States: 1
+Start: 0
+AP: 3  "l0" "l1" "l2"
+acc-name: generalized-Buchi 0
+Acceptance: 0 t
+--BODY--
+State: 0
+[0&1] 0
+[2] 0
+[!2] 0
+--END--
+EOF
+autfilt --small -S input >output
+cat >expected <<EOF
+HOA: v1
+States: 1
+Start: 0
+AP: 0
+acc-name: Buchi
+Acceptance: 1 Inf(0)
+properties: trans-labels explicit-labels state-acc colored complete
+properties: deterministic terminal
+--BODY--
+State: 0 {0}
+[t] 0
+--END--
+EOF
 diff output expected

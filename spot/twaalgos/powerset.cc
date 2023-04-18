@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2009-2011, 2013-2019, 2021 Laboratoire de Recherche et
+// Copyright (C) 2009-2011, 2013-2019, 2021, 2023 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 // Copyright (C) 2004 Laboratoire d'Informatique de Paris 6 (LIP6),
 // département Systèmes Répartis Coopératifs (SRC), Université Pierre
@@ -217,17 +217,19 @@ namespace spot
         pm.map_.emplace_back(std::move(ps));
       }
 
-    {
-      unsigned init_num = aut->get_init_state_number();
-      auto bvi = make_bitvect(ns);
-      bvi->set(init_num);
-      power_state ps{init_num};
-      unsigned num = res->new_state();
-      res->set_init_state(num);
-      seen[bvi] = num;
-      assert(pm.map_.size() == num);
-      pm.map_.emplace_back(std::move(ps));
-      toclean.emplace_back(bvi);
+    // Add the initial state unless it's a sink.
+    if (unsigned init_num = aut->get_init_state_number();
+        !acc_sinks || !acc_sinks->get(init_num))
+      {
+        auto bvi = make_bitvect(ns);
+        bvi->set(init_num);
+        power_state ps{init_num};
+        unsigned num = res->new_state();
+        res->set_init_state(num);
+        seen[bvi] = num;
+        assert(pm.map_.size() == num);
+        pm.map_.emplace_back(std::move(ps));
+        toclean.emplace_back(bvi);
     }
 
     // outgoing map
