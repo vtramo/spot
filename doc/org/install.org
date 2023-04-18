@@ -9,9 +9,9 @@
    :CUSTOM_ID: tar
    :END:
 
-The latest release of Spot is version {{{LASTRELEASE}}}:
+The latest release of Spot is version call_SPOT_VERSION() and was released on {{{LASTDATE}}}:
 
-- {{{LASTTARBALL}}} (see also the {{{LASTNEWS}}})
+- call_TARBALL_LINK() (see also the call_NEWS_LINK())
 
 Past releases can be found [[https://www.lrde.epita.fr/dload/spot/][in the same directory]].  If you are
 interested in /future/ releases, you can always peek at the [[https://gitlab.lre.epita.fr/spot/spot/-/jobs/artifacts/next/browse?job=make-dist][last

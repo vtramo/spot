@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-#+TITLE: Command-line tools installed by Spot {{{SPOTVERSION}}}
-#+DESCRIPTION: List of all the command-line tools installed by Spot {{{SPOTVERSION}}}
 #+INCLUDE: setup.org
+#+TITLE: Command-line tools installed by Spot
+#+DESCRIPTION: List of all the command-line tools installed by Spot
 #+HTML_LINK_UP: index.html
 #+PROPERTY: header-args:sh :results verbatim :exports both
 
 This document introduces command-line tools that are installed with
-the Spot library.  We give some examples to highlight possible
+Spot call_SPOT_VERSION().  We give some examples to highlight possible
 use-cases but shall not attempt to cover all features exhaustively
 (please check the man pages for further inspiration).
 
