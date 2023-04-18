@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2009, 2011-2019, 2021 Laboratoire de Recherche et
+// Copyright (C) 2009, 2011-2019, 2021, 2023 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 // Copyright (C) 2004, 2005 Laboratoire d'Informatique de Paris 6 (LIP6),
 // département Systèmes Répartis Coopératifs (SRC), Université Pierre
@@ -570,7 +570,7 @@ namespace spot
         if (debug)
           os << "ERROR: First state of run (in " << in << "): "
              << aut->format_state(i->s)
-             << "\ndoes not match initial state of automata: "
+             << "\ndoes not match initial state of automaton: "
              << aut->format_state(s) << '\n';
         s->destroy();
         return false;
@@ -802,38 +802,38 @@ namespace spot
         res->set_named_prop("state-names", names);
       }
 
-    const state* s = aut->get_init_state();
     unsigned src;
     unsigned dst;
     const twa_run::steps* l;
-    acc_cond::mark_t seen_acc = {};
-
-    state_map<unsigned> seen;
+    unsigned cycle_entry = 0;
 
     if (prefix.empty())
-        l = &cycle;
+      l = &cycle;
     else
-        l = &prefix;
+      l = &prefix;
 
     twa_run::steps::const_iterator i = l->begin();
 
-    assert(s->compare(i->s) == 0);
+#if NDEBUG
+    const state* init = aut->get_init_state();
+    assert(init->compare(i->s) == 0);
+    init->destroy();
+#endif
+
     src = res->new_state();
-    seen.emplace(i->s, src);
     if (names)
-      names->push_back(aut->format_state(s));
+      names->push_back(aut->format_state(i->s));
 
     for (; i != l->end();)
       {
-        // expected outgoing transition
         bdd label = i->label;
         acc_cond::mark_t acc = i->acc;
-
         // compute the next expected state
         const state* next;
         ++i;
         if (i != l->end())
           {
+            dst = res->new_state();
             next = i->s;
           }
         else
@@ -842,57 +842,24 @@ namespace spot
               {
                 l = &cycle;
                 i = l->begin();
+                cycle_entry = dst = res->new_state();
+              }
+            else
+              {
+                dst = cycle_entry;
               }
             next = l->begin()->s;
           }
 
-        // browse the actual outgoing transitions and
-        // look for next;
-        const state* the_next = nullptr;
-        for (auto j: aut->succ(s))
+        if (names && i != l->end())
           {
-            if (j->cond() != label
-                || j->acc() != acc)
-              continue;
-
-            const state* s2 = j->dst();
-            if (s2->compare(next) == 0)
-              {
-                the_next = s2;
-                break;
-              }
-            s2->destroy();
+            assert(dst == names->size());
+            names->push_back(aut->format_state(next));
           }
-        s->destroy();
-        if (!the_next)
-          throw std::runtime_error("twa_run::as_twa() unable to replay run");
-        s = the_next;
-
-
-        auto p = seen.emplace(next, 0);
-        if (p.second)
-          {
-            unsigned ns = res->new_state();
-            p.first->second = ns;
-            if (names)
-              {
-                assert(ns == names->size());
-                names->push_back(aut->format_state(next));
-              }
-          }
-        dst = p.first->second;
-
         res->new_edge(src, dst, label, acc);
         src = dst;
-
-        // Sum acceptance conditions.
-        if (l == &cycle && i != l->begin())
-          seen_acc |= acc;
       }
 
-    s->destroy();
-
-    assert(aut->acc().accepting(seen_acc));
     return res;
   }
 
