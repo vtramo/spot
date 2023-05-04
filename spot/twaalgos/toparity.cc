@@ -95,7 +95,8 @@ namespace spot
                      const bool need_equivalent,
                      std::vector<edge_status> &status,
                      std::vector<acc_cond::mark_t> &res_colors,
-                     acc_cond &new_cond, bool &was_able_to_color)
+                     acc_cond &new_cond, bool &was_able_to_color,
+                     unsigned max_col)
   {
     auto& ev = aut->edge_vector();
     const auto ev_size = ev.size();
@@ -134,7 +135,7 @@ namespace spot
                        kind == cond_kind::INF_PARITY;
     unsigned max_iter = want_parity ? -1U : 1;
 
-    unsigned color = want_parity ? SPOT_MAX_ACCSETS - 1 : 0;
+    unsigned color = max_col;
     // Do we want always accepting transitions?
     // Don't consider CO_BUCHI as it is done by Büchi
     bool search_inf = kind != cond_kind::FIN_PARITY;
@@ -167,14 +168,15 @@ namespace spot
       auto filter_data = filter_data_t{aut, status};
       scc_info si(aut, aut_init, filter, &filter_data,
                   scc_info_options::TRACK_STATES);
+      if (search_inf)
+        si.determine_unknown_acceptance();
       bool worked = false;
       unsigned ssc_size = si.scc_count();
       for (unsigned scc = 0; scc < ssc_size; ++scc)
       {
         // scc_info can detect that we will not be able to find an
-        // accepting/rejecting cycle.
-        if (!((search_inf && !si.is_accepting_scc(scc)) ||
-              (!search_inf && !si.is_rejecting_scc(scc))))
+        // accepting cycle.
+        if ((search_inf && si.is_accepting_scc(scc)) || !search_inf)
         {
           accepting_transitions_scc(si, scc, cond, {},
                                     not_decidable_transitions, *keep);
@@ -224,6 +226,8 @@ namespace spot
       break;
     }
 
+    new_cond = acc_cond(new_code);
+
     // We check parity
     if (need_equivalent)
     {
@@ -269,19 +273,19 @@ namespace spot
           aut->set_acceptance(acc_cond(aut_acc_comp));
       }
     }
-    new_cond = acc_cond(new_code);
+
     return true;
   }
 
   static twa_graph_ptr
   cond_type_main(const twa_graph_ptr &aut, const cond_kind kind,
-                 bool &was_able_to_color)
+                 bool &was_able_to_color, unsigned max_color)
   {
     std::vector<acc_cond::mark_t> res_colors;
     std::vector<edge_status> status;
     acc_cond new_cond;
     if (cond_type_main_aux(aut, kind, true, status, res_colors, new_cond,
-                            was_able_to_color))
+                            was_able_to_color, max_color))
     {
       auto res = make_twa_graph(aut, twa::prop_set::all());
       auto &res_vector = res->edge_vector();
@@ -311,14 +315,19 @@ namespace spot
     bool was_able_to_color;
     // If the automaton is parity-type with a condition that has Inf as
     // outermost term
-    auto res = cond_type_main(aut, cond_kind::INF_PARITY, was_able_to_color);
+    auto res = cond_type_main(aut, cond_kind::INF_PARITY,
+      was_able_to_color, SPOT_MAX_ACCSETS - 1);
 
     // If it was impossible to find an accepting edge, it is perhaps possible
     // to find a rejecting transition
     if (res == nullptr && !was_able_to_color)
-      res = cond_type_main(aut, cond_kind::FIN_PARITY, was_able_to_color);
+      res = cond_type_main(aut, cond_kind::FIN_PARITY,
+        was_able_to_color, SPOT_MAX_ACCSETS - 1);
     if (res)
+    {
+      res->prop_state_acc(false);
       reduce_parity_here(res);
+    }
     return res;
   }
 
@@ -326,14 +335,14 @@ namespace spot
   buchi_type_to_buchi(const twa_graph_ptr &aut)
   {
     bool useless;
-    return cond_type_main(aut, cond_kind::BUCHI, useless);
+    return cond_type_main(aut, cond_kind::BUCHI, useless, 0);
   }
 
   twa_graph_ptr
   co_buchi_type_to_co_buchi(const twa_graph_ptr &aut)
   {
     bool useless;
-    return cond_type_main(aut, cond_kind::CO_BUCHI, useless);
+    return cond_type_main(aut, cond_kind::CO_BUCHI, useless, 0);
   }
 
 // New version for paritizing
@@ -1943,12 +1952,14 @@ namespace spot
       // Is the maximal color accepting?
       bool start_inf = true;
       cond_type_main_aux(sub_aut, cond_kind::INF_PARITY, false, status,
-                         res_colors, new_cond, was_able_to_color);
+                         res_colors, new_cond, was_able_to_color,
+                         SPOT_MAX_ACCSETS - 1);
       // Otherwise we can try to find a rejecting transition as first step
       if (!was_able_to_color)
       {
         cond_type_main_aux(sub_aut, cond_kind::FIN_PARITY, false, status,
-                           res_colors, new_cond, was_able_to_color);
+                           res_colors, new_cond, was_able_to_color,
+                           SPOT_MAX_ACCSETS - 1);
         if (!was_able_to_color)
           return false;
         start_inf = false;
@@ -2127,11 +2138,11 @@ namespace spot
       bool is_co_bu = false;
       bool was_able_to_color;
       if (!cond_type_main_aux(sub_aut, cond_kind::BUCHI, true, status,
-                              res_colors, new_cond, was_able_to_color))
+                              res_colors, new_cond, was_able_to_color, 0))
       {
         is_co_bu = true;
         if (!cond_type_main_aux(sub_aut, cond_kind::CO_BUCHI, true, status,
-                                res_colors, new_cond, was_able_to_color))
+                                res_colors, new_cond, was_able_to_color, 0))
           return false;
         change_to_odd();
       }
@@ -2172,16 +2183,18 @@ namespace spot
       acc_cond new_cond;
       bool was_able_to_color;
       if (!cond_type_main_aux(sub_aut, cond_kind::INF_PARITY, true, status,
-                              res_colors, new_cond, was_able_to_color))
+                              res_colors, new_cond, was_able_to_color,
+                              SPOT_MAX_ACCSETS - 3))
       {
         if (!cond_type_main_aux(sub_aut, cond_kind::FIN_PARITY, true, status,
-                                res_colors, new_cond, was_able_to_color))
+                                res_colors, new_cond, was_able_to_color,
+                                SPOT_MAX_ACCSETS - 3))
           return false;
       }
       bool is_max, is_odd;
       new_cond.is_parity(is_max, is_odd);
-      auto [min, max] =
-        std::minmax_element(res_colors.begin() + 1, res_colors.end());
+      auto min =
+        std::min_element(res_colors.begin() + 1, res_colors.end());
       // cond_type_main_aux returns a parity max condition
       assert(is_max);
       auto col_fun =
