@@ -547,4 +547,26 @@ State: 9 3 {4} 2 3 {4} 6 --END--
 b = spot.iar_maybe(a)
 tc.assertEqual(b.num_states(), 87)
 tc.assertTrue(a.equivalent_to(b))
-test(a, [87, 91, 91, 87, 87, 87, 51, 51, 21])
+test(a, [87, 91, 91, 87, 87, 87, 51, 35, 21])
+
+a = spot.automaton("""HOA: v1
+States: 4
+Start: 0
+AP: 2 "p0" "p1"
+Acceptance: 2 Fin(1) & Fin(0)
+properties: trans-labels explicit-labels state-acc
+--BODY--
+State: 0
+[!0&!1] 2
+[!0&!1] 1
+State: 1
+[!0&1] 0
+[0&1] 3
+State: 2
+[0&!1] 1
+State: 3 {0}
+[!0&1] 3
+[!0&!1] 1
+--END--""")
+b = spot.parity_type_to_parity(a)
+tc.assertTrue(spot.are_equivalent(a, b))
