@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2015-2022 Laboratoire de Recherche et Développement
+// Copyright (C) 2015-2023 Laboratoire de Recherche et Développement
 // de l'Epita.
 //
 // This file is part of Spot, a model checking library.
@@ -2707,8 +2707,9 @@ namespace spot
       return false;
     }
 
-    // Check wheter pos looks like Fin(f) or Fin(f)&rest
-    bool is_conj_fin(const acc_cond::acc_word* pos, acc_cond::mark_t f)
+    // Check if pos contains Fin(f) in a substree
+    template<bool top_conjunct_only = false>
+    bool has_fin(const acc_cond::acc_word* pos, acc_cond::mark_t f)
     {
       auto sub = pos - pos->sub.size;
       do
@@ -2719,7 +2720,10 @@ namespace spot
               --pos;
               break;
             case acc_cond::acc_op::Or:
-              pos -= pos->sub.size + 1;
+              if constexpr (top_conjunct_only)
+                pos -= pos->sub.size + 1;
+              else
+                --pos;
               break;
             case acc_cond::acc_op::Fin:
               if (pos[-1].mark & f)
@@ -2734,6 +2738,12 @@ namespace spot
         }
       while (sub < pos);
       return false;
+    }
+
+    // Check whether pos looks like Fin(f) or Fin(f)&rest
+    bool is_conj_fin(const acc_cond::acc_word* pos, acc_cond::mark_t f)
+    {
+      return has_fin<true>(pos, f);
     }
 
     acc_cond::acc_code extract_fin(const acc_cond::acc_word* pos,
@@ -2772,6 +2782,7 @@ namespace spot
       return {};
     }
 
+    template<bool deeper_check = false>
     std::pair<acc_cond::acc_code, acc_cond::acc_code>
     split_top_fin(const acc_cond::acc_word* pos, acc_cond::mark_t f)
     {
@@ -2797,6 +2808,17 @@ namespace spot
                     auto tmp = strip_rec(pos, f, true, false);
                     tmp |= std::move(left);
                     std::swap(tmp, left);
+                  }
+                else if (deeper_check
+                         && has_top_fin(pos) == -1
+                         && has_fin(pos, f))
+                  {
+                    auto tmp = strip_rec(pos, f, true, false);
+                    tmp |= std::move(left);
+                    std::swap(tmp, left);
+                    tmp = force_inf_rec(pos, f);
+                    tmp |= std::move(right);
+                    std::swap(tmp, right);
                   }
                 else
                   {
@@ -2842,6 +2864,27 @@ namespace spot
     if (selected_fin >= 0)
       {
         auto [left, right] = split_top_fin(pos, {(unsigned) selected_fin});
+        return {selected_fin, std::move(left), std::move(right)};
+      }
+    selected_fin = fin_one();
+    if (selected_fin < 0)
+      goto err;
+    acc_cond::mark_t fo_m = {(unsigned) selected_fin};
+    return {selected_fin, extract_fin(pos, fo_m), force_inf(fo_m)};
+  }
+
+  std::tuple<int, acc_cond::acc_code, acc_cond::acc_code>
+  acc_cond::acc_code::fin_unit_one_split_improved() const
+  {
+    if (SPOT_UNLIKELY(is_t() || is_f()))
+    err:
+      throw std::runtime_error("fin_unit_one_split_improved(): no Fin");
+    const acc_cond::acc_word* pos = &back();
+    int selected_fin = has_top_fin(pos);
+    if (selected_fin >= 0)
+      {
+        auto [left, right] =
+          split_top_fin<true>(pos, {(unsigned) selected_fin});
         return {selected_fin, std::move(left), std::move(right)};
       }
     selected_fin = fin_one();

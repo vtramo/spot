@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2014-2022 Laboratoire de Recherche et Développement
+// Copyright (C) 2014-2023 Laboratoire de Recherche et Développement
 // de l'Epita.
 //
 // This file is part of Spot, a model checking library.
@@ -1300,21 +1300,26 @@ namespace spot
       /// \brief Split an acceptance condition, trying to select one
       /// unit-Fin.
       ///
-      /// If the condition is a disjunction and one of the disjunct as
-      /// has the shape `...&Fin(i)&...`, then this will return
-      /// (i, left, right), where left is all disjunct of this form, and
-      /// right are all the others.
+      /// If the condition is a disjunction and one of the disjunct has
+      /// the shape `...&Fin(i)&...`, then this will return (i, left,
+      /// right), where left is all disjunct of this form (with Fin(i)
+      /// replaced by true), and right are all the others.
       ///
       /// If the input formula has the shape `...&Fin(i)&...` then left
-      /// is set to the entire formula, and right is empty.
+      /// is set to the entire formula (with Fin(i) replaced by true),
+      /// and right is empty.
       ///
       /// If no disjunct has the right shape, then a random Fin(i) is
       /// searched in the formula, and the output (i, left, right).
       /// is such that left contains all disjuncts containing Fin(i)
       /// (at any depth), and right contains the original formlula
       /// where Fin(i) has been replaced by false.
+      /// @{
       std::tuple<int, acc_cond::acc_code, acc_cond::acc_code>
       fin_unit_one_split() const;
+      std::tuple<int, acc_cond::acc_code, acc_cond::acc_code>
+      fin_unit_one_split_improved() const;
+      /// @}
 
       /// \brief Help closing accepting or rejecting cycle.
       ///
@@ -2258,25 +2263,34 @@ namespace spot
     /// \brief Split an acceptance condition, trying to select one
     /// unit-Fin.
     ///
-    /// If the condition is a disjunction and one of the disjunct as
-    /// has the shape `...&Fin(i)&...`, then this will return
-    /// (i, left, right), where left is all disjunct of this form, and
-    /// right are all the others.
+    /// If the condition is a disjunction and one of the disjunct has
+    /// the shape `...&Fin(i)&...`, then this will return (i, left,
+    /// right), where left is all disjunct of this form (with Fin(i)
+    /// replaced by true), and right are all the others.
     ///
     /// If the input formula has the shape `...&Fin(i)&...` then left
-    /// is set to the entire formula, and right is empty.
+    /// is set to the entire formula (with Fin(i) replaced by true),
+    /// and right is empty.
     ///
     /// If no disjunct has the right shape, then a random Fin(i) is
     /// searched in the formula, and the output (i, left, right).
     /// is such that left contains all disjuncts containing Fin(i)
     /// (at any depth), and right contains the original formlula
     /// where Fin(i) has been replaced by false.
+    /// @{
     std::tuple<int, acc_cond, acc_cond>
     fin_unit_one_split() const
     {
       auto [f, l, r] = code_.fin_unit_one_split();
       return {f, {num_sets(), std::move(l)}, {num_sets(), std::move(r)}};
     }
+    std::tuple<int, acc_cond, acc_cond>
+    fin_unit_one_split_improved() const
+    {
+      auto [f, l, r] = code_.fin_unit_one_split_improved();
+      return {f, {num_sets(), std::move(l)}, {num_sets(), std::move(r)}};
+    }
+    /// @}
 
     /// \brief Return the top-level disjuncts.
     ///
