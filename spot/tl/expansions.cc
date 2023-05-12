@@ -325,6 +325,29 @@ namespace spot
           exp.insert({prefix, suffix});
         }
       }
+
+      if (opts & exp_opts::expand_opt::Determinize)
+        {
+          std::multimap<bdd, formula, bdd_less_than> exp_new;
+
+          bdd props = bddtrue;
+          for (const auto& [prefix, _] : exp)
+            props &= bdd_support(prefix);
+
+          std::vector<formula> dests;
+          for (bdd letter : minterms_of(bddtrue, props))
+            {
+              for (const auto& [prefix, suffix] : exp)
+                {
+                  if (bdd_implies(letter, prefix))
+                    dests.push_back(suffix);
+                }
+              formula or_dests = formula::OrRat(dests);
+              exp_new.insert({letter, or_dests});
+              dests.clear();
+            }
+          exp = exp_new;
+        }
     }
   }
 
