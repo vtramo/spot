@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2013-2021 Laboratoire de Recherche et Développement
+// Copyright (C) 2013-2021, 2023 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -111,22 +111,22 @@ namespace spot
         return;
       if (storage_ == &local_storage_)
         {
-          block_t* new_storage_ = static_cast<block_t*>
+          block_t* new_storage = static_cast<block_t*>
             (malloc(new_block_count * sizeof(block_t)));
+          if (SPOT_UNLIKELY(!new_storage))
+            throw std::bad_alloc();
           for (size_t i = 0; i < block_count_; ++i)
-            new_storage_[i] = storage_[i];
-          storage_ = new_storage_;
+            new_storage[i] = storage_[i];
+          storage_ = new_storage;
         }
       else
         {
-          auto old = storage_;
-          storage_ = static_cast<block_t*>
-            (realloc(old, new_block_count * sizeof(block_t)));
-          if (!storage_)
-            {
-              free(old);
-              throw std::bad_alloc();
-            }
+          block_t* new_storage = static_cast<block_t*>
+            (realloc(storage_, new_block_count * sizeof(block_t)));
+          if (SPOT_UNLIKELY(!new_storage))
+            // storage_, untouched, will be freed by the destructor.
+            throw std::bad_alloc();
+          storage_ = new_storage;
         }
       block_count_ = new_block_count;
     }
@@ -134,8 +134,8 @@ namespace spot
   private:
     void grow()
     {
-      size_t new_block_count_ = (block_count_ + 1) * 7 / 5;
-      reserve_blocks(new_block_count_);
+      size_t new_block_count = (block_count_ + 1) * 7 / 5;
+      reserve_blocks(new_block_count);
     }
 
   public:
