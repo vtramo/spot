@@ -106,41 +106,63 @@ namespace spot
     class bdd_finalizer
     {
       public:
-        bdd_finalizer(std::multimap<bdd, formula, bdd_less_than>& exp, bdd_dict_ptr d, bool opt_sigma_star)
-          : anon_set_(bddtrue)
-          , d_(d)
-          , opt_sigma_star_(opt_sigma_star)
-        {
-          for (const auto& [prefix, suffix] : exp)
+        int encode(formula f)
           {
-            int anon_var_num;
-            auto it = formula2bdd_.find(suffix);
+            bool is_anon = false;
+            int var_num;
+            auto it = formula2bdd_.find(f);
             if (it != formula2bdd_.end())
             {
-              anon_var_num = it->second;
+              var_num = it->second;
             }
             else
             {
-              if (opt_sigma_star_ && (suffix.is(op::Star)
-                                      && suffix[0].is(op::tt)
-                                      && suffix.min() == 0
-                                      && suffix.max() == formula::unbounded()))
+              if (opt_sigma_star_ && (f.is(op::Star)
+                                      && f[0].is(op::tt)
+                                      && f.min() == 0
+                                      && f.max() == formula::unbounded()))
                 {
-                  anon_var_num = -1;
+                  var_num = bddtrue.id();
+                }
+              else if (opt_bdd_encode_ && (f.is(op::AndRat) || f.is(op::OrRat)))
+                {
+                  bdd var = f.is(op::AndRat) ? bdd(bddtrue) : bdd(bddfalse);
+                  for (const auto& sub_f : f)
+                    {
+                      int bddid = encode(sub_f);
+                      bdd subvar = bdd_ithvar(bddid);
+                      var = f.is(op::AndRat) ? var & subvar : var | subvar;
+                    }
+                  var_num = var.id();
                 }
               else
                 {
-                  anon_var_num = d_->register_anonymous_variables(1, this);
+                  var_num = d_->register_anonymous_variables(1, this);
+                  is_anon = true;
                 }
 
-              formula2bdd_.insert({suffix, anon_var_num});
-              bdd2formula_.insert({anon_var_num, suffix});
+              formula2bdd_.insert({f, var_num});
+              bdd2formula_.insert({var_num, f});
             }
 
-            bdd var = bddtrue;
-            if (anon_var_num != -1)
-              var = bdd_ithvar(anon_var_num);
-            anon_set_ &= var;
+            bdd var = bdd_ithvar(var_num);
+
+            if (is_anon)
+              anon_set_ &= var;
+
+            return var_num;
+          }
+
+        bdd_finalizer(std::multimap<bdd, formula, bdd_less_than>& exp, bdd_dict_ptr d, bool opt_sigma_star, bool opt_bdd_encode)
+          : anon_set_(bddtrue)
+          , d_(d)
+          , opt_sigma_star_(opt_sigma_star)
+          , opt_bdd_encode_(opt_bdd_encode)
+        {
+          for (const auto& [prefix, suffix] : exp)
+          {
+            int var_num = encode(suffix);
+            bdd var = bdd_ithvar(var_num);
             exp_ |= prefix & var;
           }
         }
@@ -160,6 +182,7 @@ namespace spot
         std::map<int, formula> bdd2formula_;
         bdd_dict_ptr d_;
         bool opt_sigma_star_;
+        bool opt_bdd_encode_;
 
         formula var_to_formula(int var);
         formula conj_bdd_to_sere(bdd b);
@@ -249,7 +272,8 @@ namespace spot
       {
         bdd prop_set = bdd_exist(bdd_support(exp_), anon_set_);
         bdd or_labels = bdd_exist(exp_, anon_set_);
-        for (bdd letter: minterms_of(exp_, prop_set))
+        // TODO: check are_equivalent avec or_labels/exp_ en premier argument
+        for (bdd letter: minterms_of(or_labels, prop_set))
         {
           bdd dest_bdd = bdd_restrict(exp_, letter);
           formula dest = bdd_to_sere(dest_bdd);
@@ -282,7 +306,7 @@ namespace spot
       if (opts & (exp_opts::expand_opt::BddIsop
                   | exp_opts::expand_opt::BddMinterm))
       {
-        bdd_finalizer bddf(exp, d, opts & exp_opts::expand_opt::BddSigmaStar);
+        bdd_finalizer bddf(exp, d, opts & exp_opts::expand_opt::BddSigmaStar, opts & exp_opts::expand_opt::BddEncode);
         exp = bddf.simplify(opts);
       }
 
@@ -363,6 +387,14 @@ namespace spot
       }
 
     return formula::OrRat(res);
+  }
+
+  void print_expansion(const expansion_t& exp, const bdd_dict_ptr& dict)
+  {
+    for (const auto& [prefix, suffix] : exp)
+      {
+        std::cout << bdd_to_formula(prefix, dict) << ": " << suffix << std::endl;
+      }
   }
 
 
@@ -581,13 +613,24 @@ namespace spot
                   }
 
                 exp_t new_res;
+                bool inserted = false;
                 for (const auto& [l_key, l_val] : exps)
                   {
                     for (const auto& [r_key, r_val] : res)
                       {
                         if ((l_key & r_key) != bddfalse)
-                          new_res.insert({l_key & r_key, formula::multop(f.kind(), {l_val, r_val})});
+                          {
+                            new_res.insert({l_key & r_key, formula::multop(f.kind(), {l_val, r_val})});
+                            inserted = true;
+                          }
                       }
+                  }
+
+                if (!inserted)
+                  {
+                    // all prefix conjuctions led to bddfalse, And is empty
+                    res.clear();
+                    break;
                   }
 
                 res = std::move(new_res);
@@ -671,13 +714,14 @@ namespace spot
     aut->set_init_state(init_state);
     formula2state.insert({ f, init_state });
 
-    if (signature_merge)
-      signature2state.insert({ {f.accepts_eword(), expansion(f, d, aut.get(), opts)}, init_state});
-
 
     auto f_aps = formula_aps(f);
     for (auto& ap : f_aps)
         aut->register_ap(ap);
+
+    if (signature_merge)
+      signature2state.insert({ {f.accepts_eword(), expansion(f, d, aut.get(), opts)}, init_state});
+
 
     auto todo = std::vector<std::pair<formula, unsigned>>();
     todo.push_back({f, init_state});
