@@ -59,4 +59,7 @@ namespace spot
 
   SPOT_API formula
   expansion_to_formula(expansion_t e, bdd_dict_ptr& d);
+
+  SPOT_API void
+  print_expansion(const expansion_t& exp, const bdd_dict_ptr& dict);
 }
