@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2012-2016, 2018-2020, 2022 Laboratoire de Recherche
+// Copyright (C) 2012-2016, 2018-2020, 2022, 2023 Laboratoire de Recherche
 // et Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -406,7 +406,8 @@ main(int argc, char** argv)
           timer.stop();
 
           printer.print(aut, timer, nullptr,
-                        opt_seed_str, automaton_num, nullptr);
+                        opt_seed_str, automaton_num,
+                        automaton_num, nullptr);
 
           ++automaton_num;
           if (opt_automata > 0 && automaton_num >= opt_automata)

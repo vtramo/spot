@@ -155,8 +155,9 @@ namespace
       auto aut = trans.run(&f);
       timer.stop();
 
-      printer.print(aut, timer, f, filename, linenum, nullptr,
-                    prefix, suffix);
+      static unsigned index = 0;
+      printer.print(aut, timer, f, filename, linenum, index++,
+                    nullptr, prefix, suffix);
       // If we keep simplification caches around, atomic propositions
       // will still be defined, and one translation may influence the
       // variable order of the next one.

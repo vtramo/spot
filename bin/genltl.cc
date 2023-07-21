@@ -192,6 +192,8 @@ static const argp_option options[] =
       "the formula (in the selected syntax)", 0 },
     { "%F", 0, nullptr, OPTION_DOC | OPTION_NO_USAGE,
       "the name of the pattern", 0 },
+    { "%l", 0, nullptr, OPTION_DOC | OPTION_NO_USAGE,
+      "serial number of the output formula (0-based)", 0 },
     { "%L", 0, nullptr, OPTION_DOC | OPTION_NO_USAGE,
       "the argument of the pattern", 0 },
     { "%%", 0, nullptr, OPTION_DOC | OPTION_NO_USAGE,
@@ -287,6 +289,8 @@ parse_opt(int key, char* arg, struct argp_state*)
 }
 
 
+static unsigned output_count = 0U;
+
 static void
 output_pattern(gen::ltl_pattern_id pattern, int n, int n2)
 {
@@ -303,14 +307,14 @@ output_pattern(gen::ltl_pattern_id pattern, int n, int n2)
   if (opt_positive || !opt_negative)
     {
       output_formula_checked(f, nullptr, gen::ltl_pattern_name(pattern),
-                             args.c_str());
+                             args.c_str(), output_count++);
     }
   if (opt_negative)
     {
       std::string tmp = "!";
       tmp += gen::ltl_pattern_name(pattern);
       output_formula_checked(formula::Not(f), nullptr, tmp.c_str(),
-                             args.c_str());
+                             args.c_str(), output_count++);
     }
 }
 

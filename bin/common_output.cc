@@ -160,6 +160,7 @@ namespace
     spot::formula f;
     const char* filename;
     const char* line;
+    unsigned index;
     const char* prefix;
     const char* suffix;
   };
@@ -237,6 +238,7 @@ namespace
       declare('R', &timer_);
       declare('r', &timer_);
       declare('L', &line_);
+      declare('l', &index_);
       declare('s', &size_);
       declare('h', &class_);
       declare('n', &nesting_);
@@ -248,7 +250,8 @@ namespace
     }
 
     std::ostream&
-    print(const formula_with_location& fl, spot::process_timer* ptimer)
+    print(const formula_with_location& fl,
+          spot::process_timer* ptimer)
     {
       if (has('R') || has('r'))
         timer_ = *ptimer;
@@ -256,6 +259,7 @@ namespace
       fl_ = &fl;
       filename_ = fl.filename ? fl.filename : "";
       line_ = fl.line;
+      index_ = fl.index;
       prefix_ = fl.prefix ? fl.prefix : "";
       suffix_ = fl.suffix ? fl.suffix : "";
       auto f = fl_.val()->f;
@@ -288,6 +292,7 @@ namespace
     printable_timer timer_;
     spot::printable_value<const char*> filename_;
     spot::printable_value<const char*> line_;
+    spot::printable_value<unsigned> index_;
     spot::printable_value<const char*> prefix_;
     spot::printable_value<const char*> suffix_;
     spot::printable_value<int> size_;
@@ -356,6 +361,7 @@ static void
 output_formula(std::ostream& out,
                spot::formula f, spot::process_timer* ptimer,
                const char* filename, const char* linenum,
+               unsigned index,
                const char* prefix, const char* suffix)
 {
   if (!format)
@@ -391,7 +397,8 @@ output_formula(std::ostream& out,
     }
   else
     {
-      formula_with_location fl = { f, filename, linenum, prefix, suffix };
+      formula_with_location fl = { f, filename, linenum,
+                                   index, prefix, suffix };
       format->print(fl, ptimer);
     }
 }
@@ -399,6 +406,7 @@ output_formula(std::ostream& out,
 void
 output_formula_checked(spot::formula f, spot::process_timer* ptimer,
                        const char* filename, const char* linenum,
+                       unsigned index,
                        const char* prefix, const char* suffix)
 {
   if (output_format == count_output)
@@ -414,7 +422,8 @@ output_formula_checked(spot::formula f, spot::process_timer* ptimer,
   if (outputnamer)
     {
       outputname.str("");
-      formula_with_location fl = { f, filename, linenum, prefix, suffix };
+      formula_with_location fl = { f, filename, linenum,
+                                   index, prefix, suffix };
       outputnamer->print(fl, ptimer);
       std::string fname = outputname.str();
       auto [it, b] = outputfiles.try_emplace(fname, nullptr);
@@ -422,7 +431,7 @@ output_formula_checked(spot::formula f, spot::process_timer* ptimer,
         it->second.reset(new output_file(fname.c_str()));
       out = &it->second->ostream();
     }
-  output_formula(*out, f, ptimer, filename, linenum, prefix, suffix);
+  output_formula(*out, f, ptimer, filename, linenum, index, prefix, suffix);
   *out << output_terminator;
   // Make sure we abort if we can't write to std::cout anymore
   // (like disk full or broken pipe with SIGPIPE ignored).
@@ -432,10 +441,12 @@ output_formula_checked(spot::formula f, spot::process_timer* ptimer,
 void output_formula_checked(spot::formula f,
                             spot::process_timer* ptimer,
                             const char* filename, int linenum,
+                            unsigned index,
                             const char* prefix,
                             const char* suffix)
 {
   output_formula_checked(f, ptimer, filename,
                          std::to_string(linenum).c_str(),
+                         index,
                          prefix, suffix);
 }

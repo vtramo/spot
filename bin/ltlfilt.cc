@@ -254,6 +254,8 @@ static const argp_option options[] =
       "the formula (in the selected syntax)", 0 },
     { "%F", 0, nullptr, OPTION_DOC | OPTION_NO_USAGE,
       "the name of the input file", 0 },
+    { "%l", 0, nullptr, OPTION_DOC | OPTION_NO_USAGE,
+      "the serial number of the output formula", 0 },
     { "%L", 0, nullptr, OPTION_DOC | OPTION_NO_USAGE,
       "the original line number in the input file", 0 },
     { "%r", 0, nullptr, OPTION_DOC | OPTION_NO_USAGE,
@@ -852,7 +854,8 @@ namespace
                                std::to_string(linenum).c_str()) << ")\n";
             }
           one_match = true;
-          output_formula_checked(f, &timer, filename, linenum, prefix, suffix);
+          output_formula_checked(f, &timer, filename, linenum,
+                                 match_count, prefix, suffix);
           ++match_count;
         }
       return 0;

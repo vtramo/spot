@@ -115,8 +115,10 @@ static const argp_option options[] =
       "the following interpreted sequences:", -19 },
     { "%f", 0, nullptr, OPTION_DOC | OPTION_NO_USAGE,
       "the formula (in the selected syntax)", 0 },
+    { "%l", 0, nullptr, OPTION_DOC | OPTION_NO_USAGE,
+      "the (serial) number of the formula (0-based)", 0 },
     { "%L", 0, nullptr, OPTION_DOC | OPTION_NO_USAGE,
-      "the (serial) number of the formula", 0 },
+      "the (serial) number of the formula (1-based)", 0 },
     { "%%", 0, nullptr, OPTION_DOC | OPTION_NO_USAGE,
       "a single %", 0 },
     COMMON_LTL_OUTPUT_SPECS,
@@ -305,9 +307,9 @@ main(int argc, char** argv)
           exit(0);
         }
 
+      int count = 0;
       while (opt_formulas < 0 || opt_formulas--)
         {
-          static int count = 0;
           spot::formula f = rg.next();
           if (!f)
             {
@@ -316,7 +318,8 @@ main(int argc, char** argv)
             }
           else
             {
-              output_formula_checked(f, nullptr, nullptr, ++count);
+              output_formula_checked(f, nullptr, nullptr, count + 1, count);
+              ++count;
             }
         };
       flush_cout();

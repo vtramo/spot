@@ -133,10 +133,10 @@ public:
   void print(std::ostream& os, const char* pos) const override;
 };
 
-/// \brief prints various statistics about a TGBA
+/// \brief prints various statistics about a TwA
 ///
 /// This object can be configured to display various statistics
-/// about a TGBA.  Some %-sequence of characters are interpreted in
+/// about a TwA.  Some %-sequence of characters are interpreted in
 /// the format string, and replaced by the corresponding statistics.
 class hoa_stat_printer: protected spot::stat_printer
 {
@@ -153,10 +153,12 @@ public:
   /// to be output.
   std::ostream&
     print(const spot::const_parsed_aut_ptr& haut,
-        const spot::const_twa_graph_ptr& aut,
-        spot::formula f,
-        const char* filename, int loc, const spot::process_timer& ptimer,
-        const char* csv_prefix, const char* csv_suffix);
+          const spot::const_twa_graph_ptr& aut,
+          spot::formula f,
+          const char* filename, int loc,
+          unsigned index,
+          const spot::process_timer& ptimer,
+          const char* csv_prefix, const char* csv_suffix);
 
 private:
   spot::printable_value<const char*> filename_;
@@ -165,6 +167,7 @@ private:
   spot::printable_value<std::string> aut_name_;
   spot::printable_value<std::string> aut_word_;
   spot::printable_value<std::string> haut_word_;
+  spot::printable_value<unsigned> index_;
   spot::printable_acc_cond haut_gen_acc_;
   spot::printable_size haut_states_;
   spot::printable_size haut_edges_;
@@ -206,6 +209,8 @@ public:
         // Input location for errors and statistics.
         const char* filename = nullptr,
         int loc = -1,
+        // serial numbner
+        unsigned index = 0,
         // Time and input automaton for statistics
         const spot::const_parsed_aut_ptr& haut = nullptr,
         const char* csv_prefix = nullptr,

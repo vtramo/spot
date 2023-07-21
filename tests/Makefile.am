@@ -230,6 +230,7 @@ TESTS_twa = \
   core/cube.test \
   core/alternating.test \
   core/gamehoa.test \
+  core/serial.test \
   core/ltlcross3.test \
   core/ltlcross5.test \
   core/taatgba.test \

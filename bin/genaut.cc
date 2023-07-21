@@ -122,7 +122,8 @@ output_pattern(gen::aut_pattern_id pattern, int n)
   twa_graph_ptr aut = spot::gen::aut_pattern(pattern, n);
   timer.stop();
   automaton_printer printer;
-  printer.print(aut, timer, nullptr, aut_pattern_name(pattern), n);
+  static unsigned serial = 0;
+  printer.print(aut, timer, nullptr, aut_pattern_name(pattern), n, serial++);
 }
 
 static void

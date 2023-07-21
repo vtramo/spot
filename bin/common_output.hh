@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2012-2018 Laboratoire de Recherche et Développement
+// Copyright (C) 2012-2018, 2023 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -81,11 +81,13 @@ void output_formula_checked(spot::formula f,
                             spot::process_timer* ptimer = nullptr,
                             const char* filename = nullptr,
                             const char* linenum = nullptr,
+                            unsigned output_index = 0U,
                             const char* prefix = nullptr,
                             const char* suffix = nullptr);
 
 void output_formula_checked(spot::formula f,
                             spot::process_timer* ptimer,
                             const char* filename, int linenum,
+                            unsigned output_index,
                             const char* prefix = nullptr,
                             const char* suffix = nullptr);

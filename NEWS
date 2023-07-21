@@ -1,5 +1,17 @@
 New in spot 2.11.5.dev  (not yet released)
 
+  Command-line tools:
+
+  - In places that accept format strings with '%' sequences, like
+    options --stats, --name, or --output, the new '%l' can now be used
+    to produce the 0-based serial number of the produced object.  This
+    differs from the existing '%L' that is usually related to the line
+    number of the input (when that makes sense).  For instance to
+    split a file that contains many automaton into several files, one
+    per automata, do
+
+        autfilt input.hoa -o output-%l.hoa
+
   Library:
 
   - The following new trivial simplifications have been implemented for SEREs:

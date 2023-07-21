@@ -1680,8 +1680,6 @@ namespace
             return 0;
         }
 
-      ++match_count;
-
       if (aliases)
         {
           if (opt_aliases)
@@ -1690,7 +1688,9 @@ namespace
             set_aliases(aut, {});
         }
       printer.print(aut, timer, nullptr, haut->filename.c_str(), -1,
-                    haut, prefix, suffix);
+                    match_count, haut, prefix, suffix);
+
+      ++match_count;
 
       if (opt_max_count >= 0 && match_count >= opt_max_count)
         abort_run = true;

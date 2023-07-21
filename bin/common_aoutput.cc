@@ -198,6 +198,8 @@ static const argp_option io_options[] =
       " minuscules for output):", 4 },
     { "%F", 0, nullptr, OPTION_DOC | OPTION_NO_USAGE, F_doc, 0 },
     { "%L", 0, nullptr, OPTION_DOC | OPTION_NO_USAGE, L_doc, 0 },
+    { "%l", 0, nullptr, OPTION_DOC | OPTION_NO_USAGE,
+      "serial number of the output automaton (0-based)", 0 },
     { "%H, %h", 0, nullptr, OPTION_DOC | OPTION_NO_USAGE,
       "the automaton in HOA format on a single line (use %[opt]H or %[opt]h "
       "to specify additional options as in --hoa=opt)", 0 },
@@ -269,6 +271,8 @@ static const argp_option o_options[] =
       "the following interpreted sequences:", 4 },
     { "%F", 0, nullptr, OPTION_DOC | OPTION_NO_USAGE, F_doc, 0 },
     { "%L", 0, nullptr, OPTION_DOC | OPTION_NO_USAGE, L_doc, 0 },
+    { "%l", 0, nullptr, OPTION_DOC | OPTION_NO_USAGE,
+      "serial number of the output automaton (0-based)", 0 },
     { "%h", 0, nullptr, OPTION_DOC | OPTION_NO_USAGE,
       "the automaton in HOA format on a single line (use %[opt]h "
       "to specify additional options as in --hoa=opt)", 0 },
@@ -442,6 +446,7 @@ hoa_stat_printer::hoa_stat_printer(std::ostream& os, const char* format,
   if (input != ltl_input)
     declare('f', &filename_);        // Override the formula printer.
   declare('h', &output_aut_);
+  declare('l', &index_);
   declare('m', &aut_name_);
   declare('u', &aut_univbranch_);
   declare('w', &aut_word_);
@@ -453,11 +458,12 @@ hoa_stat_printer::print(const spot::const_parsed_aut_ptr& haut,
                         const spot::const_twa_graph_ptr& aut,
                         spot::formula f,
                         const char* filename, int loc,
+                        unsigned index,
                         const spot::process_timer& ptimer,
                         const char* csv_prefix, const char* csv_suffix)
 {
   timer_ = ptimer;
-
+  index_ = index;
   filename_ = filename ? filename : "";
   csv_prefix_ = csv_prefix ? csv_prefix : "";
   csv_suffix_ = csv_suffix ? csv_suffix : "";
@@ -599,6 +605,7 @@ automaton_printer::print(const spot::twa_graph_ptr& aut,
                          // Input location for errors and statistics.
                          const char* filename,
                          int loc,
+                         unsigned index,
                          // input automaton for statistics
                          const spot::const_parsed_aut_ptr& haut,
                          const char* csv_prefix,
@@ -622,7 +629,8 @@ automaton_printer::print(const spot::twa_graph_ptr& aut,
   if (opt_name)
     {
       name.str("");
-      namer.print(haut, aut, f, filename, loc, ptimer, csv_prefix, csv_suffix);
+      namer.print(haut, aut, f, filename, loc, index,
+                  ptimer, csv_prefix, csv_suffix);
       aut->set_named_prop("automaton-name", new std::string(name.str()));
     }
 
@@ -630,8 +638,8 @@ automaton_printer::print(const spot::twa_graph_ptr& aut,
   if (opt_output)
     {
       outputname.str("");
-      outputnamer.print(haut, aut, f, filename, loc, ptimer,
-                        csv_prefix, csv_suffix);
+      outputnamer.print(haut, aut, f, filename, loc, index,
+                        ptimer, csv_prefix, csv_suffix);
       std::string fname = outputname.str();
       auto [it, b] = outputfiles.try_emplace(fname, nullptr);
       if (b)
@@ -660,8 +668,8 @@ automaton_printer::print(const spot::twa_graph_ptr& aut,
       break;
     case Stats:
       statistics.set_output(*out);
-      statistics.print(haut, aut, f, filename, loc, ptimer,
-                       csv_prefix, csv_suffix) << '\n';
+      statistics.print(haut, aut, f, filename, loc, index,
+                       ptimer, csv_prefix, csv_suffix) << '\n';
       break;
     }
   flush_cout();

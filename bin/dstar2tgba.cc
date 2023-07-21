@@ -129,7 +129,9 @@ namespace
       timer.start();
       auto aut = post.run(haut->aut, nullptr);
       timer.stop();
-      printer.print(aut, timer, nullptr, haut->filename.c_str(), -1, haut);
+      static unsigned index = 0;
+      printer.print(aut, timer, nullptr, haut->filename.c_str(), -1,
+                    index++, haut);
       flush_cout();
       return 0;
     }

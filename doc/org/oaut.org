@@ -725,7 +725,8 @@ randaut --help | sed -n '/ sequences:/,/^$/p' | sed '1d;$d'
                              (iw) inherently weak. Use uppercase letters to
                              negate them.
   %d                         1 if the output is deterministic, 0 otherwise
-  %e                         number of reachable edges
+  %e, %[LETTER]e             number of edges (add one LETTER to select (r)
+                             reachable [default], (u) unreachable, (a) all).
   %F                         seed number
   %g, %[LETTERS]g            acceptance condition (in HOA syntax); add brackets
                              to print an acceptance name instead and LETTERS to
@@ -740,6 +741,7 @@ randaut --help | sed -n '/ sequences:/,/^$/p' | sed '1d;$d'
                              %[opt]h to specify additional options as in
                              --hoa=opt)
   %L                         automaton number
+  %l                         serial number of the output automaton (0-based)
   %m                         name of the automaton
   %n                         number of nondeterministic states in output
   %p                         1 if the output is complete, 0 otherwise
@@ -749,8 +751,11 @@ randaut --help | sed -n '/ sequences:/,/^$/p' | sed '1d;$d'
                              LETTERS to restrict to(u) user time, (s) system
                              time, (p) parent process, or (c) children
                              processes.
-  %s                         number of reachable states
-  %t                         number of reachable transitions
+  %s, %[LETTER]s             number of states (add one LETTER to select (r)
+                             reachable [default], (u) unreachable, (a) all).
+  %t, %[LETTER]t             number of transitions (add one LETTER to select
+                             (r) reachable [default], (u) unreachable, (a)
+                             all).
   %u, %[e]u                  number of states (or [e]dges) with universal
                              branching
   %u, %[LETTER]u             1 if the automaton contains some universal
@@ -995,6 +1000,14 @@ randaut -D -n 20 -Q2 1 -o '>>out-det%d.hoa'
 #+END_SRC
 
 (You need the quotes so that the shell does not interpret =>>=.)
+
+The =%l= sequence is a number that is incremented for each output
+automaton.  For instance if =input.hoa= contains multiple automata,
+you can separate them into separate files with:
+
+#+BEGIN_SRC sh :exports code
+autilt input.hoa -o output-%l.hoa
+#+END_SRC
 
 #+BEGIN_SRC sh :results silent :exports results
 rm -f out-det0.hoa out-det1.hoa

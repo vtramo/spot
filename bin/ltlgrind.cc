@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2014-2019, 2022 Laboratoire de Recherche et
+// Copyright (C) 2014-2019, 2022, 2023 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -87,6 +87,8 @@ static const argp_option options[] = {
     "the formula (in the selected syntax)", 0 },
   { "%F", 0, nullptr, OPTION_DOC | OPTION_NO_USAGE,
     "the name of the input file", 0 },
+  { "%l", 0, nullptr, OPTION_DOC | OPTION_NO_USAGE,
+    "the serial number of the output formula (0-based)", 0 },
   { "%L", 0, nullptr, OPTION_DOC | OPTION_NO_USAGE,
     "the original line number in the input file", 0 },
   { "%<", 0, nullptr, OPTION_DOC | OPTION_NO_USAGE,
@@ -112,6 +114,8 @@ static const argp_child children[] = {
 
 namespace
 {
+  static unsigned output_count = 0;
+
   class mutate_processor final: public job_processor
   {
   public:
@@ -122,7 +126,8 @@ namespace
       auto mutations =
         spot::mutate(f, mut_opts, max_output, mutation_nb, opt_sort);
       for (auto g: mutations)
-        output_formula_checked(g, nullptr, filename, linenum, prefix, suffix);
+        output_formula_checked(g, nullptr, filename, linenum,
+                               output_count++, prefix, suffix);
       return 0;
     }
   };

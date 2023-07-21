@@ -360,8 +360,7 @@ namespace
                     const char* csv_prefix, const char* csv_suffix)
     {
       static long int output_count = 0;
-      ++output_count;
-      printer.print(aut, ptimer, f, filename, loc, nullptr,
+      printer.print(aut, ptimer, f, filename, loc, output_count++, nullptr,
                     csv_prefix, csv_suffix);
       if (opt_max_count >= 0 && output_count >= opt_max_count)
         abort_run = true;
@@ -420,8 +419,8 @@ namespace
               aut = post.run(aut, f);
               if (best_type)
                 {
-                  best_printer.print(nullptr, aut, f, filename, linenum, timer,
-                                     prefix, suffix);
+                  best_printer.print(nullptr, aut, f, filename, linenum, 0,
+                                     timer, prefix, suffix);
                   std::string aut_stats = best_stream.str();
                   if (!best_aut ||
                       (strverscmp(best_stats.c_str(), aut_stats.c_str())
