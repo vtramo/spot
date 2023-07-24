@@ -420,7 +420,27 @@ output_formula_checked(spot::formula f, spot::process_timer* ptimer,
       auto [it, b] = outputfiles.try_emplace(fname, nullptr);
       if (b)
         it->second.reset(new output_file(fname.c_str()));
+      else
+        // reopen if the file has been closed; see below
+        it->second->reopen_for_append(fname);
       out = &it->second->ostream();
+
+      // If we have opened fewer than 10 files, we keep them all open
+      // to avoid wasting time on open/close calls.
+      //
+      // However we cannot keep all files open, especially in
+      // scenarios were we use thousands of files only once.  To keep
+      // things simple, we only close the previous file if it is not
+      // the current output.  This way we still save the close/open
+      // cost when consecutive formulas are sent to the same file.
+      static output_file* previous = nullptr;
+      static const std::string* previous_name = nullptr;
+      if (previous
+          && outputfiles.size() > 10
+          && &previous->ostream() != out)
+        previous->close(*previous_name);
+      previous = it->second.get();
+      previous_name = &it->first;
     }
   output_formula(*out, f, ptimer, filename, linenum, prefix, suffix);
   *out << output_terminator;
