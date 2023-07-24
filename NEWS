@@ -29,6 +29,13 @@ New in spot 2.11.5.dev  (not yet released)
   - spot::bdd_to_cnf_formula() is a new variant of spot::bdd_to_formula()
     that converts a BDD into a CNF instead of a DNF.
 
+  Bug fixes:
+
+  - Running command lines such as "autfilt input.hoa -o output-%L.hoa"
+    where thousands of different filenames can be created failed with
+    "Too many open files".  (Issue #534)
+
+
 New in spot 2.11.5  (2023-04-20)
 
   Bug fixes:

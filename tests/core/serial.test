@@ -69,3 +69,12 @@ b/1
 2,1
 EOF
 diff -u out exp
+
+
+# Split on more than 1024 files.  In Spot < 2.12 this was likely
+# to run out of file descriptors, because they weren't closed.
+randaut -Q3 2 -n 2000 -o randaut-%l.hoa
+test 2000 = `ls -l randaut-*.hoa | wc -l`
+# likewise for LTL formulas
+randltl 2 -n 2000 -o randltl-%l.ltl
+test 2000 = `ls -l randltl-*.ltl | wc -l`
