@@ -65,12 +65,14 @@ $PYTHON test.py >out.1
 # remove trailing whitespace from pandas' output, and limit to 6
 # lines, because Pandas 0.13 adds the size of the dataframe
 # afterwards.  Alse the spacing between columns differs from version
-# to version.
-sed 's/[ \t]*$//g;6q' <out.1 | sed 's/  */ /g' > py.out
+# to version.  The name of the output columns changed from "amin amax"
+# to "min max" in some Pandas version (maybe around 2.0).
+sed 's/[ \t]*$//g;s/amin/min/g;s/amax/max/g;6q' <out.1 |
+    sed 's/  */ /g' >py.out
 
 cat >expected <<EOF
  states transitions
- mean std amin amax mean std amin amax
+ mean std min max mean std min max
 tool
 ltl2tgba any 2.25 0.957427 1 3 10.00 5.163978 4 16
 ltl2tgba det 2.25 0.957427 1 3 9.25 4.573474 4 14
