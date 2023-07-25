@@ -1254,7 +1254,23 @@ namespace spot
       /// If multiple unit-Fin appear as unit-clauses, the set of
       /// those will be returned.  For instance applied to
       /// `Fin(0)&Fin(1)&(Inf(2)|Fin(3))`, this will return `{0,1}`.
+      ///
+      /// \see acc_cond::acc_code::mafins
       mark_t fin_unit() const;
+
+      /// \brief Find a `Fin(i)` that is mandatory.
+      ///
+      /// This return a mark_t `{i}` such that `Fin(i)` appears in
+      /// all branches of the AST of the acceptance conditions.  This
+      /// is therefore a bit stronger than fin_unit().
+      /// For instance on `Inf(1)&Fin(2) | Fin(2)&Fin(3)` this will
+      /// return `{2}`.
+      ///
+      /// If multiple mandatory Fins exist, the set of those will be
+      /// returned.
+      ///
+      /// \see acc_cond::acc_code::fin_unit
+      mark_t mafins() const;
 
       /// \brief Find a `Inf(i)` that is a unit clause.
       ///
@@ -2204,9 +2220,28 @@ namespace spot
     /// If multiple unit-Fin appear as unit-clauses, the set of
     /// those will be returned.  For instance applied to
     /// `Fin(0)&Fin(1)&(Inf(2)|Fin(3))``, this will return `{0,1}`.
+    ///
+    /// \see acc_cond::mafins
     mark_t fin_unit() const
     {
       return code_.fin_unit();
+    }
+
+    /// \brief Find a `Fin(i)` that is mandatory.
+    ///
+    /// This return a mark_t `{i}` such that `Fin(i)` appears in
+    /// all branches of the AST of the acceptance conditions.  This
+    /// is therefore a bit stronger than fin_unit().
+    /// For instance on `Inf(1)&Fin(2) | Fin(2)&Fin(3)` this will
+    /// return `{2}`.
+    ///
+    /// If multiple mandatory Fins exist, the set of those will be
+    /// returned.
+    ///
+    /// \see acc_cond::fin_unit
+    mark_t mafins() const
+    {
+      return code_.mafins();
     }
 
     /// \brief Find a `Inf(i)` that is a unit clause.

@@ -2646,34 +2646,65 @@ namespace spot
 
   namespace
   {
-    int has_top_fin(const acc_cond::acc_word* pos, bool top = true)
+    static acc_cond::mark_t mafins_rec(const acc_cond::acc_word* pos)
+    {
+      acc_cond::mark_t res{};
+      auto sub = pos - pos->sub.size;
+      switch (pos->sub.op)
+        {
+        case acc_cond::acc_op::And:
+          --pos;
+          do
+            {
+              res |= mafins_rec(pos);
+              pos -= pos->sub.size + 1;
+            }
+          while (sub < pos);
+          return res;
+        case acc_cond::acc_op::Or:
+          --pos;
+          res = mafins_rec(pos);
+          pos -= pos->sub.size + 1;
+          while (sub < pos)
+            {
+              if (!res)
+                return res;
+              res &= mafins_rec(pos);
+              pos -= pos->sub.size + 1;
+            }
+          return res;
+        case acc_cond::acc_op::Inf:
+        case acc_cond::acc_op::InfNeg:
+        case acc_cond::acc_op::FinNeg:
+          return res;
+        case acc_cond::acc_op::Fin:
+          auto m = pos[-1].mark;
+          if (m.is_singleton())
+            return m;
+          return res;
+        }
+      SPOT_UNREACHABLE();
+      return res;
+    }
+
+
+    int has_top_fin(const acc_cond::acc_word* pos)
     {
       if (pos->sub.op == acc_cond::acc_op::Fin)
         {
           acc_cond::mark_t m = pos[-1].mark;
-          if (top || m.is_singleton())
-            return m.min_set() - 1;
+          return m.min_set() - 1;
         }
-      else if (pos->sub.op == acc_cond::acc_op::And)
+      else if (pos->sub.op == acc_cond::acc_op::And
+               || pos->sub.op == acc_cond::acc_op::Or)
         {
           auto sub = pos - pos->sub.size;
           do
             {
               --pos;
-              if (int f = has_top_fin(pos, false); f >= 0)
-                return f;
-              pos -= pos->sub.size;
-            }
-          while (sub < pos);
-        }
-      else if (top && pos->sub.op == acc_cond::acc_op::Or)
-        {
-          auto sub = pos - pos->sub.size;
-          do
-            {
-              --pos;
-              if (int f = has_top_fin(pos); f >= 0)
-                return f;
+              acc_cond::mark_t m = mafins_rec(pos);
+              if (m)
+                return m.min_set() - 1;
               pos -= pos->sub.size;
             }
           while (sub < pos);
@@ -2740,12 +2771,6 @@ namespace spot
       return false;
     }
 
-    // Check whether pos looks like Fin(f) or Fin(f)&rest
-    bool is_conj_fin(const acc_cond::acc_word* pos, acc_cond::mark_t f)
-    {
-      return has_fin<true>(pos, f);
-    }
-
     acc_cond::acc_code extract_fin(const acc_cond::acc_word* pos,
                                    acc_cond::mark_t f)
     {
@@ -2784,16 +2809,21 @@ namespace spot
 
     template<bool deeper_check = false>
     std::pair<acc_cond::acc_code, acc_cond::acc_code>
-    split_top_fin(const acc_cond::acc_word* pos, acc_cond::mark_t f)
+    split_top_fin(const acc_cond::acc_word* pos, unsigned f)
     {
       auto start = pos - pos->sub.size;
       switch (pos->sub.op)
         {
-        case acc_cond::acc_op::And:
         case acc_cond::acc_op::Fin:
-          if (is_conj_fin(pos, f))
+          {
+            auto m = pos[-1].mark;
+            return {acc_cond::acc_code::fin({f}),
+                    acc_cond::acc_code::fin(m - acc_cond::mark_t{f})};
+          }
+        case acc_cond::acc_op::And:
+          if (mafins_rec(pos).has(f))
             return {pos, acc_cond::acc_code::f()};
-          SPOT_FALLTHROUGH;
+          return {acc_cond::acc_code::f(), pos};
         case acc_cond::acc_op::Inf:
           return {acc_cond::acc_code::f(), pos};
         case acc_cond::acc_op::Or:
@@ -2803,20 +2833,19 @@ namespace spot
             auto right = acc_cond::acc_code::f();
             do
               {
-                if (is_conj_fin(pos, f))
+                acc_cond::mark_t mf = mafins_rec(pos);
+                if (mf.has(f))
                   {
-                    auto tmp = strip_rec(pos, f, true, false);
+                    auto tmp = strip_rec(pos, {f}, true, false);
                     tmp |= std::move(left);
                     std::swap(tmp, left);
                   }
-                else if (deeper_check
-                         && has_top_fin(pos) == -1
-                         && has_fin(pos, f))
+                else if (deeper_check && !mf && has_fin(pos, {f}))
                   {
-                    auto tmp = strip_rec(pos, f, true, false);
+                    auto tmp = strip_rec(pos, {f}, true, false);
                     tmp |= std::move(left);
                     std::swap(tmp, left);
-                    tmp = force_inf_rec(pos, f);
+                    tmp = force_inf_rec(pos, {f});
                     tmp |= std::move(right);
                     std::swap(tmp, right);
                   }
@@ -2863,7 +2892,7 @@ namespace spot
     int selected_fin = has_top_fin(pos);
     if (selected_fin >= 0)
       {
-        auto [left, right] = split_top_fin(pos, {(unsigned) selected_fin});
+        auto [left, right] = split_top_fin(pos, (unsigned) selected_fin);
         return {selected_fin, std::move(left), std::move(right)};
       }
     selected_fin = fin_one();
@@ -2884,7 +2913,7 @@ namespace spot
     if (selected_fin >= 0)
       {
         auto [left, right] =
-          split_top_fin<true>(pos, {(unsigned) selected_fin});
+          split_top_fin<true>(pos, (unsigned) selected_fin);
         return {selected_fin, std::move(left), std::move(right)};
       }
     selected_fin = fin_one();
@@ -3073,6 +3102,14 @@ namespace spot
       }
     while (pos >= &front());
     return res;
+  }
+
+  acc_cond::mark_t
+  acc_cond::acc_code::mafins() const
+  {
+    if (empty() || is_f())
+      return {};
+    return mafins_rec(&back());
   }
 
   acc_cond::mark_t acc_cond::acc_code::inf_unit() const

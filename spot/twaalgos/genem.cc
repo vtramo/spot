@@ -92,7 +92,7 @@ namespace spot
       if (genem_version == spot211
           || genem_version == spot212
           || genem_version == spot210)
-        tocut |= acc.fin_unit();
+        tocut |= acc.mafins();
       scc_and_mark_filter filt(si, scc, tocut);
       filt.override_acceptance(acc);
       scc_info upper_si(filt, EarlyStop
@@ -167,7 +167,7 @@ namespace spot
           {
             acc_cond::acc_code rest = acc_cond::acc_code::f();
             for (const acc_cond& disjunct: acc.top_disjuncts())
-              if (acc_cond::mark_t fu = disjunct.fin_unit())
+              if (acc_cond::mark_t fu = disjunct.mafins())
                 {
                   if (!scc_split_check<EarlyStop, Extra>
                       (si, scc, disjunct.remove(fu, true), extra, fu))
@@ -244,10 +244,10 @@ namespace spot
             }
           return true;
         }
-      // Filter with fin_unit() right away if possible.
-      // scc_and_mark_filter will have no effect if fin_unit() is
+      // Filter with mafins() right away if possible.
+      // scc_and_mark_filter will have no effect if mafins() is
       // empty.
-      scc_and_mark_filter filt(aut, aut_acc.fin_unit());
+      scc_and_mark_filter filt(aut, aut_acc.mafins());
       scc_info si(filt, scc_info_options::STOP_ON_ACC);
 
       const int accepting_scc = si.one_accepting_scc();
