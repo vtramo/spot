@@ -1,6 +1,6 @@
 #! /bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2017, 2019-2022 Laboratoire de Recherche et
+# Copyright (C) 2017, 2019-2023 Laboratoire de Recherche et
 # Développement de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -160,6 +160,10 @@ ltlsynt --ins=a --outs=b,c -f 'GFa <-> (GFb & GFc)' \
         --algo=ds --simplify=no --aiger=isop >out
 diff out exp
 
+ltlsynt --ins=a --outs=b,c -f 'GFa <-> (GFb & GFc)' \
+        --algo=ds --simplify=no --aiger=optim >out
+diff out exp
+
 cat >exp <<EOF
 REALIZABLE
 aag 2 1 1 2 0
@@ -182,7 +186,7 @@ aag 3 1 1 2 1
 4 1
 6
 6
-6 4 2
+6 2 4
 i0 a
 o0 b
 o1 c

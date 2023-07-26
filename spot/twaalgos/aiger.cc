@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2017-2022 Laboratoire de Recherche et Développement
+// Copyright (C) 2017-2023 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -552,20 +552,20 @@ namespace spot
     assert(var2bdd_.count(v1));
     assert(var2bdd_.count(v2));
 
-    if (v1 != v2)
-      {
-        bdd b = var2bdd_[v1] & var2bdd_[v2];
-        auto [it, inserted] = bdd2var_.try_emplace(b.id(), 0);
-        if (!inserted)
-          return it->second;
-        max_var_ += 2;
-        it->second = max_var_;
-        and_gates_.emplace_back(v1, v2);
-        register_new_lit_(max_var_, b);
-        return max_var_;
-      }
-    else
-        return v1;
+    if (SPOT_UNLIKELY(v1 > v2))
+      std::swap(v1, v2);
+    if (SPOT_UNLIKELY(v1 == v2))
+      return v1;
+
+    bdd b = var2bdd_[v1] & var2bdd_[v2];
+    auto [it, inserted] = bdd2var_.try_emplace(b.id(), 0);
+    if (!inserted)
+      return it->second;
+    max_var_ += 2;
+    it->second = max_var_;
+    and_gates_.emplace_back(v1, v2);
+    register_new_lit_(max_var_, b);
+    return max_var_;
   }
 
   unsigned aig::aig_and(std::vector<unsigned>& vs)
