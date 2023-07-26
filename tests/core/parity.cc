@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2016, 2018-2019 Laboratoire de Recherche et
+// Copyright (C) 2016, 2018-2019, 2023 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -320,16 +320,14 @@ int main()
   for (auto acc_tuple: acceptance_sets)
     for (auto& aut_tuple: automata_tuples)
       {
-        auto& aut = aut_tuple.first;
-        auto aut_num_sets = aut_tuple.second;
-
-        auto acc = std::get<0>(acc_tuple);
-        auto is_max = std::get<1>(acc_tuple);
-        auto is_odd = std::get<2>(acc_tuple);
-        auto acc_num_sets = std::get<3>(acc_tuple);
+        spot::twa_graph_ptr& aut = aut_tuple.first;
+        unsigned aut_num_sets = aut_tuple.second;
+        unsigned acc_num_sets = std::get<3>(acc_tuple);
         if (aut_num_sets <= acc_num_sets)
           {
-            aut->set_acceptance(acc_num_sets, acc);
+            bool is_max = std::get<1>(acc_tuple);
+            bool is_odd = std::get<2>(acc_tuple);
+            aut->set_acceptance(acc_num_sets, std::get<0>(acc_tuple));
             // Check change_parity
             for (auto kind: parity_kinds)
               for (auto style: parity_styles)
