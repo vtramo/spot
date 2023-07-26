@@ -108,15 +108,6 @@ namespace
 namespace spot
 {
 
-  void
-  twa_graph::apply_permutation(std::vector<unsigned> permut)
-  {
-    for (auto& e : edges())
-    {
-      e.acc.apply_permutation(permut);
-    }
-  }
-
   std::string twa_graph::format_state(unsigned n) const
   {
     if (is_univ_dest(n))
