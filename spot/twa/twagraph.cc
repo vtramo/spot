@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2014-2022 Laboratoire de Recherche et Développement
+// Copyright (C) 2014-2023 Laboratoire de Recherche et Développement
 // de l'Epita.
 //
 // This file is part of Spot, a model checking library.
@@ -1243,8 +1243,7 @@ namespace spot
                     // the state so that graph::degrag_states() will
                     // eventually update it to the correct value.
                     nd = newst.size();
-                    newst.emplace_back(uniq.new_univ_dests(tmp.begin(),
-                                                           tmp.end()));
+                    newst.emplace_back(uniq.new_univ_dests(std::move(tmp)));
                   }
               }
             in_dst = nd;

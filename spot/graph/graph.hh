@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2014-2018, 2020-2022 Laboratoire de Recherche et
+// Copyright (C) 2014-2018, 2020-2023 Laboratoire de Recherche et
 // Développement de l'Epita.
 //
 // This file is part of Spot, a model checking library.
@@ -576,6 +576,15 @@ namespace spot
         return p.first->second;
       }
 
+      unsigned new_univ_dests(std::vector<unsigned>&& tmp)
+      {
+        std::sort(tmp.begin(), tmp.end());
+        tmp.erase(std::unique(tmp.begin(), tmp.end()), tmp.end());
+        auto p = uniq_.emplace(tmp, 0);
+        if (p.second)
+          p.first->second = g_.new_univ_dests(tmp.begin(), tmp.end());
+        return p.first->second;
+      }
     };
 
   } // namespace internal
