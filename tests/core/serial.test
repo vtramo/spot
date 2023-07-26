@@ -78,3 +78,16 @@ test 2000 = `ls -l randaut-*.hoa | wc -l`
 # likewise for LTL formulas
 randltl 2 -n 2000 -o randltl-%l.ltl
 test 2000 = `ls -l randltl-*.ltl | wc -l`
+
+
+# Test the code path that works that has to reopen files
+randltl -n100 --tree-size 1 26 --allow-dups -o '%f'.ltl --format=pass1
+randltl -n100 --tree-size 1 26 --allow-dups -o '>>%f'.ltl --format=pass2
+(uniq -c p1.ltl; uniq -c p20.ltl) | sed 's/^ *\([0-9][0-9]*\)  */\1 /g' >out
+cat >expected <<EOF
+4 pass1
+4 pass2
+5 pass1
+5 pass2
+EOF
+diff out expected

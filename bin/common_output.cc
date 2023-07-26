@@ -225,7 +225,7 @@ namespace
     }
   };
 
-  class formula_printer final: protected spot::formater
+  class formula_printer final: public spot::formater
   {
   public:
     formula_printer(std::ostream& os, const char* format)
@@ -399,6 +399,7 @@ output_formula(std::ostream& out,
     {
       formula_with_location fl = { f, filename, linenum,
                                    index, prefix, suffix };
+      format->set_output(out);
       format->print(fl, ptimer);
     }
 }
