@@ -47,16 +47,13 @@ output_file::output_file(const char* name, bool force_append)
 void
 output_file::reopen_for_append(const std::string& name)
 {
-  if (of_ && of_->is_open())     // nothing to do
+  if (os_ == &std::cout || of_->is_open())     // nothing to do
     return;
   const char* cname = name.c_str();
   if (cname[0] == '>' && cname[1] == '>')
     cname += 2;
-  if (name[0] == '-' && name[1] == 0)
-    {
-      os_ = &std::cout;
-      return;
-    }
+  // the name cannot be "-" at this point, otherwise os_ would be
+  // equal to std::cout.
   of_->open(cname, std::ios_base::app);
   if (!*of_)
     error(2, errno, "cannot reopen '%s'", cname);

@@ -91,3 +91,25 @@ cat >expected <<EOF
 5 pass2
 EOF
 diff out expected
+
+# The case where the output filename is a computed "-".
+ltl2tgba 1 --name '-' > naut-.hoa
+for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+  ltl2tgba 1 --name "file$i" > naut$i.hoa
+done
+autfilt naut*.hoa naut*.hoa --output='>>%M' --format=%M > stdout
+cat >expected <<EOF
+-
+-
+EOF
+diff stdout expected
+cat >expected7 <<EOF
+file7
+file7
+EOF
+diff file7 expected7
+cat >expected15 <<EOF
+file15
+file15
+EOF
+diff file15 expected15
