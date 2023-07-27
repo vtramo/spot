@@ -45,6 +45,7 @@ output_format_t output_format = spot_output;
 bool full_parenth = false;
 bool escape_csv = false;
 char output_terminator = '\n';
+bool output_ratexp = false;
 
 static const argp_option options[] =
   {
@@ -105,7 +106,10 @@ stream_formula(std::ostream& out,
         report_not_ltl(f, filename, linenum, "LBT");
       break;
     case spot_output:
-      spot::print_psl(out, f, full_parenth);
+      if (output_ratexp)
+        spot::print_sere(out, f, full_parenth);
+      else
+        spot::print_psl(out, f, full_parenth);
       break;
     case spin_output:
       if (f.is_ltl_formula())
@@ -120,10 +124,16 @@ stream_formula(std::ostream& out,
         report_not_ltl(f, filename, linenum, "Wring");
       break;
     case utf8_output:
-      spot::print_utf8_psl(out, f, full_parenth);
+      if (output_ratexp)
+        spot::print_utf8_sere(out, f, full_parenth);
+      else
+        spot::print_utf8_psl(out, f, full_parenth);
       break;
     case latex_output:
-      spot::print_latex_psl(out, f, full_parenth);
+      if (output_ratexp)
+        spot::print_latex_sere(out, f, full_parenth);
+      else
+        spot::print_latex_psl(out, f, full_parenth);
       break;
     case count_output:
     case quiet_output:

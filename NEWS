@@ -38,6 +38,8 @@ New in spot 2.11.5.dev  (not yet released)
   - Using --format=... on a tool that output formulas would force
     the output on standard output, even when --output was given.
 
+  - Using "randltl -S" did not correctly go through the SERE printer
+    functions.
 
 New in spot 2.11.5  (2023-04-20)
 

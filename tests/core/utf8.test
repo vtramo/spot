@@ -1,6 +1,6 @@
 #! /bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2012, 2013, 2015, 2016, 2019 Laboratoire de Recherche et
+# Copyright (C) 2012, 2013, 2015, 2016, 2019, 2023 Laboratoire de Recherche et
 # Développement de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -70,3 +70,18 @@ ltlfilt -8 -f 'X[!]a' >out
 diff in out
 ltlfilt -8 -F in >out
 diff in out
+
+randltl --sere -8 --seed 0 --tree-size 8 a b c -n 10 > formulae
+cat >expected <<EOF
+0
+b:{1 | [*0]}[:*1..3]
+c̅
+a | [*0]
+b[*2..3]
+1
+{a∨b}[*][:*]
+b
+a
+[*0]
+EOF
+diff formulae expected

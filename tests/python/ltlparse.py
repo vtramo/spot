@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2009-2012, 2014-2017, 2019, 2021-2022 Laboratoire de
+# Copyright (C) 2009-2012, 2014-2017, 2019, 2021-2023 Laboratoire de
 # Recherche et Développement de l'Epita (LRDE).
 # Copyright (C) 2003, 2004 Laboratoire d'Informatique de Paris 6 (LIP6),
 # département Systèmes Répartis Coopératifs (SRC), Université Pierre
@@ -219,3 +219,19 @@ f = spot.formula_G(2, spot.formula_unbounded(), spot.formula_ap("a"))
 tc.assertEqual(f, spot.formula("XXG(a)"))
 f = spot.formula_F(2, spot.formula_unbounded(), spot.formula_ap("a"))
 tc.assertEqual(f, spot.formula("XXF(a)"))
+
+
+pf = spot.parse_infix_sere('a[->3]')
+tc.assertEqual(spot.str_sere(pf.f), 'a[->3]')
+tc.assertEqual(spot.str_latex_sere(pf.f), 'a\\SereGoto{3}')
+pf = spot.parse_infix_sere('(!b)[*];b;(!b)[*]')
+tc.assertEqual(spot.str_sere(pf.f), 'b[=1]')
+pf = spot.parse_infix_sere('b[=1]')
+tc.assertEqual(spot.str_sere(pf.f), 'b[=1]')
+tc.assertEqual(spot.str_latex_sere(pf.f), 'b\\SereEqual{1}')
+tc.assertEqual(spot.str_sclatex_sere(pf.f), 'b^{=1}')
+pf = spot.parse_infix_sere('(!b)[*];b')
+tc.assertEqual(spot.str_sere(pf.f), 'b[->]')
+pf = spot.parse_infix_sere('b[->1]')
+tc.assertEqual(spot.str_latex_sere(pf.f), 'b\\SereGoto{}')
+tc.assertEqual(spot.str_sclatex_sere(pf.f), 'b^{\\to}')
