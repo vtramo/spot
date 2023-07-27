@@ -1,0 +1,320 @@
+#!/usr/bin/python3
+# -*- mode: python; coding: utf-8 -*-
+# Copyright (C) 2017, 2020, 2022 Laboratoire de Recherche et
+# Développement de l'EPITA.
+#
+# This file is part of Spot, a model checking library.
+#
+# Spot is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# Spot is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+# License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+import spot
+from unittest import TestCase
+tc = TestCase()
+
+always_true = spot.automaton("""
+HOA: v1
+States: 1
+Start: 0
+acc-name: Buchi
+Acceptance: 1 Inf(0)
+AP: 2 "a" "b"
+--BODY--
+State: 0
+ [t] 0 {0}
+--END--""")
+
+one = spot.automaton("""
+HOA: v1
+States: 2
+Start: 0
+acc-name: Buchi
+Acceptance: 1 Inf(0)
+AP: 2 "a" "b"
+--BODY--
+State: 0
+ [0|1] 1
+State: 1
+ [0] 1
+ [!0] 1 {0}
+--END--""")
+
+both = spot.automaton("""
+HOA: v1
+States: 1
+Start: 0
+acc-name: Buchi
+Acceptance: 1 Inf(0)
+AP: 2 "a" "b"
+--BODY--
+State: 0
+ [0] 0 {0}
+ [!0] 0 {0}
+--END--""")
+
+tc.assertTrue(spot.forq_contains(both, always_true))
+tc.assertTrue(spot.forq_contains(both, always_true))
+tc.assertTrue(spot.forq_contains(always_true, one))
+tc.assertTrue(spot.forq_contains(one, always_true))
+
+subset = spot.automaton("""
+HOA: v1
+States: 3
+Start: 0
+acc-name: Buchi
+Acceptance: 1 Inf(0)
+AP: 2 "a" "b"
+--BODY--
+State: 0
+ [!0|!1] 1
+ [0 & 1] 2
+State: 1
+ [t] 1 {0}
+State: 2
+ [t] 2 {0}
+--END--""")
+
+superset = spot.automaton("""
+HOA: v1
+States: 3
+Start: 0
+acc-name: Buchi
+Acceptance: 1 Inf(0)
+AP: 2 "a" "b"
+--BODY--
+State: 0
+ [!0] 1
+ [!0&1 | 0&!1] 2
+State: 1
+ [t] 1 {0}
+State: 2
+ [t] 2 {0}
+--END--""")
+
+tc.assertTrue(spot.forq_contains(subset, superset))
+tc.assertTrue(not spot.forq_contains(superset, subset))
+
+subset = spot.automaton("""
+HOA: v1
+States: 1
+Start: 0
+AP: 1 "__ap832" 
+acc-name: Buchi
+Acceptance: 1 Inf(0)
+properties: trans-labels explicit-labels state-acc
+--BODY--
+State: 0 {0}
+[!0] 0
+--END--""")
+
+superset = spot.automaton("""
+HOA: v1
+States: 1
+Start: 0
+AP: 1 "__ap832" 
+acc-name: Buchi
+Acceptance: 1 Inf(0)
+properties: trans-labels explicit-labels state-acc
+--BODY--
+State: 0 {0}
+[0] 0
+--END--""")
+
+tc.assertTrue(not spot.forq_contains(subset, superset))
+tc.assertTrue(not spot.forq_contains(superset, subset))
+
+subset = spot.automaton("""
+HOA: v1
+States: 2
+Start: 0
+acc-name: Buchi
+Acceptance: 1 Inf(0)
+AP: 2 "a" "b"
+--BODY--
+State: 0
+ [!0|!1] 1
+State: 1
+ [t] 1 {0}
+--END--""")
+superset = spot.automaton("""
+HOA: v1
+States: 3
+Start: 0
+acc-name: Buchi
+Acceptance: 1 Inf(0)
+AP: 2 "a" "b"
+--BODY--
+State: 0
+ [!0&1 | !0&!1] 1
+ [!0&1 | 0&!1] 2
+State: 1
+ [t] 1 {0}
+State: 2
+ [t] 2 {0}
+--END--""")
+
+tc.assertTrue(spot.forq_contains(subset, superset))
+tc.assertTrue(not spot.forq_contains(superset, subset))
+
+subset = spot.automaton("""
+HOA: v1
+States: 20
+Start: 0
+AP: 4 "__ap876" "__ap877" "__ap878" "__ap879"
+acc-name: Buchi
+Acceptance: 1 Inf(0)
+properties: trans-labels explicit-labels state-acc
+--BODY--
+State: 0
+[0&!1&2&!3] 1
+State: 1
+[!0&!1&!2] 2
+[!0&1&!2] 3
+[!0&1&!2] 4
+[!0&!1&!2&!3] 5
+[!0&1&!2&!3] 6
+State: 2
+[!0&!1&!2] 2
+[!0&!1&!2&!3] 5
+[!0&1&!2&!3] 6
+[!0&1&!2] 7
+State: 3
+[!0&!1&!2] 3
+[0&!1&2&!3] 4
+State: 4
+[!0&!1&!2] 4
+[!0&!2&!3] 6
+[!0&1&!2] 7
+State: 5
+[!0&!2&3] 5
+[!0&!2&!3] 6
+State: 6
+[!0&!1&!2&3] 5
+[!0&!1&!2&!3 | !0&1&!2&3] 6
+[!0&1&!2&!3] 8
+State: 7
+[!0&!2&!3] 6
+[!0&!2] 7
+[0&!1&2&!3] 9
+State: 8
+[!0&!2&3] 6
+[!0&!2&!3] 8
+[0&!1&2&!3] 10
+State: 9
+[!0&!2&!3] 6
+[!0&!1&!2] 9
+[!0&1&!2] 11
+State: 10
+[!0&!1&!2&!3] 12
+[!0&1&!2&!3] 13
+State: 11
+[!0&!2&!3] 6
+[!0&!2] 11
+[0&!1&2&!3] 14
+State: 12
+[!0&!1&!2&!3] 12
+[!0&1&!2&!3] 15
+State: 13
+[0&!1&2&!3] 12
+[!0&!1&!2&!3] 13
+[!0&1&!2&!3] 15
+State: 14
+[!0&!1&!2&!3] 6
+[!0&1&!2&!3] 8
+[!0&!1&!2] 9
+[!0&1&!2] 16
+State: 15
+[!0&!2&!3] 15
+[0&!1&2&!3] 17
+State: 16
+[!0&!1&!2&!3] 6
+[!0&1&!2&!3] 8
+[!0&!1&!2] 11
+[0&!1&2&!3] 14
+[!0&1&!2] 16
+State: 17
+[!0&!1&!2&!3] 17
+[!0&1&!2&!3] 18
+State: 18
+[!0&!2&!3] 18
+[0&!1&2&!3] 19
+State: 19 {0}
+[!0&!1&!2&!3] 17
+[!0&1&!2&!3] 18
+--END--""")
+
+superset = spot.automaton("""
+HOA: v1
+States: 12
+Start: 0
+AP: 4 "__ap876" "__ap877" "__ap878" "__ap879"
+acc-name: Buchi
+Acceptance: 1 Inf(0)
+properties: trans-labels explicit-labels state-acc
+--BODY--
+State: 0
+[0&!1&2&!3] 1
+State: 1
+[!0&!1&!2&!3] 1
+[!0&!1&!2&3] 2
+[!0&1&!2&!3] 3
+[!0&1&!2&3] 4
+State: 2
+[!0&!1&!2] 2
+[!0&1&!2&3] 4
+[!0&1&!2&!3] 5
+State: 3
+[!0&!2&!3] 3
+[!0&!1&!2&3] 4
+[!0&1&!2&3] 5
+[0&!1&2&!3] 6
+State: 4
+[!0&!1&!2 | !0&!2&3] 4
+[!0&1&!2&!3] 5
+State: 5
+[!0&!1&!2&3] 4
+[!0&1&!2 | !0&!2&!3] 5
+[0&!1&2&!3] 7
+State: 6
+[!0&!1&!2&3] 2
+[!0&1&!2&!3] 3
+[!0&1&!2&3] 5
+[!0&!1&!2&!3] 8
+[!0&!1&!2&!3] 9
+[!0&1&!2&!3] 10
+State: 7
+[!0&!1&!2&!3] 1
+[!0&!1&!2&3] 2
+[!0&1&!2&!3] 3
+[!0&1&!2&3] 4
+[!0&1&!2&!3] 10
+State: 8
+[!0&!1&!2&!3] 8
+[!0&1&!2&!3] 10
+State: 9
+[!0&!1&!2&3] 2
+[!0&1&!2&!3] 3
+[!0&1&!2&3] 5
+[!0&!1&!2&!3] 9
+State: 10
+[!0&!2&!3] 10
+[0&!1&2&!3] 11
+State: 11 {0}
+[!0&!1&!2&!3] 8
+[!0&1&!2&!3] 10
+--END--""")
+
+tc.assertTrue(spot.forq_contains(subset, superset))
+tc.assertTrue(not spot.forq_contains(subset, superset))
+
+
