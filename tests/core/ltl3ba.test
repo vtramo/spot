@@ -1,6 +1,6 @@
 #!/bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2016-2018, 2021 Laboratoire de Recherche et
+# Copyright (C) 2016-2018, 2021, 2023 Laboratoire de Recherche et
 # Développement de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -47,8 +47,10 @@ GF(((a & Xb) | XXc) & Xd)
 GF((b | Fa) & (b R Xb))
 EOF
     randltl -n 30 2
-) | ltlcross -D 'ltl3ba -H1' 'ltl3ba -H2' 'ltl3ba -H3' ltl2tgba \
-             --ambiguous --strength --csv=output.csv
+) > file.ltl
+
+ltlcross -F file.ltl -D 'ltl3ba -H1' 'ltl3ba -H2' 'ltl3ba -H3' ltl2tgba \
+         --ambiguous --strength --verbose --csv=output.csv
 
 grep _x output.csv && exit 1
 
@@ -58,6 +60,9 @@ sed 's/[^,]//g' <output.csv |
 while read l; do
   test "x$first" = "x$l" || exit 1
 done)
+
+ltldo 'ltl3ba -H1' -F file.ltl |
+    autcross --language-complemented 'autfilt --dualize' --verbose
 
 # The name of the HOA is preserved
 case `ltldo 'ltl3ba -H' -f xxx --stats=%m` in
