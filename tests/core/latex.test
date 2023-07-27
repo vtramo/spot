@@ -1,7 +1,7 @@
 #!/bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2013, 2015 Laboratoire de Recherche et Développement
-# de l'Epita (LRDE).
+# Copyright (C) 2013, 2015, 2023 Laboratoire de Recherche et
+# Développement de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
 #
@@ -50,7 +50,8 @@ cat <<\EOF
 EOF
 ( ltlfilt --latex input --format='\texttt{%F:%L} & $%f$ \\';
   genltl --go-theta=1..3 --latex \
-                   --format='\texttt{--%F:%L} & $%f$ \\')
+         --format='\texttt{--%F:%L} & $%f$ \\';
+  randltl -S -n10 --latex 2 --format='\texttt{random %L} & $%f$ \\')
 cat <<\EOF
 \end{tabular}
 \end{document}
