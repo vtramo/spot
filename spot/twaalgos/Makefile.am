@@ -51,6 +51,7 @@ twaalgos_HEADERS = \
   dualize.hh \
   emptiness.hh \
   emptiness_stats.hh \
+  forq_contains.hh \
   game.hh \
   genem.hh \
   gfguarantee.hh \
@@ -124,6 +125,7 @@ libtwaalgos_la_SOURCES = \
   dtwasat.cc \
   dualize.cc \
   emptiness.cc \
+  forq_contains.cc \
   genem.cc \
   gfguarantee.cc \
   gv04.cc \
