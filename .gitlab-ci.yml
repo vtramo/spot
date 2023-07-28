@@ -458,22 +458,26 @@ publish-unstable:
     - curl -X POST -F ref=master -F token=$TRIGGER_SPOT_WEB -F "variables[spot_branch]=next" https://gitlab.lre.epita.fr/api/v4/projects/131/trigger/pipeline
     - curl -X POST -F ref=master -F token=$TRIGGER_SANDBOX https://gitlab.lre.epita.fr/api/v4/projects/181/trigger/pipeline
 
-raspbian:
-  stage: build
-  only:
-    - branches
-  except:
-    - /wip/
-  tags:
-    - armv7
-  script:
-    - autoreconf -vfi
-    - ./configure
-    - make
-    - make distcheck || { chmod -R u+w ./spot-*; false; }
-  artifacts:
-    when: always
-    paths:
-      - ./spot-*/_build/sub/tests/*/*.log
-      - ./*.log
-      - ./*.tar.gz
+
+# The SD card of our Raspberry failed.  Disable this job until we
+# can make it work again.
+#
+# raspbian:
+#   stage: build
+#   only:
+#     - branches
+#   except:
+#     - /wip/
+#   tags:
+#     - armv7
+#   script:
+#     - autoreconf -vfi
+#     - ./configure
+#     - make
+#     - make distcheck || { chmod -R u+w ./spot-*; false; }
+#   artifacts:
+#     when: always
+#     paths:
+#       - ./spot-*/_build/sub/tests/*/*.log
+#       - ./*.log
+#       - ./*.tar.gz
