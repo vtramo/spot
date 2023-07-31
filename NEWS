@@ -41,6 +41,11 @@ New in spot 2.11.5.dev  (not yet released)
   - Using "randltl -S" did not correctly go through the SERE printer
     functions.
 
+  - Our copy of BuDDy's bdd_forall() had a 20 year old typo that
+    caused cache entries from bdd_exist() and bdd_forall() to be
+    mixed.  Spot was safe from this bug because it was only using
+    bdd_exist().  (Issue #535)
+
 New in spot 2.11.5  (2023-04-20)
 
   Bug fixes:
