@@ -2300,7 +2300,7 @@ RETURN  {* The quantified BDD. *}
 */
 BDD bdd_forall(BDD r, BDD var)
 {
-   return quantify(r, var, bddop_and, 0, CACHEID_EXIST);
+   return quantify(r, var, bddop_and, 0, CACHEID_FORALL);
 }
 
 /*
@@ -2315,7 +2315,7 @@ RETURN  {* The quantified BDD. *}
 */
 BDD bdd_forallcomp(BDD r, BDD var)
 {
-   return quantify(r, var, bddop_and, 1, CACHEID_EXISTC);
+   return quantify(r, var, bddop_and, 1, CACHEID_FORALLC);
 }
 
 
