@@ -1,4 +1,4 @@
-New in spot 2.11.5.dev  (not yet released)
+New in spot 2.11.6.dev  (not yet released)
 
   Command-line tools:
 
@@ -29,6 +29,8 @@ New in spot 2.11.5.dev  (not yet released)
   - spot::bdd_to_cnf_formula() is a new variant of spot::bdd_to_formula()
     that converts a BDD into a CNF instead of a DNF.
 
+New in spot 2.11.6  (2023-08-01)
+
   Bug fixes:
 
   - Running command lines such as "autfilt input.hoa -o output-%L.hoa"
@@ -45,6 +47,8 @@ New in spot 2.11.5.dev  (not yet released)
     caused cache entries from bdd_exist() and bdd_forall() to be
     mixed.  Spot was safe from this bug because it was only using
     bdd_exist().  (Issue #535)
+
+  - Work around recent Pandas and GCC changes.
 
 New in spot 2.11.5  (2023-04-20)
 
