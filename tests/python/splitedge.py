@@ -26,27 +26,65 @@ tc = TestCase()
 def create_aps(aut):
     return [buddy.bdd_ithvar(aut.register_ap(ap.ap_name())) for ap in aut.ap()]
 
+def do_edge_test(aut, aps, edges_before, edges_after):
+    tc.assertEqual(aut.num_edges(), edges_before)
+    aut = spot.split_edges(aut, aps)
+    tc.assertEqual(aut.num_edges(), edges_after)
+
+def custom_print(aut):
+    bdict = aut.get_dict()
+    print("Acceptance:", aut.get_acceptance())
+    print("Number of sets:", aut.num_sets())
+    print("Number of states: ", aut.num_states())
+    print("Initial states: ", aut.get_init_state_number())
+    print("Atomic propositions:", end='')
+    for ap in aut.ap():
+        print(' ', ap, ' (=', bdict.varnum(ap), ')', sep='', end='')
+    print()
+    # Templated methods are not available in Python, so we cannot
+    # retrieve/attach arbitrary objects from/to the automaton.  However the
+    # Python bindings have get_name() and set_name() to access the
+    # "automaton-name" property.
+    name = aut.get_name()
+    if name:
+        print("Name: ", name)
+    print("Deterministic:", aut.prop_universal() and aut.is_existential())
+    print("Unambiguous:", aut.prop_unambiguous())
+    print("State-Based Acc:", aut.prop_state_acc())
+    print("Terminal:", aut.prop_terminal())
+    print("Weak:", aut.prop_weak())
+    print("Inherently Weak:", aut.prop_inherently_weak())
+    print("Stutter Invariant:", aut.prop_stutter_invariant())
+
+    for s in range(0, aut.num_states()):
+        print("State {}:".format(s))
+        for t in aut.out(s):
+            print("  edge({} -> {})".format(t.src, t.dst))
+            # bdd_print_formula() is designed to print on a std::ostream, and
+            # is inconvenient to use in Python.  Instead we use
+            # bdd_format_formula() as this simply returns a string.
+            print("    label =", spot.bdd_format_formula(bdict, t.cond))
+            print("    acc sets =", t.acc)
+
 aut = spot.automaton("""
-HOA: v1 
-States: 1 
-Start: 0 
-AP: 1 "a" "b"
-Acceptance: 1 Inf(0) 
---BODY-- 
-State: 0 
+HOA: v1
+States: 1
+Start: 0
+AP: 2 "a" "b"
+Acceptance: 1 Inf(0)
+--BODY--
+State: 0
 [t] 0
 --END--""")
 
 aps = create_aps(aut)
-tc.assertEqual(aut.num_edges(), 1)
-aut.split_edges(aps)
-tc.assertEqual(aut.num_edges(), 2)
+do_edge_test(aut, aps, 1, 4)
 
 aut = spot.automaton("""
 HOA: v1 
 States: 2
 Start: 0 
-AP: 1 "a" "b"
+AP: 2 "a" "b"
 Acceptance: 1 Inf(0) 
 --BODY-- 
 State: 0 
@@ -56,35 +94,32 @@ State: 1
 --END--""")
 
 aps = create_aps(aut)
-tc.assertEqual(aut.num_edges(), 2)
-aut.split_edges(aps)
-tc.assertEqual(aut.num_edges(), 3)
+do_edge_test(aut, aps, 2, 5)
 
 aut = spot.automaton("""
-HOA: v1 
-States: 1 
-Start: 0 
+HOA: v1
+States: 1
+Start: 0
 AP: 1 "a"
 Acceptance: 1 Inf(0) 
---BODY-- 
-State: 0  
+--BODY--
+State: 0
+[f] 0
 --END--""")
 
 aps = create_aps(aut)
-tc.assertEqual(aut.num_edges(), 1)
-aut.split_edges(aps)
-tc.assertEqual(aut.num_edges(), 0)
+do_edge_test(aut, aps, 0, 0)
 
 aut = spot.automaton("""
-HOA: v1 
+HOA: v1
 States: 3
-Start: 0 
-AP: 1 "a" "b"
-Acceptance: 1 Inf(0) 
---BODY-- 
-State: 0 
-[t] 1
-[!0&!1 | 0&!1] 2
+Start: 0
+AP: 2 "a" "b"
+Acceptance: 1 Inf(0)
+--BODY--
+State: 0
+[0|1] 1
+[!1] 2
 State: 1
 State: 2
 --END--""")
@@ -103,21 +138,20 @@ State: 2
 # d = 11
 
 aps = create_aps(aut)
-tc.assertEqual(aut.num_edges(), 2)
 # [{a, b, c}]
-aut.split_edges([buddy.bdd_not(aps[0]) | buddy.bdd_not(aps[1])])
-tc.assertEqual(aut.num_edges(), 3)
+aps = [buddy.bdd_not(aps[0]) | buddy.bdd_not(aps[1])]
+do_edge_test(aut, aps, 2, 3)
 
 aut = spot.automaton("""
 HOA: v1 
 States: 3
 Start: 0 
-AP: 1 "a" "b"
+AP: 2 "a" "b"
 Acceptance: 1 Inf(0) 
 --BODY-- 
 State: 0 
 [t] 1
-[!0&!1 | 0&!1] 2
+[!0] 2
 State: 1
 State: 2
 --END--""")
@@ -136,21 +170,20 @@ State: 2
 # d = 11
 
 aps = create_aps(aut)
-tc.assertEqual(aut.num_edges(), 2)
 # [{a, b}, {c, d}]
-aut.split_edges([buddy.bdd_not(aps[1]), buddy.bdd_not(aps[0])])
-tc.assertEqual(aut.num_edges(), 4)
+aps = [buddy.bdd_not(aps[1]), aps[1]]
+do_edge_test(aut, aps, 2, 4)
 
 aut = spot.automaton("""
 HOA: v1 
 States: 3
 Start: 0 
-AP: 1 "a" "b"
+AP: 2 "a" "b"
 Acceptance: 1 Inf(0) 
 --BODY-- 
 State: 0 
 [t] 1
-[!0&!1 | 0&!1] 2
+[!0&!1 | !0&1] 2
 State: 1
 State: 2
 --END--""")
@@ -170,21 +203,21 @@ State: 2
 
 aps = create_aps(aut)
 neg_aps = [buddy.bdd_not(a) for a in aps]
-tc.assertEqual(aut.num_edges(), 2)
 # [{a},{b},{c},{d}]
-aut.split_edges([
+aps = [
     neg_aps[0] & neg_aps[1],
     neg_aps[0] & aps[1],
     aps[0] & neg_aps[1],
     aps[0] & aps[1]
-])
-tc.assertEqual(aut.num_edges(), 6)
+]
+
+do_edge_test(aut, aps, 2, 6)
 
 aut = spot.automaton("""
 HOA: v1 
 States: 3
 Start: 0 
-AP: 1 "a" "b"
+AP: 2 "a" "b"
 Acceptance: 1 Inf(0) 
 --BODY-- 
 State: 0 
@@ -209,10 +242,9 @@ State: 2
 
 aps = create_aps(aut)
 neg_aps = [buddy.bdd_not(a) for a in aps]
-tc.assertEqual(aut.num_edges(), 2)
 # [{a, b, c}, {d}]
-aut.split_edges([
+aps = [
     neg_aps[0] | neg_aps[1],
     aps[0] & aps[1]
-])
-tc.assertEqual(aut.num_edges(), 3)
+]
+do_edge_test(aut, aps, 2, 3)
