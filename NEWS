@@ -1,6 +1,4 @@
-New in spot 2.11.5.dev  (not yet released)
-
-  Nothing yet.
+New in spot 2.11.6  (2023-08-01)
 
   Bug fixes:
 
@@ -18,6 +16,8 @@ New in spot 2.11.5.dev  (not yet released)
     caused cache entries from bdd_exist() and bdd_forall() to be
     mixed.  Spot was safe from this bug because it was only using
     bdd_exist().  (Issue #535)
+
+  - Work around recent Pandas and GCC changes.
 
 New in spot 2.11.5  (2023-04-20)
 
