@@ -62,12 +62,12 @@ State: 0
  [!0] 0 {0}
 --END--""")
 
-tc.assertTrue(spot.forq_contains(both, always_true))
-tc.assertTrue(spot.forq_contains(both, always_true))
-tc.assertTrue(spot.forq_contains(always_true, one))
-tc.assertTrue(spot.forq_contains(one, always_true))
+tc.assertTrue(spot.contains_forq(both, always_true))
+tc.assertTrue(spot.contains_forq(both, always_true))
+tc.assertTrue(not spot.contains_forq(always_true, one))
+tc.assertTrue(spot.contains_forq(one, always_true))
 
-subset = spot.automaton("""
+superset = spot.automaton("""
 HOA: v1
 States: 3
 Start: 0
@@ -84,7 +84,7 @@ State: 2
  [t] 2 {0}
 --END--""")
 
-superset = spot.automaton("""
+subset = spot.automaton("""
 HOA: v1
 States: 3
 Start: 0
@@ -101,8 +101,8 @@ State: 2
  [t] 2 {0}
 --END--""")
 
-tc.assertTrue(spot.forq_contains(subset, superset))
-tc.assertTrue(not spot.forq_contains(superset, subset))
+tc.assertTrue(spot.contains_forq(subset, superset))
+tc.assertTrue(not spot.contains_forq(superset, subset))
 
 subset = spot.automaton("""
 HOA: v1
@@ -130,8 +130,8 @@ State: 0 {0}
 [0] 0
 --END--""")
 
-tc.assertTrue(not spot.forq_contains(subset, superset))
-tc.assertTrue(not spot.forq_contains(superset, subset))
+tc.assertTrue(not spot.contains_forq(subset, superset))
+tc.assertTrue(not spot.contains_forq(superset, subset))
 
 subset = spot.automaton("""
 HOA: v1
@@ -163,10 +163,13 @@ State: 2
  [t] 2 {0}
 --END--""")
 
-tc.assertTrue(spot.forq_contains(subset, superset))
-tc.assertTrue(not spot.forq_contains(superset, subset))
+forq_result = spot.contains_forq(subset, superset)
+forq_result_rev = spot.contains_forq(superset, subset)
+tc.assertTrue(forq_result == spot.contains(superset, subset))
+tc.assertTrue(forq_result_rev == spot.contains(subset, superset))
+tc.assertTrue(forq_result and forq_result_rev)
 
-subset = spot.automaton("""
+superset = spot.automaton("""
 HOA: v1
 States: 20
 Start: 0
@@ -253,7 +256,7 @@ State: 19 {0}
 [!0&1&!2&!3] 18
 --END--""")
 
-superset = spot.automaton("""
+subset = spot.automaton("""
 HOA: v1
 States: 12
 Start: 0
@@ -314,7 +317,7 @@ State: 11 {0}
 [!0&1&!2&!3] 10
 --END--""")
 
-tc.assertTrue(spot.forq_contains(subset, superset))
-tc.assertTrue(not spot.forq_contains(subset, superset))
+tc.assertTrue(spot.contains_forq(subset, superset))
+tc.assertTrue(not spot.contains_forq(superset, subset))
 
 

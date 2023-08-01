@@ -123,6 +123,7 @@
 #include <spot/twaalgos/dot.hh>
 #include <spot/twaalgos/dualize.hh>
 #include <spot/twaalgos/emptiness.hh>
+#include <spot/twaalgos/forq_contains.hh>
 #include <spot/twaalgos/gtec/gtec.hh>
 #include <spot/twaalgos/genem.hh>
 #include <spot/twaalgos/lbtt.hh>
@@ -701,6 +702,7 @@ def state_is_accepting(self, src) -> "bool":
 %feature("flatnested") spot::twa_run::step;
 %include <spot/twaalgos/emptiness.hh>
 %template(list_step) std::list<spot::twa_run::step>;
+%include <spot/twaalgos/forq_contains.hh>
 %include <spot/twaalgos/gtec/gtec.hh>
 %include <spot/twaalgos/genem.hh>
 %include <spot/twaalgos/lbtt.hh>

@@ -515,7 +515,7 @@ namespace spot::forq
 
 namespace spot 
 {
-	forq_status contains_forq(forq::const_graph A, forq::const_graph B, forq_result* result)
+	forq_status contains_forq(forq::const_graph const& A, forq::const_graph const& B, forq_result* result)
 	{
 		if (auto rc = forq::valid_automata(A, B, result); rc != forq_status::FORQ_OKAY) return rc;
 		forq::forq_setup setup = forq::create_forq_setup(A, B);
@@ -528,6 +528,15 @@ namespace spot
 			}
 		}
 		return forq::create_result(result, true);
+	}
+
+	bool contains_forq(forq::const_graph const& A, forq::const_graph const& B) 
+	{
+		forq_result result;
+		if(auto rc = contains_forq(A, B, &result); rc != forq_status::FORQ_OKAY) {
+			throw std::runtime_error(forq_status_message(rc));
+		}
+		return result.included;
 	}
 
 	const char* forq_status_message(forq_status status) {
