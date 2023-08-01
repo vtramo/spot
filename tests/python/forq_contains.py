@@ -22,6 +22,16 @@ import spot
 from unittest import TestCase
 tc = TestCase()
 
+def do_test(subset, superset, expected=True):
+    result = spot.contains_forq(subset, superset)
+    truth = spot.contains(superset, subset)
+    tc.assertTrue(truth == expected)
+    tc.assertTrue(result == truth)
+
+def do_symmetric_test(subset, superset):
+    do_test(subset, superset, True)
+    do_test(superset, subset, False)
+
 always_true = spot.automaton("""
 HOA: v1
 States: 1
@@ -62,10 +72,9 @@ State: 0
  [!0] 0 {0}
 --END--""")
 
-tc.assertTrue(spot.contains_forq(both, always_true))
-tc.assertTrue(spot.contains_forq(both, always_true))
-tc.assertTrue(not spot.contains_forq(always_true, one))
-tc.assertTrue(spot.contains_forq(one, always_true))
+do_test(both, always_true)
+do_test(always_true, both)
+do_symmetric_test(one, always_true)
 
 superset = spot.automaton("""
 HOA: v1
@@ -101,8 +110,7 @@ State: 2
  [t] 2 {0}
 --END--""")
 
-tc.assertTrue(spot.contains_forq(subset, superset))
-tc.assertTrue(not spot.contains_forq(superset, subset))
+do_symmetric_test(subset, superset)
 
 subset = spot.automaton("""
 HOA: v1
@@ -130,8 +138,8 @@ State: 0 {0}
 [0] 0
 --END--""")
 
-tc.assertTrue(not spot.contains_forq(subset, superset))
-tc.assertTrue(not spot.contains_forq(superset, subset))
+do_test(subset, superset, False)
+do_test(superset, subset, False)
 
 subset = spot.automaton("""
 HOA: v1
@@ -163,11 +171,9 @@ State: 2
  [t] 2 {0}
 --END--""")
 
-forq_result = spot.contains_forq(subset, superset)
-forq_result_rev = spot.contains_forq(superset, subset)
-tc.assertTrue(forq_result == spot.contains(superset, subset))
-tc.assertTrue(forq_result_rev == spot.contains(subset, superset))
-tc.assertTrue(forq_result and forq_result_rev)
+# Equivlent Languages
+do_test(subset, superset)
+do_test(superset, subset)
 
 superset = spot.automaton("""
 HOA: v1
@@ -317,7 +323,5 @@ State: 11 {0}
 [!0&1&!2&!3] 10
 --END--""")
 
-tc.assertTrue(spot.contains_forq(subset, superset))
-tc.assertTrue(not spot.contains_forq(superset, subset))
-
+do_symmetric_test(subset, superset)
 
