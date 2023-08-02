@@ -140,6 +140,7 @@ namespace spot
 
   template<typename Callable>
   void iterate_possible_intersections(bdd_pair_set const& complement_pairs,
+                                      bdd valid_symbol_set,
                                       Callable callable)
   {
     for (auto it = complement_pairs.begin(); it != complement_pairs.end(); ++it)
@@ -154,14 +155,6 @@ namespace spot
               }
           }
       }
-  }
-
-  static bdd_set lower_set_bound_general(std::vector<bdd> const& basis,
-
-                                         bdd valid_symbol_set)
-  {
-
-
   }
 
   // Compute the lower set bound of a set. A valid symbol set is also
@@ -190,7 +183,8 @@ namespace spot
     else
       {
         bdd_set lower_bound;
-        iterate_possible_intersections(complement_pairs, [&]()
+        iterate_possible_intersections(complement_pairs, valid_symbol_set,
+        [&](auto intersection)
         {
           add_to_lower_bound_set_helper(lower_bound,
                                         valid_symbol_set,
