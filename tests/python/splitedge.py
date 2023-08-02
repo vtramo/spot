@@ -46,13 +46,13 @@ aps = create_aps(aut)
 do_edge_test(aut, aps, 1, 4)
 
 aut = spot.automaton("""
-HOA: v1 
+HOA: v1
 States: 2
-Start: 0 
+Start: 0
 AP: 2 "a" "b"
-Acceptance: 1 Inf(0) 
---BODY-- 
-State: 0 
+Acceptance: 1 Inf(0)
+--BODY--
+State: 0
 [t] 0
 State: 1
 [0&1] 1
@@ -66,7 +66,7 @@ HOA: v1
 States: 1
 Start: 0
 AP: 1 "a"
-Acceptance: 1 Inf(0) 
+Acceptance: 1 Inf(0)
 --BODY--
 State: 0
 [f] 0
@@ -108,13 +108,13 @@ aps = [buddy.bdd_not(aps[0]) | buddy.bdd_not(aps[1])]
 do_edge_test(aut, aps, 2, 3)
 
 aut = spot.automaton("""
-HOA: v1 
+HOA: v1
 States: 3
-Start: 0 
+Start: 0
 AP: 2 "a" "b"
-Acceptance: 1 Inf(0) 
---BODY-- 
-State: 0 
+Acceptance: 1 Inf(0)
+--BODY--
+State: 0
 [t] 1
 [!0] 2
 State: 1
@@ -140,13 +140,13 @@ aps = [buddy.bdd_not(aps[1]), aps[1]]
 do_edge_test(aut, aps, 2, 4)
 
 aut = spot.automaton("""
-HOA: v1 
+HOA: v1
 States: 3
-Start: 0 
+Start: 0
 AP: 2 "a" "b"
-Acceptance: 1 Inf(0) 
---BODY-- 
-State: 0 
+Acceptance: 1 Inf(0)
+--BODY--
+State: 0
 [t] 1
 [!0&!1 | !0&1] 2
 State: 1
@@ -179,13 +179,13 @@ aps = [
 do_edge_test(aut, aps, 2, 6)
 
 aut = spot.automaton("""
-HOA: v1 
+HOA: v1
 States: 3
-Start: 0 
+Start: 0
 AP: 2 "a" "b"
-Acceptance: 1 Inf(0) 
---BODY-- 
-State: 0 
+Acceptance: 1 Inf(0)
+--BODY--
+State: 0
 [t] 1
 [!0&!1 | 0&!1] 2
 State: 1

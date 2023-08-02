@@ -37,8 +37,9 @@ namespace spot
   /// \brief transform edges into transitions based on set of bdds
   ///
   /// Create a new version of the automaton where all edges are split
-  /// such that, for any transformed edge and any set of symbols in 
-  /// the basis, the transformed edge is either completely disjoint 
+  /// such that, for any transformed edge and any set of symbols in
+  /// the basis, the transformed edge is either completely disjoint
   /// from the set of symbols, or it is a subset of them.
-  SPOT_API twa_graph_ptr split_edges(const const_twa_graph_ptr& aut, std::vector<bdd> const& basis);
+  SPOT_API twa_graph_ptr split_edges(
+    const const_twa_graph_ptr& aut, std::vector<bdd> const& basis);
 }

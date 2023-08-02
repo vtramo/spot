@@ -41,7 +41,7 @@ Acceptance: 1 Inf(0)
 AP: 2 "a" "b"
 --BODY--
 State: 0
- [t] 0 {0}
+[t] 0 {0}
 --END--""")
 
 one = spot.automaton("""
@@ -53,10 +53,10 @@ Acceptance: 1 Inf(0)
 AP: 2 "a" "b"
 --BODY--
 State: 0
- [0|1] 1
+[0|1] 1
 State: 1
- [0] 1
- [!0] 1 {0}
+[0] 1
+[!0] 1 {0}
 --END--""")
 
 both = spot.automaton("""
@@ -68,8 +68,8 @@ Acceptance: 1 Inf(0)
 AP: 2 "a" "b"
 --BODY--
 State: 0
- [0] 0 {0}
- [!0] 0 {0}
+[0] 0 {0}
+[!0] 0 {0}
 --END--""")
 
 do_test(both, always_true)
@@ -85,12 +85,12 @@ Acceptance: 1 Inf(0)
 AP: 2 "a" "b"
 --BODY--
 State: 0
- [!0|!1] 1
- [0 & 1] 2
+[!0|!1] 1
+[0 & 1] 2
 State: 1
- [t] 1 {0}
+[t] 1 {0}
 State: 2
- [t] 2 {0}
+[t] 2 {0}
 --END--""")
 
 subset = spot.automaton("""
@@ -102,12 +102,12 @@ Acceptance: 1 Inf(0)
 AP: 2 "a" "b"
 --BODY--
 State: 0
- [!0] 1
- [!0&1 | 0&!1] 2
+[!0] 1
+[!0&1 | 0&!1] 2
 State: 1
- [t] 1 {0}
+[t] 1 {0}
 State: 2
- [t] 2 {0}
+[t] 2 {0}
 --END--""")
 
 do_symmetric_test(subset, superset)
@@ -116,7 +116,7 @@ subset = spot.automaton("""
 HOA: v1
 States: 1
 Start: 0
-AP: 1 "__ap832" 
+AP: 1 "__ap832"
 acc-name: Buchi
 Acceptance: 1 Inf(0)
 properties: trans-labels explicit-labels state-acc
@@ -129,7 +129,7 @@ superset = spot.automaton("""
 HOA: v1
 States: 1
 Start: 0
-AP: 1 "__ap832" 
+AP: 1 "__ap832"
 acc-name: Buchi
 Acceptance: 1 Inf(0)
 properties: trans-labels explicit-labels state-acc
@@ -150,9 +150,9 @@ Acceptance: 1 Inf(0)
 AP: 2 "a" "b"
 --BODY--
 State: 0
- [!0|!1] 1
+[!0|!1] 1
 State: 1
- [t] 1 {0}
+[t] 1 {0}
 --END--""")
 superset = spot.automaton("""
 HOA: v1
@@ -163,12 +163,12 @@ Acceptance: 1 Inf(0)
 AP: 2 "a" "b"
 --BODY--
 State: 0
- [!0&1 | !0&!1] 1
- [!0&1 | 0&!1] 2
+[!0&1 | !0&!1] 1
+[!0&1 | 0&!1] 2
 State: 1
- [t] 1 {0}
+[t] 1 {0}
 State: 2
- [t] 2 {0}
+[t] 2 {0}
 --END--""")
 
 # Equivlent Languages
