@@ -56,7 +56,7 @@ namespace spot
     // Checks if the lhs is a subset of rhs, lhs <= rhs
     static bool bdd_is_subset(bdd lhs, bdd rhs) 
     {
-        return (lhs & rhs) == lhs;
+        return bdd_implies(lhs, rhs);
     }
 
   // We attempt to add a potentially new set of symbols defined as "value" to our current set of edge partitions, "current_set". 
