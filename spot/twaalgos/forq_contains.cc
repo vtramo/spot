@@ -411,7 +411,42 @@ namespace spot::forq
 		std::set<std::pair<state, bool>>const get_post_set(bool already_accepting, symbol_set const& a_sym, state from_b) const;
 	};
 
-	static forq_status valid_automata(const_graph const& A, const_graph const& B, ::spot::forq_result* result) 
+	enum class forq_status {
+		FORQ_OKAY, 					// The forq works as expected
+		FORQ_INVALID_AC_COND, 		// The automata passed do not use buchi acceptance conditions
+		FORQ_INCOMPATIBLE_DICTS,	// The two automata are using different bdd_dict objects
+		FORQ_INCOMPATIBLE_AP,		// The two automata are using different atomic propositions
+		FORQ_INVALID_INPUT_BA,		// The two automata passed are nullptrs and are invalid
+		FORQ_INVALID_RESULT_PTR		// The pointer forq_result, that was passed into function contains_forq, cannot be nullptr
+	};
+
+	struct forq_result
+	{
+		bool included;							// Whether language of graph A is included in B
+		spot::twa_word_ptr counter_example; 	// If the language of graph A is not included in B, a counter example is provided
+	};
+
+	// Returns a human-readable string given a forq_status, which can be aquired through a call to contains_forq
+	static const char* forq_status_message(forq_status status) {
+		switch(status) {
+			case forq_status::FORQ_OKAY:
+				return "Forq was able to properly run on the two buchi automata.";
+			case forq_status::FORQ_INVALID_AC_COND:
+				return "Forq only operates on automata with buchi acceptance conditions.";
+			case forq_status::FORQ_INCOMPATIBLE_DICTS:
+				return "The two input graphs must utilize the same twa_dict.";
+			case forq_status::FORQ_INCOMPATIBLE_AP:
+				return "The two input graphs must utilize the same set of atomic propositions defined in their shared twa_dict.";
+			case forq_status::FORQ_INVALID_INPUT_BA:
+				return "One of the two buchi automata passed in was a nullptr.";
+			case forq_status::FORQ_INVALID_RESULT_PTR:
+				return "The result pointer passed in was a nullptr.";
+			default:
+				return "Unknown Forq Status Code.";
+		}
+	}
+
+	static forq_status valid_automata(const_graph const& A, const_graph const& B, forq_result* result) 
 	{
 		if(!result) {
 			return forq_status::FORQ_INVALID_RESULT_PTR;
@@ -436,7 +471,7 @@ namespace spot::forq
 		return forq_status::FORQ_OKAY;
 	}
 
-	static ::spot::forq_status create_result(::spot::forq_result* result ::spot::twa_word_ptr counter_example = nullptr) 
+	static forq_status create_result(forq_result* result, ::spot::twa_word_ptr counter_example = nullptr) 
 	{
 		result->included 		= static_cast<bool>(counter_example);
 		result->counter_example = std::move(counter_example); 
@@ -511,48 +546,30 @@ namespace spot::forq
 		}
 		return final_state_result::success();
 	}
+
+	static forq_status forq_impl(const_graph const& A, const_graph const& B, forq_result* result)
+	{
+		if (auto rc = valid_automata(A, B, result); rc != forq_status::FORQ_OKAY) return rc;
+		forq_setup setup = create_forq_setup(A, B);
+
+		for (auto src : util::get_final_states(A)) 
+		{
+			auto final_state_result = run_from_final_state(src, setup);
+			if(!final_state_result.should_continue()){
+				return create_result(result, final_state_result.get_counter_example());
+			}
+		}
+		return create_result(result);
+	}
 }
 
 namespace spot 
 {
-	// Returns a human-readable string given a forq_status, which can be aquired through a call to contains_forq
-	const char* forq_status_message(forq_status status);
-
-	enum class forq_status {
-		FORQ_OKAY, 					// The forq works as expected
-		FORQ_INVALID_AC_COND, 		// The automata passed do not use buchi acceptance conditions
-		FORQ_INCOMPATIBLE_DICTS,	// The two automata are using different bdd_dict objects
-		FORQ_INCOMPATIBLE_AP,		// The two automata are using different atomic propositions
-		FORQ_INVALID_INPUT_BA,		// The two automata passed are nullptrs and are invalid
-		FORQ_INVALID_RESULT_PTR		// The pointer forq_result, that was passed into function contains_forq, cannot be nullptr
-	};
-
-	struct forq_result
-	{
-		bool included;							// Whether language of graph A is included in B
-		spot::twa_word_ptr counter_example; 	// If the language of graph A is not included in B, a counter example is provided
-	};
-
-	static forq_status forq_impl(forq::const_graph const& A, forq::const_graph const& B, forq_result* result)
-	{
-		if (auto rc = forq::valid_automata(A, B, result); rc != forq_status::FORQ_OKAY) return rc;
-		forq::forq_setup setup = forq::create_forq_setup(A, B);
-
-		for (auto src : forq::util::get_final_states(A)) 
-		{
-			auto final_state_result = forq::run_from_final_state(src, setup);
-			if(!final_state_result.should_continue()){
-				return forq::create_result(result, final_state_result.get_counter_example());
-			}
-		}
-		return forq::create_result(result);
-	}
-
 	twa_word_ptr difference_word_forq(const_twa_graph_ptr lhs, spot::const_twa_graph_ptr rhs) 
 	{
-		forq_result result;
-		if(auto rc = forq_impl(A, B, &result); rc != forq_status::FORQ_OKAY) {
-			throw std::runtime_error(forq_status_message(rc));
+		forq::forq_result result;
+		if(auto rc = forq::forq_impl(lhs, rhs, &result); rc != forq::forq_status::FORQ_OKAY) {
+			throw std::runtime_error(forq::forq_status_message(rc));
 		}
 		return result.counter_example;
 	}
@@ -560,25 +577,6 @@ namespace spot
 	bool contains_forq(forq::const_graph lhs, forq::const_graph rhs) 
 	{
 		return !difference_word_forq(lhs, rhs);
-	}
-
-	const char* forq_status_message(forq_status status) {
-		switch(status) {
-			case forq_status::FORQ_OKAY:
-				return "Forq was able to properly run on the two buchi automata.";
-			case forq_status::FORQ_INVALID_AC_COND:
-				return "Forq only operates on automata with buchi acceptance conditions.";
-			case forq_status::FORQ_INCOMPATIBLE_DICTS:
-				return "The two input graphs must utilize the same twa_dict.";
-			case forq_status::FORQ_INCOMPATIBLE_AP:
-				return "The two input graphs must utilize the same set of atomic propositions defined in their shared twa_dict.";
-			case forq_status::FORQ_INVALID_INPUT_BA:
-				return "One of the two buchi automata passed in was a nullptr.";
-			case forq_status::FORQ_INVALID_RESULT_PTR:
-				return "The result pointer passed in was a nullptr.";
-			default:
-				return "Unknown Forq Status Code.";
-		}
 	}
 }
 
