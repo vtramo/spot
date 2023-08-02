@@ -436,9 +436,9 @@ namespace spot::forq
 		return forq_status::FORQ_OKAY;
 	}
 
-	static ::spot::forq_status create_result(::spot::forq_result* result, bool included, ::spot::twa_word_ptr counter_example = {}) 
+	static ::spot::forq_status create_result(::spot::forq_result* result ::spot::twa_word_ptr counter_example = nullptr) 
 	{
-		result->included 		= included;
+		result->included 		= static_cast<bool>(counter_example);
 		result->counter_example = std::move(counter_example); 
 		return forq_status::FORQ_OKAY;
 	}
@@ -515,7 +515,25 @@ namespace spot::forq
 
 namespace spot 
 {
-	forq_status contains_forq(forq::const_graph const& A, forq::const_graph const& B, forq_result* result)
+	// Returns a human-readable string given a forq_status, which can be aquired through a call to contains_forq
+	const char* forq_status_message(forq_status status);
+
+	enum class forq_status {
+		FORQ_OKAY, 					// The forq works as expected
+		FORQ_INVALID_AC_COND, 		// The automata passed do not use buchi acceptance conditions
+		FORQ_INCOMPATIBLE_DICTS,	// The two automata are using different bdd_dict objects
+		FORQ_INCOMPATIBLE_AP,		// The two automata are using different atomic propositions
+		FORQ_INVALID_INPUT_BA,		// The two automata passed are nullptrs and are invalid
+		FORQ_INVALID_RESULT_PTR		// The pointer forq_result, that was passed into function contains_forq, cannot be nullptr
+	};
+
+	struct forq_result
+	{
+		bool included;							// Whether language of graph A is included in B
+		spot::twa_word_ptr counter_example; 	// If the language of graph A is not included in B, a counter example is provided
+	};
+
+	static forq_status forq_impl(forq::const_graph const& A, forq::const_graph const& B, forq_result* result)
 	{
 		if (auto rc = forq::valid_automata(A, B, result); rc != forq_status::FORQ_OKAY) return rc;
 		forq::forq_setup setup = forq::create_forq_setup(A, B);
@@ -524,19 +542,24 @@ namespace spot
 		{
 			auto final_state_result = forq::run_from_final_state(src, setup);
 			if(!final_state_result.should_continue()){
-				return forq::create_result(result, false, final_state_result.get_counter_example());
+				return forq::create_result(result, final_state_result.get_counter_example());
 			}
 		}
-		return forq::create_result(result, true);
+		return forq::create_result(result);
 	}
 
-	bool contains_forq(forq::const_graph const& A, forq::const_graph const& B) 
+	twa_word_ptr difference_word_forq(const_twa_graph_ptr lhs, spot::const_twa_graph_ptr rhs) 
 	{
 		forq_result result;
-		if(auto rc = contains_forq(A, B, &result); rc != forq_status::FORQ_OKAY) {
+		if(auto rc = forq_impl(A, B, &result); rc != forq_status::FORQ_OKAY) {
 			throw std::runtime_error(forq_status_message(rc));
 		}
-		return result.included;
+		return result.counter_example;
+	}
+
+	bool contains_forq(forq::const_graph lhs, forq::const_graph rhs) 
+	{
+		return !difference_word_forq(lhs, rhs);
 	}
 
 	const char* forq_status_message(forq_status status) {
@@ -669,9 +692,11 @@ namespace spot::forq
     symbol_set symbol_set::operator|(symbol_set const& other) const { return symbol_set(other.symbols | symbols); }
     symbol_set symbol_set::operator!() const { return symbol_set(!symbols); }
 
-    bool symbol_set::contains(symbol_set const& other) const { 
-        //return !bdd_have_common_assignment(!other.symbols, symbols);
-        return other.symbols == (other.symbols & symbols); 
+    bool symbol_set::contains(symbol_set const& other) const 
+	{ 
+        return bdd_implies(other.symbols, symbols);
+		//return !bdd_have_common_assignment(!other.symbols, symbols);
+        //return other.symbols == (other.symbols & symbols); 
     }
     bdd const& symbol_set::data() const { return symbols; }
     size_t symbol_set::size() const { return detail::calculate_number_of_symbols_in_bdd(symbols); }

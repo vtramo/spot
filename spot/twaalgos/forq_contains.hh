@@ -1,33 +1,31 @@
 
 #pragma once
-#include <spot/twaalgos/hoa.hh>
+#include <spot/twa/twagraph.hh>
 #include <spot/twaalgos/word.hh>
 
 namespace spot
 {
-	enum class SPOT_API forq_status {
-		FORQ_OKAY, 					// The forq works as expected
-		FORQ_INVALID_AC_COND, 		// The automata passed do not use buchi acceptance conditions
-		FORQ_INCOMPATIBLE_DICTS,	// The two automata are using different bdd_dict objects
-		FORQ_INCOMPATIBLE_AP,		// The two automata are using different atomic propositions
-		FORQ_INVALID_INPUT_BA,		// The two automata passed are nullptrs and are invalid
-		FORQ_INVALID_RESULT_PTR		// The pointer forq_result, that was passed into function contains_forq, cannot be nullptr
-	};
+	/// \begin{thebibliography}{1}
+	/// \bibitem{FORQ_PAPER}
+	/// Kyveli Doveri, Pierre Ganty, Nicholas Mazzocchi (2022) \emph{FORQ-Base Language Inclusion Formal Testing}, 
+	/// Universidad Politecnica de Madrid, Madrid, Spain
+	/// \end{thebibliography}
 
-	struct SPOT_API forq_result
-	{
-		bool included;						// Whether language of graph A is included in B
-		spot::twa_word_ptr counter_example; // If the language of graph A is not included in B, a counter example is provided
-	};
+	/// \brief Returns a word accepted by \a left that rejected by \a right, or nullptr.
+	///
+	/// This implement the language containment algorithm from \cite{FORQ_PAPER}
+	/// to check whether L(left)⊆L(right), in which case, it returns nullptr.
+	/// Otherwise, it returns a counterexample, i.e., a word that is accepted 
+	/// by $L(left)\setminus L(right)$, hence the name of the function.
+	/// 
+	/// \pre Automata \a left and \a right should be non-alternating state-based Büchi-automata.
+	SPOT_API twa_word_ptr difference_word_forq(const_twa_graph_ptr left, spot::const_twa_graph_ptr right);
 
-	// Return the status of language containment algorithm.
-	//If FORQ_OKAY is returned, the result is properly updated in forq_result* result.
-	// forq_result::included is true, if the left argument is within that of the right argument
-	SPOT_API forq_status contains_forq(spot::const_twa_graph_ptr const&, spot::const_twa_graph_ptr const&, forq_result* result);
-
-	// Throws a std::runtime_error with an error message if anything goes wrong, and returns inclusion status otherwise
-	SPOT_API bool contains_forq(spot::const_twa_graph_ptr const&, spot::const_twa_graph_ptr const&);
-
-	// Returns a human-readable string given a forq_status, which can be aquired through a call to contains_forq
-	SPOT_API const char* forq_status_message(forq_status status);
+	/// \brief Returns a boolean value indicating whether \a left is included in the language of \a right.
+	///
+	/// This implements the language containment algorithm from \cite{FORQ_PAPER}
+	/// to check whether L(left)⊆L(right). 
+	/// 
+	/// \pre Automata \a left and \a right should be non-alternating state-based Büchi-automata.
+	SPOT_API bool contains_forq(const_twa_graph_ptr left, const_twa_graph_ptr right);
 }
