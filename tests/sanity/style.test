@@ -1,6 +1,6 @@
 #! /bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2009-2022 Laboratoire de Recherche et Développement de
+# Copyright (C) 2009-2023 Laboratoire de Recherche et Développement de
 # l'Epita (LRDE).
 # Copyright (C) 2004, 2005 Laboratoire d'Informatique de Paris 6
 # (LIP6), département Systèmes Répartis Coopératifs (SRC), Université
@@ -267,23 +267,23 @@ for dir in "$TOP/spot" "$TOP/bin" "$TOP/tests"; do
 
       # std::list::size() can be O(n).  Better use empty() whenever
       # possible, even for other containers.
-      e$GREP '(->|[.])size\(\) [=!]= 0|![a-zA-Z0-9_]*(->|[.])size\(\)|(if |while |assert)\([a-zA-Z0-9_]*(->|[.])size\(\)\)' $tmp &&
+      $GREP -E '(->|[.])size\(\) [=!]= 0|![a-zA-Z0-9_]*(->|[.])size\(\)|(if |while |assert)\([a-zA-Z0-9_]*(->|[.])size\(\)\)' $tmp &&
 	diag 'Prefer empty() to check emptiness.'
 
       $GREP -E 'std::cerr.*<<.*endl' $tmp &&
         diag 'std::cerr has unitbuf set; use \\n instead of endl'
 
-      e$GREP 'assert\((0|!".*")\)' $tmp &&
+      $GREP -E 'assert\((0|!".*")\)' $tmp &&
         diag 'Prefer SPOT_UNREACHABLE or SPOT_UNIMPLEMENTED.'
 
-      e$GREP '^[^=*<]*([+][+]|--);' $tmp &&
+      $GREP -E '^[^=*<]*([+][+]|--);' $tmp &&
 	diag 'Take good habits: use ++i instead of i++ when you have the choice.'
 
       $GREP '[^a-zA-Z0-9_](\*[a-zA-Z0-9_]*)\.' $tmp &&
 	diag 'Use "x->y", not "(*x).y"'
 
       # we allow these functions only in ?...:...
-      e$GREP 'bdd_(false|true)[	]*\(' $tmp | $GREP -v '[?:]' &&
+      $GREP -E 'bdd_(false|true)[	]*\(' $tmp | $GREP -v '[?:]' &&
 	diag 'Use bddfalse and bddtrue instead of bdd_false() and bdd_true()'
 
       res=`perl -ne '$/ = undef;
@@ -300,7 +300,7 @@ for dir in "$TOP/spot" "$TOP/bin" "$TOP/tests"; do
 
       case $file in
 	*.hh | *.hxx)
-	  if e$GREP '(<<|>>)' $tmp >/dev/null; then
+	  if $GREP -E '(<<|>>)' $tmp >/dev/null; then
 	    :
 	  else
 	    $GREP '#.*include.*<iostream>' $tmp &&
@@ -338,7 +338,7 @@ for dir in "$TOP/spot" "$TOP/bin" "$TOP/tests"; do
 	    $GREP '^[	 ]*class[	 ]' $tmp &&
 	      diag 'Private definitions must be in anonymous namespace.'
 	  fi
-          e$GREP '	' $tmp &&
+          $GREP '	' $tmp &&
 	      diag 'Use spaces instead of tabs.'
           case $file in
               */bin/*) ;;
