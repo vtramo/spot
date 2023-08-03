@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2017, 2018, 2020 Laboratoire de Recherche et Développement
-// de l'Epita.
+// Copyright (C) 2017, 2018, 2020, 2023 Laboratoire de Recherche
+// et Développement de l'Epita. IMDEA Software Institute.
 //
 // This file is part of Spot, a model checking library.
 //
@@ -20,6 +20,7 @@
 #pragma once
 
 #include <spot/twa/twagraph.hh>
+#include <vector>
 
 namespace spot
 {
@@ -28,7 +29,17 @@ namespace spot
   ///
   /// Create a new version of the automaton where all edges are split
   /// so that they are all labeled by a conjunction of all atomic
-  /// propositions.  After this we can consider that each edge of the
+  /// propositions. After this we can consider that each edge of the
   /// automate is a transition labeled by one letter.
   SPOT_API twa_graph_ptr split_edges(const const_twa_graph_ptr& aut);
+
+  /// \ingroup twa_misc
+  /// \brief transform edges into transitions based on set of bdds
+  ///
+  /// Create a new version of the automaton where all edges are split
+  /// such that, for any transformed edge and any set of symbols in
+  /// the basis, the transformed edge is either completely disjoint
+  /// from the set of symbols, or it is a subset of them.
+  SPOT_API twa_graph_ptr split_edges(
+    const const_twa_graph_ptr& aut, std::vector<bdd> const& basis);
 }

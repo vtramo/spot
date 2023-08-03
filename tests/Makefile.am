@@ -461,6 +461,7 @@ TESTS_python = \
   python/simstate.py \
   python/sonf.py \
   python/split.py \
+  python/splitedge.py \
   python/streett_totgba.py \
   python/streett_totgba2.py \
   python/stutter.py \
