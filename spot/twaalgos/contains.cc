@@ -19,6 +19,7 @@
 
 #include "config.h"
 #include <spot/twaalgos/contains.hh>
+#include <spot/twaalgos/forq_contains.hh>
 #include <spot/twaalgos/complement.hh>
 #include <spot/twaalgos/ltl2tgba_fm.hh>
 #include <spot/twaalgos/isdet.hh>
@@ -34,9 +35,37 @@ namespace spot
     }
   }
 
+  static bool is_buchi_automata(const_twa_graph_ptr const& aut)
+  {
+    return spot::acc_cond::acc_code::buchi() == aut->get_acceptance();
+  }
+
   bool contains(const_twa_graph_ptr left, const_twa_ptr right)
   {
-    return !complement(left)->intersects(right);
+    enum class containment_type : unsigned { LEGACY = 0, FORQ };
+    static containment_type containment = [&]()
+    {
+      char* s = getenv("SPOT_CONTAINMENT_CHECK");
+      // We expect a single digit that represents a valid enumeration value
+      if (!s)
+        return containment_type::LEGACY;
+      else if (*s == '\0' || *(s + 1) != '\0' || *s < '0' || *s > '1')
+        throw std::runtime_error("Invalid value for enviroment variable: "
+                                 "SPOT_CONTAINMENT_CHECK");
+      else
+        return static_cast<containment_type>(*s - '0');
+    }();
+
+    auto as_graph = std::dynamic_pointer_cast<const twa_graph>(right);
+    bool uses_buchi = is_buchi_automata(left) && is_buchi_automata(as_graph);
+    if (containment == containment_type::FORQ && uses_buchi && as_graph)
+      {
+        return contains_forq(left, as_graph);
+      }
+    else
+      {
+        return !complement(left)->intersects(right);
+      }
   }
 
   bool contains(const_twa_graph_ptr left, formula right)
