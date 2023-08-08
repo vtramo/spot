@@ -63,8 +63,6 @@ namespace spot::forq
       bool contains(symbol_set const& other) const;
       bdd const& data() const;
 
-      std::string to_string(spot::bdd_dict_ptr const& dict) const;
-
     private:
       symbol_set() = default;
       bdd symbols;
@@ -123,9 +121,6 @@ namespace spot::forq
       {
         return symbols.end();
       }
-
-      [[maybe_unused]] std::string
-      to_string(spot::bdd_dict_ptr const& dict) const;
 
     private:
       word() = default;
@@ -335,31 +330,6 @@ namespace spot::forq
         return state_vector.end();
       }
 
-      std::string to_string(spot::bdd_dict_ptr const& dict) const
-      {
-        std::stringstream ss;
-        ss << "basis: {\n";
-        for (auto& [s, set] : state_vector)
-          {
-            ss << "(state:" << s << "={\n";
-            for (auto& entry : set)
-              {
-                ss << "( word:";
-                if (entry->w.is_empty())
-                  {
-                    ss<<"EMPTY";
-                  }
-                else
-                  {
-                    ss << entry->w.to_string(dict);
-                  }
-                ss << ", set: " << entry->set << "),\n";
-              }
-            ss << "}),\n";
-          }
-        ss << "}\n";
-        return ss.str();
-      }
     private:
       mutable std::unordered_map<state, state_set_t> state_vector;
     };
@@ -397,8 +367,6 @@ namespace spot::forq
       return set.end();
     }
 
-    std::string to_string() const;
-
   private:
     std::set<state> set;
     bool reversed;
@@ -418,11 +386,6 @@ namespace spot::forq
     state_set_t const& operator[](state s) const
     {
       return basis[s];
-    }
-
-    std::string to_string(spot::bdd_dict_ptr dict) const
-    {
-      return basis.to_string(dict);
     }
 
   protected:
@@ -514,7 +477,6 @@ namespace spot::forq
 
       void add(state initial, std::set<std::pair<state, bool>> const& other);
       bool relevance_test(state_set const& set) const;
-      [[maybe_unused]] std::string to_string() const;
 
       template<typename Callable>
       void iterate(Callable callable) const
@@ -919,13 +881,6 @@ namespace spot::forq
     return symbols;
   }
 
-  std::string symbol_set::to_string(spot::bdd_dict_ptr const& dict) const
-  {
-    std::stringstream ss;
-    spot::bdd_print_formula(ss, dict, symbols);
-    return ss.str();
-  }
-
   word::word(symbol_set sym)
   {
     symbols.emplace_back(std::move(sym));
@@ -949,18 +904,6 @@ namespace spot::forq
         temp.symbols.push_back(other);
       }
     return temp;
-  }
-
-  std::string word::to_string(spot::bdd_dict_ptr const& dict) const
-  {
-    std::string retval;
-    for (size_t i = 0; i < symbols.size(); ++i)
-      {
-        retval += symbols[i].to_string(dict);
-        if (i != symbols.size() - 1)
-          retval.push_back(';');
-      }
-    return retval;
   }
 
   bool word::operator==(word const& other) const
@@ -1202,25 +1145,6 @@ namespace spot::forq
     return true;
   }
 
-  std::string context_set::to_string() const
-  {
-    std::string retval = "{";
-    iterate([&](auto s1, auto s2, auto f)
-    {
-      retval.push_back('(');
-      retval.append(std::to_string(s1));
-      retval.push_back(',');
-      retval.append(std::to_string(s2));
-      retval.push_back(',');
-      retval.append(f ? "true" : "false");
-      retval.append("), ");
-    });
-    retval.pop_back();
-    retval.pop_back();
-    retval += '}';
-    return retval;
-  }
-
   state_set::state_set(state single_state, bool reversed)
     : set(std::set<state>{single_state}), reversed(reversed)
   {
@@ -1245,18 +1169,6 @@ namespace spot::forq
   {
     set.insert(other.begin(), other.end());
     return *this;
-  }
-
-  std::string state_set::to_string() const
-  {
-    std::string retval = "{";
-    for (auto s : set)
-      {
-        retval.append(std::to_string(s));
-        retval.append(", ");
-      }
-    retval.pop_back(); retval.pop_back();
-    return retval;
   }
 
   bool state_set::operator<=(state_set const& other) const
