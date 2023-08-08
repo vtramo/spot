@@ -51,6 +51,14 @@ If this variable is set to any value, statistics about BDD garbage
 collection and resizing will be output on standard error.
 
 .TP
+\fSPOT_CONTAINMENT_CHECK\fR
+Specifies which inclusion algorithm spot should use. This can currently
+take on 1 of 2 values: 0 for the legacy implementation, and 1 for the
+forq implementation [6] (See bibliography below). Forq uses buchi
+automata in order to determine inclusion, and will default to the legacy
+version if these constraints are not satisfied.
+
+.TP
 \fBSPOT_DEFAULT_FORMAT\fR
 Set to a value of \fBdot\fR or \fBhoa\fR to override the default
 format used to output automata.  Up to Spot 1.9.6 the default output
@@ -94,6 +102,14 @@ the dot character will be replaced by the contents of the
 The contents of this variable is added to any dot output, immediately
 before the first state is output.  This makes it easy to override
 global attributes of the graph.
+
+.TP
+\fSPOT_EXCLUSIVE_WORD\fR
+Specifies which algorithm spot should use for exclusive_word. This can
+currently take on 1 of 2 values: 0 for the legacy implementation, and 1
+for the forq implementation [6] (See bibliography below). Forq assumes buchi
+automata in order to find an exclusive word, and will default to the legacy
+version if these constraints are not satisfied with the automata passed.
 
 .TP
 \fBSPOT_HOA_TOLERANT\fR
@@ -317,6 +333,26 @@ Describes (among other things) the constructions used for translating
 formulas of the form GF(guarantee) or FG(safety), that can be
 disabled with \fB-x gf-guarantee=0\fR.
 
+.TP
+6.
+Doveri, Kyveli and Ganty, Pierre and Mazzocchi, Nicolas:
+FORQ-Based Language Inclusion Formal Testing.
+Proceedings of CAV'22. LNCS 13372.
+
+We propose a novel algorithm to decide the language inclusion between
+(nondeterministic) Büchi automata, a PSpace-complete problem. Our approach,
+like others before, leverage a notion of quasiorder to prune the search for a
+counterexample by discarding candidates which are subsumed by others for the
+quasiorder.Discarded candidates are guaranteed to not compromise the
+completeness of the algorithm. The novelty of our work lies in the quasiorder  k
+used to discard candidates. We introduce FORQs (family of right quasiorders)
+that we obtain by adapting the notion of family of right congruences put forward
+by Maler and Staiger in 1993. We define a FORQ-based inclusion algorithm which
+we prove correct and instantiate it for a specific FORQ, called the structural
+FORQ, induced by the B\"uchi automaton to the right of the inclusion sign. The
+resulting implementation, called Forklift, scales up better than the
+state-of-the-art on a variety of benchmarks including benchmarks from program
+verification and theorem proving for word combinatorics.
 
 [SEE ALSO]
 .BR ltl2tgba (1)

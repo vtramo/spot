@@ -28,6 +28,7 @@
 #include <spot/twaalgos/remfin.hh>
 #include <spot/twaalgos/alternation.hh>
 #include <spot/twa/twaproduct.hh>
+#include <spot/twaalgos/forq_contains.hh>
 #include <spot/twaalgos/complement.hh>
 #include <spot/twaalgos/isdet.hh>
 #include <spot/twaalgos/product.hh>
@@ -228,20 +229,57 @@ namespace spot
     return b->intersecting_run(complement(ensure_graph(a)));
   }
 
+  static bool
+  is_buchi_automata(const_twa_graph_ptr const& aut)
+  {
+    return spot::acc_cond::acc_code::buchi() == aut->get_acceptance();
+  }
+
   twa_word_ptr
   twa::exclusive_word(const_twa_ptr other) const
   {
     const_twa_ptr a = shared_from_this();
     const_twa_ptr b = other;
 
+    enum class containment_type : unsigned { LEGACY = 0, FORQ };
+    static containment_type containment = [&]()
+    {
+      char* s = getenv("SPOT_EXCLUSIVE_WORD");
+      // We expect a single digit that represents a valid enumeration value
+      if (!s)
+        return containment_type::LEGACY;
+      else if (*s == '\0' || *(s + 1) != '\0' || *s < '0' || *s > '1')
+        throw std::runtime_error("Invalid value for enviroment variable: "
+                                 "SPOT_EXCLUSIVE_WORD");
+      else
+        return static_cast<containment_type>(*s - '0');
+    }();
+
     // We have to find a word in A\B or in B\A.  When possible, let's
     // make sure the first automaton we complement is deterministic.
-    if (auto aa = std::dynamic_pointer_cast<const twa_graph>(a))
-      if (is_deterministic(aa))
+    auto a_twa_as_graph = std::dynamic_pointer_cast<const twa_graph>(a);
+    auto b_twa_as_graph = std::dynamic_pointer_cast<const twa_graph>(a);
+    if (a_twa_as_graph)
+      if (is_deterministic(a_twa_as_graph))
         std::swap(a, b);
-    if (auto word = a->intersecting_word(complement(ensure_graph(b))))
-      return word;
-    return b->intersecting_word(complement(ensure_graph(a)));
+
+    bool uses_buchi = is_buchi_automata(a_twa_as_graph)
+                      && is_buchi_automata(b_twa_as_graph);
+    if (containment == containment_type::FORQ
+       && uses_buchi
+       && a_twa_as_graph
+       && b_twa_as_graph)
+      {
+        if (auto word = difference_word_forq(a_twa_as_graph, b_twa_as_graph))
+          return word;
+        return difference_word_forq(b_twa_as_graph, a_twa_as_graph);
+      }
+    else
+      {
+        if (auto word = a->intersecting_word(complement(ensure_graph(b))))
+          return word;
+        return b->intersecting_word(complement(ensure_graph(a)));
+      }
   }
 
   void
