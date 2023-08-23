@@ -35,7 +35,7 @@ namespace spot
   /// This function is typically used with maps produced by relabel()
   /// or relabel_bse().
   SPOT_API void
-  relabel_here(twa_graph_ptr& aut, relabeling_map* relmap);
+  relabel_here(const twa_graph_ptr& aut, relabeling_map* relmap);
 
 
   /// \brief Replace conditions in \a aut with non-overlapping conditions
@@ -53,16 +53,20 @@ namespace spot
   /// concerned_ap (or whose condition is T) are taken into account.
   /// The fresh aps will be enumerated and prefixed by \a var_prefix.
   /// These variables need to be fresh, i.e. may not exist yet (not checked)
+  /// If \a split and \a sort is true, then the new labels
+  /// will appear in sorted order. That is the edge conditions
+  /// will be increasing with respect bdd_stable_less.
   ///
   /// \note If concerned_ap is given, then there may not be an edge
   /// whose condition uses ap inside AND outside of concerned_ap.
   /// Mostly used in a game setting to distinguish between
   /// env and player transitions.
   SPOT_API relabeling_map
-  partitioned_relabel_here(twa_graph_ptr& aut, bool split = false,
+  partitioned_relabel_here(const twa_graph_ptr& aut, bool split = false,
                            unsigned max_letter = -1u,
                            unsigned max_letter_mult = -1u,
                            const bdd& concerned_ap = bddtrue,
-                           std::string var_prefix = "__nv");
+                           std::string var_prefix = "__nv",
+                           bool sort = false);
 
 }

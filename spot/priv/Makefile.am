@@ -27,8 +27,6 @@ libpriv_la_SOURCES = \
   bddalloc.hh \
   freelist.cc \
   freelist.hh \
-  partitioned_relabel.cc \
-  partitioned_relabel.hh \
   robin_hood.hh \
   satcommon.hh\
   satcommon.cc\

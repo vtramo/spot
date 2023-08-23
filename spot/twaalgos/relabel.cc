@@ -20,138 +20,41 @@
 #include <spot/twaalgos/relabel.hh>
 #include <spot/twa/formula2bdd.hh>
 #include <spot/tl/formula.hh>
-#include <spot/priv/partitioned_relabel.hh>
+#include <spot/misc/partitioned_relabel.hh>
+
 #include <cmath>
 #include <algorithm>
+#include <iostream>
+#include <deque>
+#include <optional>
 
 
 namespace spot
 {
   namespace
   {
-
-    void
-    comp_new_letters(bdd_partition& part,
-                    twa_graph& aut,
-                    const std::string& var_prefix,
-                    bool split)
-    {
-      auto& ig = *part.ig;
-      const auto& treated = part.treated;
-      auto& new_aps = part.new_aps;
-      // Get the new variables and their negations
-      const unsigned Nnl = treated.size();
-      const unsigned Nnv = std::ceil(std::log2(Nnl));
-      std::vector<std::array<bdd, 2>> Nv_vec(Nnv);
-
-      new_aps.reserve(Nnv);
-      for (unsigned i = 0; i < Nnv; ++i)
-        {
-          // todo check if it does not exist / use anonymous?
-          new_aps.push_back(formula::ap(var_prefix+std::to_string(i)));
-          int v = aut.register_ap(new_aps.back());
-          Nv_vec[i] = {bdd_nithvar(v), bdd_ithvar(v)};
-        }
-
-      auto leaveidx2label = [&](unsigned idx)
-        {
-          unsigned c = 0;
-          unsigned rem = idx;
-          bdd thisbdd = bddtrue;
-          while (rem)
-            {
-              thisbdd &= Nv_vec[c][rem & 1];
-              ++c;
-              rem >>= 1;
-            }
-          for (; c < Nnv; ++c)
-            thisbdd &= Nv_vec[c][0];
-          return thisbdd;
-        };
-
-      // Compute only labels of leaves
-      for (unsigned idx = 0; idx < Nnl; ++idx)
-        ig.state_storage(treated[idx].second).new_label = leaveidx2label(idx);
-
-      // We will label the implication graph with the new letters
-      auto relabel_impl = [&](unsigned s, auto&& relabel_impl_rec)
-        {
-          auto& ss = ig.state_storage(s);
-          if (ss.new_label != bddfalse)
-            return ss.new_label;
-          else
-            {
-              assert((ss.succ != 0) && "Should not be a leave");
-              bdd thisbdd = bddfalse;
-              for (const auto& e : ig.out(s))
-                thisbdd |= relabel_impl_rec(e.dst, relabel_impl_rec);
-              ss.new_label = thisbdd;
-              return thisbdd;
-            }
-        };
-
-      if (!split)
-        {
-          // For split only leaves is ok,
-          // disjunction is done via transitions
-          // This will compute the new_label for all states in the ig
-          const unsigned Norig = part.all_cond_ptr->size();
-          for (unsigned i = 0; i < Norig; ++i)
-            relabel_impl(i, relabel_impl);
-        }
-    } // comp_new_letters
-
-    // Recursive traversal of implication graph
-    void replace_label_(unsigned si,
-                        unsigned esrc, unsigned edst,
-                        bdd& econd,
-                        const bdd_partition::implication_graph& ig,
-                        twa_graph& aut)
-    {
-      auto& sstore = ig.state_storage(si);
-      if (sstore.succ == 0)
-        {
-          if (econd == bddfalse)
-            econd = sstore.new_label;
-          else
-            aut.new_edge(esrc, edst, sstore.new_label);
-        }
-      else
-        {
-          for (const auto& e_ig : ig.out(si))
-            replace_label_(e_ig.dst, esrc, edst, econd, ig, aut);
-        }
-    }
-
     relabeling_map
-    partitioned_relabel_here_(twa_graph& aut, bool split,
+    partitioned_relabel_here_(const twa_graph_ptr& autp, bool split,
                               unsigned max_letter,
                               unsigned max_letter_mult,
                               const bdd& concerned_ap,
                               bool treat_all,
-                              const std::string& var_prefix)
+                              const std::string& var_prefix,
+                              bool sort)
     {
+      if (!autp)
+        throw std::runtime_error("partitioned_relabel_here_(): given aut "
+                                 "is null.");
       auto abandon = []()
         {
           return relabeling_map{};
         };
 
+      auto& aut = *autp;
 
-      // When split we need to distinguish effectively new and old edges
-      if (split)
-        {
-          aut.get_graph().remove_dead_edges_();
-          aut.get_graph().sort_edges_();
-          aut.get_graph().chain_edges_();
-        }
-
-      // Get all conditions present in the automaton
-      std::vector<bdd> all_cond;
+      // Get all concerned conditions present in the automaton
+      std::set<bdd, bdd_less_than> all_cond_conc; // Most efficient?
       bdd ignoredcon = bddtrue;
-      std::unordered_map<int, unsigned> all_cond_id2idx;
-
-      all_cond.reserve(0.1*aut.num_edges());
-      all_cond_id2idx.reserve(0.1*aut.num_edges());
 
       // Map for all supports
       // and whether or not they are to be relabeled
@@ -180,13 +83,13 @@ namespace spot
               continue;
             }
 
-          if (all_cond_id2idx.try_emplace(e.cond.id(), all_cond.size()).second)
-            {
-              all_cond.push_back(e.cond);
-              if (all_cond.size() > max_letter)
-                return abandon();
-            }
+          all_cond_conc.insert(e.cond);
         }
+
+      // try_partition_me expects a vector
+      auto all_cond = std::vector<bdd>(all_cond_conc.size());
+      std::copy(all_cond_conc.begin(), all_cond_conc.end(), all_cond.begin());
+
 
       unsigned stop = max_letter;
       if (max_letter_mult != -1u)
@@ -197,47 +100,36 @@ namespace spot
                             (unsigned) (max_letter_mult*all_cond.size()));
         }
 
-      auto this_partition = try_partition_me(all_cond, stop);
+      // Get the concerned propositions as formula
+      std::vector<formula> concerned_ap_formula;
+      if (treat_all)
+        concerned_ap_formula = aut.ap();
+      else
+        {
+          for (const auto& ap : aut.ap())
+            {
+              bdd ap_prop = bdd_ithvar(aut.register_ap(ap));
+              if (bdd_implies(concerned_ap, ap_prop))
+                concerned_ap_formula.push_back(ap);
+            }
+        }
+      auto this_partition
+          = try_partition_me(aut.get_dict(), all_cond,
+                             concerned_ap_formula, stop);
 
-      if (!this_partition.relabel_succ)
+      if (this_partition.is_empty())
         return abandon();
 
-      comp_new_letters(this_partition, aut, var_prefix, split);
+      // Compute the new letters
+      this_partition.lock(var_prefix, sort);
 
-      // An original condition is represented by all leaves that imply it
-      auto& ig = *this_partition.ig;
-      const unsigned Ns = aut.num_states();
-      const unsigned Nt = aut.num_edges();
-      for (unsigned s = 0; s < Ns; ++s)
-        {
-          for (auto& e : aut.out(s))
-            {
-              if (aut.edge_number(e) > Nt)
-                continue;
-              if (!all_supports.at(e.cond).first)
-                continue; // Edge not concerned
-              unsigned idx = all_cond_id2idx[e.cond.id()];
+      this_partition.relabel_edges_here(autp, split);
 
-              if (split)
-                {
-                  // initial call
-                  // We can not hold a ref to the edge
-                  // as the edgevector might get reallocated
-                  bdd econd = bddfalse;
-                  unsigned eidx = aut.edge_number(e);
-                  replace_label_(idx, e.src, e.dst,
-                                econd, ig, aut);
-                  aut.edge_storage(eidx).cond = econd;
-                }
-              else
-                e.cond = ig.state_storage(idx).new_label;
-            } // for edge
-        } // for state
-      return this_partition.to_relabeling_map(aut);
+      return this_partition.to_relabeling_map(true);
     }
 
     void
-    relabel_here_ap_(twa_graph_ptr& aut_ptr, relabeling_map relmap)
+    relabel_here_ap_(const twa_graph_ptr& aut_ptr, relabeling_map relmap)
     {
       assert(aut_ptr);
       twa_graph& aut = *aut_ptr;
@@ -307,14 +199,15 @@ namespace spot
     }
 
   void
-  relabel_here_gen_(twa_graph_ptr& aut_ptr, relabeling_map relmap)
+  relabel_here_gen_(const twa_graph_ptr& aut_ptr, relabeling_map relmap)
     {
       assert(aut_ptr);
       twa_graph& aut = *aut_ptr;
-
-      auto form2bdd = [this_dict = aut.get_dict()](const formula& f)
+      // PSC why
+      //auto form2bdd = [d = aut.get_dict(), me = aut_ptr](const formula& f)
+      auto form2bdd = [d = aut.get_dict()](const formula& f)
         {
-          return formula_to_bdd(f, this_dict, this_dict);
+          return formula_to_bdd(f, d, d);
         };
 
       auto bdd2form = [bdddict = aut.get_dict()](const bdd& cond)
@@ -332,6 +225,8 @@ namespace spot
 
       // Necessary to detect unused
       bdd new_var_supp = bddtrue;
+      bdd old_var_supp = bddtrue; // PSC why do I need this
+
       auto translate = [&](bdd& cond)
         {
           // Check if known
@@ -377,9 +272,17 @@ namespace spot
         {
           bdd new_cond = form2bdd(new_f);
           new_var_supp &= bdd_support(new_cond);
-          base_letters[new_cond] = form2bdd(old_f);
+          bdd old_cond = form2bdd(old_f);
+          old_var_supp &= bdd_support(old_cond);
+          base_letters[new_cond] = old_cond;
         }
 
+      // Make sure that the old_var_supp exist in the automaton
+      {
+      formula old_var_supp_form = bdd2form(old_var_supp);
+      for (const auto& ap_f : old_var_supp_form)
+        aut.register_ap(ap_f);
+      }
 
       // Save the composed letters? With a special separator like T/F?
       // Is swapping between formula <-> bdd expensive
@@ -400,7 +303,7 @@ namespace spot
   } // Namespace
 
   void
-  relabel_here(twa_graph_ptr& aut, relabeling_map* relmap)
+  relabel_here(const twa_graph_ptr& aut, relabeling_map* relmap)
   {
     if (!relmap || relmap->empty())
       return;
@@ -434,12 +337,13 @@ namespace spot
   }
 
   relabeling_map
-  partitioned_relabel_here(twa_graph_ptr& aut,
+  partitioned_relabel_here(const twa_graph_ptr& aut,
                            bool split,
                            unsigned max_letter,
                            unsigned max_letter_mult,
                            const bdd& concerned_ap,
-                           std::string var_prefix)
+                           std::string var_prefix,
+                           bool sort)
   {
     if (!aut)
       throw std::runtime_error("aut is null!");
@@ -454,13 +358,20 @@ namespace spot
           "a prefix of existing variables.");
 
     // If concerned_ap == bddtrue -> all aps are concerned
-    bool treat_all = concerned_ap == bddtrue;
+    bool treat_all = (concerned_ap == bddtrue)
+                     || (concerned_ap == aut->ap_vars());
     bdd concerned_ap_
       = treat_all ? aut->ap_vars() : concerned_ap;
-    return partitioned_relabel_here_(*aut, split,
+    // Automata can become "pseudo-nondeterministic" if not all
+    // variables are used for relabeling
+    if (!treat_all)
+      aut->prop_universal(trival()); // May remain deterministic
+
+    return partitioned_relabel_here_(aut, split,
                                      max_letter, max_letter_mult,
                                      concerned_ap_,
                                      treat_all,
-                                     var_prefix);
+                                     var_prefix,
+                                     sort);
   }
 }
