@@ -299,7 +299,9 @@ namespace spot
   /// The maps are empty if no relabeling was performed
   /// \note Can also be applied to split mealy machine.
   /// \note partitioned_relabel_here can not be used directly if there are
-  /// T (true conditions)
+  /// T (true conditions) as these have no support and are therefore ambiguous
+  /// \note Relabeling currently does not preserve controlled variables
+  /// which do not appear in any condition
   SPOT_API game_relabeling_map
   partitioned_game_relabel_here(twa_graph_ptr& arena,
                                 bool relabel_env,

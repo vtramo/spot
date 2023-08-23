@@ -34,7 +34,7 @@
 #include <spot/twaalgos/game.hh>
 #include <spot/twaalgos/product.hh>
 #include <spot/twaalgos/synthesis.hh>
-#include <spot/priv/partitioned_relabel.hh>
+#include <spot/misc/partitioned_relabel.hh>
 
 #include <picosat/picosat.h>
 
@@ -1811,18 +1811,20 @@ namespace
         auto& group_letters = red.all_letters.back();
 
         // Compute it
-        auto this_part = try_partition_me(all_bdd_v, -1u);
-        assert(this_part.relabel_succ);
+        auto this_part
+          = try_partition_me(mmw->get_dict(), all_bdd_v,
+                             mmw->ap(), -1u);
+        assert(!this_part.is_empty());
 
         // Transform it
         // group_letters is pair<new_letter, set of implied orig letters as id>
-        // There are as many new_letters as treated bdds in the partition
+        // There are as many new_letters as leaf bdds in the partition
         group_letters.clear();
-        group_letters.reserve(this_part.treated.size());
+        group_letters.reserve(this_part.size());
         node2idx.clear();
-        node2idx.reserve(this_part.treated.size());
+        node2idx.reserve(this_part.size());
 
-        for (const auto& [label, node] : this_part.treated)
+        for (const auto& [label, node] : this_part.leaves())
           {
             node2idx[node] = group_letters.size();
             group_letters.emplace_back(std::piecewise_construct,
@@ -1832,7 +1834,7 @@ namespace
 
         // Go through the graph for each original letter
         auto search_leaves
-            = [&ig = *this_part.ig, &group_letters, &node2idx]
+            = [&ig = this_part.get_graph(), &group_letters, &node2idx]
                 (int orig_letter_id, unsigned s, auto&& search_leaves_) -> void
           {
             if (ig.state_storage(s).succ == 0)
@@ -1850,9 +1852,8 @@ namespace
               }
           };
 
-        const unsigned Norig = all_bdd_v.size();
-        for (unsigned s = 0; s < Norig; ++s)
-          search_leaves(all_bdd_v[s].id(), s, search_leaves);
+        for (const auto& [orig_label, so] : this_part.orig_conditions())
+          search_leaves(orig_label.id(), so, search_leaves);
 
         // Verify that all letters imply at least one original letter
         assert(std::all_of(group_letters.begin(), group_letters.end(),

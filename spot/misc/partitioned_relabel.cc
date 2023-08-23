@@ -1,0 +1,582 @@
+// -*- coding: utf-8 -*-
+// Copyright (C) 2022 Laboratoire de Recherche
+// de l'Epita (LRE).
+//
+// This file is part of Spot, a model checking library.
+//
+// Spot is free software; you can redistribute it and/or modify it
+// under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 3 of the License, or
+// (at your option) any later version.
+//
+// Spot is distributed in the hope that it will be useful, but WITHOUT
+// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+// or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+// License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+#include "config.h"
+
+#include <spot/misc/partitioned_relabel.hh>
+
+#include <spot/twaalgos/hoa.hh>
+#include <sstream>
+#include <string>
+#include <cmath>
+#include <cassert>
+
+namespace spot
+{
+  constexpr bool VERBOSEDBG = false;
+
+  // Private bdd_partition functions
+  void
+  bdd_partition::comp_new_letters_(const std::string& prefix_new)
+  {
+    // Get the new variables and their negations
+    const unsigned Nnl = leaves_.size();
+    const unsigned Nnv = std::ceil(std::log2(Nnl));
+    std::vector<std::array<bdd, 2>> Nv_vec(Nnv);
+
+    new_ap_.reserve(Nnv);
+    for (unsigned i = 0; i < Nnv; ++i)
+      {
+        new_ap_.push_back(formula::ap(prefix_new + std::to_string(i)));
+        int v = dict_new_->register_proposition(new_ap_.back(), this);
+        Nv_vec[i] = {bdd_nithvar(v), bdd_ithvar(v)};
+      }
+
+    // Binary encode an idx using the fresh aps
+    auto leaveidx2label = [&](unsigned idx)
+      {
+        unsigned c = 0;
+        unsigned rem = idx;
+        bdd thisbdd = bddtrue;
+        while (rem)
+          {
+            thisbdd &= Nv_vec[c][rem & 1];
+            ++c;
+            rem >>= 1;
+          }
+        for (; c < Nnv; ++c)
+          thisbdd &= Nv_vec[c][0];
+        return thisbdd;
+      };
+
+    // Compute only labels of leaves
+    for (unsigned idx = 0; idx < Nnl; ++idx)
+      ig_.state_storage(leaves_[idx].second).new_label = leaveidx2label(idx);
+
+    // We will label the implication graph with the new letters
+    auto relabel_impl = [&](unsigned s, auto&& relabel_impl_rec)
+      {
+        auto& ss = ig_.state_storage(s);
+        if (ss.new_label != bddfalse)
+          return ss.new_label;
+        else
+          {
+            assert((ss.succ != 0) && "Should not be a leave");
+            bdd thisbdd = bddfalse;
+            for (const auto& e : ig_.out(s))
+              thisbdd |= relabel_impl_rec(e.dst, relabel_impl_rec);
+            ss.new_label = thisbdd;
+            return thisbdd;
+          }
+      };
+
+    // We need to call relabel_impl on every root
+    for (const auto& r : orig_)
+      relabel_impl(r.second, relabel_impl);
+
+  } // comp_new_letters
+
+  // Check if it is still a valid partition
+  bool
+  bdd_partition::verify_(bool verbose)
+  {
+    const unsigned Nl = leaves_.size();
+
+    // All leaves are actual leaves
+    auto fake_leaf = std::vector<std::pair<bdd, unsigned>>();
+    std::copy_if(leaves_.begin(), leaves_.end(),
+                 std::back_inserter(fake_leaf),
+                 [&](const auto& p)
+                  {
+                    return ig_.state_storage(p.second).succ != 0;
+                  });
+    if (!fake_leaf.empty())
+      {
+        if (verbose)
+          {
+            std::cerr << "Nodes\n";
+            std::for_each(fake_leaf.begin(), fake_leaf.end(),
+                          [](const auto& p)
+                            {
+                              std::cerr << p.first << " : " << p.second
+                                        << "; ";
+                            });
+            std::cerr << "\nhave children despite being marked as leaf.\n";
+          }
+        return false;
+      }
+
+    // Check for leaves not marked as such
+    fake_leaf.clear();
+    for (const auto& s : states_)
+      {
+        if (std::find_if(leaves_.begin(), leaves_.end(),
+              [s](const auto& p){ return p.second == s; })
+            != leaves_.end())
+          continue; // Already marked as leaf
+        auto sd = ig_.state_storage(s);
+        if (sd.succ == 0)
+          fake_leaf.emplace_back(sd.orig_label, s);
+      }
+    if (!fake_leaf.empty())
+      {
+        if (verbose)
+          {
+            std::cerr << "Nodes\n";
+            std::for_each(fake_leaf.begin(), fake_leaf.end(),
+                          [](const auto& p)
+                            {
+                              std::cerr << p.first << " : " << p.second
+                                        << "; ";
+                            });
+            std::cerr << "\nhave NO children despite "
+                      << "NOT being marked as leaf.\n";
+          }
+        return false;
+      }
+
+    // Check if no intersection
+    for (unsigned l1 = 0; l1 < Nl; ++l1)
+      {
+        const auto& [l1c, l1n] = leaves_[l1];
+        if (l1c == bddfalse)
+          {
+            if (verbose)
+              std::cerr << "Encountered false on node " << l1n << '\n';
+            return false;
+          }
+        for (unsigned l2 = l1 + 1; l2 < Nl; ++l2)
+          {
+            const auto& [l2c, l2n] = leaves_[l2];
+            if (bdd_have_common_assignment(l1c, l2c))
+              {
+                if (verbose)
+                  std::cerr << "leave " << l1n << ": " << l1c
+                            << "and leave " << l2n << ": " << l2c
+                            << " intersect.\n";
+                return false;
+              }
+          }
+      }
+
+    // Check for completeness
+    // All original cond are found
+    std::all_of(orig_.cbegin(), orig_.cend(),
+        [&](const auto& e)
+          {
+            bool res = e.first == ig_.state_storage(e.second).orig_label;
+            if (!res && verbose)
+              {
+                std::cerr << "Orig condition " << e.first
+                          << " was not found at "
+                          << e.second
+                          << ".\nEncountered "
+                          << ig_.state_storage(e.second).orig_label
+                          << " instead.\n";
+              }
+            return res;
+          });
+    // The label of a state (no matter if new or orig)
+    // is the disjunction over the children
+    std::all_of(all_inter_.cbegin(), all_inter_.cend(),
+        [&](const auto& p)
+          {
+            const auto& sdo = ig_.state_storage(p.second);
+            if (sdo.orig_label != p.first)
+              {
+                if (verbose)
+                  std::cerr << "Orig labels did not coincide for "
+                            << p.second << ":\n"
+                            << p.first << "\nvs\n"
+                            << sdo.orig_label << '\n';
+                return false;
+              }
+            bdd c_orig = bddfalse;
+            bdd c_new = bddfalse;
+            for (const auto& e : ig_.out(p.second))
+              {
+                const auto& sdp = ig_.state_storage(e.dst);
+                c_orig |= sdp.orig_label;
+                c_new |= sdp.new_label;
+              }
+            bool ro = c_orig == sdo.orig_label;
+            bool rn = c_new == sdo.new_label;
+            if (!ro)
+              {
+                if (verbose)
+                  std::cerr << "Orig label is not the disjunction over"
+                            << "children for "
+                            << p.second << ":\n"
+                            << sdo.orig_label << "\nvs\n"
+                            << c_orig << '\n';
+                return false;
+              }
+            if (!rn)
+              {
+                if (verbose)
+                  std::cerr << "New label is not the disjunction over"
+                            << "children for "
+                            << p.second << ":\n"
+                            << sdo.new_label << "\nvs\n"
+                            << c_new << '\n';
+                return false;
+              }
+            return true;
+          });
+
+    // Verify the number of parents
+
+    return true;
+  } // verify
+
+  std::string
+  bdd_partition::to_string_hoa_() const
+  {
+
+    auto m = make_twa_graph(dict_orig_);
+    auto& mr = *m;
+
+    for (const auto& ap : orig_ap_)
+      mr.register_ap(ap);
+
+    for (const auto& ap : new_ap_)
+      mr.register_ap(ap);
+
+    mr.new_states(ig_.num_states());
+
+    unsigned init = mr.new_state();
+    mr.set_init_state(init);
+
+    // Edge to all initial states
+    for (const auto& [_, so] : orig_)
+      mr.new_edge(init, so, bddtrue);
+
+    // copy transitions
+    for (const auto& e : ig_.edges())
+      mr.new_edge(e.src, e.dst, bddtrue);
+
+    // Use orig_labels as names
+    auto* nvec = new std::vector<std::string>(mr.num_states());
+
+    mr.set_named_prop<std::vector<std::string>>("state-names", nvec);
+
+    for (const auto& [orig_label, s] : all_inter_)
+      {
+        const auto& sd = ig_.state_storage(s);
+        std::stringstream ss;
+        ss << sd.n_parents << " : " << orig_label;
+        (*nvec)[s] = ss.str();
+        // Create self-loops with new labels
+        mr.new_edge(s, s, sd.new_label);
+      }
+
+    std::stringstream ss;
+    // Print it
+    print_hoa(ss, m);
+    ss << '\n';
+    return ss.str();
+  }
+
+  // Public functions
+
+  bdd_partition&
+  bdd_partition::operator=(const bdd_partition& other)
+  {
+    dict_orig_->unregister_all_my_variables(this);
+    if (dict_new_)
+      dict_new_->unregister_all_my_variables(this);
+
+
+    ig_ = other.ig_;
+    orig_ = other.orig_;
+    dict_orig_ = other.dict_orig_;
+    orig_ap_ = other.orig_ap_;
+    orig_support_ = other.orig_support_;
+    dict_new_ = other.dict_new_;
+    new_ap_ = other.new_ap_;
+    new_support_ = other.new_support_;
+    locked_ = other.locked_;
+    leaves_ = other.leaves_;
+    all_inter_ = other.all_inter_;
+    states_ = other.states_;
+    reusable_states_ = other.reusable_states_;
+
+    dict_orig_->register_all_variables_of(&other, this);
+    if (dict_new_)
+      dict_new_->register_all_variables_of(&other, this);
+    return *this;
+  }
+
+  void
+  bdd_partition::unlock()
+  {
+    if (!locked_)
+      throw std::runtime_error("bdd_partition::unlock(): "
+                               "Must be locked before");
+
+    // Remove all new labels from ig
+    for (auto& s : ig_.states())
+      s.new_label = bddfalse;
+
+    // Erase all new aps
+    new_support_ = bddtrue;
+    new_ap_.clear();
+    dict_new_->unregister_all_my_variables(this);
+    dict_new_.reset();
+    locked_ = false;
+  }
+
+  void
+  bdd_partition::lock(bdd_dict_ptr dict_new,
+                      const std::string& prefix_new)
+  {
+    if (locked_)
+      throw std::runtime_error("Trying to reloc a second time!");
+
+    dict_new_ = std::move(dict_new);
+
+    // Ensure that the prefix_new does not appear in existing APs
+    if (std::any_of(orig_ap_.cbegin(), orig_ap_.cend(),
+                    [&prefix_new](const auto& e)
+                    {return e.ap_name().find(prefix_new)
+                        != std::string::npos; }))
+      throw std::runtime_error("bdd_partition::lock(): prefix "
+                               + prefix_new
+                               + " is also a prefix of existing AP.");
+
+    comp_new_letters_(prefix_new);
+    locked_ = true;
+  }
+
+  std::string
+  bdd_partition::to_string(const std::string& type) const
+  {
+    if (!locked_)
+      throw std::runtime_error("bdd_partition::to_string():"
+                                " Must be locked!");
+
+    if (type == "hoa")
+      return to_string_hoa_();
+    else
+      throw std::runtime_error("bdd_partition::to_string(): "
+                               "Unknown type " + type);
+
+  }
+
+  void
+  bdd_partition::add_condition(const bdd& cond)
+  {
+    if (cond == bddfalse)
+      throw std::runtime_error("bdd_partition::add_condition(): bddfalse "
+                               "can not be part of the original letters!\n");
+
+    // Adds the condition to the set of
+    // original conditions and enlarges the
+    // partition if necessary
+    if (auto it = orig_.find(cond); it != orig_.end())
+      return; // Nothing to do, the condition already exists
+
+    // Check if it exists as intermediate
+    if (auto it = all_inter_.find(cond); it != all_inter_.end())
+    {
+      // Mark the node as initial; add one to parent
+      orig_[cond] = it->second;
+      ++ig_.state_storage(it->second).n_parents;
+      assert(verify_(VERBOSEDBG));
+      return;
+    }
+
+    // We do actually need to do the work
+    // We need to check at the end if it is also a leaf
+    unsigned sorig = new_state_(cond, true, false);
+
+    // Loop over all current partition members
+    // and check if we need to refine them
+    bdd rem = cond;
+
+    const unsigned Nleaves = leaves_.size();
+    for (unsigned il = 0; il < Nleaves; ++il)
+    {
+      assert(leaves_[il].first != bddfalse); // Invariant
+
+      const auto [leave_cond, leave_node] = leaves_[il];
+      if (bdd_have_common_assignment(leave_cond, rem))
+        {
+          bdd propworem = leave_cond - rem;
+          bdd inter = leave_cond & rem;
+          bdd remwoprop =  rem - leave_cond;
+
+          assert(inter != bddfalse);
+
+          if (propworem == bddfalse)
+            {
+              // leave_cond is a subset of cond / rem
+              // and therefore implies the original letter
+              new_edge_(sorig, leave_node);
+              assert(inter == leave_cond);
+            }
+          else
+            {
+              // They truly intersect
+              // Two cases can arise:
+              // rem is a subset of prop
+              // remwoprop is not empty
+              // we need to search
+              // if this intersection already exists
+
+              // propworem is not allowed to exist,
+              // as leave_node would not be a leave in this case
+              assert(!all_inter_.count(propworem));
+
+              // Only implies prop
+              // This in not a new leave, it "takes" the place of prop
+              unsigned dst_pwor = new_state_(propworem, false, false);
+              new_edge_(leave_node, dst_pwor);
+
+              // Implies prop and cond
+              auto it_inter = all_inter_.find(inter);
+              unsigned dst_inter =
+                it_inter == all_inter_.end() ? new_state_(inter, false, true)
+                                             : it_inter->second;
+              // If cond is a subset of leave_cond, then inter
+              // already exists
+              new_edge_(leave_node, dst_inter);
+              if (dst_inter != sorig)
+                new_edge_(sorig, dst_inter); // No self-loops
+
+              // Update the leave (Corresponding now to the
+              // prop without rem)
+              leaves_[il].first = propworem;
+              leaves_[il].second = dst_pwor;
+            }
+          // Update what remains to be treated
+          rem = remwoprop;
+
+          // Check if we have finished treating cond
+          if (rem == bddfalse)
+            break;
+
+          // Check if remaining condition exists
+          if (auto rem_it = all_inter_.find(rem);
+              rem_it != all_inter_.end())
+            {
+              new_edge_(sorig, rem_it->second);
+              rem = bddfalse;
+              break; // Done
+            }
+        }
+    }
+    // Check what remains to be done
+    if ((rem != bddfalse) && (rem != cond))
+      {
+        // A part of cond is not covered by the existing
+        // partition -> new leave
+        unsigned s_rem = new_state_(rem, false, true);
+        new_edge_(sorig, s_rem);
+      }
+    // Check if the original state is a leaf
+    const auto& sdorig = ig_.state_storage(sorig);
+    if (sdorig.succ == 0)
+      {
+        // It became a leaf, which can only happen if
+        // rem was not modified
+        assert((rem == cond) || (rem == bddfalse));
+        leaves_.emplace_back(cond, sorig);
+      }
+    assert(verify_(VERBOSEDBG));
+    return;
+  }
+
+  relabeling_map
+  bdd_partition::to_relabeling_map(bool inverse) const
+  {
+    // Change to unordered_map?
+    relabeling_map res;
+
+    // We need a bdd_dict with both the original
+    // and new aps
+    // We take the original bdd_dict and
+    // register the variables for a fake address
+    int dummy_addr = 0;
+    //auto thisdict = make_bdd_dict();
+    auto& thisdict = dict_orig_;
+
+    for (const auto& ap : orig_ap_)
+      thisdict->register_proposition(ap, &dummy_addr);
+    for (const auto& ap : new_ap_)
+      thisdict->register_proposition(ap, &dummy_addr);
+
+    auto bdd2form = [&thisdict](const bdd& cond)
+      {
+        return bdd_to_formula(cond, thisdict);
+      };
+
+    std::for_each(all_inter_.cbegin(), all_inter_.cend(),
+      [&bdd2form, &res, &ig = this->ig_, inverse](const auto& e)
+        {
+          const auto& sd = ig.state_storage(e.second);
+          if (inverse)
+            res[bdd2form(sd.new_label)] = bdd2form(sd.orig_label);
+          else
+            res[bdd2form(sd.orig_label)] = bdd2form(sd.new_label);
+
+      });
+
+    thisdict->unregister_all_my_variables(&dummy_addr);
+
+    return res;
+  }
+
+  bdd_partition
+  try_partition_me(bdd_dict_ptr bdd_dict,
+                   const std::vector<bdd>& all_cond,
+                   const std::vector<formula>& aps,
+                   unsigned max_letter)
+  {
+
+    auto res = bdd_partition(std::move(bdd_dict), aps, bddfalse,
+                             std::max(20u,
+                                      (unsigned) (2*all_cond.size())));
+
+    // Try adding conditions one by one
+    // Abort if too large
+    for (const auto& c : all_cond)
+      {
+        if (res.size() > max_letter)
+          return bdd_partition(res.get_orig_dict(), aps, bddfalse);
+
+        res.add_condition(c);
+      }
+    return res;
+  }
+
+  bdd_partition
+  try_partition_me(const twa_graph_ptr& aut, unsigned max_letter)
+  {
+    auto seen = std::unordered_set<bdd, bdd_hash>();
+    seen.reserve(std::max((size_t) 10,
+                          (size_t)(0.1*aut->num_edges())));
+    for (const auto& e : aut->edges())
+      seen.insert(e.cond);
+
+    auto cond = std::vector<bdd>(seen.begin(), seen.end());
+
+    return try_partition_me(aut->get_dict(), cond, aut->ap(), max_letter);
+  }
+}

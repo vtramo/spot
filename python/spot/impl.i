@@ -182,6 +182,8 @@
 #include <spot/taalgos/stats.hh>
 #include <spot/taalgos/minimize.hh>
 
+#include <spot/misc/partitioned_relabel.hh>
+
 using namespace spot;
 %}
 
@@ -509,6 +511,7 @@ static void handle_any_exception()
 %implicitconv std::vector<spot::twa_graph_ptr>;
 %implicitconv spot::formula;
 %implicitconv std::vector<bool>;
+%implicitconv std::vector<bdd>;
 
 %include <spot/tl/formula.hh>
 
@@ -525,6 +528,7 @@ namespace std {
   %template(vectoracccode) vector<spot::acc_cond::acc_code>;
   %template(vectorbool) vector<bool>;
   %template(vectorbdd) vector<bdd>;
+  %template(vectorbddunsigned) std::vector<std::pair<bdd, unsigned>>;
   %template(aliasvector) vector<pair<string, bdd>>;
   %template(vectorstring) vector<string>;
   %template(vectorint) vector<int>;
@@ -1441,3 +1445,5 @@ __bool__()
 }
 
 }
+
+%include <spot/misc/partitioned_relabel.hh>

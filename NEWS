@@ -106,6 +106,7 @@ New in spot 2.11.6.dev  (not yet released)
   - spot::bdd_to_cnf_formula() is a new variant of spot::bdd_to_formula()
     that converts a BDD into a CNF instead of a DNF.
 
+<<<<<<< HEAD
   - spot::relabel_bse() has been improved to better deal with more
     cases.  For instance '(a & b & c) U (!c & d & e)' is now
     correctly reduced as '(p0 & p1) U (!p1 & p2)', and
@@ -307,6 +308,10 @@ New in spot 2.11.6.dev  (not yet released)
   - The formula printer incorrectly replaced a SERE like "(!a)[*3];a"
     by "a[->]".  The latter should only replace "(!a)[*];a".
     (Issue #559.)
+=======
+  - bdd_partition is now a public class. It allows to partition a
+    given set of bdd and relabel them using fresh APs
+>>>>>>> 77b52e590 (Make bdd_partition a public class)
 
 New in spot 2.11.6  (2023-08-01)
 

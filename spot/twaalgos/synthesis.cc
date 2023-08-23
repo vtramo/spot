@@ -2961,9 +2961,27 @@ namespace spot
         = partitioned_relabel_here(arena, split_env, max_letter,
                                    max_letter_mult, ins, "__nv_in");
     if (relabel_play)
-      res.player_map
-        = partitioned_relabel_here(arena, split_play, max_letter,
-                                   max_letter_mult, outs, "__nv_out");
+      {
+        res.player_map
+          = partitioned_relabel_here(arena, split_play, max_letter,
+                                    max_letter_mult, outs, "__nv_out");
+        // If relabeling succeeds, we need to adapt the outputs
+        if (!res.player_map.empty())
+          {
+            bdd new_outs = bddtrue;
+            for (const auto& ap : arena_r.ap())
+              {
+                if (ap.ap_name().find("__nv_out") == 0)
+                  new_outs &= bdd_ithvar(arena_r.register_ap(ap));
+              }
+            new_outs &= bdd_ithvar(arena_r.register_ap(out_mark_s));
+            set_synthesis_outputs(arena, new_outs);
+          }
+      }
+    // If the relabeling is succesfull,
+    // then out_mark and in_mark will be unregistered
+    // but we want to keep them as a marker
+    arena_r.register_ap(in_mark_s);
     return res;
   }
 
@@ -2999,6 +3017,20 @@ namespace spot
 
     for (auto& e : arena_r.edges())
       e.cond = bdd_exist(e.cond, dummy_ap);
+
+    // We also need to update the synthesis outputs
+    if (!rel_maps.player_map.empty())
+      {
+        const auto& sp = get_state_players(arena);
+        bdd outs = bddtrue;
+        for (const auto& e : arena_r.edges())
+          {
+            if (sp[e.src])
+              outs &= bdd_support(e.cond);
+          }
+        set_synthesis_outputs(arena, outs);
+      }
+
 
     arena_r.unregister_ap(arena_r.register_ap(in_mark_s));
     arena_r.unregister_ap(arena_r.register_ap(out_mark_s));
