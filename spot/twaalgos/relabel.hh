@@ -35,9 +35,10 @@ namespace spot
   /// This function is typically used with maps produced by relabel()
   /// or relabel_bse().
   SPOT_API void
-  relabel_here(twa_graph_ptr& aut, relabeling_map* relmap);
+  relabel_here(const twa_graph_ptr& aut, relabeling_map* relmap);
 
-
+  /// \defgroup Partitioned relabel here
+  /// @{
   /// \brief Replace conditions in \a aut with non-overlapping conditions
   /// over fresh variables.
   ///
@@ -53,16 +54,39 @@ namespace spot
   /// concerned_ap (or whose condition is T) are taken into account.
   /// The fresh aps will be enumerated and prefixed by \a var_prefix.
   /// These variables need to be fresh, i.e. may not exist yet (not checked)
-  ///
+  /// If \a split and \a sort is true, then the new labels
+  /// will appear in sorted order. That is the edge conditions
+  /// will be increasing with respect bdd_stable_less.
+  /// \param aut The automaton to relabel
+  /// \param split Determines whether to use leaves of the partition, i.e.
+  /// conditions that behave like letters
+  /// \param max_letter Maximal number of letters before aborting
+  /// -1u to deactivate
+  /// \param max_letter_mult Abort when the number of letters exceeds
+  /// max_letter_mult times the number of different conditions in the
+  /// original automaton
+  /// \param concerned_ap Which APs to relabel. bddtrue for all. If different
+  /// from bddtrue this needs to be a conjunction of APs, all conditions whose
+  /// support is covered by this are relabeled.
+  /// \param var_prefix Prefix used to generate fresh APs
+  /// \param sort Whether the edges in the relabeled automaton appear in a
+  /// sorted manner.
+  /// \note To ensure reproducibility, \a sort needs to be true.
   /// \note If concerned_ap is given, then there may not be an edge
   /// whose condition uses ap inside AND outside of concerned_ap.
   /// Mostly used in a game setting to distinguish between
   /// env and player transitions.
   SPOT_API relabeling_map
-  partitioned_relabel_here(twa_graph_ptr& aut, bool split = false,
-                           unsigned max_letter = -1u,
-                           unsigned max_letter_mult = -1u,
-                           const bdd& concerned_ap = bddtrue,
+  partitioned_relabel_here(const twa_graph_ptr& aut, bool split,
+                           unsigned max_letter,
+                           unsigned max_letter_mult,
+                           const bdd& concerned_ap,
+                           std::string var_prefix,
+                           bool sort);
+  /// \brief Treats all APs with no stop condition
+  SPOT_API relabeling_map
+  partitioned_relabel_here(const twa_graph_ptr& aut, bool split = false,
+                           bool sort = true,
                            std::string var_prefix = "__nv");
-
+  /// @}
 }

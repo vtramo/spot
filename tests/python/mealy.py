@@ -49,7 +49,7 @@ tc.assertTrue(spot.is_split_mealy_specialization(a, b))
 test_auts = [
 ("""HOA: v1
 States: 22
-Start: 0
+Start: 011
 AP: 6 "i0" "i1" "i2" "i3" "o0" "o1"
 acc-name: all
 Acceptance: 0 t

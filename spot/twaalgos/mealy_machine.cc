@@ -34,7 +34,7 @@
 #include <spot/twaalgos/game.hh>
 #include <spot/twaalgos/product.hh>
 #include <spot/twaalgos/synthesis.hh>
-#include <spot/priv/partitioned_relabel.hh>
+#include <spot/misc/partitioned_relabel.hh>
 
 #include <picosat/picosat.h>
 
@@ -1513,8 +1513,9 @@ namespace
                 else
                   {
                     assert(e_j->id == e_i->id);
-                    trace << e_i->dst << " and " << e_j->dst << " tagged incomp"
-                            " due to " << e_i->id << '\n';
+                    trace << e_i->dst << " and " << e_j->dst
+                          << " tagged incomp"
+                             " due to " << e_i->id << '\n';
                     inc_env.set(e_i->dst, e_j->dst, true);
                     todo_.emplace_back(e_i->dst, e_j->dst);
                     ++e_i;
@@ -1814,18 +1815,23 @@ namespace
         auto& group_letters = red.all_letters.back();
 
         // Compute it
-        auto this_part = try_partition_me(all_bdd_v, -1u);
-        assert(this_part.relabel_succ);
+        auto [succ, this_part]
+          = try_partition_me(mmw->get_dict(), all_bdd_v,
+                             mmw->ap_vars(), -1u);
+        (void) succ;
+        assert(succ
+               && (this_part.orig_conditions().size() == all_bdd_v.size()));
+
 
         // Transform it
         // group_letters is pair<new_letter, set of implied orig letters as id>
-        // There are as many new_letters as treated bdds in the partition
+        // There are as many new_letters as leaf bdds in the partition
         group_letters.clear();
-        group_letters.reserve(this_part.treated.size());
+        group_letters.reserve(this_part.size());
         node2idx.clear();
-        node2idx.reserve(this_part.treated.size());
+        node2idx.reserve(this_part.size());
 
-        for (const auto& [label, node] : this_part.treated)
+        for (const auto& [label, node] : this_part.leaves())
           {
             node2idx[node] = group_letters.size();
             group_letters.emplace_back(std::piecewise_construct,
@@ -1835,7 +1841,7 @@ namespace
 
         // Go through the graph for each original letter
         auto search_leaves
-            = [&ig = *this_part.ig, &group_letters, &node2idx]
+            = [&ig = this_part.get_graph(), &group_letters, &node2idx]
                 (int orig_letter_id, unsigned s, auto&& search_leaves_) -> void
           {
             if (ig.state_storage(s).succ == 0)
@@ -1853,9 +1859,8 @@ namespace
               }
           };
 
-        const unsigned Norig = all_bdd_v.size();
-        for (unsigned s = 0; s < Norig; ++s)
-          search_leaves(all_bdd_v[s].id(), s, search_leaves);
+        for (const auto& [orig_label, so] : this_part.orig_conditions())
+          search_leaves(orig_label.id(), so, search_leaves);
 
         // Verify that all letters imply at least one original letter
         assert(std::all_of(group_letters.begin(), group_letters.end(),
@@ -3827,13 +3832,15 @@ namespace
             const unsigned n_mlb = red.bisim_letters[group].size();
             for (unsigned amlbidu = 0; amlbidu < n_mlb; ++amlbidu)
               {
-                for (unsigned dst_class = 0; dst_class < n_classes; ++dst_class)
+                for (unsigned dst_class = 0; dst_class < n_classes;
+                     ++dst_class)
                   if (sol.at(lm.get_iaj({src_class, amlbidu, dst_class})) == 1)
                     {
                       trace << "using mlb " << src_class << ' ' << amlbidu
                             << ' ' << dst_class << std::endl;
                       //Accept this for all bisimilar
-                      for (unsigned abddidu : red.bisim_letters[group][amlbidu])
+                      for (unsigned abddidu
+                             : red.bisim_letters[group][amlbidu])
                         {
                           used_ziaj_map[{src_class, abddidu, dst_class}]
                               = bddtrue;

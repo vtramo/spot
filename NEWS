@@ -86,12 +86,15 @@ New in spot 2.12  (2024-05-16)
 
   Library:
 
+  - bdd_partition is now a public class. It allows to partition a
+    set of bdd conditions and relabel automata using fresh APs.
+
   - split_2step has now multiple ways to split for improved performance.
     The option can be controlled via the synthesis_info::splittype
     - EXPL: explicit splitting of each state as before
     - SEMISYM: The outgoing transition of each state are encoded
       as a bdd; Works better for larger number of input APs
-    - FULLYSYM: The automaton is first translated into a 
+    - FULLYSYM: The automaton is first translated into a
       fully symbolic version, then split.
     - AUTO: Let the heuristic decide what to do.
 

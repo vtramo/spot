@@ -24,6 +24,7 @@
 %include "std_list.i"
 %include "std_set.i"
 %include "std_map.i"
+%include "std_unordered_map.i"
 %include "std_pair.i"
 %include "stdint.i"
 %include "exception.i"
@@ -181,6 +182,8 @@
 #include <spot/taalgos/dot.hh>
 #include <spot/taalgos/stats.hh>
 #include <spot/taalgos/minimize.hh>
+
+#include <spot/misc/partitioned_relabel.hh>
 
 using namespace spot;
 %}
@@ -501,6 +504,7 @@ static void handle_any_exception()
 %include <spot/misc/optionmap.hh>
 %include <spot/misc/random.hh>
 %include <spot/misc/escape.hh>
+%include <spot/misc/bddlt.hh>
 
 %implicitconv spot::trival;
 %include <spot/misc/trival.hh>
@@ -509,6 +513,7 @@ static void handle_any_exception()
 %implicitconv std::vector<spot::twa_graph_ptr>;
 %implicitconv spot::formula;
 %implicitconv std::vector<bool>;
+%implicitconv std::vector<bdd>;
 
 %include <spot/tl/formula.hh>
 
@@ -525,6 +530,7 @@ namespace std {
   %template(vectoracccode) vector<spot::acc_cond::acc_code>;
   %template(vectorbool) vector<bool>;
   %template(vectorbdd) vector<bdd>;
+  %template(vectorbddunsigned) std::vector<std::pair<bdd, unsigned>>;
   %template(aliasvector) vector<pair<string, bdd>>;
   %template(vectorstring) vector<string>;
   %template(vectorint) vector<int>;
@@ -539,6 +545,7 @@ namespace std {
   %template(vectorofvectorofformulas) vector<vector<spot::formula>>;
   %template(setunsigned) set<unsigned>;
   %template(relabeling_map) map<spot::formula, spot::formula>;
+  %template(umap_bdd_unsigned) unordered_map<bdd, unsigned, spot::bdd_hash>;
 }
 
 %include <spot/tl/environment.hh>
@@ -1441,3 +1448,14 @@ __bool__()
 }
 
 }
+
+%include <spot/misc/partitioned_relabel.hh>
+
+//%extend spot::implying_container {
+//    %newobject __iter__(PyObject **PYTHON_SELF);
+//    swig::SwigPyIterator* __iter__(PyObject **PYTHON_SELF)
+//    {
+//      return swig::make_forward_iterator(self->begin(), self->begin(),
+//                                         self->end(), *PYTHON_SELF);
+//    }
+//}
