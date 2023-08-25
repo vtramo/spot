@@ -326,6 +326,38 @@ namespace spot
     return *this;
   }
 
+  bdd_partition&
+  bdd_partition::operator=(bdd_partition&& other)
+  {
+    dict_orig_->unregister_all_my_variables(this);
+    if (dict_new_)
+      dict_new_->unregister_all_my_variables(this);
+
+
+    ig_ = std::move(other.ig_);
+    orig_ = std::move(other.orig_);
+    dict_orig_ = std::move(other.dict_orig_);
+    orig_ap_ = std::move(other.orig_ap_);
+    orig_support_ = std::move(other.orig_support_);
+    dict_new_ = std::move(other.dict_new_);
+    new_ap_ = std::move(other.new_ap_);
+    new_support_ = std::move(other.new_support_);
+    locked_ = std::move(other.locked_);
+    leaves_ = std::move(other.leaves_);
+    all_inter_ = std::move(other.all_inter_);
+
+    dict_orig_->register_all_variables_of(&other, this);
+    if (dict_new_)
+      dict_new_->register_all_variables_of(&other, this);
+
+    // Ok even after stealing since it only uses the address
+    dict_orig_->unregister_all_my_variables(&other);
+    if (dict_new_)
+      dict_new_->unregister_all_my_variables(&other);
+
+    return *this;
+  }
+
   void
   bdd_partition::unlock()
   {
@@ -334,15 +366,23 @@ namespace spot
                                "Must be locked before");
 
     // Remove all new labels from ig
-    auto& ig = *ig_;
-    for (auto& s : ig.states())
-      s.new_label = bddfalse;
+    // Might have been stolen
+    if (ig_)
+      {
+        auto& ig = *ig_;
+        for (auto& s : ig.states())
+          s.new_label = bddfalse;
+      }
 
     // Erase all new aps
     new_support_ = bddtrue;
     new_ap_.clear();
-    dict_new_->unregister_all_my_variables(this);
-    dict_new_.reset();
+    // Might have been stolen
+    if (dict_new_)
+      {
+        dict_new_->unregister_all_my_variables(this);
+        dict_new_.reset();
+      }
     locked_ = false;
   }
 
@@ -513,8 +553,13 @@ namespace spot
     // First all original conditions
     for (const auto& [ocond, ostate] : old_orig)
       {
+#ifdef NDEBUG
         auto ns = new_state_(ocond, true, false);
         assert(ns == os2oidx[ostate]);
+        (void) ns; // debian-unstable-gcc-coverage marks this as unused
+#elif
+        new_state_(ocond, true, false);
+#endif
       }
     // Now a state for each leaf class whose condition is the disjunction
     // overall class members

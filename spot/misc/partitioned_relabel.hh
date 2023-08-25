@@ -223,14 +223,14 @@ namespace spot
     }
 
     bdd_partition(bdd_partition&& other)
-      : ig_{std::move(other.ig_)}
+      : ig_(std::move(other.ig_))
       , orig_{std::move(other.orig_)}
-      , dict_orig_{std::move(other.dict_orig_)}
+      , dict_orig_(std::move(other.dict_orig_))
       , orig_ap_{std::move(other.orig_ap_)}
-      , orig_support_{other.orig_support_}
+      , orig_support_{std::move(other.orig_support_)}
       , dict_new_{std::move(other.dict_new_)}
       , new_ap_{std::move(other.new_ap_)}
-      , new_support_{other.new_support_}
+      , new_support_{std::move(other.new_support_)}
       , locked_{other.locked_}
       , leaves_{std::move(other.leaves_)}
       , all_inter_{std::move(other.all_inter_)}
@@ -247,13 +247,16 @@ namespace spot
     /// Takes into account the APs to register/unregister
     bdd_partition& operator=(const bdd_partition& other);
 
+    bdd_partition& operator=(bdd_partition&& other);
+
     /// \brief Destructor needs to clean up the APs
     ~bdd_partition()
     {
       if (locked_)
         unlock();
-
-      dict_orig_->unregister_all_my_variables(this);
+      // Might have been stolen
+      if (dict_orig_)
+        dict_orig_->unregister_all_my_variables(this);
     }
 
     /// \brief Resets the partition to empty
