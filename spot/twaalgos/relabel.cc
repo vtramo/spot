@@ -106,16 +106,7 @@ namespace spot
               continue;
             }
 
-<<<<<<< HEAD
-          if (all_cond_id2idx.try_emplace(e.cond.id(), all_cond.size()).second)
-            {
-              all_cond.push_back(e.cond);
-              if (all_cond.size() > max_letter)
-                return abandon();
-            }
-=======
           all_cond_conc.insert(e.cond);
->>>>>>> 77b52e590 (Make bdd_partition a public class)
         }
 
       // try_partition_me expects a vector

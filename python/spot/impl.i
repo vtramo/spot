@@ -24,6 +24,7 @@
 %include "std_list.i"
 %include "std_set.i"
 %include "std_map.i"
+%include "std_unordered_map.i"
 %include "std_pair.i"
 %include "stdint.i"
 %include "exception.i"
@@ -503,6 +504,7 @@ static void handle_any_exception()
 %include <spot/misc/optionmap.hh>
 %include <spot/misc/random.hh>
 %include <spot/misc/escape.hh>
+%include <spot/misc/bddlt.hh>
 
 %implicitconv spot::trival;
 %include <spot/misc/trival.hh>
@@ -543,6 +545,7 @@ namespace std {
   %template(vectorofvectorofformulas) vector<vector<spot::formula>>;
   %template(setunsigned) set<unsigned>;
   %template(relabeling_map) map<spot::formula, spot::formula>;
+  %template(umap_bdd_unsigned) unordered_map<bdd, unsigned, spot::bdd_hash>;
 }
 
 %include <spot/tl/environment.hh>

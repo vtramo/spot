@@ -27,6 +27,7 @@
 #include <spot/twa/formula2bdd.hh>
 #include <spot/twa/twagraph.hh>
 #include <spot/misc/bddlt.hh>
+#include <memory>
 
 #include <algorithm>
 
@@ -51,7 +52,7 @@ namespace spot
     using implication_graph = digraph<S, T>;
 
   private:
-    implication_graph ig_;
+    std::unique_ptr<implication_graph> ig_;
     /// The main data structure;
     /// The implication graph is such that parent nodes imply their children
     /// Leave nodes do not intersect
@@ -90,14 +91,6 @@ namespace spot
     /// A map from all intermediate conditions encountered so far
     /// to the corresponding node in ig_
 
-    std::vector<unsigned> states_;
-    /// Currently used states
-    /// These are in no particular order
-    /// todo replace with range::transform
-
-    std::vector<unsigned> reusable_states_;
-    /// A vector containing previously discarded states
-
     /// \brief Computes the new letters used for relabelling
     /// based on fresh propositions
     /// \param prefix_new The prefix used for the new propositions
@@ -113,16 +106,11 @@ namespace spot
     new_state_(const bdd& orig_label,
                bool is_orig_cond, bool is_leaf)
     {
-      unsigned s = -1u;
-      if (!reusable_states_.empty())
-        {
-          s = reusable_states_.back();
-          reusable_states_.pop_back();
-        }
-      else
-        s = ig_.new_state();
-      states_.push_back(s);
-      auto& sd = ig_.state_storage(s);
+      auto& ig = *ig_;
+
+      unsigned s = ig.new_state();
+
+      auto& sd = ig.state_storage(s);
       sd.orig_label = orig_label;
       sd.new_label = bddfalse;
       sd.n_parents = is_orig_cond;
@@ -144,14 +132,16 @@ namespace spot
     /// Keep track of parent counting
     void
     new_edge_(unsigned src, unsigned dst) {
+      auto& ig = *ig_;
       SPOT_ASSERT(src != dst && "No loop in implication graph");
       SPOT_ASSERT([&](){
-        for (const auto& e : ig_.out(src))
+        for (const auto& e : ig.out(src))
           if (e.dst == dst)
             return false;
         return true;
       }() && "Implication graph is not a multigraph");
-      ig_.new_edge(src, dst);
+      ++ig.state_storage(dst).n_parents;
+      ig.new_edge(src, dst);
     }
 
     /// \brief Verify if the partition is in a valid state
@@ -160,6 +150,16 @@ namespace spot
     /// Dumb as hoa
     std::string
     to_string_hoa_() const;
+
+    /// \brief Remove one condition, but do no touch the graph
+    /// States that possibly need to be tidied up are added to
+    /// \a to_clean
+    void
+    remove_one_(const bdd& r);
+
+    /// \brief Tidy up everything after conditions have been removed
+    void
+    tidy_up_();
 
 
   public:
@@ -176,7 +176,7 @@ namespace spot
                   const std::vector<formula>& orig_ap,
                   const bdd& orig_support,
                   unsigned n_reserve = 10)
-      : ig_(n_reserve, n_reserve*10)
+      : ig_(std::make_unique<implication_graph>(n_reserve, n_reserve*10))
       , dict_orig_{std::move(dict)}
       , orig_ap_{orig_ap}
       , orig_support_{orig_support}
@@ -205,7 +205,7 @@ namespace spot
 
     /// \brief Constructor needs to take care of APs
     bdd_partition(const bdd_partition& other)
-      : ig_{other.ig_}
+      : ig_(std::make_unique<implication_graph>(*other.ig_))
       , orig_{other.orig_}
       , dict_orig_(other.dict_orig_)
       , orig_ap_{other.orig_ap_}
@@ -216,15 +216,32 @@ namespace spot
       , locked_{other.locked_}
       , leaves_{other.leaves_}
       , all_inter_{other.all_inter_}
-      , states_{other.states_}
-      , reusable_states_{other.reusable_states_}
     {
       dict_orig_->register_all_variables_of(&other, this);
       if (dict_new_)
         dict_new_->register_all_variables_of(&other, this);
     }
 
-    bdd_partition(const bdd_partition&&) = delete;
+    bdd_partition(bdd_partition&& other)
+      : ig_{std::move(other.ig_)}
+      , orig_{std::move(other.orig_)}
+      , dict_orig_{std::move(other.dict_orig_)}
+      , orig_ap_{std::move(other.orig_ap_)}
+      , orig_support_{other.orig_support_}
+      , dict_new_{std::move(other.dict_new_)}
+      , new_ap_{std::move(other.new_ap_)}
+      , new_support_{other.new_support_}
+      , locked_{other.locked_}
+      , leaves_{std::move(other.leaves_)}
+      , all_inter_{std::move(other.all_inter_)}
+    {
+      dict_orig_->register_all_variables_of(&other, this);
+      if (dict_new_)
+        dict_new_->register_all_variables_of(&other, this);
+      dict_orig_->unregister_all_my_variables(&other);
+      if (dict_new_)
+        dict_new_->unregister_all_my_variables(&other);
+    }
 
     /// \brief Assignement operator of bdd_partition;
     /// Takes into account the APs to register/unregister
@@ -251,13 +268,7 @@ namespace spot
     const implication_graph&
     get_graph() const
     {
-      return ig_;
-    }
-
-    const std::vector<unsigned>&
-    states() const
-    {
-      return states_;
+      return *ig_;
     }
 
     /// \brief The size of the partition corresponds to the
@@ -314,7 +325,7 @@ namespace spot
     const bdd&
     relabel(const bdd& orig_label)
     {
-      return ig_.state_storage(all_inter_.at(orig_label)).new_label;
+      return ig_->state_storage(all_inter_.at(orig_label)).new_label;
     }
 
     /// \brief Unlocks the partition; This erases the new APs
@@ -335,6 +346,20 @@ namespace spot
     /// \pre The partition needs to be unlocked
     void
     add_condition(const bdd& c);
+
+    /// \brief Remove the given conditions from the partition
+    ///
+    /// This will possibly cause nodes to fuse and leaves to disappear
+    /// \note The conditions to be removed MUST exist as original condition
+    /// in the graph
+    /// \note This will restructure the graph, all nodes,
+    /// iterators etc are invalidated
+    /// @{
+    void
+    remove_condition(const std::vector<bdd>& to_remove);
+    void
+    remove_condition(const bdd& to_remove);
+    /// @}
 
     /// \brief Converts a bdd_partition into a relabeling map
     ///
