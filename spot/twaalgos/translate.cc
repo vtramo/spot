@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2013-2018, 2020-2022 Laboratoire de Recherche et
+// Copyright (C) 2013-2018, 2020-2023 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -38,6 +38,7 @@ namespace spot
   {
     comp_susp_ = early_susp_ = skel_wdba_ = skel_simul_ = 0;
     relabel_bool_ = 4;
+    relabel_overlap_ = 8;
     tls_impl_ = -1;
     ltl_split_ = true;
     exprop_ = -1;
@@ -47,6 +48,7 @@ namespace spot
       return;
 
     relabel_bool_ = opt->get("relabel-bool", 4);
+    relabel_overlap_ = opt->get("relabel-overlap", 6);
     comp_susp_ = opt->get("comp-susp", 0);
     if (comp_susp_ == 1)
       {
@@ -480,15 +482,23 @@ namespace spot
     //  2) has some Boolean subformula
     //  3) relabel_bse() actually reduces the number of atomic
     //     propositions.
+    //
+    // If the formula still has more than relabel_overlap_ APs after
+    // the above, we try the more aggressive relabel_overlapping_bse()
+    // function.  However after applying this function, we might have
+    // false edges.
     relabeling_map m;
     formula to_work_on = *f;
-    if (relabel_bool_ > 0)
+    if (relabel_bool_ > 0 || relabel_overlap_ > 0)
       {
         std::set<formula> aps;
         atomic_prop_collect(to_work_on, &aps);
         unsigned atomic_props = aps.size();
 
-        if (atomic_props >= (unsigned) relabel_bool_)
+        if ((relabel_bool_
+             && atomic_props >= (unsigned) relabel_bool_)
+            || (relabel_overlap_
+                && atomic_props >= (unsigned) relabel_overlap_))
           {
             // Make a very quick simplification path before for
             // Boolean subformulas, only only syntactic rules.  This
@@ -507,14 +517,15 @@ namespace spot
             options.nenoform_stop_on_boolean = true;
             options.boolean_to_isop = false;
             tl_simplifier simpl(options, simpl_->get_dict());
-            to_work_on = simpl.simplify(to_work_on);
+            formula simplified = to_work_on = simpl.simplify(to_work_on);
 
             // Do we have Boolean subformulas that are not atomic
             // propositions?
             bool has_boolean_sub = false;
             to_work_on.traverse([&](const formula& f)
                                 {
-                                  if (f.is_boolean())
+                                  if (f.is_boolean()
+                                      && !f.is(op::ap, op::Not))
                                     {
                                       has_boolean_sub = true;
                                       return true;
@@ -524,11 +535,34 @@ namespace spot
 
             if (has_boolean_sub)
               {
-                formula relabeled = relabel_bse(to_work_on, Pnn, &m);
-                if (m.size() < atomic_props)
-                  to_work_on = relabeled;
-                else
-                  m.clear();
+                if (relabel_bool_
+                    && atomic_props >= (unsigned) relabel_bool_)
+                  {
+                    formula relabeled = relabel_bse(to_work_on, Pnn, &m);
+                    if (m.size() < atomic_props)
+                      {
+                        atomic_props = m.size();
+                        to_work_on = relabeled;
+                      }
+                    else
+                      {
+                        m.clear();
+                      }
+                  }
+                if (relabel_overlap_
+                    && atomic_props >= (unsigned) relabel_overlap_)
+                  {
+                    relabeling_map m2;
+                    formula relabeled =
+                      relabel_overlapping_bse(simplified, Pnn, &m2);
+                    if (m2.size() < atomic_props)
+                      {
+                        atomic_props = m2.size();
+                        to_work_on = relabeled;
+                        std::swap(m, m2);
+                      }
+                    m2.clear();
+                  }
               }
           }
       }

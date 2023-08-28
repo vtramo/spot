@@ -196,7 +196,16 @@ disabled, it is just an upper bound otherwise.") },
 with N atomic propositions or more will have its Boolean subformulas \
 abstracted as atomic propositions during the translation to automaton. \
 This relabeling can speeds the translation if a few Boolean subformulas \
-use a large number of atomic propositions.  By default N=4.  Setting \
+use a large number of atomic propositions.  This relabeling make sure \
+the subexpression that are replaced do not share atomic propositions.  \
+By default N=4.  Setting this value to 0 will disable the rewriting.") },
+    { DOC("relabel-overlap", "If set to a positive integer N, a formula \
+with N atomic propositions or more will have its Boolean subformulas \
+abstracted as atomic propositions during the translation to automaton. \
+This version does not care about overlapping atomic propositions, so \
+it can cause the created temporary automata to have incompatible \
+combinations of atomic propositions that will be eventually be removed. \
+This relabeling is attempted after relabel-bool.  By default N=8.  Setting \
 this value to 0 will disable the rewriting.") },
     { DOC("wdba-minimize", "Set to 0 to disable WDBA-minimization, to 1 to \
 always try it, or 2 to attempt it only on syntactic obligations or on automata \

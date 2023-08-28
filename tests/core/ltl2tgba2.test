@@ -1,6 +1,6 @@
 #!/bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2009-2022 Laboratoire de Recherche et Développement de
+# Copyright (C) 2009-2023 Laboratoire de Recherche et Développement de
 # l'Epita (LRDE).
 # Copyright (C) 2003, 2004 Laboratoire d'Informatique de Paris 6 (LIP6),
 # département Systèmes Répartis Coopératifs (SRC), Université Pierre
@@ -516,3 +516,14 @@ f='G((a -> X((!a U b) | G!a)) & (a -> X(G!a | (!a U c))) & (a -> X(G!a
 (a -> X(G!a | (!a U g))) & (a -> X(G!a | (!a U h)))) & (GFa <-> (GFb &
 GFc & GFd & GFe & GFf & GFg & GFh))'
 test 128 = `ltl2tgba -G -D "$f" --stats=%s`
+
+# This used to die from out of memory after 5 minutes.  See issue #536.
+f='(TRUE & (G F ~v21)& (( G  F v39 ->  G  F v23))) -> (TRUE &
+(G F (v1 -> (v41 & v29)))& (G F (v3 -> (v42 & v29)))& (G F (v5
+-> (v43 & v29)))& (G F (v7 -> (v44 & v29)))& (G F (v9 -> (v45 &
+v29)))& (G F (v11 -> (v46 & v29)))& (G F (v13 -> (v47 & v29)))&
+(G F (v15 -> (v48 & v29)))& (G F (v17 -> (v49 & v29)))& (G F (v19
+-> (v50 & v29)))& (G F (v41 | (v1 | (v3 | (v5 | (v7 | (v9 |
+(v11 | (v13 | (v15 | (v17 | v19))))))))))))'
+ltl2tgba -p'min even' -D -C "$f" --stats='%s %e'>out
+test '22 288' = "`cat out`"
