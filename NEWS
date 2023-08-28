@@ -12,6 +12,10 @@ New in spot 2.11.6.dev  (not yet released)
 
         autfilt input.hoa -o output-%l.hoa
 
+  - ltlfilt has a new option --relabel-overlapping-bool=abc|pnn that
+    will replace boolean subformulas by fresh atomic propositions even
+    if those subformulas share atomic propositions.
+
   Library:
 
   - The following new trivial simplifications have been implemented for SEREs:
@@ -28,6 +32,10 @@ New in spot 2.11.6.dev  (not yet released)
 
   - spot::bdd_to_cnf_formula() is a new variant of spot::bdd_to_formula()
     that converts a BDD into a CNF instead of a DNF.
+
+  - spot::relabel_overlapping_bse() is a new function that will
+    replace boolean subformulas by fresh atomic propositions even if
+    those subformulas share atomic propositions.
 
 New in spot 2.11.6  (2023-08-01)
 

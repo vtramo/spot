@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2012, 2013, 2015, 2019 Laboratoire de Recherche et
+// Copyright (C) 2012, 2013, 2015, 2019, 2023 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -34,6 +34,9 @@ namespace spot
   ///
   /// If \a m is non-null, it is filled with correspondence
   /// between the new names (keys) and the old names (values).
+  ///
+  /// \see relabel_bse
+  /// \see relabel_overlaping_bse
   SPOT_API
   formula relabel(formula f, relabeling_style style,
                   relabeling_map* m = nullptr);
@@ -45,9 +48,27 @@ namespace spot
   ///
   /// If \a m is non-null, it is filled with correspondence
   /// between the new names (keys) and the old names (values).
+  ///
+  /// The relabel_overlapping_bse() will introduce a new atomic
+  /// proposition for each maximal Boolean subexpression encountered,
+  /// even if they overlap (i.e., share common atomic
+  /// propositions). For instance `(a & b & c) U (c & d & e)` will be
+  /// simply be relabeled as `p0 U p1`.  This kind of renaming to not
+  /// preserves the
+  ///
+  /// The relabel_bse() version will make sure that the replaced
+  /// subexpressions do not share atomic propositions.  For instance
+  /// `(a & b & c) U (c & d & e)` will be simply be relabeled as
+  /// `(p0 & p1) U (p1 & p2)`, were `p1` replaces `c` and the rest
+  /// is obvious.
+  ///
+  /// @{
   SPOT_API
   formula relabel_bse(formula f, relabeling_style style,
                       relabeling_map* m = nullptr);
+  SPOT_API formula
+  relabel_overlapping_bse(formula f, relabeling_style style, relabeling_map* m);
+  // @}
 
   /// \ingroup tl_rewriting
   /// \brief Replace atomic propositions of \a f by subformulas

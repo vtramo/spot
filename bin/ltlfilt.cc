@@ -94,6 +94,7 @@ enum {
   OPT_REJECT_WORD,
   OPT_RELABEL,
   OPT_RELABEL_BOOL,
+  OPT_RELABEL_OVERLAP,
   OPT_REMOVE_WM,
   OPT_REMOVE_X,
   OPT_SAFETY,
@@ -139,8 +140,12 @@ static const argp_option options[] =
       "relabel all atomic propositions, alphabetically unless " \
       "specified otherwise", 0 },
     { "relabel-bool", OPT_RELABEL_BOOL, "abc|pnn", OPTION_ARG_OPTIONAL,
-      "relabel Boolean subexpressions, alphabetically unless " \
-      "specified otherwise", 0 },
+      "relabel Boolean subexpressions that do not share atomic propositions,"
+      " relabel alphabetically unless specified otherwise", 0 },
+    { "relabel-overlapping-bool", OPT_RELABEL_OVERLAP, "abc|pnn",
+      OPTION_ARG_OPTIONAL,
+      "relabel Boolean subexpressions even if they share atomic propositions,"
+      " relabel alphabetically unless specified otherwise", 0 },
     { "define", OPT_DEFINE, "FILENAME", OPTION_ARG_OPTIONAL,
       "when used with --relabel or --relabel-bool, output the relabeling map "
       "using #define statements", 0 },
@@ -316,7 +321,10 @@ static bool recurrence = false;
 static bool persistence = false;
 static range size = { -1, -1 };
 static range bsize = { -1, -1 };
-enum relabeling_mode { NoRelabeling = 0, ApRelabeling, BseRelabeling };
+enum relabeling_mode { NoRelabeling = 0,
+                       ApRelabeling,
+                       BseRelabeling,
+                       OverlappingRelabeling };
 static relabeling_mode relabeling = NoRelabeling;
 static spot::relabeling_style style = spot::Abc;
 static bool remove_x = false;
@@ -357,6 +365,19 @@ parse_formula_arg(const std::string& input)
     error(2, 0, "parse error when parsing an argument");
   return pf.f;
 }
+
+static void
+parse_relabeling_style(const char* arg, const char* optname)
+{
+  if (!arg || !strncasecmp(arg, "abc", 6))
+    style = spot::Abc;
+  else if (!strncasecmp(arg, "pnn", 4))
+    style = spot::Pnn;
+  else
+    error(2, 0, "invalid argument for --relabel%s: '%s'\n"
+          "expecting 'abc' or 'pnn'", optname, arg);
+}
+
 
 static int
 parse_opt(int key, char* arg, struct argp_state*)
@@ -500,16 +521,16 @@ parse_opt(int key, char* arg, struct argp_state*)
         }
       break;
     case OPT_RELABEL:
+      relabeling = ApRelabeling;
+      parse_relabeling_style(arg, "");
+      break;
     case OPT_RELABEL_BOOL:
-      relabeling = (key == OPT_RELABEL_BOOL ? BseRelabeling : ApRelabeling);
-      if (!arg || !strncasecmp(arg, "abc", 6))
-        style = spot::Abc;
-      else if (!strncasecmp(arg, "pnn", 4))
-        style = spot::Pnn;
-      else
-        error(2, 0, "invalid argument for --relabel%s: '%s'",
-              (key == OPT_RELABEL_BOOL ? "-bool" : ""),
-              arg);
+      relabeling = BseRelabeling;
+      parse_relabeling_style(arg, "-bool");
+      break;
+    case OPT_RELABEL_OVERLAP:
+      relabeling = OverlappingRelabeling;
+      parse_relabeling_style(arg, "-overlapping-bool");
       break;
     case OPT_REMOVE_WM:
       unabbreviate += "MW";
@@ -699,6 +720,12 @@ namespace
           {
             relmap.clear();
             f = spot::relabel_bse(f, style, &relmap);
+            break;
+          }
+        case OverlappingRelabeling:
+          {
+            relmap.clear();
+            f = spot::relabel_overlapping_bse(f, style, &relmap);
             break;
           }
         case NoRelabeling:

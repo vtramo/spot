@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2012-2016, 2018-2020, 2022 Laboratoire de Recherche et
+// Copyright (C) 2012-2016, 2018-2020, 2022, 2023 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -80,7 +80,9 @@ namespace spot
       }
     };
 
-
+    // if subexp == false, matches APs
+    // if subexp == true, matches boolean subexps
+    template <bool subexp>
     class relabeler
     {
     public:
@@ -101,54 +103,89 @@ namespace spot
 
       formula rename(formula old)
       {
+        if constexpr (subexp)
+          {
+            // have we given a name to the negation of this formula?
+            auto neg = newname.find(formula::Not(old));
+            if (neg != newname.end())
+              return formula::Not(neg->second);
+          }
+
         auto r = newname.emplace(old, nullptr);
         if (!r.second)
-          {
-            return r.first->second;
-          }
-        else
-          {
-            formula res = gen->next();
-            r.first->second = res;
-            if (oldnames)
-              (*oldnames)[res] = old;
-            return res;
-          }
+          return r.first->second;
+
+        formula res = gen->next();
+        r.first->second = res;
+        if (oldnames)
+          (*oldnames)[res] = old;
+        return res;
       }
 
       formula
       visit(formula f)
       {
-        if (f.is(op::ap))
-          return rename(f);
+        if ((!subexp && f.is(op::ap))
+            || (subexp && f.is_boolean()))
+          {
+            return rename(f);
+          }
+        if (subexp && f.is(op::Or, op::And) && f[0].is_boolean())
+          {
+            // Boolean terms are always beginning of And and Or, so
+            // the above test capture Or/And that some Boolean arguments
+            // and some non-Boolean arguments.
+            unsigned i = 0;
+            formula b = f.boolean_operands(&i);
+            unsigned sz = f.size();
+            std::vector<formula> res;
+            res.reserve(sz - i + 1);
+            res.emplace_back(visit(b));
+            for (; i < sz; ++i)
+              res.emplace_back(visit(f[i]));
+            return formula::multop(f.kind(), res);
+          }
         else
-          return f.map([this](formula f)
-                       {
-                         return this->visit(f);
-                       });
+          {
+            return f.map([this](formula f)
+            {
+              return this->visit(f);
+            });
+          }
       }
 
     };
 
-  }
+    template<bool subexp>
+    formula
+    relabel_do(formula f, relabeling_style style, relabeling_map* m)
+    {
+      ap_generator* gen = nullptr;
+      switch (style)
+        {
+        case Pnn:
+          gen = new pnn_generator;
+          break;
+        case Abc:
+          gen = new abc_generator;
+          break;
+        }
 
+      relabeler<subexp> r(gen, m);
+      return r.visit(f);
+    }
+  }
 
   formula
   relabel(formula f, relabeling_style style, relabeling_map* m)
   {
-    ap_generator* gen = nullptr;
-    switch (style)
-      {
-      case Pnn:
-        gen = new pnn_generator;
-        break;
-      case Abc:
-        gen = new abc_generator;
-        break;
-      }
+    return relabel_do<false>(f, style, m);
+  }
 
-    relabeler r(gen, m);
-    return r.visit(f);
+  formula
+  relabel_overlapping_bse(formula f, relabeling_style style, relabeling_map* m)
+  {
+    return relabel_do<true>(f, style, m);
   }
 
   namespace
@@ -502,7 +539,7 @@ namespace spot
     }
 
 
-    class bse_relabeler final: public relabeler
+    class bse_relabeler final: public relabeler<false>
     {
     public:
       const fset& c;
