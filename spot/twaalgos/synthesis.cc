@@ -2925,7 +2925,9 @@ namespace spot
                                 bool split_env,
                                 bool split_play,
                                 unsigned max_letter,
-                                unsigned max_letter_mult)
+                                unsigned max_letter_mult,
+                                bool sort_env,
+                                bool sort_play)
   {
     if (!arena)
       throw std::runtime_error("arena is null.");
@@ -2959,12 +2961,14 @@ namespace spot
     if (relabel_env)
       res.env_map
         = partitioned_relabel_here(arena, split_env, max_letter,
-                                   max_letter_mult, ins, "__nv_in");
+                                   max_letter_mult, ins, "__nv_in",
+                                   sort_env);
     if (relabel_play)
       {
         res.player_map
           = partitioned_relabel_here(arena, split_play, max_letter,
-                                    max_letter_mult, outs, "__nv_out");
+                                    max_letter_mult, outs, "__nv_out",
+                                    sort_play);
         // If relabeling succeeds, we need to adapt the outputs
         if (!res.player_map.empty())
           {

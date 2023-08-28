@@ -157,10 +157,21 @@ namespace spot
     void
     remove_one_(const bdd& r);
 
+    /// \brief Brief builds a flattened version of the
+    /// implication graph. Does not seek to minimize it,
+    // as tidy_up_ does.
+    void
+    flatten_();
+
     /// \brief Tidy up everything after conditions have been removed
     void
     tidy_up_();
 
+    /// \brief Expects the graph to be tided up. Edges are sorted
+    /// with respect to the bdd_less_stable for the new_label of the
+    /// destination
+    void
+    sort_by_new_label_();
 
   public:
 
@@ -341,9 +352,13 @@ namespace spot
     /// needed to encode in \a new_dict using the names
     /// pref_XXX with pref being \a prefix_new and which must not match
     /// any propositions already in use.
+    /// If \a sort is set to true, (1) the implication
+    /// graph will be compressed into 2 levels
+    /// and the implied nodes will appear in increasing order
     /// \pre May not be already locked
     void
-    lock(bdd_dict_ptr new_dict, const std::string& prefix_new);
+    lock(bdd_dict_ptr new_dict, const std::string& prefix_new,
+         bool sort = false);
 
     /// \brief Add a condition to the partition
     /// \pre The partition needs to be unlocked
@@ -403,6 +418,7 @@ namespace spot
                                  "Partition must be locked.");
       return dict_new_;
     }
+
   }; // bdd_partition
 
   /// \brief Tries to build a bdd_partition for the given

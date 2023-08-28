@@ -388,7 +388,8 @@ namespace spot
 
   void
   bdd_partition::lock(bdd_dict_ptr dict_new,
-                      const std::string& prefix_new)
+                      const std::string& prefix_new,
+                      bool sort)
   {
     if (locked_)
       throw std::runtime_error("Trying to reloc a second time!");
@@ -403,8 +404,24 @@ namespace spot
       throw std::runtime_error("bdd_partition::lock(): prefix "
                                + prefix_new
                                + " is also a prefix of existing AP.");
+    if (sort)
+      flatten_();
 
     comp_new_letters_(prefix_new);
+
+    if (sort)
+      {
+        ig_->sort_edges_srcfirst_(
+          [&ig=*ig_](const auto& e1, const auto& e2){
+              assert(&e1 == &e2
+                     || ig.state_storage(e1.dst).new_label
+                        != ig.state_storage(e2.dst).new_label);
+              return bdd_stable_cmp(ig.state_storage(e1.dst).new_label,
+                                    ig.state_storage(e2.dst).new_label)
+                      < 0; });
+        ig_->chain_edges_();
+      }
+
     locked_ = true;
   }
 
@@ -443,9 +460,84 @@ namespace spot
   }
 
   void
+  bdd_partition::flatten_()
+  {
+    // This will build a new "flat" implication graph
+    // The difference with tidy_up_ is that this
+    // function supposes that the graph is minimal
+    // and will not seek to merge nodes -> easier
+
+    // Only works if unlocked
+    if (locked_)
+      throw std::runtime_error("bdd_partition::flatten_(): "
+                               "Can only be called if unlocked.");
+
+    // We only need the old graph and the old (cleaned) original conditions
+    // To avoid different results, do not loop over unordered_amp
+    auto old_orig
+      = std::map<bdd, unsigned, bdd_less_than_stable>(orig_.begin(),
+                                                      orig_.end());
+    auto old_ig_ptr = std::move(ig_);
+    auto old_ig = *old_ig_ptr;
+    auto old_leaves = std::move(leaves_);
+
+    // Reset
+    ig_ = std::make_unique<implication_graph>(2*leaves_.size(),
+                                              5*leaves_.size());
+    orig_.clear();
+    orig_.reserve(old_orig.size());
+    leaves_.clear();
+    leaves_.reserve(old_leaves.size());
+    all_inter_.clear();
+    all_inter_.reserve(old_orig.size() + old_leaves.size());
+
+    // Create all nodes
+    for (const auto& [ocond, _] : old_orig)
+      new_state_(ocond, true, false);
+    for (const auto& [ocond, _] : old_leaves)
+      {
+        if (auto it = all_inter_.find(ocond);
+            it != all_inter_.end())
+          leaves_.emplace_back(it->first, it->second);
+        else
+          new_state_(ocond, false, true);
+      }
+
+    // Loop over all original conditions and set the implications
+    auto set_impl_ = [&](unsigned nstate,
+                         unsigned ostate, auto&& set_impl_rec_) -> void
+      {
+        auto& oss = old_ig.state_storage(ostate);
+        if (oss.succ == 0)
+          new_edge_(nstate, all_inter_.at(oss.orig_label)); // Found a leaf
+        else
+          {
+            for (const auto& e : old_ig.out(ostate))
+              set_impl_rec_(nstate, e.dst, set_impl_rec_);
+          }
+      };
+
+    for (const auto& [ocond, ostate] : old_orig)
+      {
+        // Only necessary if there are children
+        if (old_ig.state_storage(ostate).succ != 0u)
+          {
+            auto nstate = orig_.at(ocond);
+            set_impl_(nstate, ostate, set_impl_);
+          }
+      }
+    assert(verify_(VERBOSEDBG));
+    // Done
+  }
+
+  void
   bdd_partition::tidy_up_()
   {
     // This will build a new "flat" implication graph
+    // Only works if unlocked
+    if (locked_)
+      throw std::runtime_error("bdd_partition::tidy_up_(): "
+                               "Can only be called if unlocked.");
 
     // We only need the old graph and the old (cleaned) original conditions
     // To avoid different results, do not loop over unordered_amp
@@ -551,16 +643,17 @@ namespace spot
 
     // Construct the new graph
     // First all original conditions
+#ifdef NDEBUG
     for (const auto& [ocond, ostate] : old_orig)
       {
-#ifdef NDEBUG
         auto ns = new_state_(ocond, true, false);
         assert(ns == os2oidx[ostate]);
         (void) ns; // debian-unstable-gcc-coverage marks this as unused
-#elif
-        new_state_(ocond, true, false);
-#endif
       }
+#else
+    for (const auto& [ocond, _] : old_orig)
+      new_state_(ocond, true, false);
+#endif
     // Now a state for each leaf class whose condition is the disjunction
     // overall class members
     // leaf class index to new state number
