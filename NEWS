@@ -60,6 +60,14 @@ New in spot 2.11.6.dev  (not yet released)
     36 seconds; it now produce an AIG circuit with 53 nodes in only
     0.1 second.
 
+  Bugs fixed:
+
+  - tgba_determinize()'s use_simulation option would cause it to
+    segfault on automata with more than 2^16 SCCs, due to overflows in
+    computations of indices in the reachability matrix for SCCs.
+    (Issue #541.)  This has been fixed by disabled the use_simulation
+    optimization in this case.
+
 New in spot 2.11.6  (2023-08-01)
 
   Bug fixes:

@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2015-2022 Laboratoire de Recherche et
+// Copyright (C) 2015-2023 Laboratoire de Recherche et
 // Développement de l'Epita.
 //
 // This file is part of Spot, a model checking library.
@@ -820,29 +820,43 @@ namespace spot
     return nodes_ == other.nodes_ && braces_ == other.braces_;
   }
 
-  // res[i + scccount*j] = 1 iff SCC i is reachable from SCC j
-  std::vector<char>
-  find_scc_paths(const scc_info& scc)
+  namespace
   {
-    unsigned scccount = scc.scc_count();
-    std::vector<char> res(scccount * scccount, 0);
-    for (unsigned i = 0; i != scccount; ++i)
-      res[i + scccount * i] = 1;
-    for (unsigned i = 0; i != scccount; ++i)
+    class reachability_matrix final
+    {
+      // Store a lower triangular matrix.
+      // (j can reach i) <=> (i<=j and m[j*(j+1)/2 + i]==1)
+      std::vector<char> m;
+    public:
+      reachability_matrix(const scc_info& scc)
       {
-        unsigned ibase = i * scccount;
-        for (unsigned d: scc.succ(i))
+        unsigned scccount = scc.scc_count();
+        m.resize(scccount * (scccount + 1) / 2, 0);
+        for (unsigned i = 0; i < scccount; ++i)
+          m[(i * (i + 1) / 2) + i] = 1;
+        for (unsigned i = 1; i < scccount; ++i)
           {
-            // we necessarily have d < i because of the way SCCs are
-            // numbered, so we can build the transitive closure by
-            // just ORing any SCC reachable from d.
-            unsigned dbase = d * scccount;
-            for (unsigned j = 0; j != scccount; ++j)
-              res[ibase + j] |= res[dbase + j];
+            unsigned ibase = i * (i + 1) / 2;
+            for (unsigned d: scc.succ(i))
+              {
+                // we necessarily have d < i because of the way SCCs are
+                // numbered, so we can build the transitive closure by
+                // just ORing any SCC reachable from d.
+                unsigned dbase = d * (d + 1) / 2;
+                for (unsigned j = 0; j <= d; ++j)
+                  m[ibase + j] |= m[dbase + j];
+              }
           }
       }
-    return res;
+
+      bool operator()(unsigned j, unsigned i) const
+      {
+        return i <= j && m[(j * (j + 1) / 2) + i];
+      }
+    };
+
   }
+
 
   twa_graph_ptr
   tgba_determinize(const const_twa_graph_ptr& a,
@@ -882,49 +896,56 @@ namespace spot
       scc_opt = scc_info_options::TRACK_SUCCS | scc_info_options::TRACK_STATES;
     scc_info scc = scc_info(aut, scc_opt);
 
+    // If we have too many SCCs, disable simulation-based checks, as
+    // computations to index the matrix would overflow.  (Issue #541.)
+    if (scc.scc_count() >= (1 << 16))
+      {
+        use_simulation = false;
+        implications.clear();
+      }
+
     // If use_simulation is false, implications is empty, so nothing is built
     std::vector<std::vector<char>> implies(
         implications.size(),
         std::vector<char>(implications.size(), 0));
-    {
-      std::vector<char> is_connected = find_scc_paths(scc);
-      unsigned sccs = scc.scc_count();
-      bool something_implies_something = false;
-      for (unsigned i = 0; i != implications.size(); ++i)
-        {
-          // NB spot::simulation() does not remove unreachable states, as it
-          // would invalidate the contents of 'implications'.
-          // so we need to explicitly test for unreachable states
-          // FIXME: based on the scc_info, we could remove the unreachable
-          // states, both in the input automaton and in 'implications'
-          // to reduce the size of 'implies'.
-          if (!scc.reachable_state(i))
-            continue;
-          unsigned scc_of_i = scc.scc_of(i);
-          bool i_implies_something = false;
-          for (unsigned j = 0; j != implications.size(); ++j)
-            {
-              if (!scc.reachable_state(j))
-                continue;
+    if (use_simulation)
+      {
+        reachability_matrix scc_can_reach(scc);
+        bool something_implies_something = false;
+        for (unsigned i = 0; i != implications.size(); ++i)
+          {
+            // NB spot::simulation() does not remove unreachable states, as it
+            // would invalidate the contents of 'implications'.
+            // so we need to explicitly test for unreachable states
+            // FIXME: based on the scc_info, we could remove the unreachable
+            // states, both in the input automaton and in 'implications'
+            // to reduce the size of 'implies'.
+            if (!scc.reachable_state(i))
+              continue;
+            unsigned scc_of_i = scc.scc_of(i);
+            bool i_implies_something = false;
+            for (unsigned j = 0; j != implications.size(); ++j)
+              {
+                if (!scc.reachable_state(j))
+                  continue;
 
-              bool i_implies_j = !is_connected[sccs * scc.scc_of(j) + scc_of_i]
-                && bdd_implies(implications[i], implications[j]);
-              implies[i][j] = i_implies_j;
-              i_implies_something |= i_implies_j;
-            }
-          // Clear useless lines.
-          if (!i_implies_something)
-            implies[i].clear();
-          else
-            something_implies_something = true;
-        }
-      if (!something_implies_something)
-        {
-          implies.clear();
-          use_simulation = false;
-        }
-    }
-
+                bool i_implies_j = !scc_can_reach(scc.scc_of(j), scc_of_i)
+                  && bdd_implies(implications[i], implications[j]);
+                implies[i][j] = i_implies_j;
+                i_implies_something |= i_implies_j;
+              }
+            // Clear useless lines.
+            if (!i_implies_something)
+              implies[i].clear();
+            else
+              something_implies_something = true;
+          }
+        if (!something_implies_something)
+          {
+            implies.clear();
+            use_simulation = false;
+          }
+      }
 
     // Compute the support of each state
     std::vector<bdd> support(aut->num_states());

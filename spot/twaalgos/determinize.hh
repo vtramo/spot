@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2015-2016, 2019-2021 Laboratoire de Recherche et
-// Développement de l'Epita.
+// Copyright (C) 2015-2016, 2019-2021, 2023 Laboratoire de Recherche
+// et Développement de l'Epita.
 //
 // This file is part of Spot, a model checking library.
 //
@@ -64,7 +64,9 @@ namespace spot
   ///
   /// \param use_simulation whether to simplify the construction based
   ///                       on simulation relations between states in
-  ///                       the original automaton.
+  ///                       the original automaton.  This optimization
+  ///                       is automatically disabled on automata with
+  ///                       more than 2^16 SCCs.
   ///
   /// \param use_stutter whether to simplify the construction when the
   ///                    input automaton is known to be
