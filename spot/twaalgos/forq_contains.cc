@@ -19,25 +19,19 @@
 
 #include "config.h"
 #include <spot/twaalgos/split.hh>
-#include "forq_contains.hh"
+#include <spot/twaalgos/forq_contains.hh>
 
-#include <spot/twaalgos/complement.hh>
 #include <spot/twaalgos/contains.hh>
-#include <spot/twaalgos/contains.hh>
-#include <spot/twaalgos/product.hh>
 #include <spot/twaalgos/product.hh>
 #include <spot/twaalgos/word.hh>
-#include <spot/twaalgos/hoa.hh>
 #include <spot/misc/bddlt.hh>
 #include <spot/twa/twagraph.hh>
-#include <spot/twa/bddprint.hh>
 #include <spot/twa/bdddict.hh>
 #include <spot/misc/bddlt.hh>
 #include <spot/twa/twa.hh>
 #include <spot/twa/acc.hh>
 #include <unordered_map>
 #include <unordered_set>
-#include <type_traits>
 #include <iterator>
 #include <optional>
 #include <vector>
@@ -522,96 +516,6 @@ namespace spot::forq
     };
   }
 
-  enum class forq_status
-  {
-    FORQ_OKAY,                // The forq works as expected
-    FORQ_INVALID_AC_COND,     // The automata passed do not
-                              // use buchi acceptance conditions
-    FORQ_INCOMPATIBLE_DICTS,  // The two automata are using
-                              // different bdd_dict objects
-    FORQ_INCOMPATIBLE_AP,     // The two automata are using
-                              // different atomic propositions
-    FORQ_INVALID_INPUT_BA,    // The two automata passed are
-                              // nullptrs and are invalid
-    FORQ_INVALID_RESULT_PTR   // The pointer forq_result, that
-                              // was passed into function
-                              // contains_forq, cannot be nullptr
-  };
-
-  struct forq_result
-  {
-    // Whether language of graph A is included in B
-    bool included;
-    // If the language of graph A is not included in B,
-    // a counter example is provided
-    spot::twa_word_ptr counter_example;
-  };
-
-  // Returns a human-readable string given a forq_status,
-  // which can be aquired through a call to contains_forq
-  static const char* forq_status_message(forq_status status)
-  {
-    switch (status)
-    {
-      case forq_status::FORQ_OKAY:
-        return "Forq was able to properly run on the two buchi automata.";
-      case forq_status::FORQ_INVALID_AC_COND:
-        return "Forq only operates on automata with buchi "
-               "acceptance conditions.";
-      case forq_status::FORQ_INCOMPATIBLE_DICTS:
-        return "The two input graphs must utilize the same twa_dict.";
-      case forq_status::FORQ_INCOMPATIBLE_AP:
-        return "The two input graphs must utilize the same set of atomic"
-               "propositions defined in their shared twa_dict.";
-      case forq_status::FORQ_INVALID_INPUT_BA:
-        return "One of the two buchi automata passed in was a nullptr.";
-      case forq_status::FORQ_INVALID_RESULT_PTR:
-        return "The result pointer passed in was a nullptr.";
-      default:
-        return "Unknown Forq Status Code.";
-    }
-  }
-
-  static forq_status valid_automata(const_graph const& A,
-                                    const_graph const& B,
-                                    forq_result* result)
-  {
-    if (!result)
-      {
-        return forq_status::FORQ_INVALID_RESULT_PTR;
-      }
-    if (!A || !B)
-      {
-        return forq_status::FORQ_INVALID_INPUT_BA;
-      }
-
-    const auto buchi_acceptance = spot::acc_cond::acc_code::buchi();
-    auto accept_A = A->get_acceptance();
-    auto accept_B = B->get_acceptance();
-
-    if (accept_A != buchi_acceptance || accept_B != buchi_acceptance)
-      {
-        return forq_status::FORQ_INVALID_AC_COND;
-      }
-    if (A->get_dict() != B->get_dict())
-      {
-        return forq_status::FORQ_INCOMPATIBLE_DICTS;
-      }
-    if (A->ap() != B->ap())
-      {
-        return forq_status::FORQ_INCOMPATIBLE_AP;
-      }
-    return forq_status::FORQ_OKAY;
-  }
-
-  static forq_status create_result(forq_result* result,
-                                spot::twa_word_ptr counter_example = nullptr)
-  {
-    result->included        = static_cast<bool>(counter_example);
-    result->counter_example = std::move(counter_example);
-    return forq_status::FORQ_OKAY;
-  }
-
   struct forq_setup
   {
     forq::forq_context context;
@@ -707,31 +611,10 @@ namespace spot::forq
                                                         word_of_v,
                                                         setup);
             if (counter_example)
-              {
-                return final_state_result::failure(std::move(counter_example));
-              }
+              return final_state_result::failure(std::move(counter_example));
           }
       }
     return final_state_result::success();
-  }
-
-  static forq_status forq_impl(const_graph const& A,
-                               const_graph const& B, forq_result* result)
-  {
-    if (auto rc = valid_automata(A, B, result); rc != forq_status::FORQ_OKAY)
-    {
-      return rc;
-    }
-    forq_setup setup = create_forq_setup(A, B);
-
-    for (auto src : util::get_final_states(A))
-    {
-      auto final_state_result = run_from_final_state(src, setup);
-      if (!final_state_result.should_continue()){
-        return create_result(result, final_state_result.get_counter_example());
-      }
-    }
-    return create_result(result);
   }
 }
 
@@ -740,13 +623,27 @@ namespace spot
   twa_word_ptr difference_word_forq(forq::const_graph lhs,
                                     forq::const_graph rhs)
   {
-    forq::forq_result result;
-    auto rc = forq::forq_impl(lhs, rhs, &result);
-    if (rc != forq::forq_status::FORQ_OKAY)
+    if (!lhs || !rhs)
+      throw std::runtime_error("One of the two automata passed was a nullptr.");
+    if (!lhs->acc().is_buchi() || !rhs->acc().is_buchi())
+      throw std::runtime_error("Forq only operates on automata with Büchi "
+                               "acceptance conditions.");
+    if (lhs->get_dict() != rhs->get_dict())
+      throw std::runtime_error
+        ("The two input graphs must utilize the same twa_dict.");
+    if (lhs->ap() != rhs->ap())
+      throw std::runtime_error("The two input graphs must use the same set "
+                               "of APs");
+
+    forq::forq_setup setup = forq::create_forq_setup(lhs, rhs);
+
+    for (auto src: forq::util::get_final_states(lhs))
       {
-        throw std::runtime_error(forq::forq_status_message(rc));
+        auto final_state_result = forq::run_from_final_state(src, setup);
+        if (!final_state_result.should_continue())
+          return final_state_result.get_counter_example();
       }
-    return result.counter_example;
+    return nullptr;
   }
 
   bool contains_forq(forq::const_graph lhs, forq::const_graph rhs)

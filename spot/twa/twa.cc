@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2011, 2014-2019, 2021, 2022 Laboratoire de Recherche et
+// Copyright (C) 2011, 2014-2019, 2021, 2022, 2023 Laboratoire de Recherche et
 // Developpement de l'EPITA (LRDE).
 // Copyright (C) 2003, 2004, 2005 Laboratoire d'Informatique de Paris 6 (LIP6),
 // département Systèmes Répartis Coopératifs (SRC), Université Pierre
@@ -229,12 +229,6 @@ namespace spot
     return b->intersecting_run(complement(ensure_graph(a)));
   }
 
-  static bool
-  is_buchi_automata(const_twa_graph_ptr const& aut)
-  {
-    return spot::acc_cond::acc_code::buchi() == aut->get_acceptance();
-  }
-
   twa_word_ptr
   twa::exclusive_word(const_twa_ptr other) const
   {
@@ -256,19 +250,18 @@ namespace spot
     }();
 
     // We have to find a word in A\B or in B\A.  When possible, let's
-    // make sure the first automaton we complement is deterministic.
+    // make sure the first automaton we complement, i.e., b, is deterministic.
     auto a_twa_as_graph = std::dynamic_pointer_cast<const twa_graph>(a);
-    auto b_twa_as_graph = std::dynamic_pointer_cast<const twa_graph>(a);
+    auto b_twa_as_graph = std::dynamic_pointer_cast<const twa_graph>(b);
     if (a_twa_as_graph)
       if (is_deterministic(a_twa_as_graph))
         std::swap(a, b);
 
-    bool uses_buchi = is_buchi_automata(a_twa_as_graph)
-                      && is_buchi_automata(b_twa_as_graph);
     if (containment == containment_type::FORQ
-       && uses_buchi
-       && a_twa_as_graph
-       && b_twa_as_graph)
+        && a_twa_as_graph
+        && b_twa_as_graph
+        && a_twa_as_graph->acc().is_buchi()
+        && b_twa_as_graph->acc().is_buchi())
       {
         if (auto word = difference_word_forq(a_twa_as_graph, b_twa_as_graph))
           return word;
