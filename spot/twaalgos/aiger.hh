@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2020-21 Laboratoire de Recherche et Développement
-// de l'Epita (LRDE).
+// Copyright (C) 2020-2021, 2023 Laboratoire de Recherche et
+// Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
 //
@@ -30,6 +30,7 @@
 #include <vector>
 #include <set>
 #include <memory>
+#include <algorithm> // std::none_of
 #include <sstream>
 
 
