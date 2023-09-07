@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2018, 2019, 2022 Laboratoire de Recherche et Développement de
-// l'Epita.
+// Copyright (C) 2018, 2019, 2022, 2023 Laboratoire de Recherche et
+// Développement de l'Epita.
 //
 // This file is part of Spot, a model checking library.
 //
@@ -33,39 +33,25 @@ namespace spot
     {
       return ltl_to_tgba_fm(f, dict);
     }
-  }
 
-  static bool is_buchi_automata(const_twa_graph_ptr const& aut)
-  {
-    return spot::acc_cond::acc_code::buchi() == aut->get_acceptance();
+    static const_twa_graph_ptr
+    ensure_graph(const const_twa_ptr& aut_in)
+    {
+      const_twa_graph_ptr aut =
+        std::dynamic_pointer_cast<const twa_graph>(aut_in);
+      if (aut)
+        return aut;
+      return make_twa_graph(aut_in, twa::prop_set::all());
+    }
   }
 
   bool contains(const_twa_graph_ptr left, const_twa_ptr right)
   {
-    enum class containment_type : unsigned { LEGACY = 0, FORQ };
-    static containment_type containment = [&]()
-    {
-      char* s = getenv("SPOT_CONTAINMENT_CHECK");
-      // We expect a single digit that represents a valid enumeration value
-      if (!s)
-        return containment_type::LEGACY;
-      else if (*s == '\0' || *(s + 1) != '\0' || *s < '0' || *s > '1')
-        throw std::runtime_error("Invalid value for enviroment variable: "
-                                 "SPOT_CONTAINMENT_CHECK");
-      else
-        return static_cast<containment_type>(*s - '0');
-    }();
-
-    auto as_graph = std::dynamic_pointer_cast<const twa_graph>(right);
-    bool uses_buchi = is_buchi_automata(left) && is_buchi_automata(as_graph);
-    if (containment == containment_type::FORQ && uses_buchi && as_graph)
-      {
-        return contains_forq(left, as_graph);
-      }
+    if (containment_select_version() == 1
+        && left->acc().is_buchi() && right->acc().is_buchi())
+      return contains_forq(left, ensure_graph(right));
     else
-      {
-        return !complement(left)->intersects(right);
-      }
+      return !complement(left)->intersects(right);
   }
 
   bool contains(const_twa_graph_ptr left, formula right)
@@ -110,5 +96,33 @@ namespace spot
   bool are_equivalent(formula left, formula right)
   {
     return contains(right, left) && contains(left, right);
+  }
+
+  int containment_select_version(const char* version)
+  {
+    static int pref = -1;
+    const char *env = nullptr;
+    if (!version && pref < 0)
+      version = env = getenv("SPOT_CONTAINMENT_CHECK");
+    if (version)
+      {
+        if (!strcasecmp(version, "default"))
+          pref = 0;
+        else if (!strcasecmp(version, "forq"))
+          pref = 1;
+        else
+          {
+            const char* err = ("containment_select_version(): argument"
+                               " should be one of {default,forq}");
+            if (env)
+              err = "SPOT_CONTAINMENT_CHECK should be one of {default,forq}";
+            throw std::runtime_error(err);
+          }
+      }
+    else if (pref < 0)
+      {
+        pref = 0;
+      }
+    return pref;
   }
 }

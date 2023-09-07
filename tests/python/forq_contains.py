@@ -324,3 +324,28 @@ State: 11 {0}
 --END--""")
 
 do_symmetric_test(subset, superset)
+
+
+tba = spot.translate('GFa')
+tgba = spot.translate('GFa & GFb')
+tc.assertTrue(spot.contains(tba, tgba))
+try:
+    spot.containment_select_version("fork")
+except RuntimeError as e:
+    tc.assertIn("forq", str(e))
+else:
+    raise RuntimeError("missing exception")
+spot.containment_select_version("forq")
+tc.assertTrue(spot.contains(tba, tgba))  # does not call contains_forq
+try:
+    spot.contains_forq(tba, tgba)  # because contains_forq wants Büchi
+except RuntimeError as e:
+    tc.assertIn("Büchi", str(e))
+else:
+    raise RuntimeError("missing exception")
+
+# This shows that exclusive word also depend on
+# containment_select_version()
+tc.assertEqual(str(one.exclusive_word(both)), "!a & !b; cycle{a}")
+spot.containment_select_version("default")
+tc.assertEqual(str(one.exclusive_word(both)), "cycle{a}")

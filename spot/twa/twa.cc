@@ -29,6 +29,7 @@
 #include <spot/twaalgos/alternation.hh>
 #include <spot/twa/twaproduct.hh>
 #include <spot/twaalgos/forq_contains.hh>
+#include <spot/twaalgos/contains.hh>
 #include <spot/twaalgos/complement.hh>
 #include <spot/twaalgos/isdet.hh>
 #include <spot/twaalgos/product.hh>
@@ -213,6 +214,7 @@ namespace spot
       return make_twa_graph(aut_in, twa::prop_set::all());
     }
   }
+
   twa_run_ptr
   twa::exclusive_run(const_twa_ptr other) const
   {
@@ -235,37 +237,21 @@ namespace spot
     const_twa_ptr a = shared_from_this();
     const_twa_ptr b = other;
 
-    enum class containment_type : unsigned { LEGACY = 0, FORQ };
-    static containment_type containment = [&]()
-    {
-      char* s = getenv("SPOT_EXCLUSIVE_WORD");
-      // We expect a single digit that represents a valid enumeration value
-      if (!s)
-        return containment_type::LEGACY;
-      else if (*s == '\0' || *(s + 1) != '\0' || *s < '0' || *s > '1')
-        throw std::runtime_error("Invalid value for enviroment variable: "
-                                 "SPOT_EXCLUSIVE_WORD");
-      else
-        return static_cast<containment_type>(*s - '0');
-    }();
-
     // We have to find a word in A\B or in B\A.  When possible, let's
     // make sure the first automaton we complement, i.e., b, is deterministic.
-    auto a_twa_as_graph = std::dynamic_pointer_cast<const twa_graph>(a);
-    auto b_twa_as_graph = std::dynamic_pointer_cast<const twa_graph>(b);
-    if (a_twa_as_graph)
+    if (auto a_twa_as_graph = std::dynamic_pointer_cast<const twa_graph>(a))
       if (is_deterministic(a_twa_as_graph))
         std::swap(a, b);
 
-    if (containment == containment_type::FORQ
-        && a_twa_as_graph
-        && b_twa_as_graph
-        && a_twa_as_graph->acc().is_buchi()
-        && b_twa_as_graph->acc().is_buchi())
+    if (containment_select_version() == 1
+        && a->acc().is_buchi()
+        && b->acc().is_buchi())
       {
-        if (auto word = difference_word_forq(a_twa_as_graph, b_twa_as_graph))
+        auto ag = ensure_graph(a);
+        auto bg = ensure_graph(b);
+        if (auto word = difference_word_forq(ag, bg))
           return word;
-        return difference_word_forq(b_twa_as_graph, a_twa_as_graph);
+        return difference_word_forq(bg, ag);
       }
     else
       {

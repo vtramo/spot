@@ -51,12 +51,13 @@ If this variable is set to any value, statistics about BDD garbage
 collection and resizing will be output on standard error.
 
 .TP
-\fSPOT_CONTAINMENT_CHECK\fR
-Specifies which inclusion algorithm spot should use. This can currently
-take on 1 of 2 values: 0 for the legacy implementation, and 1 for the
-forq implementation [6] (See bibliography below). Forq uses buchi
-automata in order to determine inclusion, and will default to the legacy
-version if these constraints are not satisfied.
+\fBSPOT_CONTAINMENT_CHECK\fR
+Specifies which inclusion algorithm Spot should use.  If the variable
+is unset, or set to \fB"default"\fR, containment checks are done
+using a complementation-based procedure.  If the variable is set to
+\fB"forq"\fR, and FORQ-based containment check is used for Büchi automata
+(the default procedure is still used for non-Büchi automata).  See
+[6] in the bibliography below.
 
 .TP
 \fBSPOT_DEFAULT_FORMAT\fR
@@ -335,24 +336,12 @@ disabled with \fB-x gf-guarantee=0\fR.
 
 .TP
 6.
-Doveri, Kyveli and Ganty, Pierre and Mazzocchi, Nicolas:
+Kyveli Doveri and Pierre Ganty and Nicolas Mazzocchi:
 FORQ-Based Language Inclusion Formal Testing.
 Proceedings of CAV'22. LNCS 13372.
 
-We propose a novel algorithm to decide the language inclusion between
-(nondeterministic) Büchi automata, a PSpace-complete problem. Our approach,
-like others before, leverage a notion of quasiorder to prune the search for a
-counterexample by discarding candidates which are subsumed by others for the
-quasiorder.Discarded candidates are guaranteed to not compromise the
-completeness of the algorithm. The novelty of our work lies in the quasiorder  k
-used to discard candidates. We introduce FORQs (family of right quasiorders)
-that we obtain by adapting the notion of family of right congruences put forward
-by Maler and Staiger in 1993. We define a FORQ-based inclusion algorithm which
-we prove correct and instantiate it for a specific FORQ, called the structural
-FORQ, induced by the B\"uchi automaton to the right of the inclusion sign. The
-resulting implementation, called Forklift, scales up better than the
-state-of-the-art on a variety of benchmarks including benchmarks from program
-verification and theorem proving for word combinatorics.
+The containment check implemented as spot::contains_forq(), and
+used for Büchi automata when \fBSPOT_CONTAINMENT_CHECK=forq\fR.
 
 [SEE ALSO]
 .BR ltl2tgba (1)

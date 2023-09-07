@@ -1,6 +1,6 @@
 #! /bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2016, 2022 Laboratoire de Recherche et Développement
+# Copyright (C) 2016, 2022, 2023 Laboratoire de Recherche et Développement
 # de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -38,6 +38,20 @@ run 0 autfilt -q gab.hoa --included-in fga.hoa --included-in fgb.hoa
 run 1 autfilt -q ga.hoa --included-in fga.hoa --included-in fgb.hoa
 run 0 autfilt -q false.hoa --included-in fga.hoa
 
+SPOT_CONTAINMENT_CHECK=forq run 0 autfilt -q fga.hoa --included-in gfa.hoa
+SPOT_CONTAINMENT_CHECK=forq run 0 autfilt -q fga.hoa --included-in fga.hoa
+SPOT_CONTAINMENT_CHECK=forq run 1 autfilt -q gfa.hoa --included-in fga.hoa
+SPOT_CONTAINMENT_CHECK=forq \
+    run 2 autfilt -q gab.hoa --included-in fga.hoa --included-in fgb.hoa
+SPOT_CONTAINMENT_CHECK=forq \
+    run 2 autfilt -q ga.hoa --included-in fga.hoa --included-in fgb.hoa
+SPOT_CONTAINMENT_CHECK=forq run 0 autfilt -q false.hoa --included-in fga.hoa
+
+SPOT_CONTAINMENT_CHECK=error \
+    autfilt -q fga.hoa --included-in gfa.hoa >err && exit 1
+test $? -eq 2
+grep 'SPOT_CONTAINMENT_CHECK.*forq' error
+
 run 1 autfilt -q gfa.hoa --equivalent-to fga.hoa
 run 1 autfilt -q fga.hoa --equivalent-to gfa.hoa
 
@@ -61,7 +75,17 @@ ltl2tgba '!(a U c)' | autfilt --product-or a1.hoa > out.hoa
 ltl2tgba true | autfilt out.hoa --equivalent-to - && exit 1
 
 # In Spot 2.10, the following was very slow.
+export SPOT_CONTAINMENT_CHECK=default
 for n in 1 2 4 8 16 512 1024 2048 4096 8192; do
+  genaut --cyclist-trace-nba=$n > trace.hoa
+  genaut --cyclist-proof-dba=$n > proof.hoa
+  autfilt -q --included-in=trace.hoa proof.hoa || exit 1
+  autfilt -q --included-in=proof.hoa trace.hoa && exit 1
+done
+
+# The forq-based version does not scale well on this particular test
+export SPOT_CONTAINMENT_CHECK=forq
+for n in 1 2 4 8 16 128; do
   genaut --cyclist-trace-nba=$n > trace.hoa
   genaut --cyclist-proof-dba=$n > proof.hoa
   autfilt -q --included-in=trace.hoa proof.hoa || exit 1

@@ -65,6 +65,19 @@ New in spot 2.11.6.dev  (not yet released)
     36 seconds; it now produce an AIG circuit with 53 nodes in only
     0.1 second.
 
+  - spot::contains_forq() is a implementation of the paper "FORQ-Based
+    Language Inclusion Formal Testing" (Doveri, Ganty, Mazzocchi;
+    CAV'22) contributed by Jonah Romero.
+
+  - spot::contains() still default to the complementation-based
+    algorithm, however by calling
+    spot::containment_select_version("forq") or by setting
+    SPOT_CONTAINMENT_CHECK=forq in the environment, the
+    spot::contains_forq() implementation will be used instead when
+    applicable (inclusion between Büchi automata).
+
+    The above also impacts autfilt --included-in option.
+
   Bugs fixed:
 
   - tgba_determinize()'s use_simulation option would cause it to

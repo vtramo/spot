@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2018, 2022 Laboratoire de Recherche et Développement de
-// l'Epita.
+// Copyright (C) 2018, 2022, 2023 Laboratoire de Recherche et
+// Développement de l'Epita.
 //
 // This file is part of Spot, a model checking library.
 //
@@ -62,4 +62,30 @@ namespace spot
   SPOT_API bool are_equivalent(formula left, const_twa_graph_ptr right);
   SPOT_API bool are_equivalent(formula left, formula right);
   /// @}
+
+  /// \ingroup containment
+  ///
+  /// Query, or change the version of the containment check to use by
+  /// contains() or twa::exclusive_run().
+  ///
+  /// By default those containment checks use a complementation-based
+  /// algorithm that is generic that work on any acceptance condition.
+  /// Alternative algorithms such as contains_forq() are available,
+  /// for Büchi automata, but are not used by default.
+  ///
+  /// When calling this function \a version can be:
+  /// - "default" to force the above default containment checks to be used
+  /// - "forq" to use contains_forq() when possible
+  /// - nullptr do not modify the preference.
+  ///
+  /// If the first call to containement_select_version() is done with
+  /// nullptr as an argument, then the value of the
+  /// SPOT_CONTAINMENT_CHECK environment variable is used instead.
+  ///
+  /// In all cases, the preferred containment check is returned as an
+  /// integer.  This integer is meant to be used by Spot's algorithms
+  /// to select the desired containment check to apply, but it's
+  /// encoding (currently 1 for FORQ, 0 for default) should be
+  /// regarded as an implementation detail subject to change.
+  SPOT_API int containment_select_version(const char* version = nullptr);
 }

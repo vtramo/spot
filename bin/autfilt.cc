@@ -45,6 +45,7 @@
 #include <spot/misc/timer.hh>
 #include <spot/parseaut/public.hh>
 #include <spot/tl/exclusive.hh>
+#include <spot/twaalgos/alternation.hh>
 #include <spot/twaalgos/are_isomorphic.hh>
 #include <spot/twaalgos/canonicalize.hh>
 #include <spot/twaalgos/cobuchi.hh>
@@ -984,12 +985,24 @@ parse_opt(int key, char* arg, struct argp_state*)
       break;
     case OPT_INCLUDED_IN:
       {
-        auto aut = ensure_deterministic(read_automaton(arg, opt->dict), true);
-        aut = spot::dualize(aut);
-        if (!opt->included_in)
-          opt->included_in = aut;
+        auto aut = read_automaton(arg, opt->dict);
+        if (spot::containment_select_version() == 0)
+          {
+            aut = spot::complement(aut);
+            if (!aut->is_existential())
+              aut = spot::remove_alternation(aut);
+            if (!opt->included_in)
+              opt->included_in = aut;
+            else
+              opt->included_in = ::product_or(opt->included_in, aut);
+          }
         else
-          opt->included_in = ::product_or(opt->included_in, aut);
+          {
+            if (opt->included_in)
+              error(2, 0, "FORQ-based inclusion check only works "
+                    "with one inclusion-test at a time");
+            opt->included_in = aut;
+          }
       }
       break;
     case OPT_INHERENTLY_WEAK_SCCS:
@@ -1519,7 +1532,12 @@ namespace
       if (opt->intersect)
         matched &= aut->intersects(opt->intersect);
       if (opt->included_in)
-        matched &= !aut->intersects(opt->included_in);
+        {
+          if (spot::containment_select_version() == 0)
+            matched &= !aut->intersects(opt->included_in);
+          else
+            matched &= spot::contains(opt->included_in, aut);
+        }
       if (opt->equivalent_pos)
         matched &= !aut->intersects(opt->equivalent_neg)
           && spot::contains(aut, opt->equivalent_pos);
