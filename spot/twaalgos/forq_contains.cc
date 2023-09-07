@@ -630,7 +630,7 @@ namespace spot
                                "acceptance conditions.");
     if (lhs->get_dict() != rhs->get_dict())
       throw std::runtime_error
-        ("The two input graphs must utilize the same twa_dict.");
+        ("The two input automata must use the same twa_dict.");
     if (lhs->ap() != rhs->ap())
       throw std::runtime_error("The two input graphs must use the same set "
                                "of APs");
@@ -648,7 +648,7 @@ namespace spot
 
   bool contains_forq(forq::const_graph lhs, forq::const_graph rhs)
   {
-    return !difference_word_forq(lhs, rhs);
+    return !difference_word_forq(rhs, lhs);
   }
 }
 

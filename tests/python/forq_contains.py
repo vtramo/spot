@@ -23,7 +23,7 @@ from unittest import TestCase
 tc = TestCase()
 
 def do_test(subset, superset, expected=True):
-    result = spot.contains_forq(subset, superset)
+    result = spot.contains_forq(superset, subset)
     truth = spot.contains(superset, subset)
     tc.assertTrue(truth == expected)
     tc.assertTrue(result == truth)
@@ -324,4 +324,3 @@ State: 11 {0}
 --END--""")
 
 do_symmetric_test(subset, superset)
-

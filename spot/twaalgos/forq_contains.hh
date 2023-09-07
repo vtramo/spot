@@ -41,10 +41,10 @@ namespace spot
 
   /// \ingroup containment
   /// \brief Returns a boolean value indicating
-  /// whether \a left is included in the language of \a right.
+  /// whether the language of \a left includes in the language of \a right.
   ///
   /// This implements a FORQ-based language containment algorithm
-  /// to check whether L(left)⊆L(right). \cite doveri.22.cav
+  /// to check whether L(left)⊇L(right). \cite doveri.22.cav
   ///
   /// \pre Automata \a left and \a right should be non-alternating
   /// Büchi-automata.
