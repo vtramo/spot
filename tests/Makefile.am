@@ -441,6 +441,7 @@ TESTS_python = \
   python/_partitioned_relabel.ipynb \
   python/parity.py \
   python/pdegen.py \
+  python/powerset.py \
   python/prodexpt.py \
   python/_product_weak.ipynb \
   python/_product_susp.ipynb \

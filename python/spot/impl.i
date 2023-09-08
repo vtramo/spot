@@ -523,6 +523,7 @@ namespace std {
   %template(vectorint) vector<int>;
   %template(pair_formula_vectorstring) pair<spot::formula, vector<string>>;
   %template(atomic_prop_set) set<spot::formula>;
+  %template(setunsigned) set<unsigned>;
   %template(relabeling_map) map<spot::formula, spot::formula>;
 }
 
