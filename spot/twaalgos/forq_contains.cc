@@ -737,8 +737,9 @@ namespace spot::forq
 
 namespace spot
 {
-  twa_word_ptr difference_word_forq(forq::const_graph lhs,
-                                    forq::const_graph rhs)
+  // spot perfers to order their arguments as such for inclusion
+  twa_word_ptr difference_word_forq(forq::const_graph rhs,
+                                    forq::const_graph lhs)
   {
     forq::forq_result result;
     auto rc = forq::forq_impl(lhs, rhs, &result);
@@ -749,9 +750,9 @@ namespace spot
     return result.counter_example;
   }
 
-  bool contains_forq(forq::const_graph lhs, forq::const_graph rhs)
+  bool contains_forq(forq::const_graph rhs, forq::const_graph lhs)
   {
-    return !difference_word_forq(lhs, rhs);
+    return !difference_word_forq(rhs, lhs);
   }
 }
 
