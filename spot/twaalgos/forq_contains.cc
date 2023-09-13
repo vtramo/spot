@@ -628,9 +628,6 @@ namespace spot
     if (lhs->get_dict() != rhs->get_dict())
       throw std::runtime_error
         ("The two input automata must use the same twa_dict.");
-    if (lhs->ap() != rhs->ap())
-      throw std::runtime_error("The two input graphs must use the same set "
-                               "of APs");
 
     forq::forq_setup setup = forq::create_forq_setup(lhs, rhs);
 

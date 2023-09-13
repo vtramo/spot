@@ -349,3 +349,15 @@ else:
 tc.assertEqual(str(one.exclusive_word(both)), "!a & !b; cycle{a}")
 spot.containment_select_version("default")
 tc.assertEqual(str(one.exclusive_word(both)), "cycle{a}")
+
+tba2 = spot.translate('GFa & GFb', "buchi")
+spot.containment_select_version("default")
+tc.assertTrue(spot.contains(tba, tba2))
+tc.assertFalse(spot.contains(tba2, tba))
+spot.containment_select_version("forq")
+tc.assertTrue(spot.contains(tba, tba2))
+tc.assertFalse(spot.contains(tba2, tba))
+
+a = spot.translate("(p0 & p2) -> G!p1", "buchi")
+b = spot.translate("p0 -> G!p1", "buchi")
+do_symmetric_test(b, a)
