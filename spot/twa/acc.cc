@@ -2134,7 +2134,7 @@ namespace spot
       if (*input != c)
         {
           char msg[20];
-          sprintf(msg, "was expecting %c '.'", c);
+          std::snprintf(msg, sizeof msg, "was expecting '%c'.", c);
           syntax_error(input, msg);
         }
       ++input;

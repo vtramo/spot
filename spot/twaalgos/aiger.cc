@@ -2224,7 +2224,7 @@ namespace spot
     // vars are unsigned -> 10 digits at most
     char gate_buffer[3 * 10 + 5];
     auto write_gate = [&](unsigned o, unsigned i0, unsigned i1) {
-      std::sprintf(gate_buffer, "%u %u %u\n", o, i0, i1);
+      std::snprintf(gate_buffer, sizeof gate_buffer, "%u %u %u\n", o, i0, i1);
       os << gate_buffer;
     };
     // Count active gates
