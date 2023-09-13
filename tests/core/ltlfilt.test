@@ -363,6 +363,14 @@ b & GF(a | c) & !GF!(a | c)
 F(a <-> b) -> (c xor d)
 (a & b & c) U (c & d & e)
 (a & b & c) U !(a & b & c)
+(a & b & c) U (!c & d & e)
+((a | b) & c & d) U (!d & e & f)
+((a | b) & d) U (!d & e & f)
+(a & !a) | (b & !b) | (c & !c)
+((a & !a) | (b & !b) | (c & !c)) U d
+((a & !a) | (b & !b) | (c & e)) U d
+((a & !b) | (!a & b)) U c
+((a & !b) | (a->b)) U c
 EOF
 
 cat >exp <<EOF
@@ -373,6 +381,12 @@ p0 | Gp1 | FG(p2 | Xp3)
 p0 | Gp1
 (p0 & p1) U (p1 & p2)
 (p0 & p1 & p2) U (!p0 | !p1 | !p2)
+(p0 & p1) U (!p1 & p2)
+(p0 & p1) U (!p0 & p2)
+0
+p0
+p0 U p1
+1 U p0
 EOF
 
 run 0 ltlfilt -u --nnf --relabel-bool=pnn in >out
@@ -405,6 +419,22 @@ p0 || []p1
 #define p1 (b)
 #define p2 (c)
 (p0 && p1 && p2) U (!p0 || !p1 || !p2)
+#define p0 (a && b)
+#define p1 (c)
+#define p2 (d && e)
+(p0 && p1) U (!p1 && p2)
+#define p0 (d)
+#define p1 (a || b)
+#define p2 (e && f)
+(p0 && p1) U (!p0 && p2)
+false
+#define p0 (d)
+p0
+#define p0 ((a && !a) || (b && !b) || (c && e))
+#define p1 (d)
+p0 U p1
+#define p0 (c)
+true U p0
 EOF
 
 run 0 ltlfilt -s -u --nnf --relabel-bool=pnn --define in >out
@@ -455,6 +485,48 @@ p0 && []<>(p1 || p2) && ![]<>!(p1 || p2)
 #define p1 (b)
 #define p2 (c)
 (p0 && p1 && p2) U !(p0 && p1 && p2)
+#define p0 (a)
+#define p1 (b)
+#define p2 (c)
+#define p3 (d)
+#define p4 (e)
+(p0 && p1 && p2) U (!p2 && p3 && p4)
+#define p0 (c)
+#define p1 (d)
+#define p2 (a)
+#define p3 (b)
+#define p4 (e)
+#define p5 (f)
+(p0 && p1 && (p2 || p3)) U (!p1 && p4 && p5)
+#define p0 (d)
+#define p1 (a)
+#define p2 (b)
+#define p3 (e)
+#define p4 (f)
+(p0 && (p1 || p2)) U (!p0 && p3 && p4)
+#define p0 (a)
+#define p1 (b)
+#define p2 (c)
+(p0 && !p0) || (p1 && !p1) || (p2 && !p2)
+#define p0 (a)
+#define p1 (b)
+#define p2 (c)
+#define p3 (d)
+((p0 && !p0) || (p1 && !p1) || (p2 && !p2)) U p3
+#define p0 (a)
+#define p1 (b)
+#define p2 (c)
+#define p3 (e)
+#define p4 (d)
+((p2 && p3) || (p0 && !p0) || (p1 && !p1)) U p4
+#define p0 (a)
+#define p1 (b)
+#define p2 (c)
+((p0 && !p1) || (!p0 && p1)) U p2
+#define p0 (a)
+#define p1 (b)
+#define p2 (c)
+((p0 && !p1) || (p0 -> p1)) U p2
 EOF
 
 run 0 ltlfilt -s -u --relabel=pnn --define in >out
@@ -486,11 +558,12 @@ Fp0 -> p1
 p0 U p1
 #define p0 (a & b & c)
 p0 U !p0
+#define p0 ((a & !a) | (b & !b) | (c & !c))
+p0
 EOF
 
 run 0 ltlfilt -u --relabel-over=pnn --define in >out
 diff exp out
-
 
 toolong='((p2=0) * (p3=1))' # work around the 80-col check
 cat >exp <<EOF
@@ -534,6 +607,48 @@ cat >exp <<EOF
 #define p1 (b=1)
 #define p2 (c=1)
 ((p0=1) * (p1=1) * (p2=1)) U ((p0=0) + (p1=0) + (p2=0))
+#define p0 (a=1)
+#define p1 (b=1)
+#define p2 (c=1)
+#define p3 (d=1)
+#define p4 (e=1)
+((p0=1) * (p1=1) * (p2=1)) U ((p2=0) * (p3=1) * (p4=1))
+#define p0 (c=1)
+#define p1 (d=1)
+#define p2 (a=1)
+#define p3 (b=1)
+#define p4 (e=1)
+#define p5 (f=1)
+((p0=1) * (p1=1) * ((p2=1) + (p3=1))) U ((p1=0) * (p4=1) * (p5=1))
+#define p0 (d=1)
+#define p1 (a=1)
+#define p2 (b=1)
+#define p3 (e=1)
+#define p4 (f=1)
+((p0=1) * ((p1=1) + (p2=1))) U ((p0=0) * (p3=1) * (p4=1))
+#define p0 (a=1)
+#define p1 (b=1)
+#define p2 (c=1)
+((p0=1) * (p0=0)) + ((p1=1) * (p1=0)) + ((p2=1) * (p2=0))
+#define p0 (a=1)
+#define p1 (b=1)
+#define p2 (c=1)
+#define p3 (d=1)
+(((p0=1) * (p0=0)) + ((p1=1) * (p1=0)) + ((p2=1) * (p2=0))) U (p3=1)
+#define p0 (a=1)
+#define p1 (b=1)
+#define p2 (c=1)
+#define p3 (e=1)
+#define p4 (d=1)
+(((p2=1) * (p3=1)) + ((p0=1) * (p0=0)) + ((p1=1) * (p1=0))) U (p4=1)
+#define p0 (a=1)
+#define p1 (b=1)
+#define p2 (c=1)
+(((p0=1) * (p1=0)) + ((p0=0) * (p1=1))) U (p2=1)
+#define p0 (a=1)
+#define p1 (b=1)
+#define p2 (c=1)
+((p0=0) + (p1=1) + ((p0=1) * (p1=0))) U (p2=1)
 EOF
 run 0 ltlfilt -p --wring -u --nnf --relabel=pnn --define in >out
 diff exp out
@@ -550,6 +665,14 @@ b & GF(a | c) & !GF!(a | c)@
 F(a <-> b) -> (c xor d)@
 (a & b & c) U (c & d & e)@
 (a & b & c) U !(a & b & c)@
+(a & b & c) U (!c & d & e)@
+(c & d & (a | b)) U (!d & e & f)@
+(d & (a | b)) U (!d & e & f)@
+(a & !a) | (b & !b) | (c & !c)@
+((a & !a) | (b & !b) | (c & !c)) U d@
+((a & !a) | (b & !b) | (c & e)) U d@
+((a & !b) | (!a & b)) U c@
+((a -> b) | (a & !b)) U c@
 EOF
 diff exp out
 

@@ -53,13 +53,13 @@ namespace spot
   /// proposition for each maximal Boolean subexpression encountered,
   /// even if they overlap (i.e., share common atomic
   /// propositions). For instance `(a & b & c) U (c & d & e)` will be
-  /// simply be relabeled as `p0 U p1`.  This kind of renaming to not
-  /// preserves the
+  /// simply be relabeled as `p0 U p1`.  This kind of renaming does not
+  /// preserve the satisfiability of the input formula.
   ///
   /// The relabel_bse() version will make sure that the replaced
   /// subexpressions do not share atomic propositions.  For instance
-  /// `(a & b & c) U (c & d & e)` will be simply be relabeled as
-  /// `(p0 & p1) U (p1 & p2)`, were `p1` replaces `c` and the rest
+  /// `(a & b & c) U (!c & d & e)` will be simply be relabeled as
+  /// `(p0 & p1) U (!p1 & p2)`, were `p1` replaces `c` and the rest
   /// is obvious.
   ///
   /// @{

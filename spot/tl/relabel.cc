@@ -19,6 +19,7 @@
 
 #include "config.h"
 #include <spot/tl/relabel.hh>
+#include <spot/tl/simplify.hh>
 #include <sstream>
 #include <spot/misc/hash.hh>
 #include <map>
@@ -82,7 +83,7 @@ namespace spot
 
     // if subexp == false, matches APs
     // if subexp == true, matches boolean subexps
-    template <bool subexp>
+    template <bool subexp, bool use_bdd = false>
     class relabeler
     {
     public:
@@ -90,6 +91,7 @@ namespace spot
       map newname;
       ap_generator* gen;
       relabeling_map* oldnames;
+      tl_simplifier tl;
 
       relabeler(ap_generator* gen, relabeling_map* m)
         : gen(gen), oldnames(m)
@@ -114,6 +116,16 @@ namespace spot
         auto r = newname.emplace(old, nullptr);
         if (!r.second)
           return r.first->second;
+
+        if constexpr (use_bdd)
+          if (!old.is(op::ap))
+            {
+              bdd b = tl.as_bdd(old);
+              if (b == bddtrue)
+                return r.first->second = formula::tt();
+              if (b == bddfalse)
+                return r.first->second = formula::ff();
+            }
 
         formula res = gen->next();
         r.first->second = res;
@@ -269,7 +281,7 @@ namespace spot
   // Furthermore, because we are already representing LTL formulas
   // with sharing of identical sub-expressions we can easily rename
   // a subexpression (such as c&d above) only once.  However this
-  // scheme has two problems:
+  // scheme (done by relabel_overlapping_bse()) has two problems:
   //
   //   A. It will not detect inter-dependent Boolean subexpressions.
   //      For instance it will mistakenly relabel "(a & b) U (a & !b)"
@@ -278,53 +290,40 @@ namespace spot
   //   B. Because of our n-ary operators, it will fail to
   //      notice that (a & b) is a sub-expression of (a & b & c).
   //
-  // The way we compute the subexpressions that can be relabeled is
-  // by transforming the formula syntax tree into an undirected
-  // graph, and computing the cut points of this graph.  The cut
-  // points (or articulation points) are the nodes whose removal
-  // would split the graph in two components.  To ensure that a
-  // Boolean operator is only considered as a cut point if it would
-  // separate all of its children from the rest of the graph, we
-  // connect all the children of Boolean operators.
+  // The way we compute the subexpressions that can be relabeled is by
+  // transforming the formula syntax tree into an undirected graph,
+  // and computing the cut-points of this graph.  The cut-points (or
+  // articulation points) are the nodes whose removal would split the
+  // graph in two components; in our case, we extend this definition to
+  // also consider the leaves as cut-points.
   //
-  // For instance (a & b) U (c & d) has two (Boolean) cut points
-  // corresponding to the two AND operators:
+  // For instance ((a|b)&c&d)U(!d&e&f) is represented by
+  // the following graph, were cut-points are marked with *.
   //
-  //             (a&b)U(c&d)
-  //             ╱         ╲
-  //           a&b         c&d
-  //          ╱   ╲       ╱   ╲
-  //         a─────b     c─────d
+  //             ((a|b)&c&d)U(!d&e&f)
+  //                 ╱           ╲
+  //            ((a|b)&c&d)*   (!d&e&f)*
+  //             ╱   │   ╲     ╱  │  ╲
+  //           a|b*  │    ╲   !   │   ╲
+  //           ╱ ╲   │     ╲ ╱    │    ╲
+  //          a*  b* c*     d     e*    f*
   //
-  // (The root node is also a cut point, but we only consider Boolean
-  // cut points for relabeling.)
+  // The relabeling of a formula is done in 3 passes:
+  //  1. Convert the formula's syntax tree into an undirected graph.
+  //  2. Compute the (Boolean) cut points of that graph, using the
+  //     Hopcroft-Tarjan algorithm (see below for a reference).
+  //  3. Recursively scan the formula's tree until we reach
+  //     a (Boolean) cut-point.  If all the children of this node
+  //     are cut-points, rename the node with a fresh label.
+  //     If it's a n-ary operator, group all children that are
+  //     and cut-points relabel them as a whole.
   //
-  // On the other hand, (a & b) U (b & !c) has only one Boolean
-  // cut-point which corresponds to the NOT operator:
-  //
-  //             (a&b)U(b&!c)
-  //                ╱   ╲
-  //              a&b   b&!c
-  //             ╱   ╲ ╱   ╲
-  //            a─────b────!c
-  //                        │
-  //                        c
-  //
-  // Note that if the children of a&b and b&c were not connected,
-  // a&b and b&c would be considered as cut points because they
-  // separate "a" or "!c" from the rest of the graph.
-  //
-  // The relabeling of a formula is therefore done in 3 passes:
-  //  1. convert the formula's syntax tree into an undirected graph,
-  //     adding links between children of Boolean operators
-  //  2. compute the (Boolean) cut points of that graph, using the
-  //     Hopcroft-Tarjan algorithm (see below for a reference)
-  //  3. recursively scan the formula's tree until we reach
-  //     either a (Boolean) cut point or an atomic proposition, and
-  //     replace that node by a fresh atomic proposition.
-  //
-  // In the example above (a&b)U(b&!c), the last recursion
-  // stops on a, b, and !c, producing (p0&p1)U(p1&p2).
+  // On the above example, when processing the cut-point
+  // ((a|b)&c&d) we group its children that are cut-points
+  // (a|b)&c and rename this group as p0.   Then d gets
+  // his own name p1, and when processing (!d&e&f) we group
+  // e&f because they are both cut-points, are rename them p1.
+  // The result is (p0 & p1) U (!p1 & p2).
   //
   // Problem #B above (handling of n-ary expression) need some
   // additional tricks.  Consider (a&b&c&d) U X(c&d), and assume
@@ -343,24 +342,19 @@ namespace spot
 
     // Convert the formula's syntax tree into an undirected graph
     // labeled by subformulas.
-    class formula_to_fgraph
+    class formula_to_fgraph final
     {
     public:
       fgraph& g;
       std::stack<formula> s;
       sub_formula_count_t& subcount;
 
-      formula_to_fgraph(fgraph& g, sub_formula_count_t& subcount):
-        g(g), subcount(subcount)
-        {
-        }
+      formula_to_fgraph(fgraph& g, sub_formula_count_t& subcount)
+        : g(g), subcount(subcount)
+      {
+      }
 
-      ~formula_to_fgraph()
-        {
-        }
-
-      void
-        visit(formula f)
+      void visit(formula f)
       {
         {
           // Connect to parent
@@ -411,27 +405,6 @@ namespace spot
           }
         for (; i < sz; ++i)
           visit(f[i]);
-        if (sz > 1 && f.is_boolean())
-          {
-            // For Boolean nodes, connect all children in a
-            // loop.  This way the node can only be a cut point
-            // if it separates all children from the reset of
-            // the graph (not only one).
-            formula pred = f[0];
-            for (i = 1; i < sz; ++i)
-              {
-                formula next = f[i];
-                // Note that we add an edge in both directions,
-                // as the cut point algorithm really need undirected
-                // graphs.  (We used to do only one direction, and
-                // that turned out to be a bug.)
-                g[pred].emplace_back(next);
-                g[next].emplace_back(pred);
-                pred = next;
-              }
-            g[pred].emplace_back(f[0]);
-            g[f[0]].emplace_back(pred);
-          }
       done:
         s.pop();
       }
@@ -465,11 +438,12 @@ namespace spot
     // the ACM, 16 (6), June 1973.
     //
     // It differs from the original algorithm by returning only the
-    // Boolean cutpoints, and not dealing with the initial state
+    // Boolean cut-points, not dealing with the initial state
     // properly (our initial state will always be considered as a
     // cut-point, but since we only return Boolean cut-points it's
     // OK: if the top-most formula is Boolean we want to replace it
-    // as a whole).
+    // as a whole), and considering the atomic propositions that
+    // are leaves as cutpoints too.
     void cut_points(const fgraph& g, fset& c, formula start)
     {
       stack_t s;
@@ -530,7 +504,14 @@ namespace spot
                   data_entry& dgrand_parent = data[grand_parent];
                   if (dparent.low >= dgrand_parent.num // cut-point
                       && grand_parent.is_boolean())
-                    c.insert(grand_parent);
+                    {
+                      c.insert(grand_parent);
+                      // Also consider atomic propositions as
+                      // cut-points if they are leaves.
+                      if (parent.is(op::ap)
+                          && g.find(parent)->second.size() == 1)
+                        c.insert(parent);
+                    }
                   if (dparent.low < dgrand_parent.low)
                     dgrand_parent.low = dparent.low;
                 }
@@ -539,7 +520,7 @@ namespace spot
     }
 
 
-    class bse_relabeler final: public relabeler<false>
+    class bse_relabeler final: public relabeler<false, true>
     {
     public:
       const fset& c;
@@ -553,12 +534,45 @@ namespace spot
 
       using relabeler::visit;
 
-      formula
-        visit(formula f)
+      formula visit(formula f)
       {
-        if (f.is(op::ap) || (c.find(f) != c.end()))
+        if (f.is(op::ap))
           return rename(f);
 
+        // This is Boolean cut-point?
+        // We can only relabel it if all its children are cut-points.
+        if (c.find(f) != c.end())
+          {
+            unsigned fsz = f.size();
+            assert(fsz > 0);    // A cut point has children
+            if (fsz == 1
+                || (fsz == 2
+                    && ((c.find(f[0]) != c.end())
+                        == (c.find(f[1]) != c.end()))))
+              return rename(f);
+            if (fsz > 2)
+              {
+                // cp[0] will contains non cut-points
+                // cp[1] will contain cut-points or atomic propositions
+                std::vector<formula> cp[2];
+                cp[0].reserve(fsz);
+                cp[1].reserve(fsz);
+                for (unsigned i = 0; i < fsz; ++i)
+                  {
+                    formula cf = f[i];
+                    cp[c.find(cf) != c.end()].push_back(cf);
+                  }
+                if (cp[0].empty()
+                    || cp[1].empty())
+                  // all children are cut-points or non-cut-points
+                  return rename(f);
+                formula cp1group = rename(formula::multop(f.kind(), cp[1]));
+                formula cp0group = visit(formula::multop(f.kind(), cp[0]));
+                return formula::multop(f.kind(), {cp1group, cp0group});
+              }
+          }
+
+        // Not a cut-point, recurse
         unsigned sz = f.size();
         if (sz <= 2)
           return f.map([this](formula f)
@@ -566,24 +580,24 @@ namespace spot
                          return visit(f);
                        });
 
-        unsigned i = 0;
-        std::vector<formula> res;
         if (f.is_boolean() && sz > 2)
-          {
-            // If we have a Boolean formula with more than two
-            // children, like (a & b & c & d) where some children
-            // (assume {a,b}) are used only once, but some other
-            // (assume {c,d}) are used multiple time in the formula,
-            // then split that into ((a & b) & (c & d)) to give
-            // (a & b) a chance to be relabeled as a whole.
-            auto pair = split_used_once(f, subcount);
-            if (pair.second)
-              return formula::multop(f.kind(), { visit(pair.first),
-                                                 visit(pair.second) });
-          }
+          // If we have a Boolean formula with more than two
+          // children, like (a & b & c & d) where some children
+          // (assume {a,b}) are used only once, but some other
+          // (assume {c,d}) are used multiple time in the formula,
+          // then split that into ((a & b) & (c & d)) to give
+          // (a & b) a chance to be relabeled as a whole.
+          if (auto pair = split_used_once(f, subcount); pair.second)
+            {
+              formula left = visit(pair.first);
+              formula right = visit(pair.second);
+              return formula::multop(f.kind(), { left, right });
+            }
         /// If we have a formula like (a & b & Xc), consider
         /// it as ((a & b) & Xc) in the graph to isolate the
         /// Boolean operands as a single node.
+        unsigned i = 0;
+        std::vector<formula> res;
         formula b = f.boolean_operands(&i);
         if (b && b != f)
           {
@@ -629,6 +643,10 @@ namespace spot
     // Compute its cut-points
     fset c;
     cut_points(g, c, f);
+
+    // std::cerr << "cut-points\n";
+    // for (formula cp: c)
+    //   std::cerr << "  - " << cp << '\n';
 
     // Relabel the formula recursively, stopping
     // at cut-points or atomic propositions.

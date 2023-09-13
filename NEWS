@@ -33,6 +33,11 @@ New in spot 2.11.6.dev  (not yet released)
   - spot::bdd_to_cnf_formula() is a new variant of spot::bdd_to_formula()
     that converts a BDD into a CNF instead of a DNF.
 
+  - spot::relabel_bse() has been improved to better deal with more
+    cases.  For instance '(a & b & c) U (!c & d & e)' is now
+    correctly reduced as '(p0 & p1) U (!p1 & p2)', and
+    '((a & !b) | (a->b)) U c' now becomes '1 U c'. (Issue #540.)
+
   - spot::relabel_overlapping_bse() is a new function that will
     replace boolean subformulas by fresh atomic propositions even if
     those subformulas share atomic propositions.
