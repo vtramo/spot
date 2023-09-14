@@ -470,7 +470,6 @@ namespace spot::forq
       bool operator<=(context_set const& other) const override;
 
       void add(state initial, std::set<std::pair<state, bool>> const& other);
-      bool relevance_test(state_set const& set) const;
 
       template<typename Callable>
       void iterate(Callable callable) const
@@ -605,8 +604,6 @@ namespace spot::forq
         for (auto& v_ptr : new_post_f[src])
           {
             auto& [V, word_of_v] = *v_ptr;
-            if (!V.relevance_test(W))
-                continue;
             auto counter_example = find_counter_example(src, W,
                                                         word_of_v,
                                                         setup);
@@ -968,50 +965,16 @@ namespace spot::forq
       }
   }
 
-  static bool operator<=(
-    std::set<std::pair<state, bool>> const& f,
-    std::set<std::pair<state, bool>> const& s)
+  static bool operator<=(std::set<std::pair<state, bool>> const& f,
+                         std::set<std::pair<state, bool>> const& s)
   {
     return std::includes(s.begin(), s.end(), f.begin(), f.end());
-  }
-
-  static bool operator<=(
-    std::set<std::pair<state, bool>> const& f,
-    state_set const& set)
-  {
-    if (set.size() < f.size())
-      return false;
-    auto first1 = set.begin(), last1 = set.end();
-    auto first2 = f.begin(), last2 = f.begin();
-
-    for (; first2 != last2; ++first1)
-      {
-        if (first1 == last1 || first2->first < *first1)
-          {
-            return false;
-          }
-        if (first2->first == *first1)
-          {
-            ++first2;
-          }
-      }
-    return true;
   }
 
   void context_set::add(state initial,
                         std::set<std::pair<state, bool>> const& other)
   {
     states[initial].insert(other.begin(), other.end());
-  }
-
-  bool context_set::relevance_test(state_set const& W) const
-  {
-    for (auto& [s1, quazi] : states)
-      {
-        if (!(quazi <= W))
-          return false;
-      }
-    return true;
   }
 
   bool context_set::operator<=(context_set const& other) const
@@ -1021,24 +984,6 @@ namespace spot::forq
         if (!(set <= other.states[s]))
           return false;
       }
-    return true;
-
-    if (other.states.size() != states.size())
-      return false;
-    auto first1 = other.states.begin(), last1 = other.states.end();
-    auto first2 = states.begin(), last2 = states.begin();
-
-    for (; first2 != last2; ++first1)
-      {
-        if (first1 == last1 || first2->first < first1->first)
-          return false;
-        if (first2->first == first1->first)
-        {
-          if (!(first2->second <= first1->second))
-            return false;
-          ++first2;
-        }
-    }
     return true;
   }
 
