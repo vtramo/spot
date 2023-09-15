@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2015-2022 Laboratoire de Recherche et Développement
+// Copyright (C) 2015-2023 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -64,7 +64,7 @@
 // Use #if SPOT_HAS_STRONG_X in code that need to be backward
 // compatible with older Spot versions.
 #  define SPOT_HAS_STRONG_X 1
-// You me #define SPOT_WANT_STRONG_X yourself before including
+// You may #define SPOT_WANT_STRONG_X yourself before including
 // this file to force the use of STRONG_X
 #  define SPOT_WANT_STRONG_X 1
 #endif
