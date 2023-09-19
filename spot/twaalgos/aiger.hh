@@ -25,6 +25,7 @@
 #include <spot/twa/fwd.hh>
 #include <spot/twa/bdddict.hh>
 #include <spot/tl/formula.hh>
+#include <spot/tl/relabel.hh>
 
 #include <unordered_map>
 #include <vector>
@@ -436,20 +437,25 @@ namespace spot
   /// If \a ins and \a outs are specified, the named-property
   /// synthesis-output is ignored and all properties in \a ins and \a
   /// outs are guaranteed to appear in the aiger circuit.
+  ///
+  /// If \a rm is given and is not empty, it can be used to specify how
+  /// unused output should be encoded by mapping them to some constant.
   ///@{
   SPOT_API aig_ptr
   mealy_machine_to_aig(const const_twa_graph_ptr& m, const char* mode);
   SPOT_API aig_ptr
   mealy_machine_to_aig(const twa_graph_ptr& m, const char *mode,
                        const std::vector<std::string>& ins,
-                       const std::vector<std::string>& outs);
+                       const std::vector<std::string>& outs,
+                       const relabeling_map* rm = nullptr);
 
   SPOT_API aig_ptr
   mealy_machine_to_aig(const mealy_like& m, const char* mode);
   SPOT_API aig_ptr
   mealy_machine_to_aig(mealy_like& m, const char *mode,
                        const std::vector<std::string>& ins,
-                       const std::vector<std::string>& outs);
+                       const std::vector<std::string>& outs,
+                       const relabeling_map* rm = nullptr);
   ///@}
 
   /// \ingroup synthesis
@@ -465,6 +471,9 @@ namespace spot
   /// during the call to ltl_to_game() are absent.
   /// If \a ins and \a outs are used, all properties they list are
   /// guaranteed to appear in the aiger circuit.
+  ///
+  /// If \a rm is given and is not empty, it can be used to specify how
+  /// unused output should be encoded by mapping them to some constant.
   /// @{
   SPOT_API aig_ptr
   mealy_machines_to_aig(const std::vector<const_twa_graph_ptr>& m_vec,
@@ -476,12 +485,14 @@ namespace spot
   mealy_machines_to_aig(const std::vector<const_twa_graph_ptr>& m_vec,
                         const char* mode,
                         const std::vector<std::string>& ins,
-                        const std::vector<std::vector<std::string>>& outs);
+                        const std::vector<std::vector<std::string>>& outs,
+                        const relabeling_map* rm = nullptr);
   SPOT_API aig_ptr
   mealy_machines_to_aig(const std::vector<mealy_like>& m_vec,
                         const char* mode,
                         const std::vector<std::string>& ins,
-                        const std::vector<std::vector<std::string>>& outs);
+                        const std::vector<std::vector<std::string>>& outs,
+                        const relabeling_map* rm = nullptr);
   /// @}
 
   /// \ingroup twa_io

@@ -55,6 +55,7 @@ enum
   OPT_HIDE,
   OPT_INPUT,
   OPT_OUTPUT,
+  OPT_POLARITY,
   OPT_PRINT,
   OPT_PRINT_AIGER,
   OPT_PRINT_HOA,
@@ -101,6 +102,9 @@ static const argp_option options[] =
     { "decompose", OPT_DECOMPOSE, "yes|no", 0,
       "whether to decompose the specification as multiple output-disjoint "
       "problems to solve independently (enabled by default)", 0 },
+    { "polarity", OPT_POLARITY, "yes|no", 0,
+      "whether to remove atomic propositions that always have the same "
+      "polarity in the formula to speed things up (enabled by default)", 0 },
     { "simplify", OPT_SIMPLIFY, "no|bisim|bwoa|sat|bisim-sat|bwoa-sat", 0,
       "simplification to apply to the controller (no) nothing, "
       "(bisim) bisimulation-based reduction, (bwoa) bisimulation-based "
@@ -236,6 +240,7 @@ static bool decompose_values[] =
   };
 ARGMATCH_VERIFY(decompose_args, decompose_values);
 bool opt_decompose_ltl = true;
+bool opt_polarity = true;
 
 static const char* const simplify_args[] =
   {
@@ -268,8 +273,35 @@ namespace
     };
 
   static void
-  dispatch_print_hoa(const spot::const_twa_graph_ptr& game)
+  dispatch_print_hoa(spot::twa_graph_ptr& game,
+                     const std::vector<std::string>* input_aps = nullptr,
+                     const spot::relabeling_map* rm = nullptr)
   {
+    if (rm && !rm->empty())        // Add any AP we removed
+      {
+        assert(input_aps);
+        auto& sp = spot::get_state_players(game);
+
+        bdd add = bddtrue;
+        for (auto [k, v]: *rm)
+          {
+            int i = game->register_ap(k);
+            // skip inputs
+            if (std::find(input_aps->begin(), input_aps->end(),
+                          k.ap_name()) != input_aps->end())
+              continue;
+            if (v.is_tt())
+              add &= bdd_ithvar(i);
+            else if (v.is_ff())
+              add &= bdd_nithvar(i);
+          }
+        for (auto& e: game->edges())
+          if (sp[e.src])
+            e.cond &= add;
+        set_synthesis_outputs(game,
+                              get_synthesis_outputs(game)
+                              & bdd_support(add));
+      }
     if (opt_dot)
       spot::print_dot(std::cout, game, opt_print_hoa_args);
     else if (opt_print_pg)
@@ -355,10 +387,11 @@ namespace
   }
 
   static int
-  solve_formula(const spot::formula& f,
+  solve_formula(spot::formula original_f,
                 const std::vector<std::string>& input_aps,
                 const std::vector<std::string>& output_aps)
   {
+    spot::formula f = original_f;
     if (opt_csv)              // reset benchmark data
       gi->bv = spot::synthesis_info::bench_var();
     spot::stopwatch sw;
@@ -371,47 +404,92 @@ namespace
         gi->bv->total_time = sw.stop();
     };
 
+    // Check if some output propositions are always in positive form,
+    // or always in negative form.
+    // In syntcomp, this occurs more frequently for input variables than
+    // output variable.  See issue #529 for some examples.
+    spot::relabeling_map rm;
+    if (opt_polarity)
+      {
+        std::set<spot::formula> lits = spot::collect_litterals(f);
+        for (const std::string& ap: output_aps)
+          {
+            spot::formula pos = spot::formula::ap(ap);
+            spot::formula neg = spot::formula::Not(pos);
+            bool has_pos = lits.find(pos) != lits.end();
+            bool has_neg = lits.find(neg) != lits.end();
+            if (has_pos && !has_neg)
+              rm[pos] = spot::formula::tt();
+            else if (has_neg && !has_pos)
+              rm[pos] = spot::formula::ff();
+          }
+        for (const std::string& ap: input_aps)
+          {
+            spot::formula pos = spot::formula::ap(ap);
+            spot::formula neg = spot::formula::Not(pos);
+            bool has_pos = lits.find(pos) != lits.end();
+            bool has_neg = lits.find(neg) != lits.end();
+            if (has_pos && !has_neg)
+              rm[pos] = spot::formula::ff();
+            else if (has_neg && !has_pos)
+              rm[pos] = spot::formula::tt();
+          }
+        if (!rm.empty())
+          {
+            if (gi->verbose_stream)
+              {
+                *gi->verbose_stream << ("the following APs are polarized, "
+                                        "they can be replaced by constants:\n");
+                for (auto [k, v]: rm)
+                  *gi->verbose_stream << "  " << k << " := " << v <<'\n';
+              }
+            f = spot::relabel_apply(f, &rm);
+            if (gi->verbose_stream)
+              *gi->verbose_stream << "new formula: " << f << '\n';
+          }
+      }
+
     std::vector<spot::formula> sub_form;
     std::vector<std::set<spot::formula>> sub_outs;
     if (opt_decompose_ltl)
     {
       auto subs = split_independant_formulas(f, output_aps);
       if (gi->verbose_stream)
-      {
-        *gi->verbose_stream << "there are "
-                            << subs.first.size()
-                            << " subformulas\n";
-      }
+        {
+          *gi->verbose_stream << "there are "
+                              << subs.first.size()
+                              << " subformulas\n";
+        }
       if (subs.first.size() > 1)
-      {
-        sub_form = subs.first;
-        sub_outs = subs.second;
-      }
+        {
+          sub_form = subs.first;
+          sub_outs = subs.second;
+        }
     }
     // When trying to split the formula, we can apply transformations that
     // increase its size. This is why we will use the original formula if it
     // has not been cut.
     if (sub_form.empty())
-    {
-      sub_form = { f };
-      sub_outs.resize(1);
-      std::transform(output_aps.begin(), output_aps.end(),
-            std::inserter(sub_outs[0], sub_outs[0].begin()),
-            [](const std::string& name) {
-              return spot::formula::ap(name);
-            });
-    }
+      {
+        sub_form = { f };
+        sub_outs.resize(1);
+        for (const std::string& apstr: output_aps)
+          {
+            spot::formula ap = spot::formula::ap(apstr);
+            if (rm.find(ap) == rm.end())
+              sub_outs[0].insert(ap);
+          }
+      }
     std::vector<std::vector<std::string>> sub_outs_str;
     std::transform(sub_outs.begin(), sub_outs.end(),
                    std::back_inserter(sub_outs_str),
-                   [](const auto& forms)
-                    {
-                      std::vector<std::string> r;
-                      r.reserve(forms.size());
-                      for (auto f : forms)
-                        r.push_back(f.ap_name());
-                      return r;
-                    });
+                   [](const auto& forms) {
+                     std::vector<std::string> r;
+                     r.reserve(forms.size());
+                     for (auto f: forms)
+                       r.push_back(f.ap_name());
+                     return r;
+                   });
 
     assert((sub_form.size() == sub_outs.size())
            && (sub_form.size() == sub_outs_str.size()));
@@ -463,7 +541,7 @@ namespace
             }
           if (want_game)
             {
-              dispatch_print_hoa(arena);
+              dispatch_print_hoa(arena, &input_aps, &rm);
               continue;
             }
           if (!spot::solve_game(arena, *gi))
@@ -552,7 +630,7 @@ namespace
           sw2.start();
         saig = spot::mealy_machines_to_aig(mealy_machines, opt_print_aiger,
                                            input_aps,
-                                           sub_outs_str);
+                                           sub_outs_str, &rm);
         if (gi->bv)
           {
             gi->bv->aig_time = sw2.stop();
@@ -584,6 +662,27 @@ namespace
         for (size_t i = 1; i < mealy_machines.size(); ++i)
           tot_strat = spot::mealy_product(tot_strat,
                                           mealy_machines[i].mealy_like);
+        if (!rm.empty())        // Add any AP we removed
+          {
+            bdd add = bddtrue;
+            for (auto [k, v]: rm)
+              {
+                int i = tot_strat->register_ap(k);
+                // skip inputs (they are don't care)
+                if (std::find(input_aps.begin(), input_aps.end(), k.ap_name())
+                    != input_aps.end())
+                  continue;
+                if (v.is_tt())
+                  add &= bdd_ithvar(i);
+                else if (v.is_ff())
+                  add &= bdd_nithvar(i);
+              }
+            for (auto& e: tot_strat->edges())
+              e.cond &= add;
+            set_synthesis_outputs(tot_strat,
+                                  get_synthesis_outputs(tot_strat)
+                                  & bdd_support(add));
+          }
         printer.print(tot_strat, timer_printer_dummy);
       }
 
@@ -597,7 +696,7 @@ namespace
 
     // TODO: different options to speed up verification?!
     spot::translator trans(gi->dict, &gi->opt);
-    auto neg_spec = trans.run(spot::formula::Not(f));
+    auto neg_spec = trans.run(spot::formula::Not(original_f));
     if (saig)
       {
         // Test the aiger
@@ -952,6 +1051,10 @@ parse_opt(int key, char *arg, struct argp_state *)
         split_aps(arg, *all_output_aps);
         break;
       }
+    case OPT_POLARITY:
+      opt_polarity = XARGMATCH("--polarity", arg,
+                               decompose_args, decompose_values);
+      break;
     case OPT_PRINT:
       opt_print_pg = true;
       gi->force_sbacc = true;

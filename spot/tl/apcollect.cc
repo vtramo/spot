@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2012, 2014, 2015, 2018 Laboratoire de Recherche et
+// Copyright (C) 2012, 2014, 2015, 2018, 2023 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 // Copyright (C) 2004, 2005  Laboratoire d'Informatique de Paris 6 (LIP6),
 // département Systèmes Répartis Coopératifs (SRC), Université Pierre
@@ -63,4 +63,72 @@ namespace spot
       res &= bdd_ithvar(a->register_ap(f));
     return res;
   }
+
+  atomic_prop_set collect_litterals(formula f)
+  {
+    atomic_prop_set res;
+
+    // polirity: 0 = negative, 1 = positive, 2 or more = both.
+    auto rec = [&res](formula f, unsigned polarity, auto self)
+    {
+      switch (f.kind())
+        {
+        case op::ff:
+        case op::tt:
+        case op::eword:
+          return;
+        case op::ap:
+          if (polarity != 0)
+            res.insert(f);
+          if (polarity != 1)
+            res.insert(formula::Not(f));
+          return;
+        case op::Not:
+        case op::NegClosure:
+        case op::NegClosureMarked:
+          self(f[0], polarity ^ 1, self);
+          return;
+        case op::Xor:
+        case op::Equiv:
+          self(f[0], 2, self);
+          self(f[1], 2, self);
+          return;
+        case op::Implies:
+        case op::UConcat:
+          self(f[0], polarity ^ 1, self);
+          self(f[1], polarity, self);
+          return;
+        case op::U:
+        case op::R:
+        case op::W:
+        case op::M:
+        case op::EConcat:
+        case op::EConcatMarked:
+          self(f[0], polarity, self);
+          self(f[1], polarity, self);
+          return;
+        case op::X:
+        case op::F:
+        case op::G:
+        case op::Closure:
+        case op::Or:
+        case op::OrRat:
+        case op::And:
+        case op::AndRat:
+        case op::AndNLM:
+        case op::Concat:
+        case op::Fusion:
+        case op::Star:
+        case op::FStar:
+        case op::first_match:
+        case op::strong_X:
+          for (formula c: f)
+            self(c, polarity, self);
+          return;
+        }
+    };
+    rec(f, 1, rec);
+    return res;
+  }
+
 }

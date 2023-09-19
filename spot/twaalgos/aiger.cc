@@ -1541,10 +1541,11 @@ namespace
   // outputs into an Aig
   static aig_ptr
   auts_to_aiger(const std::vector<std::pair<const_twa_graph_ptr, bdd>>&
-                    strat_vec,
+                strat_vec,
                 const char* mode,
                 const std::vector<std::string>& unused_ins = {},
-                const std::vector<std::string>& unused_outs = {})
+                const std::vector<std::string>& unused_outs = {},
+                const relabeling_map* rm = nullptr)
   {
     // The aiger circuit can currently noly encode separated mealy machines
 
@@ -1618,6 +1619,23 @@ namespace
     output_names_all.insert(output_names_all.end(),
                             unused_outs.cbegin(),
                             unused_outs.cend());
+
+    if (rm)
+      // If we have removed some APs from the original formula, they
+      // might have dropped out of the output_names list (depending on
+      // how we split the formula), but they should not have dropped
+      // from the input_names list.  So let's fix the output_names
+      // lists by adding anything that's not an input and not already
+      // there.
+      for (auto [k, v]: *rm)
+        {
+          const std::string s = k.ap_name();
+          if (std::find(input_names_all.begin(), input_names_all.end(), s)
+              == input_names_all.end()
+              && std::find(output_names_all.begin(), output_names_all.end(), s)
+              == output_names_all.end())
+            output_names_all.push_back(s);
+        }
 
     // Decide on which outcond to use
     // The edges of the automaton all have the form in&out
@@ -1962,7 +1980,7 @@ namespace
       }
     //Use the best sol
     circuit.reapply_(sf, ss);
-    trace << "Finished encoding, reasssigning\n"
+    trace << "Finished encoding, reassigning\n"
           << "Final gate count is " << circuit.num_gates() << '\n';
     // Reset them
     for (unsigned i = 0; i < n_outs; ++i)
@@ -1970,7 +1988,25 @@ namespace
     // Add the unused propositions
     const unsigned n_outs_all = output_names_all.size();
     for (unsigned i = n_outs; i < n_outs_all; ++i)
-      circuit.set_output(i, circuit.aig_false());
+      if (rm)
+        {
+          if (auto to = rm->find(formula::ap(output_names_all[i]));
+              to != rm->end())
+            {
+              if (to->second.is_tt())
+                {
+                  circuit.set_output(i, circuit.aig_true());
+                  continue;
+                }
+              else if (to->second.is_ff())
+                {
+                  circuit.set_output(i, circuit.aig_false());
+                  continue;
+                }
+            }
+        }
+      else
+        circuit.set_output(i, circuit.aig_false());
     for (unsigned i = 0; i < n_latches; ++i)
       circuit.set_next_latch(i, bdd2var_min(latch[i], bddfalse));
     return circuit_ptr;
@@ -2002,8 +2038,9 @@ namespace spot
 
   aig_ptr
   mealy_machine_to_aig(const twa_graph_ptr &m, const char *mode,
-                  const std::vector<std::string>& ins,
-                  const std::vector<std::string>& outs)
+                       const std::vector<std::string>& ins,
+                       const std::vector<std::string>& outs,
+                       const relabeling_map* rm)
   {
     if (!m)
       throw std::runtime_error("mealy_machine_to_aig(): "
@@ -2036,19 +2073,20 @@ namespace spot
     }
     // todo Some additional checks?
     return auts_to_aiger({{m, get_synthesis_outputs(m)}}, mode,
-                         unused_ins, unused_outs);
+                         unused_ins, unused_outs, rm);
   }
 
   aig_ptr
   mealy_machine_to_aig(mealy_like& m, const char *mode,
                        const std::vector<std::string>& ins,
-                       const std::vector<std::string>& outs)
+                       const std::vector<std::string>& outs,
+                       const relabeling_map* rm)
   {
     if (m.success != mealy_like::realizability_code::REALIZABLE_REGULAR)
       throw std::runtime_error("mealy_machine_to_aig(): "
                                "Can only handle regular mealy machine, yet.");
 
-    return mealy_machine_to_aig(m.mealy_like, mode, ins, outs);
+    return mealy_machine_to_aig(m.mealy_like, mode, ins, outs, rm);
   }
 
   aig_ptr
@@ -2107,7 +2145,8 @@ namespace spot
   mealy_machines_to_aig(const std::vector<const_twa_graph_ptr>& m_vec,
                         const char *mode,
                         const std::vector<std::string>& ins,
-                        const std::vector<std::vector<std::string>>& outs)
+                        const std::vector<std::vector<std::string>>& outs,
+                        const relabeling_map* rm)
   {
     if (m_vec.empty())
       throw std::runtime_error("mealy_machines_to_aig(): No strategy given.");
@@ -2164,14 +2203,15 @@ namespace spot
       if (!used_aps.count(ai))
         unused_ins.push_back(ai);
 
-    return auts_to_aiger(new_vec, mode, unused_ins, unused_outs);
+    return auts_to_aiger(new_vec, mode, unused_ins, unused_outs, rm);
   }
 
   aig_ptr
   mealy_machines_to_aig(const std::vector<mealy_like>& strat_vec,
                         const char* mode,
                         const std::vector<std::string>& ins,
-                        const std::vector<std::vector<std::string>>& outs)
+                        const std::vector<std::vector<std::string>>& outs,
+                        const relabeling_map* rm)
   {
     // todo extend to TGBA and possibly others
     const unsigned ns = strat_vec.size();
@@ -2205,7 +2245,7 @@ namespace spot
                                    "success identifier.");
         }
       }
-    return mealy_machines_to_aig(m_machines, mode, ins, outs_used);
+    return mealy_machines_to_aig(m_machines, mode, ins, outs_used, rm);
   }
 
   std::ostream &

@@ -16,6 +16,13 @@ New in spot 2.11.6.dev  (not yet released)
     will replace boolean subformulas by fresh atomic propositions even
     if those subformulas share atomic propositions.
 
+  - ltlsynt will no check for output atomic propositions that always
+    have the same polarity in the specification.  When this happens,
+    these output APs are replaced by true or false before running the
+    synthesis pipeline, and the resulting game, Mealy machine, or
+    Aiger circuit is eventually patched to include that constant
+    output.  This can be disabled with --polarity=no.
+
   Library:
 
   - The following new trivial simplifications have been implemented for SEREs:

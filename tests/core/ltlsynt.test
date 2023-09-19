@@ -227,15 +227,19 @@ sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
 diff outx exp
 
 cat >exp <<EOF
+the following APs are polarized, they can be replaced by constants:
+  i0 := 1
+  i2 := 1
+new formula: GFi1 -> G(i1 <-> o0)
 there are 1 subformulas
-trying to create strategy directly for G(Fi0 & Fi1 & Fi2) -> G(i1 <-> o0)
+trying to create strategy directly for GFi1 -> G(i1 <-> o0)
 direct strategy might exist but was not found.
 translating formula done in X seconds
-automaton has 2 states and 3 colors
+automaton has 2 states and 1 colors
 LAR construction done in X seconds
-DPA has 4 states, 1 colors
+DPA has 2 states, 1 colors
 split inputs and outputs done in X seconds
-automaton has 12 states
+automaton has 6 states
 solving game with acceptance: co-Büchi
 game solved in X seconds
 EOF
@@ -386,7 +390,8 @@ State: 2
 [!0] 2
 --END--
 EOF
-ltlsynt --outs=p0 -x tls-impl=0 --simpl=no -f '!XXF(p0 & (p0 M Gp0))' > out
+ltlsynt --outs=p0 -x tls-impl=0 --polar=no --simpl=no \
+        -f '!XXF(p0 & (p0 M Gp0))' > out
 diff out exp
 
 cat >exp <<EOF
@@ -404,7 +409,9 @@ State: 0
 [!0] 0
 --END--
 EOF
-ltlsynt --outs=p0 -x tls-impl=1 -f '!XXF(p0 & (p0 M Gp0))' > out
+ltlsynt --outs=p0 -x tls-impl=1 --polar=no -f '!XXF(p0 & (p0 M Gp0))' > out
+diff out exp
+ltlsynt --outs=p0 -x tls-impl=0 -f '!XXF(p0 & (p0 M Gp0))' > out
 diff out exp
 
 ltlsynt --outs=p0 -f '!XXF(p0 & (p0 M Gp0))' > out
@@ -637,19 +644,19 @@ tanslating formula done in X seconds
 direct strategy was found.
 direct strat has 1 states, 2 edges and 0 colors
 simplification took X seconds
-trying to create strategy directly for Gc
+trying to create strategy directly for G(c <-> d)
 direct strategy was found.
 direct strat has 1 states, 1 edges and 0 colors
 simplification took X seconds
 EOF
-ltlsynt -f '(GFa <-> GFb) && (Gc)' --outs=b,c --verbose 2> out
+ltlsynt -f '(GFa <-> GFb) && (G(c <-> d))' --outs=b,c --verbose 2> out
 sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
 diff outx exp
 
-# Try to find a direct strategy for (GFa <-> GFb) & Gc. The order should not
-# impact the result
-for f in "(GFa <-> GFb) & Gc" "(GFb <-> GFa) & Gc" \
-         "Gc & (GFa <-> GFb)" "Gc & (GFb <-> GFa)"
+# Try to find a direct strategy for (GFa <-> GFb) & G(c <-> d). The
+# order should not impact the result
+for f in "(GFa <-> GFb) & G(c <-> d)" "(GFb <-> GFa) & G(c <-> d)" \
+         "G(c <-> d) & (GFa <-> GFb)" "G(c <-> d) & (GFb <-> GFa)"
 do
 cat >exp <<EOF
 trying to create strategy directly for $f
@@ -666,7 +673,10 @@ done
 # # Ltlsynt should be able to detect that G(a&c) is not input-complete so it is
 # # impossible to find a strategy.
 cat >exp <<EOF
-trying to create strategy directly for (GFb <-> GFa) & G(a & c)
+the following APs are polarized, they can be replaced by constants:
+  c := 1
+new formula: (GFb <-> GFa) & Ga
+trying to create strategy directly for (GFb <-> GFa) & Ga
 no strategy exists.
 EOF
 ltlsynt -f '(GFb <-> GFa) && G(a&c)' --outs=b,c --verbose\
@@ -747,8 +757,43 @@ game solved in X seconds
 simplification took X seconds
 AIG circuit was created in X seconds and has 0 latches and 0 gates
 EOF
-ltlsynt -f '((a|x) & (b | y) & b) => (x & y)' --outs="x,y" --aiger=ite\
-                                              --verify --verbose 2> out
+ltlsynt -f '((a|x) & (b | y) & b) => (x & y)' \
+        --outs="x,y" --aiger=ite --pol=no --verify --verbose 2> out
+sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
+diff outx exp
+
+cat >exp <<EOF
+the following APs are polarized, they can be replaced by constants:
+  a := 1
+  b := 1
+new formula: x & y
+there are 2 subformulas
+trying to create strategy directly for x
+direct strategy might exist but was not found.
+translating formula done in X seconds
+automaton has 2 states and 1 colors
+LAR construction done in X seconds
+DPA has 2 states, 0 colors
+split inputs and outputs done in X seconds
+automaton has 4 states
+solving game with acceptance: all
+game solved in X seconds
+simplification took X seconds
+trying to create strategy directly for y
+direct strategy might exist but was not found.
+translating formula done in X seconds
+automaton has 2 states and 1 colors
+LAR construction done in X seconds
+DPA has 2 states, 0 colors
+split inputs and outputs done in X seconds
+automaton has 4 states
+solving game with acceptance: all
+game solved in X seconds
+simplification took X seconds
+AIG circuit was created in X seconds and has 0 latches and 0 gates
+EOF
+ltlsynt -f '((a|x) & (b | y) & b) => (x & y)' \
+        --outs="x,y" --aiger=ite --verify --verbose 2> out
 sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
 diff outx exp
 
@@ -765,7 +810,8 @@ direct strat has 1 states, 1 edges and 0 colors
 simplification took X seconds
 AIG circuit was created in X seconds and has 0 latches and 0 gates
 EOF
-ltlsynt -f 'G!(!x | !y)' --outs="x, y" --aiger=ite --verify --verbose 2> out
+ltlsynt -f 'G!(!x | !y)' --outs="x, y" --pol=no --aiger=ite \
+        --verify --verbose 2> out
 sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
 diff outx exp
 
@@ -775,7 +821,8 @@ there are 2 subformulas
 trying to create strategy directly for G!a
 no strategy exists.
 EOF
-ltlsynt -f '!F(a|b)' --outs=b --decompose=yes --aiger --verbose 2> out || true
+ltlsynt -f '!F(a|b)' --outs=b --pol=no --decompose=yes \
+        --aiger --verbose 2> out || true
 sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
 diff outx exp
 
@@ -786,7 +833,7 @@ trying to create strategy directly for Ga
 no strategy exists.
 EOF
 ltlsynt -f 'G!(a -> b)' --outs=b --decompose=yes --aiger\
-                        --verbose 2> out || true
+                        --pol=no --verbose 2> out || true
 sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
 diff outx exp
 
@@ -807,7 +854,7 @@ simplification took X seconds
 AIG circuit was created in X seconds and has 0 latches and 0 gates
 EOF
 ltlsynt -f '(a & b) U (b & c)' --outs=b,c --decompose=yes --aiger --verbose\
-                               --verify 2> out
+                               --pol=no --verify 2> out
 sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
 diff outx exp
 
@@ -851,7 +898,7 @@ simplification took X seconds
 AIG circuit was created in X seconds and has 0 latches and 0 gates
 EOF
 ltlsynt -f 'a => (b & c & d)' --outs=b,c,d, --decompose=yes\
-                              --verbose --aiger 2> out
+                              --pol=no --verbose --aiger 2> out
 sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
 diff outx exp
 
@@ -862,7 +909,7 @@ trying to create strategy directly for G!a
 no strategy exists.
 EOF
 ltlsynt -f '!(F(a | b))' --outs=b, --decompose=yes \
-                         --verbose --aiger 2> out || true
+                         --verbose --pol=no --aiger 2> out || true
 sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
 diff outx exp
 
@@ -887,7 +934,7 @@ ltlsynt --outs="$OUT" -f "$LTL" --aiger=both+ud\
   --algo=lar | grep "aag 34 2 3 2 29"
 
 ltlsynt -f 'G(c) & (G(a) <-> GFb)' --outs=b,c --decompose=yes\
-                                   --verbose --realizability 2> out
+                                   --verbose --pol=no --realizability 2> out
 cat >exp <<EOF
 there are 2 subformulas
 trying to create strategy directly for Gc
@@ -897,7 +944,7 @@ direct strategy was found.
 EOF
 diff out exp
 
-ltlsynt -f 'G(c) & (G(a) <-> GFb)' --outs=b,c --decompose=yes\
+ltlsynt -f 'G(c) & (G(a) <-> GFb)' --outs=b,c --decompose=yes --pol=no \
                                    --verbose --realizability --bypass=no 2> out
 cat >exp <<EOF
 there are 2 subformulas
@@ -945,7 +992,7 @@ game solved in X seconds
 simplification took X seconds
 EOF
 ltlsynt -f '(GFa <-> GFb) && (Gc)' --outs=b,c --verbose --bypass=no\
-                                   --algo=acd 2> out
+                                   --algo=acd --pol=no 2> out
 sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
 diff outx exp
 
@@ -967,7 +1014,7 @@ solving game with acceptance: Büchi
 game solved in X seconds
 EOF
 ltlsynt -f "G(o1) & (GFi <-> GFo1)" --outs="o1" --verbose\
-                                    --bypass=yes 2> out || true
+                                    --bypass=yes --pol=no 2> out || true
 sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
 diff outx exp
 
@@ -983,6 +1030,22 @@ split inputs and outputs done in X seconds
 automaton has 6 states
 solving game with acceptance: Streett 1
 game solved in X seconds
+simplification took X seconds
+EOF
+ltlsynt -f "G(o1|o2) & (GFi <-> GFo1)" --outs="o1,o2" --verbose\
+                                       --bypass=yes --pol=no 2> out
+sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
+diff outx exp
+
+cat >exp <<EOF
+the following APs are polarized, they can be replaced by constants:
+  o2 := 1
+new formula: GFi <-> GFo1
+there are 1 subformulas
+trying to create strategy directly for GFi <-> GFo1
+tanslating formula done in X seconds
+direct strategy was found.
+direct strat has 1 states, 2 edges and 0 colors
 simplification took X seconds
 EOF
 ltlsynt -f "G(o1|o2) & (GFi <-> GFo1)" --outs="o1,o2" --verbose\

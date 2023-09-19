@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2012, 2013, 2014, 2015 Laboratoire de Recherche et
+// Copyright (C) 2012, 2013, 2014, 2015, 2023 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 // Copyright (C) 2004, 2005  Laboratoire d'Informatique de Paris 6 (LIP6),
 // département Systèmes Répartis Coopératifs (SRC), Université Pierre
@@ -58,6 +58,16 @@ namespace spot
   /// \return A conjunction the atomic propositions.
   SPOT_API bdd
   atomic_prop_collect_as_bdd(formula f, const twa_ptr& a);
+
+
+  /// \brief Collect the litterals occuring in f
+  ///
+  /// This function records each atomic proposition occurring in f
+  /// along with the polarity of its occurrence.  For instance if the
+  /// formula is `G(a -> b) & X(!b & c)`, then this will output `{!a,
+  /// b, !b, c}`.
+  SPOT_API
+  atomic_prop_set collect_litterals(formula f);
 
   /// @}
 }
