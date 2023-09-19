@@ -363,6 +363,24 @@ namespace spot
       throw std::runtime_error(
           "twa_graph::merge_states() does not work on alternating automata");
 
+    const unsigned n_states = num_states();
+
+    const auto& e_vec = edge_vector();
+    unsigned n_edges = e_vec.size();
+    if (n_edges <= 1)
+      {
+        if (n_states == 1)
+          return 0;
+        // We don't have a very convenient way to resize the state
+        // vector.
+        std::vector<unsigned> remap(n_states, -1U);
+        remap[0] = 0;
+        get_graph().defrag_states(remap, 1);
+        SPOT_ASSERT(num_states() == 1);
+        set_init_state(0);
+        return n_states - 1;
+      }
+
 #ifdef ENABLE_PTHREAD
     const unsigned nthreads = ppolicy.nthreads();
 #else
@@ -387,8 +405,6 @@ namespace spot
     }, nthreads);
     g_.chain_edges_();
 
-    const unsigned n_states = num_states();
-
     // Edges are nicely chained and there are no erased edges
     // -> We can work with the edge_vector
 
@@ -405,9 +421,6 @@ namespace spot
     hash_of_state.reserve(n_states);
     for (unsigned i = 0; i < n_states; ++i)
       hash_of_state.push_back(i);
-
-    const auto& e_vec = edge_vector();
-    unsigned n_edges = e_vec.size();
 
     // For each state we need 4 indices of the edge vector
     // [first, first_non_sfirst_selflooplfloop, first_selfloop, end]

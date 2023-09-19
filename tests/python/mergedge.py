@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2020-2022 Laboratoire de Recherche et Développement de
+# Copyright (C) 2020-2023 Laboratoire de Recherche et Développement de
 # l'EPITA.
 #
 # This file is part of Spot, a model checking library.
@@ -55,6 +55,26 @@ tc.assertEqual(aut.num_edges(), 9)
 aut.merge_edges()
 tc.assertEqual(aut.num_edges(), 5)
 tc.assertTrue(spot.is_deterministic(aut))
+
+aut = spot.automaton("""
+HOA: v1
+States: 3
+Start: 2
+AP: 0
+Acceptance: 0 t
+--BODY--
+State: 0
+State: 1
+State: 2
+--END--""")
+tc.assertEqual(aut.num_states(), 3)
+tc.assertEqual(aut.num_edges(), 0)
+tc.assertEqual(aut.get_init_state_number(), 2)
+tc.assertEqual(aut.merge_states(), 2);
+tc.assertEqual(aut.num_states(), 1)
+tc.assertEqual(aut.num_edges(), 0)
+tc.assertEqual(aut.get_init_state_number(), 0)
+tc.assertEqual(aut.merge_states(), 0);
 
 for nthread in range(1, 16, 2):
     aut = spot.automaton("""
