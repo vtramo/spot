@@ -45,11 +45,12 @@ namespace spot
       MergeEdges = 64,
       SignatureMerge = 128,
       Determinize = 256,
+      UniquePrefixSeenOpt = 512,
     };
   };
 
   SPOT_API expansion_t
-  expansion(formula f, const bdd_dict_ptr& d, void *owner, exp_opts::expand_opt opts);
+  expansion(formula f, const bdd_dict_ptr& d, void *owner, exp_opts::expand_opt opts, std::unordered_set<formula>* seen = nullptr);
 
   SPOT_API twa_graph_ptr
   expand_automaton(formula f, bdd_dict_ptr d, exp_opts::expand_opt opts);
