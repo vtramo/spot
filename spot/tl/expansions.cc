@@ -301,7 +301,7 @@ namespace spot
     }
 
     void
-    finalize(expansion_t& exp, exp_opts::expand_opt opts, bdd_dict_ptr d)
+    finalize(expansion_t& exp, exp_opts::expand_opt opts, bdd_dict_ptr d, std::unordered_set<formula>* seen)
     {
       if (opts & (exp_opts::expand_opt::BddIsop
                   | exp_opts::expand_opt::BddMinterm))
@@ -344,9 +344,37 @@ namespace spot
         }
 
         exp.clear();
+
         for (const auto [prefix, suffix] : unique_map)
         {
-          exp.insert({prefix, suffix});
+          if ((opts & exp_opts::expand_opt::UniquePrefixSeenOpt)
+              && suffix.is(op::OrRat))
+          {
+            std::vector<formula> merge;
+            std::vector<formula> single;
+
+            for (const auto& sub_f : suffix)
+              {
+                if (seen->find(sub_f) != seen->end())
+                  {
+                    single.push_back(sub_f);
+                  }
+                else
+                  {
+                    merge.push_back(sub_f);
+                  }
+              }
+
+            for (const auto& sub_f : single)
+              exp.insert({prefix, sub_f});
+
+            if (!merge.empty())
+              exp.insert({prefix, formula::OrRat(merge)});
+          }
+          else
+          {
+            exp.insert({prefix, suffix});
+          }
         }
       }
 
@@ -399,7 +427,7 @@ namespace spot
 
 
   expansion_t
-  expansion(formula f, const bdd_dict_ptr& d, void *owner, exp_opts::expand_opt opts)
+  expansion(formula f, const bdd_dict_ptr& d, void *owner, exp_opts::expand_opt opts, std::unordered_set<formula>* seen)
   {
     using exp_t = std::multimap<bdd, formula, bdd_less_than>;
 
@@ -413,8 +441,8 @@ namespace spot
         return {{f_bdd, formula::eword()}};
       }
 
-    auto rec = [&d, owner, opts](formula f){
-      return expansion(f, d, owner, exp_opts::None);
+    auto rec = [&d, owner, opts, seen](formula f){
+      return expansion(f, d, owner, exp_opts::None, seen);
     };
 
 
@@ -426,7 +454,8 @@ namespace spot
           SPOT_UNREACHABLE();
 
         case op::eword:
-          return {{bddfalse, formula::ff()}};
+          // return {{bddfalse, formula::ff()}};
+          return {};
 
         case op::Concat:
           {
@@ -447,7 +476,7 @@ namespace spot
                   }
               }
 
-            finalize(res, opts, d);
+            finalize(res, opts, d, seen);
             return res;
           }
 
@@ -484,7 +513,7 @@ namespace spot
             if (f.min() == 0)
               res.insert({bddtrue, formula::eword()});
 
-            finalize(res, opts, d);
+            finalize(res, opts, d, seen);
             return res;
           }
 
@@ -503,7 +532,7 @@ namespace spot
                 res.insert({bdd_l, formula::Concat({form, formula::Star(f[0], min, max)})});
               }
 
-            finalize(res, opts, d);
+            finalize(res, opts, d, seen);
             return res;
           }
 
@@ -511,7 +540,7 @@ namespace spot
           {
             formula rewrite = rewrite_and_nlm(f);
             auto res = rec(rewrite);
-            finalize(res, opts, d);
+            finalize(res, opts, d, seen);
             return res;
           }
 
@@ -541,7 +570,7 @@ namespace spot
               {
                 for (auto& [_, dest] : res)
                   dest = formula::first_match(dest);
-                finalize(res, opts, d);
+                finalize(res, opts, d, seen);
                 return res;
               }
 
@@ -561,7 +590,7 @@ namespace spot
 
             for (auto& [_, dest] : res_det)
               dest = formula::first_match(dest);
-            finalize(res_det, opts, d);
+            finalize(res_det, opts, d, seen);
             return res_det;
           }
 
@@ -586,7 +615,7 @@ namespace spot
                 res.insert({li, formula::Fusion({ei, F})});
               }
 
-            finalize(res, opts, d);
+            finalize(res, opts, d, seen);
             return res;
           }
 
@@ -636,7 +665,7 @@ namespace spot
                 res = std::move(new_res);
               }
 
-            finalize(res, opts, d);
+            finalize(res, opts, d, seen);
             return res;
           }
 
@@ -659,7 +688,7 @@ namespace spot
                   res.insert({label, dest});
               }
 
-            finalize(res, opts, d);
+            finalize(res, opts, d, seen);
             return res;
           }
 
@@ -709,6 +738,8 @@ namespace spot
 
     auto formula2state = robin_hood::unordered_map<formula, unsigned>();
     auto signature2state = std::unordered_map<std::pair<bool, expansion_t>, unsigned, signature_hash>();
+    auto seen = std::unordered_set<formula>();
+    seen.insert(f);
 
     unsigned init_state = aut->new_state();
     aut->set_init_state(init_state);
@@ -720,7 +751,7 @@ namespace spot
         aut->register_ap(ap);
 
     if (signature_merge)
-      signature2state.insert({ {f.accepts_eword(), expansion(f, d, aut.get(), opts)}, init_state});
+      signature2state.insert({ {f.accepts_eword(), expansion(f, d, aut.get(), opts, &seen)}, init_state});
 
 
     auto todo = std::vector<std::pair<formula, unsigned>>();
@@ -743,7 +774,7 @@ namespace spot
         {
           if (signature_merge)
             {
-              auto exp = expansion(suffix, d, aut.get(), opts);
+              auto exp = expansion(suffix, d, aut.get(), opts, &seen);
               bool accepting = suffix.accepts_eword();
               auto it2 = signature2state.find({accepting, exp});
               if (it2 != signature2state.end())
@@ -755,10 +786,11 @@ namespace spot
 
           dst = aut->new_state();
           todo.push_back({suffix, dst});
+          seen.insert(suffix);
 
           formula2state.insert({suffix, dst});
           if (signature_merge)
-            signature2state.insert({{suffix.accepts_eword(), expansion(suffix, d, aut.get(), opts)}, dst});
+            signature2state.insert({{suffix.accepts_eword(), expansion(suffix, d, aut.get(), opts, &seen)}, dst});
 
           std::ostringstream ss;
           ss << suffix;
@@ -777,11 +809,12 @@ namespace spot
           ? acc_mark
           : acc_cond::mark_t();
 
-        auto exp = expansion(curr_f, d, aut.get(), opts);
+        auto exp = expansion(curr_f, d, aut.get(), opts, &seen);
 
         for (const auto& [letter, suffix] : exp)
           {
             if (suffix.is(op::ff))
+              // TODO ASSERT NOT
               continue;
 
             auto dst = find_dst(suffix);
