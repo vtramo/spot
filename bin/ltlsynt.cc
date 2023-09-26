@@ -408,46 +408,62 @@ namespace
     // or always in negative form.
     // In syntcomp, this occurs more frequently for input variables than
     // output variable.  See issue #529 for some examples.
+
     spot::relabeling_map rm;
+    bool first_dap = true;
+    auto display_ap = [&rm, &first_dap](spot::formula p)
+    {
+      if (SPOT_LIKELY(!gi->verbose_stream))
+        return;
+      if (first_dap)
+        {
+          *gi->verbose_stream << ("the following APs are polarized, "
+                                  "they can be replaced by constants:\n");
+          first_dap = false;
+        }
+      *gi->verbose_stream << "  " << p << " := " << rm[p] <<'\n';
+    };
+    spot::formula oldf;
     if (opt_polarity)
-      {
-        std::set<spot::formula> lits = spot::collect_litterals(f);
-        for (const std::string& ap: output_aps)
-          {
-            spot::formula pos = spot::formula::ap(ap);
-            spot::formula neg = spot::formula::Not(pos);
-            bool has_pos = lits.find(pos) != lits.end();
-            bool has_neg = lits.find(neg) != lits.end();
-            if (has_pos && !has_neg)
-              rm[pos] = spot::formula::tt();
-            else if (has_neg && !has_pos)
-              rm[pos] = spot::formula::ff();
-          }
-        for (const std::string& ap: input_aps)
-          {
-            spot::formula pos = spot::formula::ap(ap);
-            spot::formula neg = spot::formula::Not(pos);
-            bool has_pos = lits.find(pos) != lits.end();
-            bool has_neg = lits.find(neg) != lits.end();
-            if (has_pos && !has_neg)
-              rm[pos] = spot::formula::ff();
-            else if (has_neg && !has_pos)
-              rm[pos] = spot::formula::tt();
-          }
-        if (!rm.empty())
-          {
-            if (gi->verbose_stream)
-              {
-                *gi->verbose_stream << ("the following APs are polarized, "
-                                        "they can be replaced by constants:\n");
-                for (auto [k, v]: rm)
-                  *gi->verbose_stream << "  " << k << " := " << v <<'\n';
-              }
-            f = spot::relabel_apply(f, &rm);
-            if (gi->verbose_stream)
-              *gi->verbose_stream << "new formula: " << f << '\n';
-          }
-      }
+      do
+        {
+          bool rm_has_new_terms = false;
+          std::set<spot::formula> lits = spot::collect_litterals(f);
+          for (const std::string& ap: output_aps)
+            {
+              spot::formula pos = spot::formula::ap(ap);
+              spot::formula neg = spot::formula::Not(pos);
+              bool has_pos = lits.find(pos) != lits.end();
+              bool has_neg = lits.find(neg) != lits.end();
+              if (has_pos ^ has_neg)
+                {
+                  rm[pos] = has_pos ? spot::formula::tt() : spot::formula::ff();
+                  rm_has_new_terms = true;
+                  display_ap(pos);
+                }
+            }
+          for (const std::string& ap: input_aps)
+            {
+              spot::formula pos = spot::formula::ap(ap);
+              spot::formula neg = spot::formula::Not(pos);
+              bool has_pos = lits.find(pos) != lits.end();
+              bool has_neg = lits.find(neg) != lits.end();
+              if (has_pos ^ has_neg)
+                {
+                  rm[pos] = has_neg ? spot::formula::tt() : spot::formula::ff();
+                  rm_has_new_terms = true;
+                  display_ap(pos);
+                }
+            }
+          oldf = f;
+          if (rm_has_new_terms)
+            {
+              f = spot::relabel_apply(f, &rm);
+              if (gi->verbose_stream)
+                *gi->verbose_stream << "new formula: " << f << '\n';
+            }
+        }
+      while (oldf != f);
 
     std::vector<spot::formula> sub_form;
     std::vector<std::set<spot::formula>> sub_outs;

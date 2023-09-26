@@ -764,31 +764,16 @@ diff outx exp
 
 cat >exp <<EOF
 the following APs are polarized, they can be replaced by constants:
-  a := 1
   b := 1
+  a := 1
 new formula: x & y
-there are 2 subformulas
-trying to create strategy directly for x
-direct strategy might exist but was not found.
-translating formula done in X seconds
-automaton has 2 states and 1 colors
-LAR construction done in X seconds
-DPA has 2 states, 0 colors
-split inputs and outputs done in X seconds
-automaton has 4 states
-solving game with acceptance: all
-game solved in X seconds
-simplification took X seconds
-trying to create strategy directly for y
-direct strategy might exist but was not found.
-translating formula done in X seconds
-automaton has 2 states and 1 colors
-LAR construction done in X seconds
-DPA has 2 states, 0 colors
-split inputs and outputs done in X seconds
-automaton has 4 states
-solving game with acceptance: all
-game solved in X seconds
+  x := 1
+  y := 1
+new formula: 1
+there are 1 subformulas
+trying to create strategy directly for 1
+direct strategy was found.
+direct strat has 1 states, 1 edges and 0 colors
 simplification took X seconds
 AIG circuit was created in X seconds and has 0 latches and 0 gates
 EOF
