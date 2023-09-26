@@ -223,7 +223,7 @@ namespace spot
           while (!edge_it.empty())
             {
               assert(std::all_of(edge_it.cbegin(), edge_it.cend(),
-                  [](const auto& er) -> bool {return er;}));
+                  [](const auto& er) -> bool {return er; }));
               unsigned c_idx = 0;
               unsigned m_idx = edge_it.size();
               bdd smallest = gc(edge_it[0].ostate());
@@ -631,6 +631,11 @@ namespace spot
                      || (concerned_ap == aut->ap_vars());
     bdd concerned_ap_
       = treat_all ? aut->ap_vars() : concerned_ap;
+    // Automata can become "pseudo-nondeterministic" if not all
+    // variables are used for relabeling
+    if (!treat_all)
+      aut->prop_universal(trival()); // May remain deterministic
+
     return partitioned_relabel_here_(*aut, split,
                                      max_letter, max_letter_mult,
                                      concerned_ap_,
