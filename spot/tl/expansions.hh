@@ -36,7 +36,7 @@ namespace spot
   {
     enum expand_opt {
       None = 0,
-      UniqueSuffix = 1,
+      UniqueSuffixPre = 1,
       UniquePrefix = 2,
       BddIsop = 4,
       BddMinterm = 8,
@@ -46,6 +46,7 @@ namespace spot
       SignatureMerge = 128,
       Determinize = 256,
       UniquePrefixSeenOpt = 512,
+      UniqueSuffixPost = 1024,
     };
   };
 
