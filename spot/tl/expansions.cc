@@ -310,7 +310,7 @@ namespace spot
         exp = bddf.simplify(opts);
       }
 
-      if (opts & exp_opts::expand_opt::UniqueSuffix)
+      if (opts & exp_opts::expand_opt::UniqueSuffixPre)
       {
         std::map<formula, bdd> unique_map;
         for (const auto& [prefix, suffix] : exp)
@@ -375,6 +375,26 @@ namespace spot
           {
             exp.insert({prefix, suffix});
           }
+        }
+      }
+
+      if (opts & exp_opts::expand_opt::UniqueSuffixPost)
+      {
+        std::map<formula, bdd> unique_map;
+        for (const auto& [prefix, suffix] : exp)
+        {
+          auto res = unique_map.insert({suffix, prefix});
+          if (!res.second)
+          {
+            auto it = res.first;
+            it->second |= prefix;
+          }
+        }
+
+        exp.clear();
+        for (const auto [suffix, prefix] : unique_map)
+        {
+          exp.insert({prefix, suffix});
         }
       }
 
@@ -831,7 +851,7 @@ namespace spot
     aut->set_named_prop("state-names", state_names);
 
     if ((opts & exp_opts::MergeEdges)
-        && !(opts & exp_opts::UniqueSuffix))
+        && !(opts & exp_opts::UniqueSuffixPre || opts & exp_opts::UniqueSuffixPost))
       aut->merge_edges();
 
     return aut;
