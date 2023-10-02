@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2015-2019, 2021, 2022 Laboratoire de Recherche et
+// Copyright (C) 2015-2019, 2021, 2022, 2023 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -2070,5 +2070,12 @@ namespace spot
   std::ostream& operator<<(std::ostream& os, const formula& f)
   {
     return print_psl(os, f);
+  }
+
+  bool
+  formula_ptr_less_than_bool_first::operator()(const formula& left,
+                                               const formula& right) const
+  {
+    return operator()(left.ptr_, right.ptr_);
   }
 }

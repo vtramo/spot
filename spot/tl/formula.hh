@@ -652,6 +652,8 @@ namespace spot
   SPOT_API
     int atomic_prop_cmp(const fnode* f, const fnode* g);
 
+  class SPOT_API formula;
+
   struct formula_ptr_less_than_bool_first
   {
     bool
@@ -718,7 +720,10 @@ namespace spot
         right->dump(ord);
         return old.str() < ord.str();
       }
-  };
+
+    SPOT_API bool
+    operator()(const formula& left, const formula& right) const;
+};
 
 #endif // SWIG
 
@@ -726,6 +731,7 @@ namespace spot
   /// \brief Main class for temporal logic formula
   class SPOT_API formula final
   {
+    friend struct formula_ptr_less_than_bool_first;
     const fnode* ptr_;
     public:
     /// \brief Create a formula from an fnode.

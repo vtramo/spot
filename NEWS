@@ -16,12 +16,24 @@ New in spot 2.11.6.dev  (not yet released)
     will replace boolean subformulas by fresh atomic propositions even
     if those subformulas share atomic propositions.
 
-  - ltlsynt will no check for output atomic propositions that always
-    have the same polarity in the specification.  When this happens,
-    these output APs are replaced by true or false before running the
+  - ltlsynt will now check for atomic propositions that always have
+    the same polarity in the specification.  When this happens, these
+    output APs are replaced by true or false before running the
     synthesis pipeline, and the resulting game, Mealy machine, or
     Aiger circuit is eventually patched to include that constant
     output.  This can be disabled with --polarity=no.
+
+  - ltlsynt will now check for atomic propositions that are specified
+    as equivalent.  When this is detected, equivalent atomic
+    propositions are replaced by one representative of their class, to
+    limit the number of different APs processed by the synthesis
+    pipeline.  The resulting game, Mealy machine, or Aiger circuit is
+    eventually patched to include the removed APs.  This optimization
+    can be disabled with --global-equivalence=no.  As an exception, an
+    equivalence between input and output signals (such as G(in<->out))
+    will be ignored if ltlsynt is configured to output a game (because
+    patching the game a posteriori is cumbersome if the equivalence
+    concerns different players).
 
   Library:
 

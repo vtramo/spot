@@ -21,9 +21,13 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "config.h"
+#include <map>
 #include <spot/tl/apcollect.hh>
 #include <spot/twa/twa.hh>
+#include <spot/twa/twagraph.hh>
 #include <spot/twa/bdddict.hh>
+#include <spot/twaalgos/hoa.hh>
+#include <spot/twaalgos/sccinfo.hh>
 
 namespace spot
 {
@@ -64,7 +68,7 @@ namespace spot
     return res;
   }
 
-  atomic_prop_set collect_litterals(formula f)
+  atomic_prop_set collect_literals(formula f)
   {
     atomic_prop_set res;
 
@@ -129,6 +133,152 @@ namespace spot
     };
     rec(f, 1, rec);
     return res;
+  }
+
+  std::vector<std::vector<spot::formula>>
+  collect_equivalent_literals(formula f)
+  {
+    std::map<spot::formula, unsigned> l2s;
+    // represent the implication graph as a twa_graph so we cab reuse
+    // scc_info.  Literals can be converted to states using the l2s
+    // map.
+    twa_graph_ptr igraph = make_twa_graph(make_bdd_dict());
+
+    auto state_of = [&](formula a)
+    {
+      auto [it, b] = l2s.insert({a, 0});
+      if (b)
+        it->second = igraph->new_state();
+      return it->second;
+    };
+
+    auto implies = [&](formula a, formula b)
+    {
+      unsigned pos_a = state_of(a);
+      unsigned neg_a = state_of(formula::Not(a));
+      unsigned pos_b = state_of(b);
+      unsigned neg_b = state_of(formula::Not(b));
+      igraph->new_edge(pos_a, pos_b, bddtrue);
+      igraph->new_edge(neg_b, neg_a, bddtrue);
+    };
+
+    auto collect = [&](formula f, bool in_g, auto self)
+    {
+      switch (f.kind())
+        {
+        case op::ff:
+        case op::tt:
+        case op::eword:
+        case op::ap:
+        case op::UConcat:
+        case op::Not:
+        case op::NegClosure:
+        case op::NegClosureMarked:
+        case op::U:
+        case op::R:
+        case op::W:
+        case op::M:
+        case op::EConcat:
+        case op::EConcatMarked:
+        case op::X:
+        case op::F:
+        case op::Closure:
+        case op::OrRat:
+        case op::AndRat:
+        case op::AndNLM:
+        case op::Concat:
+        case op::Fusion:
+        case op::Star:
+        case op::FStar:
+        case op::first_match:
+        case op::strong_X:
+          return;
+        case op::Xor:
+          if (in_g && f[0].is_literal() && f[1].is_literal())
+            {
+              implies(f[0], formula::Not(f[1]));
+              implies(formula::Not(f[0]), f[1]);
+            }
+          return;
+        case op::Equiv:
+          if (in_g && f[0].is_literal() && f[1].is_literal())
+            {
+              implies(f[0], f[1]);
+              implies(formula::Not(f[0]), formula::Not(f[1]));
+            }
+          return;
+        case op::Implies:
+          if (in_g && f[0].is_literal() && f[1].is_literal())
+            implies(f[0], f[1]);
+          return;
+        case op::G:
+          self(f[0], true, self);
+          return;
+        case op::Or:
+          if (f.size() == 2 && f[0].is_literal() && f[1].is_literal())
+            implies(formula::Not(f[0]), f[1]);
+          return;
+        case op::And:
+          for (formula c: f)
+            self(c, in_g, self);
+          return;
+        }
+    };
+    collect(f, false, collect);
+
+    scc_info si(igraph, scc_info_options::PROCESS_UNREACHABLE_STATES);
+
+    // print_hoa(std::cerr, igraph);
+
+    // Build sets of equivalent literals.
+    unsigned nscc = si.scc_count();
+    std::vector<std::vector<spot::formula>> scc(nscc);
+    for (auto [f, i]: l2s)
+      scc[si.scc_of(i)].push_back(f);
+
+    // For each set, we will decide if we keep it or not.
+    std::vector<bool> keep(nscc, true);
+
+    for (unsigned i = 0; i < nscc; ++i)
+      {
+        if (keep[i] == false)
+          continue;
+        // We don't keep trivial SCCs
+        if (scc[i].size() <= 1)
+          {
+            keep[i] = false;
+            continue;
+          }
+        // Each SCC will appear twice.  Because if {a,!b,c,!d,!e} are
+        // equivalent literals, then so are {!a,b,!c,d,e}.   We will
+        // keep the SCC with the fewer negation if we can.
+        unsigned neg_count = 0;
+        for (formula f: scc[i])
+          {
+            SPOT_ASSUME(f != nullptr);
+            neg_count += f.is(op::Not);
+          }
+        if (neg_count > scc[i].size()/2)
+          {
+            keep[i] = false;
+            continue;
+          }
+        // We will keep the current SCC.  Just
+        // mark the dual one for removal.
+        keep[si.scc_of(state_of(formula::Not(*scc[i].begin())))] = false;
+      }
+    // purge unwanted SCCs
+    unsigned j = 0;
+    for (unsigned i = 0; i < nscc; ++i)
+      {
+        if (keep[i] == false)
+          continue;
+        if (i > j)
+          scc[j] = std::move(scc[i]);
+        ++j;
+      }
+    scc.resize(j);
+    return scc;
   }
 
 }
