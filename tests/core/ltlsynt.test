@@ -227,7 +227,7 @@ sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
 diff outx exp
 
 cat >exp <<EOF
-the following APs are polarized, they can be replaced by constants:
+the following signals can be temporarily removed:
   i0 := 1
   i2 := 1
 new formula: GFi1 -> G(i1 <-> o0)
@@ -638,15 +638,14 @@ grep "one of --ins or --outs" stderr
 # Try to find a direct strategy for GFa <-> GFb and a direct strategy for
 # Gc
 cat >exp <<EOF
-there are 2 subformulas
+the following signals can be temporarily removed:
+  c := d
+new formula: GFa <-> GFb
+there are 1 subformulas
 trying to create strategy directly for GFa <-> GFb
 tanslating formula done in X seconds
 direct strategy was found.
 direct strat has 1 states, 2 edges and 0 colors
-simplification took X seconds
-trying to create strategy directly for G(c <-> d)
-direct strategy was found.
-direct strat has 1 states, 1 edges and 0 colors
 simplification took X seconds
 EOF
 ltlsynt -f '(GFa <-> GFb) && (G(c <-> d))' --outs=b,c --verbose 2> out
@@ -658,14 +657,15 @@ diff outx exp
 for f in "(GFa <-> GFb) & G(c <-> d)" "(GFb <-> GFa) & G(c <-> d)" \
          "G(c <-> d) & (GFa <-> GFb)" "G(c <-> d) & (GFb <-> GFa)"
 do
-cat >exp <<EOF
+  cat >exp <<EOF
 trying to create strategy directly for $f
 tanslating formula done in X seconds
 direct strategy was found.
 direct strat has 1 states, 2 edges and 0 colors
 simplification took X seconds
 EOF
-  ltlsynt -f "$f" --outs=b,c --verbose --decompose=0 --verify 2> out
+  ltlsynt -f "$f" --outs=b,c --verbose --decompose=0 \
+        --global-equiv=no --verify 2> out
   sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
   diff outx exp
 done
@@ -673,7 +673,7 @@ done
 # # Ltlsynt should be able to detect that G(a&c) is not input-complete so it is
 # # impossible to find a strategy.
 cat >exp <<EOF
-the following APs are polarized, they can be replaced by constants:
+the following signals can be temporarily removed:
   c := 1
 new formula: (GFb <-> GFa) & Ga
 trying to create strategy directly for (GFb <-> GFa) & Ga
@@ -763,7 +763,7 @@ sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
 diff outx exp
 
 cat >exp <<EOF
-the following APs are polarized, they can be replaced by constants:
+the following signals can be temporarily removed:
   b := 1
   a := 1
 new formula: x & y
@@ -1023,7 +1023,7 @@ sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
 diff outx exp
 
 cat >exp <<EOF
-the following APs are polarized, they can be replaced by constants:
+the following signals can be temporarily removed:
   o2 := 1
 new formula: GFi <-> GFo1
 there are 1 subformulas
@@ -1037,6 +1037,36 @@ ltlsynt -f "G(o1|o2) & (GFi <-> GFo1)" --outs="o1,o2" --verbose\
                                        --bypass=yes 2> out
 sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
 diff outx exp
+
+
+# Test the loop around polarity/global-equiv
+cat >exp <<EOF
+the following signals can be temporarily removed:
+  r3 := 1
+new formula: G(i <-> o) & G(o <-> o2) & G(!o | !o3) & GFo3
+  o := i
+  o2 := i
+new formula: GFo3 & G(!i | !o3)
+  i := 1
+new formula: GFo3 & G!o3
+there are 1 subformulas
+trying to create strategy directly for GFo3 & G!o3
+direct strategy might exist but was not found.
+translating formula done in X seconds
+automaton has 1 states and 0 colors
+LAR construction done in X seconds
+DPA has 1 states, 0 colors
+split inputs and outputs done in X seconds
+automaton has 3 states
+solving game with acceptance: co-Büchi
+game solved in X seconds
+UNREALIZABLE
+EOF
+ltlsynt -f 'G(o<->i) & G(o2 <-> o) & G(!o | !o3) & G(r3 -> Fo3)' \
+        --ins=i,r3 --verbose 2>out 1>&2 && exit 1
+sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
+diff outx exp
+
 
 # Test --dot and --hide-status
 ltlsynt -f 'i <-> Fo' --ins=i --aiger --dot | grep arrowhead=dot

@@ -174,6 +174,15 @@ namespace spot
                                [](unsigned o){return o == -1u; }));
       return outputs_;
     }
+
+    /// \brief return the variable associated to output \a num
+    ///
+    /// This will be equal to -1U if aig::set_output() hasn't been called.
+    unsigned output(unsigned num) const
+    {
+      return outputs_[num];
+    }
+
     /// \brief Get the set of output names
     const std::vector<std::string>& output_names() const
     {

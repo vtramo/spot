@@ -1986,6 +1986,21 @@ namespace
     for (unsigned i = 0; i < n_outs; ++i)
       circuit.set_output(i, bdd2var_min(out[i], out_dc[i]));
     // Add the unused propositions
+    //
+    // RM contains assignments like
+    //     out1 := 1
+    //     out2 := 0
+    //     out3 := in1
+    //     out4 := !out3
+    // but it is possible that the rhs could refer to a variable
+    // that is not yet defined because of the ordering.  For
+    // this reason, the first pass will store signals it could not
+    // complete in the POSTPONE vector.
+    //
+    // In that vector, (u,v,b) means that output u should be mapped to
+    // the same formula as output v, possibly negated (if b).
+    std::vector<std::tuple<int, int, bool>> postpone;
+
     const unsigned n_outs_all = output_names_all.size();
     for (unsigned i = n_outs; i < n_outs_all; ++i)
       if (rm)
@@ -2003,10 +2018,61 @@ namespace
                   circuit.set_output(i, circuit.aig_false());
                   continue;
                 }
+              else
+                {
+                  formula repr = to->second;
+                  bool neg_repr = false;
+                  if (repr.is(op::Not))
+                    {
+                      neg_repr = true;
+                      repr = repr[0];
+                    }
+                  // is repr an input?
+                  if (auto it = std::find(input_names_all.begin(),
+                                          input_names_all.end(),
+                                          repr.ap_name());
+                      it != input_names_all.end())
+                    {
+                      unsigned ivar =
+                        circuit.input_var(it - input_names_all.begin(),
+                                          neg_repr);
+                      circuit.set_output(i, ivar);
+                    }
+                  // is repr an output?
+                  else if (auto it = std::find(output_names_all.begin(),
+                                               output_names_all.end(),
+                                               repr.ap_name());
+                           it != output_names_all.end())
+                    {
+                      unsigned outnum = it - output_names_all.begin();
+                      unsigned outvar = circuit.output(outnum);
+                      if (outvar == -1u)
+                        postpone.emplace_back(i, outnum, neg_repr);
+                      else
+                        circuit.set_output(i, outvar + neg_repr);
+                    }
+                }
             }
         }
       else
         circuit.set_output(i, circuit.aig_false());
+    unsigned postponed = postpone.size();
+    while (postponed)
+      {
+        unsigned postponed_again = 0;
+        for (auto [u, v, b]: postpone)
+          {
+            unsigned outvar = circuit.output(v);
+            if (outvar == -1u)
+              ++postponed_again;
+            else
+              circuit.set_output(u, outvar + b);
+          }
+        if (postponed_again >= postponed)
+          throw std::runtime_error("aiger encoding bug: "
+                                   "postponed output shunts not decreasing");
+        postponed = postponed_again;
+      }
     for (unsigned i = 0; i < n_latches; ++i)
       circuit.set_next_latch(i, bdd2var_min(latch[i], bddfalse));
     return circuit_ptr;

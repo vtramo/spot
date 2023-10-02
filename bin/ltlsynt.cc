@@ -31,6 +31,7 @@
 #include <spot/misc/bddlt.hh>
 #include <spot/misc/escape.hh>
 #include <spot/misc/timer.hh>
+#include <spot/priv/robin_hood.hh>
 #include <spot/tl/formula.hh>
 #include <spot/tl/apcollect.hh>
 #include <spot/twa/twagraph.hh>
@@ -52,6 +53,7 @@ enum
   OPT_DECOMPOSE,
   OPT_DOT,
   OPT_FROM_PGAME,
+  OPT_GEQUIV,
   OPT_HIDE,
   OPT_INPUT,
   OPT_OUTPUT,
@@ -105,6 +107,9 @@ static const argp_option options[] =
     { "polarity", OPT_POLARITY, "yes|no", 0,
       "whether to remove atomic propositions that always have the same "
       "polarity in the formula to speed things up (enabled by default)", 0 },
+    { "global-equivalence", OPT_GEQUIV, "yes|no", 0,
+      "whether to remove atomic propositions that are always equivalent to "
+      "another one (enabled by default)", 0 },
     { "simplify", OPT_SIMPLIFY, "no|bisim|bwoa|sat|bisim-sat|bwoa-sat", 0,
       "simplification to apply to the controller (no) nothing, "
       "(bisim) bisimulation-based reduction, (bwoa) bisimulation-based "
@@ -241,6 +246,7 @@ static bool decompose_values[] =
 ARGMATCH_VERIFY(decompose_args, decompose_values);
 bool opt_decompose_ltl = true;
 bool opt_polarity = true;
+bool opt_gequiv = true;
 
 static const char* const simplify_args[] =
   {
@@ -265,6 +271,11 @@ ARGMATCH_VERIFY(simplify_args, simplify_values);
 
 namespace
 {
+  static bool want_game()
+  {
+    return opt_print_pg || opt_print_hoa;
+  }
+
   auto str_tolower = [] (std::string s)
     {
       std::transform(s.begin(), s.end(), s.begin(),
@@ -272,12 +283,17 @@ namespace
       return s;
     };
 
+
   static void
   dispatch_print_hoa(spot::twa_graph_ptr& game,
                      const std::vector<std::string>* input_aps = nullptr,
                      const spot::relabeling_map* rm = nullptr)
   {
-    if (rm && !rm->empty())        // Add any AP we removed
+    // Add any AP we removed. This is a game, so player moves are
+    // separated.  Consequently at this point we cannot deal with
+    // removed signals such as "o1 <-> i2": if the game has to be
+    // printed, we can only optimize for signals such as o1 <-> o2.
+    if (rm && !rm->empty())
       {
         assert(input_aps);
         auto& sp = spot::get_state_players(game);
@@ -294,6 +310,15 @@ namespace
               add &= bdd_ithvar(i);
             else if (v.is_ff())
               add &= bdd_nithvar(i);
+            else
+              {
+                bdd bv;
+                if (v.is(spot::op::ap))
+                  bv = bdd_ithvar(game->register_ap(v.ap_name()));
+                else // Not Ap
+                  bv = bdd_nithvar(game->register_ap(v[0].ap_name()));
+                add &= bdd_biimp(bdd_ithvar(i), bv);
+              }
           }
         for (auto& e: game->edges())
           if (sp[e.src])
@@ -417,53 +442,156 @@ namespace
         return;
       if (first_dap)
         {
-          *gi->verbose_stream << ("the following APs are polarized, "
-                                  "they can be replaced by constants:\n");
+          *gi->verbose_stream
+            << "the following signals can be temporarily removed:\n";
           first_dap = false;
         }
       *gi->verbose_stream << "  " << p << " := " << rm[p] <<'\n';
     };
     spot::formula oldf;
-    if (opt_polarity)
-      do
-        {
-          bool rm_has_new_terms = false;
-          std::set<spot::formula> lits = spot::collect_litterals(f);
-          for (const std::string& ap: output_aps)
-            {
-              spot::formula pos = spot::formula::ap(ap);
-              spot::formula neg = spot::formula::Not(pos);
-              bool has_pos = lits.find(pos) != lits.end();
-              bool has_neg = lits.find(neg) != lits.end();
-              if (has_pos ^ has_neg)
-                {
-                  rm[pos] = has_pos ? spot::formula::tt() : spot::formula::ff();
-                  rm_has_new_terms = true;
-                  display_ap(pos);
-                }
-            }
-          for (const std::string& ap: input_aps)
-            {
-              spot::formula pos = spot::formula::ap(ap);
-              spot::formula neg = spot::formula::Not(pos);
-              bool has_pos = lits.find(pos) != lits.end();
-              bool has_neg = lits.find(neg) != lits.end();
-              if (has_pos ^ has_neg)
-                {
-                  rm[pos] = has_neg ? spot::formula::tt() : spot::formula::ff();
-                  rm_has_new_terms = true;
-                  display_ap(pos);
-                }
-            }
-          oldf = f;
-          if (rm_has_new_terms)
-            {
-              f = spot::relabel_apply(f, &rm);
-              if (gi->verbose_stream)
-                *gi->verbose_stream << "new formula: " << f << '\n';
-            }
-        }
-      while (oldf != f);
+    if (opt_polarity || opt_gequiv)
+      {
+        robin_hood::unordered_set<spot::formula> ap_inputs;
+        for (const std::string& ap: input_aps)
+          ap_inputs.insert(spot::formula::ap(ap));
+
+        do
+          {
+            bool rm_has_new_terms = false;
+            oldf = f;
+
+            if (opt_polarity)
+              {
+                std::set<spot::formula> lits = spot::collect_literals(f);
+                for (const std::string& ap: output_aps)
+                  {
+                    spot::formula pos = spot::formula::ap(ap);
+                    spot::formula neg = spot::formula::Not(pos);
+                    bool has_pos = lits.find(pos) != lits.end();
+                    bool has_neg = lits.find(neg) != lits.end();
+                    if (has_pos ^ has_neg)
+                      {
+                        rm[pos] =
+                          has_pos ? spot::formula::tt() : spot::formula::ff();
+                        rm_has_new_terms = true;
+                        display_ap(pos);
+                      }
+                  }
+                for (const std::string& ap: input_aps)
+                  {
+                    spot::formula pos = spot::formula::ap(ap);
+                    spot::formula neg = spot::formula::Not(pos);
+                    bool has_pos = lits.find(pos) != lits.end();
+                    bool has_neg = lits.find(neg) != lits.end();
+                    if (has_pos ^ has_neg)
+                      {
+                        rm[pos] =
+                          has_neg ? spot::formula::tt() : spot::formula::ff();
+                        rm_has_new_terms = true;
+                        display_ap(pos);
+                      }
+                  }
+                if (rm_has_new_terms)
+                  {
+                    f = spot::relabel_apply(f, &rm);
+                    if (gi->verbose_stream)
+                      *gi->verbose_stream << "new formula: " << f << '\n';
+                    rm_has_new_terms = false;
+                  }
+              }
+            if (opt_gequiv)
+              {
+                // check for equivalent terms
+                spot::formula_ptr_less_than_bool_first cmp;
+                for (std::vector<spot::formula>& equiv:
+                       spot::collect_equivalent_literals(f))
+                  {
+                    // For each set of equivalent literals, we want to
+                    // pick a representative.  That representative
+                    // should be an input if one of the literal is an
+                    // input.  (If we have two inputs or more, the
+                    // formula is not realizable.)
+                    spot::formula repr = nullptr;
+                    bool repr_is_input = false;
+                    spot::formula input_seen = nullptr;
+                    for (spot::formula lit: equiv)
+                      {
+                        spot::formula ap = lit;
+                        if (ap.is(spot::op::Not))
+                          ap = ap[0];
+                        if (ap_inputs.find(ap) != ap_inputs.end())
+                          {
+                            if (input_seen)
+                              {
+                                // ouch! we have two equivalent inputs.
+                                // This means the formula is simply
+                                // unrealizable.  Make it false for the
+                                // rest of the algorithm.
+                                f = spot::formula::ff();
+                                goto done;
+                              }
+                            input_seen = lit;
+                            // Normally, we want the input to be the
+                            // representative.  However as a special
+                            // case, we ignore the input literal from
+                            // the set if we are asked to print a
+                            // game.  Fixing the game to add a i<->o
+                            // equivalence would require more code
+                            // than I care to write.
+                            //
+                            // So if the set was {i,o1,o2}, instead
+                            // of the desirable
+                            //     o1 := i
+                            //     o2 := i
+                            // we only do
+                            //     o2 := o1
+                            // when printing games.
+                            if (!want_game())
+                              {
+                                repr_is_input = true;
+                                repr = lit;
+                              }
+                          }
+                        else if (!repr_is_input && (!repr || cmp(ap, repr)))
+                          repr = lit;
+                      }
+                    // now map equivalent each atomic proposition to the
+                    // representative
+                    spot::formula not_repr = spot::formula::Not(repr);
+                    for (spot::formula lit: equiv)
+                      {
+                        // input or representative are not removed
+                        // (we have repr != input_seen either when input_seen
+                        // is nullptr, or if want_game is true)
+                        if (lit == repr || lit == input_seen)
+                          continue;
+                        if (lit.is(spot::op::Not))
+                          {
+                            spot::formula ap = lit[0];
+                            rm[ap] = not_repr;
+                            display_ap(ap);
+                          }
+                        else
+                          {
+                            rm[lit] = repr;
+                            display_ap(lit);
+                          }
+                        rm_has_new_terms = true;
+                      }
+                  }
+                if (rm_has_new_terms)
+                  {
+                    f = spot::relabel_apply(f, &rm);
+                    if (gi->verbose_stream)
+                      *gi->verbose_stream << "new formula: " << f << '\n';
+                    rm_has_new_terms = false;
+                  }
+              }
+          }
+        while (oldf != f);
+      done:
+        /* can't have a label followed by closing brace */;
+      }
 
     std::vector<spot::formula> sub_form;
     std::vector<std::set<spot::formula>> sub_outs;
@@ -510,8 +638,6 @@ namespace
     assert((sub_form.size() == sub_outs.size())
            && (sub_form.size() == sub_outs_str.size()));
 
-    const bool want_game = opt_print_pg || opt_print_hoa;
-
     std::vector<spot::twa_graph_ptr> arenas;
 
     auto sub_f = sub_form.begin();
@@ -528,7 +654,7 @@ namespace
               };
       // If we want to print a game,
       // we never use the direct approach
-      if (!want_game && opt_bypass)
+      if (!want_game() && opt_bypass)
         m_like =
             spot::try_create_direct_strategy(*sub_f, *sub_o, *gi, !opt_real);
 
@@ -555,7 +681,7 @@ namespace
               assert((spptr->at(arena->get_init_state_number()) == false)
                      && "Env needs first turn");
             }
-          if (want_game)
+          if (want_game())
             {
               dispatch_print_hoa(arena, &input_aps, &rm);
               continue;
@@ -615,7 +741,7 @@ namespace
     }
 
     // If we only wanted to print the game we are done
-    if (want_game)
+    if (want_game())
       {
         safe_tot_time();
         return 0;
@@ -681,6 +807,7 @@ namespace
         if (!rm.empty())        // Add any AP we removed
           {
             bdd add = bddtrue;
+            bdd additional_outputs = bddtrue;
             for (auto [k, v]: rm)
               {
                 int i = tot_strat->register_ap(k);
@@ -689,15 +816,39 @@ namespace
                     != input_aps.end())
                   continue;
                 if (v.is_tt())
-                  add &= bdd_ithvar(i);
+                  {
+                    bdd bv = bdd_ithvar(i);
+                    additional_outputs &= bv;
+                    add &= bv;
+                  }
                 else if (v.is_ff())
-                  add &= bdd_nithvar(i);
+                  {
+                    additional_outputs &= bdd_ithvar(i);
+                    add &= bdd_nithvar(i);
+                  }
+                else
+                  {
+                    bdd left = bdd_ithvar(i); // this is necessarily an output
+                    additional_outputs &= left;
+                    bool pos = v.is(spot::op::ap);
+                    const std::string apname =
+                      pos ? v.ap_name() : v[0].ap_name();
+                    bdd right = bdd_ithvar(tot_strat->register_ap(apname));
+                    // right might be an input
+                    if (std::find(input_aps.begin(), input_aps.end(), apname)
+                        == input_aps.end())
+                      additional_outputs &= right;
+                    if (pos)
+                      add &= bdd_biimp(left, right);
+                    else
+                      add &= bdd_xor(left, right);
+                  }
               }
             for (auto& e: tot_strat->edges())
               e.cond &= add;
             set_synthesis_outputs(tot_strat,
                                   get_synthesis_outputs(tot_strat)
-                                  & bdd_support(add));
+                                  & additional_outputs);
           }
         printer.print(tot_strat, timer_printer_dummy);
       }
@@ -1051,6 +1202,10 @@ parse_opt(int key, char *arg, struct argp_state *)
       break;
     case OPT_FROM_PGAME:
       jobs.emplace_back(arg, job_type::AUT_FILENAME);
+      break;
+    case OPT_GEQUIV:
+      opt_gequiv = XARGMATCH("--global-equivalence", arg,
+                               decompose_args, decompose_values);
       break;
     case OPT_HIDE:
       show_status = false;

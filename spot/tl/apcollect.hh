@@ -24,6 +24,7 @@
 
 #include <spot/tl/formula.hh>
 #include <set>
+#include <vector>
 #include <bddx.h>
 #include <spot/twa/fwd.hh>
 
@@ -60,14 +61,22 @@ namespace spot
   atomic_prop_collect_as_bdd(formula f, const twa_ptr& a);
 
 
-  /// \brief Collect the litterals occuring in f
+  /// \brief Collect the literals occuring in f
   ///
   /// This function records each atomic proposition occurring in f
   /// along with the polarity of its occurrence.  For instance if the
   /// formula is `G(a -> b) & X(!b & c)`, then this will output `{!a,
   /// b, !b, c}`.
   SPOT_API
-  atomic_prop_set collect_litterals(formula f);
+  atomic_prop_set collect_literals(formula f);
 
+  /// \brief Collect equivalent APs
+  ///
+  /// Looks for patterns like `...&G(...&(x->y)&...)&...` or
+  /// other forms of constant implications, then build a graph
+  /// of implications to compute equivalence classes of literals.
+  SPOT_API
+  std::vector<std::vector<spot::formula>>
+  collect_equivalent_literals(formula f);
   /// @}
 }
