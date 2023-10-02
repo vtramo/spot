@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2017, 2021, 2022 Laboratoire de Recherche et
+# Copyright (C) 2017, 2021, 2022, 2023 Laboratoire de Recherche et
 # Développement de l'EPITA.
 #
 # This file is part of Spot, a model checking library.
@@ -114,3 +114,40 @@ tc.assertTrue(si.is_accepting_scc(0))
 tc.assertFalse(si.is_rejecting_scc(0))
 tc.assertTrue(si.is_rejecting_scc(1))
 tc.assertFalse(si.is_accepting_scc(1))
+
+a = spot.automaton("""
+HOA: v1
+States: 4
+Start: 0
+AP: 1 "a"
+Acceptance: 2 Inf(0)&Fin(1)
+--BODY--
+State: 0
+[t] 0 {1}
+[t] 1 {0}
+State: 1
+[t] 1 {1}
+[t] 0 {1}
+State: 2
+[t] 2 {1}
+[t] 3 {0}
+State: 3
+[t] 3 {1}
+[t] 2
+--END--
+""")
+si = spot.scc_info(a)
+si.determine_unknown_acceptance()
+tc.assertEqual(si.scc_count(), 1)
+tc.assertFalse(si.is_accepting_scc(0))
+tc.assertTrue(si.is_rejecting_scc(0))
+si = spot.scc_info_with_options \
+    (a,
+     spot.scc_info_options_PROCESS_UNREACHABLE_STATES |
+     spot.scc_info_options_TRACK_STATES)
+si.determine_unknown_acceptance()
+tc.assertEqual(si.scc_count(), 2)
+tc.assertTrue(si.is_accepting_scc(1))
+tc.assertFalse(si.is_rejecting_scc(1))
+tc.assertTrue(si.is_rejecting_scc(0))
+tc.assertFalse(si.is_accepting_scc(0))

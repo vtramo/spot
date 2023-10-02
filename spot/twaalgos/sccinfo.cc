@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2014-2022 Laboratoire de Recherche et Développement
+// Copyright (C) 2014-2023 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -206,13 +206,21 @@ namespace spot
           }
       };
 
-    // Setup depth-first search from the initial state.  But we may
-    // have a conjunction of initial state in alternating automata.
-    if (initial_state_ == -1U)
-      initial_state_ = aut->get_init_state_number();
-    for (unsigned init: aut->univ_dests(initial_state_))
-      push_init(init);
-
+    if (!!(options & scc_info_options::PROCESS_UNREACHABLE_STATES))
+      {
+        unsigned e = aut->num_states();
+        for (unsigned i = 0; i < e; ++i)
+          push_init(i);
+      }
+    else
+      {
+        // Setup depth-first search from the initial state.  But we may
+        // have a conjunction of initial state in alternating automata.
+        if (initial_state_ == -1U)
+          initial_state_ = aut->get_init_state_number();
+        for (unsigned init: aut->univ_dests(initial_state_))
+          push_init(init);
+      }
     while (!init_states.empty())
       {
         unsigned init = init_states.front();

@@ -85,6 +85,9 @@ New in spot 2.11.6.dev  (not yet released)
 
     The above also impacts autfilt --included-in option.
 
+  - spot::scc_info has a new option PROCESS_UNREACHABLE_STATES that
+    causes it to enumerated even unreachable SCCs.
+
   Bugs fixed:
 
   - tgba_determinize()'s use_simulation option would cause it to

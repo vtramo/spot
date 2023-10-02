@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2014-2021 Laboratoire de Recherche et Développement
+// Copyright (C) 2014-2021, 2023 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -393,6 +393,13 @@ namespace spot
     /// Conditionally track states if the acceptance conditions uses Fin.
     /// This is sufficiant for determine_unknown_acceptance().
     TRACK_STATES_IF_FIN_USED = 8,
+    /// Also compute SCCs for the unreachable states.  When this is
+    /// used, SCCs are first enumerated from state 0, and then from
+    /// the next unvisited states.  In other words the initial state
+    /// does not play any role.  If STOP_ON_ACC is used with
+    /// PROCESS_UNREACHABLE_STATES, the enumeration will stop as soon
+    /// as an SCC is found, but that SCC might not be reachable.
+    PROCESS_UNREACHABLE_STATES = 16,
     /// Default behavior: explore everything and track states and succs.
     ALL = TRACK_STATES | TRACK_SUCCS,
   };
