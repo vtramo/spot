@@ -478,3 +478,29 @@ raspbian:
       - ./spot-*/_build/sub/tests/*/*.log
       - ./*.log
       - ./*.tar.gz
+
+centos7:
+  stage: build2
+  needs:
+    - job: make-dist
+      artifacts: true
+  variables:
+    GIT_STRATEGY: none
+  only:
+    - branches
+  except:
+    - /wip/
+  image: gitlab-registry.lre.epita.fr/spot/buildenv/centos7
+  script:
+    - VERSION=`cat VERSION`
+    - tar xvf spot-$VERSION.tar.gz
+    - mkdir build-$VERSION
+    - cd build-$VERSION
+    - scl enable devtoolset-7 "../spot-$VERSION/configure --enable-devel"
+    - scl enable devtoolset-7 make
+    - scl enable devtoolset-7 "make distcheck DISTCHECK_CONFIGURE_FLAGS='--enable-devel --enable-optimizations'"
+  artifacts:
+    when: on_failure
+    paths:
+      - build-*/spot-*/_build/sub/tests/*/*.log
+      - build-*/*.log
