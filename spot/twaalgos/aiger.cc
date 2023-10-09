@@ -1545,7 +1545,7 @@ namespace
                 const char* mode,
                 const std::vector<std::string>& unused_ins = {},
                 const std::vector<std::string>& unused_outs = {},
-                const relabeling_map* rm = nullptr)
+                const realizability_simplifier* rs = nullptr)
   {
     // The aiger circuit can currently noly encode separated mealy machines
 
@@ -1620,19 +1620,19 @@ namespace
                             unused_outs.cbegin(),
                             unused_outs.cend());
 
-    if (rm)
+    if (rs)
       // If we have removed some APs from the original formula, they
       // might have dropped out of the output_names list (depending on
       // how we split the formula), but they should not have dropped
       // from the input_names list.  So let's fix the output_names
       // lists by adding anything that's not an input and not already
       // there.
-      for (auto [k, v]: *rm)
+      for (auto [k, k_is_input, v]: rs->get_mapping())
         {
+          if (k_is_input)
+            continue;
           const std::string s = k.ap_name();
-          if (std::find(input_names_all.begin(), input_names_all.end(), s)
-              == input_names_all.end()
-              && std::find(output_names_all.begin(), output_names_all.end(), s)
+          if (std::find(output_names_all.begin(), output_names_all.end(), s)
               == output_names_all.end())
             output_names_all.push_back(s);
         }
@@ -1985,93 +1985,79 @@ namespace
     // Reset them
     for (unsigned i = 0; i < n_outs; ++i)
       circuit.set_output(i, bdd2var_min(out[i], out_dc[i]));
-    // Add the unused propositions
-    //
-    // RM contains assignments like
+
+    // Set unused signal to false by default
+    const unsigned n_outs_all = output_names_all.size();
+    for (unsigned i = n_outs; i < n_outs_all; ++i)
+      circuit.set_output(i, circuit.aig_false());
+
+    // RS may contains assignments for unused signals, such as
     //     out1 := 1
     //     out2 := 0
     //     out3 := in1
     //     out4 := !out3
-    // but it is possible that the rhs could refer to a variable
-    // that is not yet defined because of the ordering.  For
-    // this reason, the first pass will store signals it could not
-    // complete in the POSTPONE vector.
-    //
-    // In that vector, (u,v,b) means that output u should be mapped to
-    // the same formula as output v, possibly negated (if b).
-    std::vector<std::tuple<int, int, bool>> postpone;
+    // But because the formula is simplified in a loop (forcing
+    // some of those values in the formula reveal more values to
+    // be forced), it is possible that the rhs refers to a variable
+    // that is forced later in the mapping.  Therefore the mapping
+    // should be applied in reverse order.
+    if (rs)
+      {
+        auto mapping = rs->get_mapping();
+        for (auto it = mapping.rbegin(); it != mapping.rend(); ++it)
+          {
+            auto [from, from_is_input, to] = *it;
+            if (from_is_input)
+              continue;
 
-    const unsigned n_outs_all = output_names_all.size();
-    for (unsigned i = n_outs; i < n_outs_all; ++i)
-      if (rm)
-        {
-          if (auto to = rm->find(formula::ap(output_names_all[i]));
-              to != rm->end())
-            {
-              if (to->second.is_tt())
-                {
-                  circuit.set_output(i, circuit.aig_true());
-                  continue;
-                }
-              else if (to->second.is_ff())
-                {
-                  circuit.set_output(i, circuit.aig_false());
-                  continue;
-                }
-              else
-                {
-                  formula repr = to->second;
-                  bool neg_repr = false;
+            auto j = std::find(output_names_all.begin(),
+                               output_names_all.end(),
+                               from.ap_name());
+            assert(j != output_names_all.end());
+            int i = j - output_names_all.begin();
+            if (to.is_tt())
+              {
+                circuit.set_output(i, circuit.aig_true());
+                continue;
+              }
+            else if (to.is_ff())
+              {
+                circuit.set_output(i, circuit.aig_false());
+                continue;
+              }
+            else
+              {
+                formula repr = to;
+                bool neg_repr = false;
                   if (repr.is(op::Not))
                     {
                       neg_repr = true;
                       repr = repr[0];
                     }
                   // is repr an input?
-                  if (auto it = std::find(input_names_all.begin(),
+                  if (auto it2 = std::find(input_names_all.begin(),
                                           input_names_all.end(),
                                           repr.ap_name());
-                      it != input_names_all.end())
+                      it2 != input_names_all.end())
                     {
                       unsigned ivar =
-                        circuit.input_var(it - input_names_all.begin(),
+                        circuit.input_var(it2 - input_names_all.begin(),
                                           neg_repr);
                       circuit.set_output(i, ivar);
                     }
                   // is repr an output?
-                  else if (auto it = std::find(output_names_all.begin(),
-                                               output_names_all.end(),
-                                               repr.ap_name());
-                           it != output_names_all.end())
+                  else
                     {
-                      unsigned outnum = it - output_names_all.begin();
+                      assert(std::find(output_names_all.begin(),
+                                       output_names_all.end(),
+                                       repr.ap_name()) ==
+                             output_names_all.end());
+                      unsigned outnum = it2 - output_names_all.begin();
                       unsigned outvar = circuit.output(outnum);
-                      if (outvar == -1u)
-                        postpone.emplace_back(i, outnum, neg_repr);
-                      else
-                        circuit.set_output(i, outvar + neg_repr);
+                      circuit.set_output(i, outvar + neg_repr);
                     }
-                }
-            }
-        }
-      else
-        circuit.set_output(i, circuit.aig_false());
-    unsigned postponed = postpone.size();
-    while (postponed)
-      {
-        unsigned postponed_again = 0;
-        for (auto [u, v, b]: postpone)
-          {
-            unsigned outvar = circuit.output(v);
-            if (outvar == -1u)
-              ++postponed_again;
-            else
-              circuit.set_output(u, outvar + b);
+              }
           }
-        if (postponed_again >= postponed)
-          throw std::runtime_error("aiger encoding bug: "
-                                   "postponed output shunts not decreasing");
-        postponed = postponed_again;
       }
     for (unsigned i = 0; i < n_latches; ++i)
       circuit.set_next_latch(i, bdd2var_min(latch[i], bddfalse));
@@ -2106,7 +2092,7 @@ namespace spot
   mealy_machine_to_aig(const twa_graph_ptr &m, const char *mode,
                        const std::vector<std::string>& ins,
                        const std::vector<std::string>& outs,
-                       const relabeling_map* rm)
+                       const realizability_simplifier* rs)
   {
     if (!m)
       throw std::runtime_error("mealy_machine_to_aig(): "
@@ -2139,20 +2125,20 @@ namespace spot
     }
     // todo Some additional checks?
     return auts_to_aiger({{m, get_synthesis_outputs(m)}}, mode,
-                         unused_ins, unused_outs, rm);
+                         unused_ins, unused_outs, rs);
   }
 
   aig_ptr
   mealy_machine_to_aig(mealy_like& m, const char *mode,
                        const std::vector<std::string>& ins,
                        const std::vector<std::string>& outs,
-                       const relabeling_map* rm)
+                       const realizability_simplifier* rs)
   {
     if (m.success != mealy_like::realizability_code::REALIZABLE_REGULAR)
       throw std::runtime_error("mealy_machine_to_aig(): "
                                "Can only handle regular mealy machine, yet.");
 
-    return mealy_machine_to_aig(m.mealy_like, mode, ins, outs, rm);
+    return mealy_machine_to_aig(m.mealy_like, mode, ins, outs, rs);
   }
 
   aig_ptr
@@ -2212,7 +2198,7 @@ namespace spot
                         const char *mode,
                         const std::vector<std::string>& ins,
                         const std::vector<std::vector<std::string>>& outs,
-                        const relabeling_map* rm)
+                        const realizability_simplifier* rs)
   {
     if (m_vec.empty())
       throw std::runtime_error("mealy_machines_to_aig(): No strategy given.");
@@ -2269,7 +2255,7 @@ namespace spot
       if (!used_aps.count(ai))
         unused_ins.push_back(ai);
 
-    return auts_to_aiger(new_vec, mode, unused_ins, unused_outs, rm);
+    return auts_to_aiger(new_vec, mode, unused_ins, unused_outs, rs);
   }
 
   aig_ptr
@@ -2277,7 +2263,7 @@ namespace spot
                         const char* mode,
                         const std::vector<std::string>& ins,
                         const std::vector<std::vector<std::string>>& outs,
-                        const relabeling_map* rm)
+                        const realizability_simplifier* rs)
   {
     // todo extend to TGBA and possibly others
     const unsigned ns = strat_vec.size();
@@ -2311,7 +2297,7 @@ namespace spot
                                    "success identifier.");
         }
       }
-    return mealy_machines_to_aig(m_machines, mode, ins, outs_used, rm);
+    return mealy_machines_to_aig(m_machines, mode, ins, outs_used, rs);
   }
 
   std::ostream &

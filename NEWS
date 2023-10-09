@@ -100,6 +100,10 @@ New in spot 2.11.6.dev  (not yet released)
   - spot::scc_info has a new option PROCESS_UNREACHABLE_STATES that
     causes it to enumerated even unreachable SCCs.
 
+  - spot::realizability_simplifier is a new class that performs the
+    removal of superfluous APs that is now performed by ltlsynt
+    (search for --polarity and --global-equivalence above).
+
   Bugs fixed:
 
   - tgba_determinize()'s use_simulation option would cause it to

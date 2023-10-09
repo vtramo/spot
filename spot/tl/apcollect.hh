@@ -78,5 +78,51 @@ namespace spot
   SPOT_API
   std::vector<std::vector<spot::formula>>
   collect_equivalent_literals(formula f);
+
+
+
+  /// \brief Simplify a reactive specification, preserving realizability
+  class SPOT_API realizability_simplifier final
+  {
+  public:
+    enum realizability_simplifier_option {
+      /// \brief remove APs with single polarity
+      polarity = 0b1,
+      /// \brief remove equivalent APs
+      global_equiv = 0b10,
+      /// \brief likewise, but don't consider equivalent input and output
+      global_equiv_output_only = 0b110,
+    };
+
+    realizability_simplifier(formula f,
+                             const std::vector<std::string>& inputs,
+                             unsigned options = polarity | global_equiv,
+                             std::ostream* verbose = nullptr);
+
+    /// \brief Return the simplified formula.
+    formula simplified_formula() const
+    {
+      return f_;
+    }
+
+    /// \brief Returns a vector of (from,from_is_input,to)
+    const std::vector<std::tuple<formula, bool, formula>>& get_mapping() const
+    {
+      return mapping_;
+    }
+
+    /// \brief Patch a Mealy machine to add the missing APs.
+    void patch_mealy(twa_graph_ptr mealy) const;
+
+    /// \brief Patch a game to add the missing APs.
+    void patch_game(twa_graph_ptr mealy) const;
+
+  private:
+    void add_to_mapping(formula from, bool from_is_input, formula to);
+    std::vector<std::tuple<formula, bool, formula>> mapping_;
+    formula f_;
+    bool global_equiv_output_only_;
+  };
+
   /// @}
 }

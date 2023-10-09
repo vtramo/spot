@@ -28,6 +28,9 @@
 #include <spot/twa/bdddict.hh>
 #include <spot/twaalgos/hoa.hh>
 #include <spot/twaalgos/sccinfo.hh>
+#include <spot/twaalgos/synthesis.hh>
+#include <spot/tl/relabel.hh>
+#include <spot/priv/robin_hood.hh>
 
 namespace spot
 {
@@ -279,6 +282,234 @@ namespace spot
       }
     scc.resize(j);
     return scc;
+  }
+
+  realizability_simplifier::realizability_simplifier
+  (formula f, const std::vector<std::string>& inputs,
+   unsigned options, std::ostream* verbose)
+  {
+    bool first_mapping = true;
+    relabeling_map rm;
+    auto add_to_mapping = [&](formula from, bool from_is_input, formula to)
+    {
+      mapping_.emplace_back(from, from_is_input, to);
+      rm[from] = to;
+      if (SPOT_LIKELY(!verbose))
+        return;
+      if (first_mapping)
+        {
+          *verbose << "the following signals can be temporarily removed:\n";
+          first_mapping = false;
+        }
+      *verbose << "  " << from << " := " << to <<'\n';
+    };
+    global_equiv_output_only_ =
+      (options & global_equiv_output_only) == global_equiv_output_only;
+
+    robin_hood::unordered_set<spot::formula> ap_inputs;
+    for (const std::string& ap: inputs)
+      ap_inputs.insert(spot::formula::ap(ap));
+
+    formula oldf;
+    f_ = f;
+    do
+      {
+        bool rm_has_new_terms = false;
+        oldf = f_;
+
+        if (options & polarity)
+          {
+            // Check if some output propositions are always in
+            // positive form, or always in negative form.  In
+            // syntcomp, this occurs more frequently for input
+            // variables than output variable.  See issue #529 for
+            // some examples.
+            std::set<spot::formula> lits = spot::collect_literals(f_);
+            for (const formula& lit: lits)
+              if (lits.find(spot::formula::Not(lit)) == lits.end())
+                {
+                  formula ap = lit;
+                  bool neg = false;
+                  if (lit.is(op::Not))
+                    {
+                      ap = lit[0];
+                      neg = true;
+                    }
+                  bool is_input = ap_inputs.find(ap) != ap_inputs.end();
+                  formula to = (is_input == neg)
+                    ? spot::formula::tt() : spot::formula::ff();
+                  add_to_mapping(ap, is_input, to);
+                  rm_has_new_terms = true;
+                }
+            if (rm_has_new_terms)
+              {
+                f_ = spot::relabel_apply(f_, &rm);
+                if (verbose)
+                  *verbose << "new formula: " << f_ << '\n';
+                rm_has_new_terms = false;
+              }
+          }
+        if (options & global_equiv)
+          {
+            // check for equivalent terms
+            spot::formula_ptr_less_than_bool_first cmp;
+            for (std::vector<spot::formula>& equiv:
+                   spot::collect_equivalent_literals(f_))
+              {
+                // For each set of equivalent literals, we want to
+                // pick a representative.  That representative
+                // should be an input if one of the literal is an
+                // input.  (If we have two inputs or more, the
+                // formula is not realizable.)
+                spot::formula repr = nullptr;
+                bool repr_is_input = false;
+                spot::formula input_seen = nullptr;
+                for (spot::formula lit: equiv)
+                  {
+                    spot::formula ap = lit;
+                    if (ap.is(spot::op::Not))
+                      ap = ap[0];
+                    if (ap_inputs.find(ap) != ap_inputs.end())
+                      {
+                        if (input_seen)
+                          {
+                            // ouch! we have two equivalent inputs.
+                            // This means the formula is simply
+                            // unrealizable.  Make it false for the
+                            // rest of the algorithm.
+                            f = spot::formula::ff();
+                            return;
+                          }
+                        input_seen = lit;
+                        // Normally, we want the input to be the
+                        // representative.  However as a special
+                        // case, we ignore the input literal from
+                        // the set if we are asked to print a
+                        // game.  Fixing the game to add a i<->o
+                        // equivalence would require more code
+                        // than I care to write.
+                        //
+                        // So if the set was {i,o1,o2}, instead
+                        // of the desirable
+                        //     o1 := i
+                        //     o2 := i
+                        // we only do
+                        //     o2 := o1
+                        // when printing games.
+                        if (!global_equiv_output_only_)
+                          {
+                            repr_is_input = true;
+                            repr = lit;
+                          }
+                      }
+                    else if (!repr_is_input && (!repr || cmp(ap, repr)))
+                      repr = lit;
+                  }
+                // now map equivalent each atomic proposition to the
+                // representative
+                spot::formula not_repr = spot::formula::Not(repr);
+                for (spot::formula lit: equiv)
+                  {
+                    // input or representative are not removed
+                    // (we have repr != input_seen either when input_seen
+                    // is nullptr, or if want_game is true)
+                    if (lit == repr || lit == input_seen)
+                      continue;
+                    SPOT_ASSUME(lit != nullptr);
+                    if (lit.is(spot::op::Not))
+                      add_to_mapping(lit[0], repr_is_input, not_repr);
+                    else
+                      add_to_mapping(lit, repr_is_input, repr);
+                    rm_has_new_terms = true;
+                  }
+              }
+            if (rm_has_new_terms)
+              {
+                f_ = spot::relabel_apply(f_, &rm);
+                if (verbose)
+                  *verbose << "new formula: " << f_ << '\n';
+                rm_has_new_terms = false;
+              }
+          }
+      }
+    while (oldf != f_);
+  }
+
+  void realizability_simplifier::patch_mealy(twa_graph_ptr mealy) const
+  {
+    bdd add = bddtrue;
+    bdd additional_outputs = bddtrue;
+    for (auto [k, k_is_input, v]: mapping_)
+      {
+        int i = mealy->register_ap(k);
+        // skip inputs (they are don't care)
+        if (k_is_input)
+          continue;
+        if (v.is_tt())
+          {
+            bdd bv = bdd_ithvar(i);
+            additional_outputs &= bv;
+            add &= bv;
+          }
+        else if (v.is_ff())
+          {
+            additional_outputs &= bdd_ithvar(i);
+            add &= bdd_nithvar(i);
+          }
+        else
+          {
+            bdd left = bdd_ithvar(i); // this is necessarily an output
+            additional_outputs &= left;
+            bool pos = v.is(spot::op::ap);
+            const std::string apname =
+              pos ? v.ap_name() : v[0].ap_name();
+            bdd right = bdd_ithvar(mealy->register_ap(apname));
+            if (pos)
+              add &= bdd_biimp(left, right);
+            else
+              add &= bdd_xor(left, right);
+          }
+      }
+    for (auto& e: mealy->edges())
+      e.cond &= add;
+    set_synthesis_outputs(mealy,
+                          get_synthesis_outputs(mealy)
+                          & additional_outputs);
+  }
+
+  void realizability_simplifier::patch_game(twa_graph_ptr game) const
+  {
+    if (SPOT_UNLIKELY(!global_equiv_output_only_))
+      throw std::runtime_error("realizability_simplifier::path_game() requires "
+                               "option global_equiv_output_only");
+
+    auto& sp = spot::get_state_players(game);
+    bdd add = bddtrue;
+    for (auto [k, k_is_input, v]: mapping_)
+      {
+        int i = game->register_ap(k);
+        if (k_is_input)
+          continue;
+        if (v.is_tt())
+          add &= bdd_ithvar(i);
+        else if (v.is_ff())
+          add &= bdd_nithvar(i);
+        else
+          {
+            bdd bv;
+            if (v.is(spot::op::ap))
+              bv = bdd_ithvar(game->register_ap(v.ap_name()));
+            else // Not Ap
+              bv = bdd_nithvar(game->register_ap(v[0].ap_name()));
+            add &= bdd_biimp(bdd_ithvar(i), bv);
+          }
+      }
+    for (auto& e: game->edges())
+      if (sp[e.src])
+        e.cond &= add;
+    set_synthesis_outputs(game,
+                          get_synthesis_outputs(game)
+                          & bdd_support(add));
   }
 
 }
