@@ -50,6 +50,9 @@ namespace spot
     };
   };
 
+  SPOT_API std::vector<std::pair<formula, formula>>
+  expansion_simple(formula f);
+
   SPOT_API expansion_t
   expansion(formula f, const bdd_dict_ptr& d, void *owner, exp_opts::expand_opt opts, std::unordered_set<formula>* seen = nullptr);
 
