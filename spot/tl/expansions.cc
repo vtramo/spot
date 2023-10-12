@@ -153,7 +153,7 @@ namespace spot
             return var_num;
           }
 
-        bdd_finalizer(std::multimap<bdd, formula, bdd_less_than>& exp, bdd_dict_ptr d, bool opt_sigma_star, bool opt_bdd_encode)
+        bdd_finalizer(expansion_t& exp, bdd_dict_ptr d, bool opt_sigma_star, bool opt_bdd_encode)
           : anon_set_(bddtrue)
           , d_(d)
           , opt_sigma_star_(opt_sigma_star)
@@ -278,9 +278,13 @@ namespace spot
           bdd dest_bdd = bdd_restrict(exp_, letter);
           formula dest = bdd_to_sere(dest_bdd);
 
-          auto it = res.insert({letter, dest});
-          assert(it.second);
-          (void) it;
+          #ifndef NDEBUG
+          // make sure it didn't exist before
+          auto it = std::find(res.begin(), res.end(), {letter, dest});
+          SPOT_ASSERT(it == res.end());
+          #endif
+
+          res.push_back({letter, dest});
         }
       }
       else // BddIsop
@@ -293,7 +297,7 @@ namespace spot
           bdd suffix = bdd_existcomp(cube, anon_set_);
           formula dest = conj_bdd_to_sere(suffix);
 
-          res.insert({letter, dest});
+          res.push_back({letter, dest});
         }
       }
 
@@ -326,7 +330,7 @@ namespace spot
         exp.clear();
         for (const auto [suffix, prefix] : unique_map)
         {
-          exp.insert({prefix, suffix});
+          exp.push_back({prefix, suffix});
         }
       }
 
@@ -366,14 +370,14 @@ namespace spot
               }
 
             for (const auto& sub_f : single)
-              exp.insert({prefix, sub_f});
+              exp.push_back({prefix, sub_f});
 
             if (!merge.empty())
-              exp.insert({prefix, formula::OrRat(merge)});
+              exp.push_back({prefix, formula::OrRat(merge)});
           }
           else
           {
-            exp.insert({prefix, suffix});
+            exp.push_back({prefix, suffix});
           }
         }
       }
@@ -394,13 +398,13 @@ namespace spot
         exp.clear();
         for (const auto [suffix, prefix] : unique_map)
         {
-          exp.insert({prefix, suffix});
+          exp.push_back({prefix, suffix});
         }
       }
 
       if (opts & exp_opts::expand_opt::Determinize)
         {
-          std::multimap<bdd, formula, bdd_less_than> exp_new;
+          expansion_t exp_new;
 
           bdd props = bddtrue;
           for (const auto& [prefix, _] : exp)
@@ -415,7 +419,7 @@ namespace spot
                     dests.push_back(suffix);
                 }
               formula or_dests = formula::OrRat(dests);
-              exp_new.insert({letter, or_dests});
+              exp_new.push_back({letter, or_dests});
               dests.clear();
             }
           exp = exp_new;
@@ -449,7 +453,7 @@ namespace spot
   expansion_t
   expansion(formula f, const bdd_dict_ptr& d, void *owner, exp_opts::expand_opt opts, std::unordered_set<formula>* seen)
   {
-    using exp_t = std::multimap<bdd, formula, bdd_less_than>;
+    using exp_t = expansion_t;
 
     if (f.is_boolean())
       {
@@ -484,7 +488,7 @@ namespace spot
             exp_t res;
             for (const auto& [bdd_l, form] : exps)
               {
-                res.insert({bdd_l, formula::Concat({form, f.all_but(0)})});
+                res.push_back({bdd_l, formula::Concat({form, f.all_but(0)})});
               }
 
             if (f[0].accepts_eword())
@@ -492,7 +496,7 @@ namespace spot
                 auto exps_rest = rec(f.all_but(0));
                 for (const auto& [bdd_l, form] : exps_rest)
                   {
-                    res.insert({bdd_l, form});
+                    res.push_back({bdd_l, form});
                   }
               }
 
@@ -518,7 +522,7 @@ namespace spot
             exp_t res;
             for (const auto& [li, ei] : exp)
               {
-                res.insert({li, formula::Fusion({ei, E_i_j_minus})});
+                res.push_back({li, formula::Fusion({ei, E_i_j_minus})});
 
                 if (ei.accepts_eword() && f.min() != 0)
                   {
@@ -526,12 +530,12 @@ namespace spot
                       {
                         // FIXME: build bdd once
                         if ((li & ki) != bddfalse)
-                          res.insert({li & ki, fi});
+                          res.push_back({li & ki, fi});
                       }
                   }
               }
             if (f.min() == 0)
-              res.insert({bddtrue, formula::eword()});
+              res.push_back({bddtrue, formula::eword()});
 
             finalize(res, opts, d, seen);
             return res;
@@ -549,7 +553,7 @@ namespace spot
             exp_t res;
             for (const auto& [bdd_l, form] : exps)
               {
-                res.insert({bdd_l, formula::Concat({form, formula::Star(f[0], min, max)})});
+                res.push_back({bdd_l, formula::Concat({form, formula::Star(f[0], min, max)})});
               }
 
             finalize(res, opts, d, seen);
@@ -571,7 +575,7 @@ namespace spot
             exp_t res;
             for (const auto& [bdd_l, form] : exps)
               {
-                res.insert({bdd_l, form});
+                res.push_back({bdd_l, form});
               }
 
             // determinize
@@ -604,7 +608,7 @@ namespace spot
                       dests.push_back(ndet_dest);
                   }
                 formula or_dests = formula::OrRat(dests);
-                res_det.insert({l, or_dests});
+                res_det.push_back({l, or_dests});
                 dests.clear();
               }
 
@@ -630,9 +634,9 @@ namespace spot
                   {
                     for (const auto& [kj, fj] : Fj)
                         if ((li & kj) != bddfalse)
-                          res.insert({li & kj, fj});
+                          res.push_back({li & kj, fj});
                   }
-                res.insert({li, formula::Fusion({ei, F})});
+                res.push_back({li, formula::Fusion({ei, F})});
               }
 
             finalize(res, opts, d, seen);
@@ -669,7 +673,7 @@ namespace spot
                       {
                         if ((l_key & r_key) != bddfalse)
                           {
-                            new_res.insert({l_key & r_key, formula::multop(f.kind(), {l_val, r_val})});
+                            new_res.push_back({l_key & r_key, formula::multop(f.kind(), {l_val, r_val})});
                             inserted = true;
                           }
                       }
@@ -705,7 +709,7 @@ namespace spot
                   }
 
                 for (const auto& [label, dest] : exps)
-                  res.insert({label, dest});
+                  res.push_back({label, dest});
               }
 
             finalize(res, opts, d, seen);
@@ -732,7 +736,7 @@ namespace spot
   struct signature_hash
   {
     std::size_t
-    operator() (const std::pair<bool, std::multimap<bdd, formula, bdd_less_than>>& sig) const
+    operator() (const std::pair<bool, expansion_t>& sig) const
     {
       size_t hash = std::hash<bool>()(sig.first);
 
