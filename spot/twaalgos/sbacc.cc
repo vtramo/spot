@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2015-2018, 2021 Laboratoire de Recherche et Développement
+// Copyright (C) 2015-2018, 2021, 2023 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -59,29 +59,31 @@ namespace spot
     // about a possible uninitialized use later.
     unsigned true_state_last = unsigned();
     for (auto& e: old->edges())
-      for (unsigned d: old->univ_dests(e.dst))
-        if (si.scc_of(e.src) == si.scc_of(d))
-          {
-            common_in[d] &= e.acc;
-            common_out[e.src] &= e.acc;
-            // Any state with an accepting edge labeled by true is a
-            // "true state".  We will merge all true states, and
-            // ignore other outgoing edges.  See issue #276 for an
-            // example.
-            if (e.src == e.dst && e.cond == bddtrue
-                && old->acc().accepting(e.acc))
-              {
-                true_state[d] = true;
-                true_state_acc = e.acc;
-                true_state_last = e.src;
-              }
-          }
+      if (SPOT_LIKELY(e.cond != bddfalse && si.reachable_state(e.src)))
+        for (unsigned d: old->univ_dests(e.dst))
+          if (si.scc_of(e.src) == si.scc_of(d))
+            {
+              common_in[d] &= e.acc;
+              common_out[e.src] &= e.acc;
+              // Any state with an accepting edge labeled by true is a
+              // "true state".  We will merge all true states, and
+              // ignore other outgoing edges.  See issue #276 for an
+              // example.
+              if (e.src == e.dst && e.cond == bddtrue
+                  && old->acc().accepting(e.acc))
+                {
+                  true_state[d] = true;
+                  true_state_acc = e.acc;
+                  true_state_last = e.src;
+                }
+            }
     for (unsigned s = 0; s < ns; ++s)
       common_out[s] |= common_in[s];
     for (auto& e: old->edges())
-      for (unsigned d: old->univ_dests(e.dst))
-        if (si.scc_of(e.src) == si.scc_of(d))
-          one_in[d] = e.acc - common_out[e.src];
+      if (SPOT_LIKELY(e.cond != bddfalse && si.reachable_state(e.src)))
+        for (unsigned d: old->univ_dests(e.dst))
+          if (si.scc_of(e.src) == si.scc_of(d))
+            one_in[d] = e.acc - common_out[e.src];
 
     auto res = make_twa_graph(old->get_dict());
     res->copy_ap_of(old);
@@ -159,6 +161,8 @@ namespace spot
         bool maybe_accepting = !si.is_rejecting_scc(scc_src);
         for (auto& t: old->out(one.first.first))
           {
+            if (SPOT_UNLIKELY(t.cond == bddfalse))
+              continue;
             std::vector<unsigned> dests;
             for (unsigned d: old->univ_dests(t.dst))
               {
