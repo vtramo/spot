@@ -449,6 +449,21 @@ namespace spot
       }
   }
 
+  std::vector<std::pair<formula, formula>>
+  expansion_simple(formula f)
+  {
+    int owner = 42;
+    auto d = make_bdd_dict();
+
+    auto exp = expansion(f, d, &owner, exp_opts::None);
+
+    std::vector<std::pair<formula, formula>> res;
+    for (const auto& [bdd, f] : exp)
+      res.push_back({bdd_to_formula(bdd, d), f});
+
+    d->unregister_all_my_variables(&owner);
+    return res;
+  }
 
   expansion_t
   expansion(formula f, const bdd_dict_ptr& d, void *owner, exp_opts::expand_opt opts, std::unordered_set<formula>* seen)
