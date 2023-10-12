@@ -547,6 +547,8 @@ namespace std {
   %template(vectorofvectorofformulas) vector<vector<spot::formula>>;
   %template(setunsigned) set<unsigned>;
   %template(relabeling_map) map<spot::formula, spot::formula>;
+  %template(pair_formula) pair<spot::formula, spot::formula>;
+  %template(vector_pair_formula) vector<pair<spot::formula, spot::formula>>;
 }
 
 %include <spot/tl/environment.hh>
