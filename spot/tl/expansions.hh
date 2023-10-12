@@ -30,7 +30,7 @@
 
 namespace spot
 {
-  using expansion_t = std::multimap<bdd, formula, bdd_less_than>;
+  using expansion_t = std::vector<std::pair<bdd, formula>>;
 
   struct exp_opts
   {
