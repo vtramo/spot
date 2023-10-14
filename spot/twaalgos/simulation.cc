@@ -33,6 +33,14 @@
 #include <spot/misc/bddlt.hh>
 #include <spot/twaalgos/cleanacc.hh>
 
+// Work around GCC bug 80947 (dominates_edge is causing spurious
+// visibility warnings)
+#if __GNUC__ <= 7
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wattributes"
+#endif
+
+
 //  Simulation-based reduction, implemented using bdd-based signatures.
 //
 //  The signature of a state is a Boolean function (implemented as a
@@ -1554,3 +1562,7 @@ namespace spot
     return reduce_iterated_<true>(aut);
   }
 } // End namespace spot.
+
+#if __GNUC__ <= 7
+#pragma GCC diagnostic pop
+#endif

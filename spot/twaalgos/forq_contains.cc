@@ -797,6 +797,7 @@ namespace spot::forq
     return temp;
   }
 
+  [[maybe_unused]]
   bool word::operator==(word const& other) const
   {
     return symbols == other.symbols;

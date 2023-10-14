@@ -509,6 +509,7 @@ namespace spot
   {
     // Do some check_ups
     auto& [gates, vardict, _] = ss;
+    (void)_;
     trace << "Reapplying sf: " << sf.first << "; " << sf.second
           << "\nwith " << gates.size() << " additional gates.\n\n";
     assert(gates.size() == vardict.size());
@@ -993,6 +994,7 @@ namespace spot
             {
               auto [it, ins] =
                 occur_map.try_emplace({term[i], term[j]} , 0);
+              (void)ins;
               it->second += 1;
             }
       };
@@ -1169,12 +1171,14 @@ namespace spot
     aig_ptr res_ptr =
         std::make_shared<aig>(in_names__, out_names__,
                               next_latches__.size(), dict);
+    // For some reason g++-7 thinks res_ptr could be null.
+    SPOT_ASSUME(res_ptr);
     aig& circ = *res_ptr;
-    res_ptr->max_var_ =
+    circ.max_var_ =
         (in_names__.size() + next_latches__.size() + gates__.size())*2;
-    std::swap(res_ptr->next_latches_, next_latches__);
-    std::swap(res_ptr->outputs_, outputs__);
-    std::swap(res_ptr->and_gates_, gates__);
+    std::swap(circ.next_latches_, next_latches__);
+    std::swap(circ.outputs_, outputs__);
+    std::swap(circ.and_gates_, gates__);
 
     // Create all the bdds/vars
     // true/false/latches/inputs already exist
@@ -1520,7 +1524,10 @@ namespace
   {
     // We do not care about an output if it does not appear in the bdd
     for (auto& [_, dc_v] : out_dc_vec)
-      dc_v = true;
+      {
+        (void) _;
+        dc_v = true;
+      }
     v.clear();
     while (b != bddtrue)
       {
@@ -1591,8 +1598,8 @@ namespace
               if (bdd_implies(all_outputs, b)) // ap is an output AP
                 {
                   output_names.push_back(ap.ap_name());
-                  auto [it, inserted] = bddvar_to_num.try_emplace(bddvar,
-                                                                  i_out++);
+                  bool inserted = bddvar_to_num.try_emplace(bddvar,
+                                                            i_out++).second;
                   if (SPOT_UNLIKELY(!inserted))
                     throw std::runtime_error("Intersecting outputs");
                 }
@@ -1629,6 +1636,7 @@ namespace
       // there.
       for (auto [k, k_is_input, v]: rs->get_mapping())
         {
+          (void) v;
           if (k_is_input)
             continue;
           const std::string s = k.ap_name();

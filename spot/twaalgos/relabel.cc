@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2015-2018, 2020, 2022 Laboratoire de Recherche et
-// Développement de l'Epita (LRDE).
+// Copyright (C) 2015-2018, 2020, 2022, 2023 Laboratoire de Recherche
+// et Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
 //
@@ -184,9 +184,7 @@ namespace spot
               continue;
             }
 
-          auto [_, ins] =
-              all_cond_id2idx.try_emplace(e.cond.id(), all_cond.size());
-          if (ins)
+          if (all_cond_id2idx.try_emplace(e.cond.id(), all_cond.size()).second)
             {
               all_cond.push_back(e.cond);
               if (all_cond.size() > max_letter)
