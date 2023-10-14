@@ -447,8 +447,11 @@ namespace
           {
             robin_hood::unordered_set<spot::formula> removed_outputs;
             for (auto [from, from_is_input, to] : rs->get_mapping())
-              if (!from_is_input)
-                removed_outputs.insert(from);
+              {
+                (void) to;
+                if (!from_is_input)
+                  removed_outputs.insert(from);
+              }
             for (const std::string& apstr: output_aps)
               {
                 spot::formula ap = spot::formula::ap(apstr);

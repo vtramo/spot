@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2021, 2022 Laboratoire de Recherche et Developpement de
+// Copyright (C) 2021, 2022, 2023 Laboratoire de Recherche et Developpement de
 // l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -669,6 +669,7 @@ namespace spot
           // seen_dup.
           for (auto& [sz, bv, colors, minstate]: out)
             {
+              (void) sz;
               (void) colors;
               (void) minstate;
               seen_src->clear_all(); // local source of the node
@@ -735,6 +736,7 @@ namespace spot
               std::unique_ptr<bitvect> cur(make_bitvect(nstates));
               for (const auto& [sz, bv, colors, minstate]: out)
                 {
+                  (void) sz;
                   (void) colors;
                   (void) minstate;
                   cur->clear_all();

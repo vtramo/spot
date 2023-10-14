@@ -1393,7 +1393,7 @@ namespace spot
         std::swap(left_outs, right_outs);
       }
 
-      auto [_, g_outs] = form2props.aps_of(f_g);
+      std::set<formula> g_outs = form2props.aps_of(f_g).second;
       if (are_intersecting(g_outs, right_outs))
         return ret_sol_maybe();
 
@@ -1480,7 +1480,7 @@ namespace spot
       auto res = make_twa_graph(dict);
 
       bdd output_bdd = bddtrue;
-      auto [ins_f, _] = form2props.aps_of(f_g);
+      std::set<formula> ins_f = form2props.aps_of(f_g).first;
       for (auto &out : output_aps)
         output_bdd &= bdd_ithvar(res->register_ap(out));
 
@@ -1697,7 +1697,7 @@ namespace // anonymous for subsformula
           continue;
         done_ass[i] = true;
         auto &ass = assumptions_split[i];
-        auto [left_aps, right_aps] = form2props.aps_of(ass);
+        std::set<formula> left_aps = form2props.aps_of(ass).first;
         // If an assumption hasn't any decRelProp, it is considered as
         // a free assumption.
         if (!are_intersecting(left_aps, decRelProps_ins))

@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2015, 2016, 2018, 2020 Laboratoire de Recherche et
+// Copyright (C) 2015, 2016, 2018, 2020, 2023 Laboratoire de Recherche et
 // Développement de l'Epita.
 //
 // This file is part of Spot, a model checking library.
@@ -78,7 +78,10 @@ int main()
 
   const std::vector<std::string>& aps = aut->ap();
   unsigned int seed = 17;
-  for (auto it = aut->succ(2); !it->done(); it->next())
+  auto it = aut->succ(2);
+  SPOT_ASSUME(it); // GCC 7 warns about potential nullptr.
+  for (; !it->done(); it->next())
+  for (; !it->done(); it->next())
     {
       auto& t = aut->trans_storage(it, seed);
       auto& d = aut->trans_data(it, seed);

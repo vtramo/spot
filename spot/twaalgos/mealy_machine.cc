@@ -1326,6 +1326,8 @@ namespace
         if (inserted)
           trace << "Register oc " << it->first << ", " << it->second
                 << " for state " << s1 << '\n';
+#else
+        (void)inserted;
 #endif
       }
     // Are two player condition ids states incompatible
@@ -1952,6 +1954,7 @@ namespace
     // construction of the sat-problem latter on depends on it
     for (auto&& [id, pv] : sim_map)
       {
+        (void)id;
         // We want front (the representative) to be the smallest
         std::sort(pv.second.begin(), pv.second.end());
         bs.emplace_back(std::move(pv.second));
@@ -2562,6 +2565,7 @@ namespace
       picosat_push(lm.psat_);
       for (auto& [_, clause] : state_cover_clauses)
         {
+          (void)_;
           // Clause is not nullterminated!
           clause.push_back(0);
           picosat_add_lits(lm.psat_, clause.data());
@@ -3278,6 +3282,7 @@ namespace
                 bdd repr = red.minimal_letters_vec[group][idx];
                 const auto& [_, repr_letters] =
                   red.minimal_letters[group].at(repr);
+                (void)_;
                 // The class of letters is the first set
                 for (int id : repr_letters)
                   {

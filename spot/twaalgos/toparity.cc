@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2018-2020, 2022 Laboratoire de Recherche et Développement
-// de l'Epita.
+// Copyright (C) 2018-2020, 2022-2023 Laboratoire de Recherche et
+// Développement de l'Epita.
 //
 // This file is part of Spot, a model checking library.
 //
@@ -31,7 +31,6 @@
 
 #include <algorithm>
 #include <deque>
-#include <optional>
 
 namespace std
 {
@@ -288,6 +287,8 @@ namespace spot
                             was_able_to_color, max_color))
     {
       auto res = make_twa_graph(aut, twa::prop_set::all());
+      // GCC 7 warns about potential null pointer dereference.
+      SPOT_ASSUME(res);
       auto &res_vector = res->edge_vector();
       unsigned rv_size = res_vector.size();
       for (unsigned i = 1; i < rv_size; ++i)
@@ -796,9 +797,9 @@ namespace spot
     // Tells if we are constructing a parity max odd
     bool is_odd_ = false;
     // min_color used in the automaton + 1 (result of max_set).
-    std::optional<unsigned> min_color_used_;
-    std::optional<unsigned> max_color_scc_;
-    std::optional<unsigned> max_color_used_;
+    unsigned min_color_used_ = -1U;
+    unsigned max_color_scc_ = 0;
+    unsigned max_color_used_ = 0;
     std::vector<unsigned> state_to_res_;
     std::vector<unsigned> res_to_aut_;
     // Map a state of aut_ to every copy of this state. Used by a recursive call
@@ -976,7 +977,7 @@ namespace spot
                   edge_cache = nullptr)
     {
       // In a parity automaton we just need the maximal value
-      auto simax = mark.max_set();
+      unsigned simax = mark.max_set();
 
       const bool need_cache = edge_cache != nullptr && can_merge_edge;
       long long key = 0;
@@ -999,24 +1000,9 @@ namespace spot
       assert(res_src != -1U);
       assert(res_dst != -1U);
 
-      // No edge already done in the current scc.
-      if (!max_color_scc_.has_value())
-        max_color_scc_.emplace(simax);
-      else
-        max_color_scc_.emplace(std::max(*max_color_scc_, simax));
-
-      // If it is the first edge of the result
-      if (!min_color_used_.has_value())
-      {
-        assert(!max_color_used_.has_value());
-        max_color_used_.emplace(simax);
-        min_color_used_.emplace(simax);
-      }
-      else
-      {
-        min_color_used_.emplace(std::min(*min_color_used_, simax));
-        max_color_used_.emplace(std::max(*max_color_used_, simax));
-      }
+      max_color_scc_ = std::max(max_color_scc_, simax);
+      min_color_used_ = std::min(min_color_used_, simax);
+      max_color_used_ = std::max(max_color_used_, simax);
 
       auto new_edge_num = res_->new_edge(res_src, res_dst, cond, simplified);
       if (need_cache)
@@ -1478,31 +1464,30 @@ namespace spot
         return;
       is_odd_ = true;
       // We can reduce if we don't have an edge without color.
-      bool can_reduce = (min_color_used_.has_value() && *min_color_used_ != 0);
+      bool can_reduce = (min_color_used_ != -1U) && (min_color_used_ != 0);
       int shift;
 
       if (can_reduce)
-        shift = -1 * (*min_color_used_ - (*min_color_used_ % 2) + 1);
+        shift = - (min_color_used_ | 1);
       else
         shift = 1;
 
       // If we cannot decrease and we already the the maximum color, we don't
       // have to try. Constructs a mark_t to avoid to make report_too_many_sets
       // public.
-      if (!can_reduce && max_color_used_.value_or(-1) + shift == MAX_ACCSETS)
+      if (!can_reduce && max_color_used_ + shift >= MAX_ACCSETS)
         acc_cond::mark_t {SPOT_MAX_ACCSETS};
-      if (max_color_used_.has_value())
-        *max_color_used_ += shift;
-      if (min_color_used_.has_value())
-        *min_color_used_ += shift;
+      max_color_used_ += shift;
+      if (min_color_used_ < -1U)
+        min_color_used_ += shift;
       for (auto &e : res_->edges())
-      {
-        auto new_val = e.acc.max_set() - 1 + shift;
-        if (new_val != -1U)
-          e.acc = { new_val };
-        else
-          e.acc = {};
-      }
+        {
+          auto new_val = e.acc.max_set() - 1 + shift;
+          if (new_val != -1U)
+            e.acc = { new_val };
+          else
+            e.acc = {};
+        }
     }
 
     template <algorithm algo, typename T>
@@ -1877,29 +1862,22 @@ namespace spot
       bool old_pp_gen = opt_.parity_prefix_general;
       opt_.parity_prefix_general = false;
 
-      auto max_scc_color_rec = max_color_scc_;
+      unsigned max_scc_color_rec = max_color_scc_;
       for (auto x : sub.split_aut({removed_cols}))
-      {
-        x->set_acceptance(new_cond);
-        process_scc(x, algorithm::PARITY_PREFIX);
-        if (max_color_scc_.has_value())
         {
-          if (!max_scc_color_rec.has_value())
-            max_scc_color_rec.emplace(*max_color_scc_);
-          else
-            max_scc_color_rec.emplace(
-                std::max(*max_scc_color_rec, *max_color_scc_));
+          x->set_acceptance(new_cond);
+          process_scc(x, algorithm::PARITY_PREFIX);
+          max_scc_color_rec = std::max(max_scc_color_rec, max_color_scc_);
         }
-      }
       opt_.parity_prefix = true;
       opt_.parity_prefix_general = old_pp_gen;
 
-      assert(max_scc_color_rec.has_value());
-      auto max_used_is_accepting = ((*max_scc_color_rec - 1) % 2) == is_odd_;
+      assert(max_scc_color_rec > 0);
+      bool max_used_is_accepting = ((max_scc_color_rec - 1) % 2) == is_odd_;
       bool last_prefix_acc = (prefixes.size() % 2) != first_is_accepting;
 
       unsigned m = prefixes.size() + (max_used_is_accepting != last_prefix_acc)
-                                   + *max_scc_color_rec - 1;
+                                   + max_scc_color_rec - 1;
       auto sub_aut_orig =
           sub_aut->get_named_prop<std::vector<unsigned>>("original-states");
       assert(sub_aut_orig);
@@ -1914,8 +1892,7 @@ namespace spot
           const unsigned col = m - pos;
           // As it is a parity prefix we should never get a lower value than
           // the color recursively produced.
-          assert(!max_scc_color_rec.has_value() || *max_scc_color_rec == 0
-                || col + 1 > *max_scc_color_rec);
+          assert(col >= max_scc_color_rec);
           unsigned dst = state_to_res_[(*sub_aut_orig)[e.dst]];
           for (auto src : (*state_to_nums_)[(*sub_aut_orig)[e.src]])
             if (col != -1U)
@@ -2003,7 +1980,7 @@ namespace spot
       bool old_pp = opt_.parity_prefix;
       opt_.parity_prefix = false;
 
-      auto max_scc_color_rec = max_color_scc_;
+      unsigned max_scc_color_rec = max_color_scc_;
       scc_info lower_scc(sub_aut, scc_info_options::TRACK_STATES);
       scc_info_to_parity sub(lower_scc, keep);
       state_to_nums_ =
@@ -2011,11 +1988,7 @@ namespace spot
       for (auto x : sub.split_aut(keep))
       {
         process_scc(x, algorithm::PARITY_PREFIX_GENERAL);
-        if (!max_scc_color_rec.has_value())
-          max_scc_color_rec = max_color_scc_;
-        else if (max_color_scc_.has_value())
-          max_scc_color_rec.emplace(
-              std::max(*max_scc_color_rec, *max_color_scc_));
+        max_scc_color_rec = std::max(max_scc_color_rec, max_color_scc_);
       }
 
       // restore options
@@ -2043,11 +2016,11 @@ namespace spot
       const bool min_prefix_accepting = (min_set_prefix % 2) == start_inf;
       // max_scc_color_rec has a value as the automaton is not parity-type,
       // so there was a recursive paritisation
-      assert(max_scc_color_rec.has_value());
-      const bool max_rec_accepting = ((*max_scc_color_rec - 1) % 2) == is_odd_;
+      assert(max_scc_color_rec > 0);
+      const bool max_rec_accepting = ((max_scc_color_rec - 1) % 2) == is_odd_;
       const bool same_prio = min_prefix_accepting == max_rec_accepting;
       const unsigned delta =
-        min_set_prefix - (*max_scc_color_rec + 1) - !same_prio;
+        min_set_prefix - (max_scc_color_rec + 1) - !same_prio;
 
       auto sub_aut_orig =
         sub_aut->get_named_prop<std::vector<unsigned>>("original-states");
@@ -2248,7 +2221,7 @@ namespace spot
                 const algorithm none_algo = algorithm::NONE)
     {
       // Init the maximal color produced when processing this SCC.
-      max_color_scc_.reset();
+      max_color_scc_ = 0;
       // If the sub_automaton is "empty", we don't need to apply an algorithm.
       if (sub_aut->num_edges() == 0)
       {
@@ -2386,29 +2359,29 @@ namespace spot
       res_ = make_twa_graph(aut_->get_dict());
       res_->copy_ap_of(aut_);
       const unsigned num_scc = si_.scc_count();
-      auto orig_aut =
+      std::vector<unsigned>* orig_aut =
         aut_->get_named_prop<std::vector<unsigned>>("original-states");
-      std::optional<std::vector<unsigned>> orig_st;
+      std::vector<unsigned> orig_st;
       if (orig_aut)
-      {
-        orig_st.emplace(std::vector<unsigned>{*orig_aut});
-        std::const_pointer_cast<twa_graph>(aut_)
-          ->set_named_prop("original-states", nullptr);
-      }
+        {
+          orig_st = std::move(*orig_aut);
+          std::const_pointer_cast<twa_graph>(aut_)
+            ->set_named_prop("original-states", nullptr);
+        }
       auto sccs = si_.split_aut();
       for (unsigned scc = 0; scc < num_scc; ++scc)
-      {
-        auto sub_automaton = sccs[scc];
-        process_scc(sub_automaton);
-      }
+        {
+          auto sub_automaton = sccs[scc];
+          process_scc(sub_automaton);
+        }
 
       link_sccs();
       // During the execution, to_parity works on its own
       // original-states and we must combine it with the property original
       // states of aut_ to propagate the information.
-      if (orig_st)
+      if (orig_aut)
         for (unsigned i = 0; i < orig_->size(); ++i)
-          (*orig_)[i] = (*orig_aut)[(*orig_)[i]];
+          (*orig_)[i] = orig_st[(*orig_)[i]];
       res_->set_named_prop("original-states", orig_);
       if (opt_.pretty_print)
         res_->set_named_prop("state-names", names_);
@@ -2421,16 +2394,17 @@ namespace spot
         res_->purge_unreachable_states();
       // A special case is an automaton without edge. It implies
       // max_color_used_ has not value so we need to test it.
-      if (!max_color_used_.has_value())
-      {
-        assert(aut_->num_edges() == 0);
-        res_->set_acceptance(acc_cond(acc_cond::acc_code::f()));
-      }
+      if (max_color_used_ == 0)
+        {
+          assert(aut_->num_edges() == 0);
+          res_->set_acceptance(acc_cond(acc_cond::acc_code::f()));
+        }
       else
-      {
-        res_->set_acceptance(acc_cond(
-            acc_cond::acc_code::parity(true, is_odd_, *max_color_used_)));
-      }
+        {
+          res_->set_acceptance(acc_cond(acc_cond::acc_code::
+                                        parity(true, is_odd_,
+                                               max_color_used_)));
+        }
       if (opt_.datas)
       {
         constexpr std::array<algorithm, 14>

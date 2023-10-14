@@ -531,7 +531,9 @@ namespace spot
           };
 
         auto [i1, nsl1, sl1, e1] = e_idx[s1];
+        (void) nsl1;
         auto [i2, nsl2, sl2, e2] = e_idx[s2];
+        (void) nsl2;
 
         unsigned n_trans = e1 - i1;
         if ((e2 - i2) != n_trans)
