@@ -192,7 +192,7 @@ namespace spot
 
     typedef power_map::power_state power_state;
 
-    typedef std::unordered_map<bitvect*, int, bv_hash, bv_equal> power_set;
+    typedef std::unordered_map<bitvect*, unsigned, bv_hash, bv_equal> power_set;
     power_set seen;
 
     std::vector<const bitvect*> toclean;
@@ -235,11 +235,50 @@ namespace spot
     // outgoing map
     auto om = std::unique_ptr<bitvect_array>(make_bitvect_array(ns, nc));
 
+    // Map a bitvector to a state number, possibly creating the state.
+    auto to_state = [&](bitvect* dst) {
+      if (acc_sinks && dst->intersects(*acc_sinks))
+        *dst = *acc_sinks;
+      auto i = seen.find(dst);
+      if (i != seen.end())
+        return i->second;
+      unsigned dst_num = res->new_state();
+      auto dst2 = dst->clone();
+      seen[dst2] = dst_num;
+      toclean.emplace_back(dst2);
+      auto ps = bv_to_ps(dst);
+      assert(pm.map_.size() == dst_num);
+      pm.map_.emplace_back(std::move(ps));
+      return dst_num;
+    };
+    auto& graph = aut->get_graph();
     for (unsigned src_num = 0; src_num < res->num_states(); ++src_num)
       {
-        om->clear_all();
-
         const power_state& src = pm.states_of(src_num);
+        unsigned srcsz = src.size();
+        if (srcsz == 0)
+          continue;
+        om->clear_all();
+        // If the meta-state is a singleton {st} with can avoid
+        // some bitvector work in case st has 0 or 1 edge.
+        if (srcsz == 1)
+          {
+            unsigned st = *src.begin();
+            auto& st_storage = graph.state_storage(st);
+            unsigned e = st_storage.succ;
+            if (SPOT_UNLIKELY(e == 0U)) // no edge
+              continue;
+            if (e == st_storage.succ_tail) // single edge
+              {
+                auto& ed_storage = graph.edge_storage(e);
+                bitvect& bv = om->at(0);
+                bv.set(ed_storage.dst);
+                res->new_edge(src_num, to_state(&bv), ed_storage.cond);
+                // Don't bother with the aborter here, as this path is
+                // clearly not exploding.
+                continue;
+              }
+          }
         for (auto s: src)
           {
             size_t base = index(s) * nc;
@@ -251,24 +290,7 @@ namespace spot
             auto dst = &om->at(c);
             if (dst->is_fully_clear())
               continue;
-            if (acc_sinks && dst->intersects(*acc_sinks))
-              *dst = *acc_sinks;
-            auto i = seen.find(dst);
-            unsigned dst_num;
-            if (i != seen.end())
-              {
-                dst_num = i->second;
-              }
-            else
-              {
-                dst_num = res->new_state();
-                auto dst2 = dst->clone();
-                seen[dst2] = dst_num;
-                toclean.emplace_back(dst2);
-                auto ps = bv_to_ps(dst);
-                assert(pm.map_.size() == dst_num);
-                pm.map_.emplace_back(std::move(ps));
-              }
+            unsigned dst_num = to_state(dst);
             res->new_edge(src_num, dst_num, num2bdd[c]);
             if (aborter && aborter->too_large(res))
               {
