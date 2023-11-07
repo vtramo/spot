@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2014-2020, 2022 Laboratoire de Recherche et Développement
+// Copyright (C) 2014-2020, 2022, 2023 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -607,33 +607,36 @@ namespace spot
         throw std::runtime_error("product_susp(): left and right automata "
                                  "should share their bdd_dict");
 
-      auto false_or_left = [&] (bool ff)
-        {
-          if (ff)
-            {
-              auto res = make_twa_graph(left->get_dict());
-              res->new_state();
-              res->prop_terminal(true);
-              res->prop_stutter_invariant(true);
-              res->prop_universal(true);
-              res->prop_complete(false);
-              return res;
-            }
-          return make_twa_graph(left, twa::prop_set::all());
-        };
+      auto const_automaton = [&left] (bool is_true)
+      {
+        auto res = make_twa_graph(left->get_dict());
+        res->new_state();
+        res->prop_terminal(true);
+        res->prop_stutter_invariant(true);
+        res->prop_universal(true);
+        res->prop_complete(is_true);
+        if (is_true)
+          res->new_edge(0, 0, bddtrue);
+        return res;
+      };
 
       // We assume RIGHT is suspendable, but we want to deal with some
       // trivial true/false cases so we can later assume right has
       // more than one acceptance set.
       // Note: suspendable with "t" acceptance = universal language.
-      if (SPOT_UNLIKELY(right->num_sets() == 0))
+      if (SPOT_UNLIKELY(right->num_sets() == 0
+                        || right->num_edges() == 0
+                        || right->acc().is_t()
+                        || right->acc().is_f()))
         {
-          if (and_acc)
-            return false_or_left(right->is_empty());
-          else if (right->is_empty()) // left OR false = left
+        trivial:
+          if (and_acc && right->is_empty())
+            return const_automaton(false);
+          else if (!and_acc && !right->is_empty())
+            // suspendable with "t" acceptance = universal language.
+            return const_automaton(true);
+          else // left AND true = left; left OR false = left
             return make_twa_graph(left, twa::prop_set::all());
-          else // left OR true = true
-            return make_twa_graph(right, twa::prop_set::all());
         }
 
       auto res = make_twa_graph(left->get_dict());
@@ -644,8 +647,8 @@ namespace spot
       res->prop_state_acc(left->prop_state_acc() && right->prop_state_acc());
 
       auto rightunsatmark = right->acc().unsat_mark();
-      if (SPOT_UNLIKELY(!rightunsatmark.first))
-        return false_or_left(and_acc);
+      if (SPOT_UNLIKELY(!rightunsatmark.first)) // right is universal
+        goto trivial;
       acc_cond::mark_t rejmark = rightunsatmark.second;
 
       if (leftweak)

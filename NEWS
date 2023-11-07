@@ -112,6 +112,10 @@ New in spot 2.11.6.dev  (not yet released)
     (Issue #541.)  This has been fixed by disabled the use_simulation
     optimization in this case.
 
+  - product_or_susp() and product_susp() would behave incorrectly in
+    presence of unsatisifable or universal acceptance conditions that
+    were not f or t.  (Part of issue #546.)
+
 New in spot 2.11.6  (2023-08-01)
 
   Bug fixes:
