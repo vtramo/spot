@@ -87,11 +87,11 @@ namespace spot
   public:
     enum realizability_simplifier_option {
       /// \brief remove APs with single polarity
-      polarity = 0b1,
+      polarity = 1,
       /// \brief remove equivalent APs
-      global_equiv = 0b10,
+      global_equiv = 2,
       /// \brief likewise, but don't consider equivalent input and output
-      global_equiv_output_only = 0b110,
+      global_equiv_output_only = 6,
     };
 
     realizability_simplifier(formula f,
