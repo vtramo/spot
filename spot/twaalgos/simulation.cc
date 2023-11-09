@@ -761,11 +761,19 @@ namespace spot
         delete gb;
         res->prop_copy(original_,
                        { false, // state-based acc forced below
-                         true,  // weakness preserved,
+                         true,  // weakness preserved
                          false, true, // determinism improved
                          true, // completeness preserved
                          true, // stutter inv.
                        });
+
+        // weakness can actually be improved
+        if (res->prop_weak().is_false())
+          res->prop_weak(trival::maybe());
+        if (res->prop_very_weak().is_false())
+          res->prop_very_weak(trival::maybe());
+        if (res->prop_inherently_weak().is_false())
+          res->prop_inherently_weak(trival::maybe());
         // !unambiguous and !semi-deterministic are not preserved
         if (!Cosimulation && nb_minato == nb_minterms)
           // Note that nb_minato != nb_minterms does not imply

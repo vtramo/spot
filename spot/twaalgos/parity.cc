@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2016, 2018, 2019, 2022 Laboratoire de Recherche et
+// Copyright (C) 2016, 2018, 2019, 2022, 2023 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -648,6 +648,13 @@ namespace spot
           else
             e.acc = acc_cond::mark_t({n});
         }
+
+    // Reducing the number of colors could turn a non-weak automaton
+    // into a weak one
+    if (aut->prop_weak().is_false())
+      aut->prop_weak(trival::maybe());
+    if (aut->prop_very_weak().is_false())
+      aut->prop_very_weak(trival::maybe());
 
     return aut;
   }

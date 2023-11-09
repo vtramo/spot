@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2015, 2017-2018, 2020-2022  Laboratoire de Recherche
+# Copyright (C) 2015, 2017-2018, 2020-2023  Laboratoire de Recherche
 # et Développement de l'Epita
 #
 # This file is part of Spot, a model checking library.
@@ -539,10 +539,10 @@ States: 1
 Start: 0
 AP: 1 "a"
 Acceptance: 1 t
-properties: trans-labels explicit-labels state-acc colored
-properties: deterministic
+properties: trans-labels explicit-labels state-acc deterministic
+properties: very-weak
 --BODY--
-State: 0 {0}
+State: 0
 [0] 0
 --END--''')
 

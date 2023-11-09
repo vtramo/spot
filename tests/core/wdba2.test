@@ -68,6 +68,7 @@ AP: 1 "p1"
 acc-name: Buchi
 Acceptance: 1 Inf(0)
 properties: implicit-labels state-acc complete deterministic terminal
+properties: very-weak
 --BODY--
 State: 0 {0}
 0 0
@@ -108,7 +109,7 @@ AP: 0
 acc-name: Buchi
 Acceptance: 1 Inf(0)
 properties: trans-labels explicit-labels state-acc colored complete
-properties: deterministic terminal
+properties: deterministic terminal very-weak
 --BODY--
 State: 0 {0}
 [t] 0

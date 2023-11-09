@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2021, 2022 Laboratoire de Recherche et Développement de
+# Copyright (C) 2021-2023 Laboratoire de Recherche et Développement de
 # l'EPITA.
 #
 # This file is part of Spot, a model checking library.
@@ -557,7 +557,7 @@ Start: 0
 AP: 2 "a" "b"
 acc-name: all
 Acceptance: 0 t
-properties: trans-labels explicit-labels state-acc deterministic
+properties: trans-labels explicit-labels state-acc deterministic weak
 controllable-AP: 1
 --BODY--
 State: 0
@@ -598,7 +598,7 @@ Start: 0
 AP: 2 "a" "b"
 acc-name: all
 Acceptance: 0 t
-properties: trans-labels explicit-labels state-acc deterministic
+properties: trans-labels explicit-labels state-acc deterministic weak
 controllable-AP: 1
 --BODY--
 State: 0

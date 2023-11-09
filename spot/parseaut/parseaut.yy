@@ -691,6 +691,19 @@ header: format-version header-items
 		}
 	      if (t != e)
 		a->prop_terminal(t->second.val);
+              if (a->acc().is_t() || a->acc().is_f())
+                {
+                  if (w != e && !w->second.val)
+                    error(w->second.loc, "an automaton with this condition"
+                          " is necessarily weak");
+                  if (iw != e && !iw->second.val)
+                    error(iw->second.loc, "an automaton with this condition"
+                          " is necessarily inherently-weak");
+                  if (vw != e && !vw->second.val
+                      && (res.states == 0 || res.states == 1))
+                    error(vw->second.loc, "an automaton with 0 or 1 state "
+                          "is necessarily very-weak");
+                }
 	      auto u = p.find("unambiguous");
 	      if (u != e)
 		{
@@ -2743,6 +2756,17 @@ static void fix_properties(result_& r)
   if (r.acc_style == State_Acc ||
       (r.acc_style == Mixed_Acc && !r.trans_acc_seen))
     r.aut_or_ks->prop_state_acc(true);
+  if (r.aut_or_ks->acc().is_t() || r.aut_or_ks->acc().is_f())
+    {
+      r.aut_or_ks->prop_weak(true);
+      unsigned ns;
+      if (r.opts.want_kripke)
+        ns = r.h->ks->num_states();
+      else
+        ns = r.h->aut->num_states();
+      if (ns == 0 || ns == 1)
+        r.aut_or_ks->prop_very_weak(true);
+    }
 }
 
 static void check_version(const result_& r)

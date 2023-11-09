@@ -1,6 +1,6 @@
 #!/bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2011, 2013, 2015, 2018, 2019 Laboratoire de Recherche
+# Copyright (C) 2011, 2013, 2015, 2018, 2019, 2023 Laboratoire de Recherche
 # et Développement de l'Epita
 #
 # This file is part of Spot, a model checking library.
@@ -316,7 +316,7 @@ AP: 1 "p0"
 acc-name: Buchi
 Acceptance: 1 Inf(0)
 properties: trans-labels explicit-labels state-acc complete
-properties: deterministic terminal
+properties: deterministic terminal very-weak
 --BODY--
 State: 0 {0}
 [t] 0
@@ -331,7 +331,7 @@ AP: 1 "p0"
 acc-name: Buchi
 Acceptance: 1 Inf(0)
 properties: trans-labels explicit-labels state-acc complete
-properties: deterministic terminal
+properties: deterministic terminal very-weak
 --BODY--
 State: 0 {0}
 [t] 0

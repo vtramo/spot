@@ -116,6 +116,18 @@ New in spot 2.11.6.dev  (not yet released)
     presence of unsatisifable or universal acceptance conditions that
     were not f or t.  (Part of issue #546.)
 
+  - Several algorithms were incorrectly dealing with the "!weak"
+    property.  Because they (rightly) assumed that a weak input would
+    produce a weak output, they also wrongly assumed that a non-weak
+    output would produce a non-weak output.  Unfortunately removing
+    states or edges in a non-weak automaton can lead a weak automaton.
+    The incorrect property lead to issue #546.  In addition to fixing
+    several algorithms, product() and print_hoa() will now raise an
+    exception if automaton with t or f acceptance is declared !weak.
+    (This cheap check will not catch all automata incorrectly labeled
+    by !weak, but helps detects some issues nonetheless.)
+
+
 New in spot 2.11.6  (2023-08-01)
 
   Bug fixes:

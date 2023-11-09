@@ -27,6 +27,8 @@
 #include <unordered_map>
 #include <spot/misc/hash.hh>
 
+using namespace std::string_literals;
+
 namespace spot
 {
   namespace
@@ -102,6 +104,13 @@ namespace spot
 
     enum acc_op { and_acc, or_acc, xor_acc, xnor_acc };
 
+    [[noreturn]] static
+    void report_should_be_weak(const char* what)
+    {
+      std::string s = what + " automaton is declared not weak, "
+        "but the acceptance makes this impossible"s;
+      throw std::runtime_error(s);
+    }
 
     static
     twa_graph_ptr product_aux(const const_twa_graph_ptr& left,
@@ -127,6 +136,13 @@ namespace spot
 
       bool leftweak = left->prop_weak().is_true();
       bool rightweak = right->prop_weak().is_true();
+
+      if (SPOT_UNLIKELY(!leftweak && left->prop_weak().is_false()
+                        && (lacc.is_t() || lacc.is_f())))
+        report_should_be_weak("product: left");
+      if (SPOT_UNLIKELY(!rightweak && right->prop_weak().is_false()
+                        && (racc.is_t() || racc.is_f())))
+        report_should_be_weak("product: right");
 
       // The conjunction of two co-Büchi automata is a co-Büchi automaton.
       // The disjunction of two Büchi automata is a Büchi automaton.

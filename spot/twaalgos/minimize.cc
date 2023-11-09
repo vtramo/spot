@@ -556,6 +556,16 @@ namespace spot
     // add a quick check inside minimize_dfa.
     if (a->prop_terminal())
       res->prop_terminal(true);
+    else if (a->num_states() == 1)
+      {
+        // If thie automaton has only one state, check w
+        for (auto& e: a->out(0))
+          if (e.cond == bddtrue && a->acc().accepting(e.acc))
+            {
+              res->prop_terminal(true);
+              break;
+            }
+      }
     return res;
   }
 

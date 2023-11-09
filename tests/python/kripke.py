@@ -1,6 +1,6 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2019, 2022 Laboratoire de Recherche et Développement
-# de l'Epita (LRDE).
+# Copyright (C) 2019, 2022, 2023 Laboratoire de Recherche et
+# Développement de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
 #
@@ -45,7 +45,7 @@ Start: 1
 AP: 2 "p1" "p2"
 acc-name: all
 Acceptance: 0 t
-properties: state-labels explicit-labels state-acc
+properties: state-labels explicit-labels state-acc weak
 --BODY--
 State: [0&1] 0
 0
@@ -65,7 +65,7 @@ Start: 1
 AP: 2 "p1" "p2"
 acc-name: all
 Acceptance: 0 t
-properties: state-labels explicit-labels state-acc
+properties: state-labels explicit-labels state-acc weak
 --BODY--
 State: [0&1] 0 "s0"
 0
@@ -83,7 +83,7 @@ Start: 1
 AP: 2 "p1" "p2"
 acc-name: all
 Acceptance: 0 t
-properties: state-labels explicit-labels state-acc
+properties: state-labels explicit-labels state-acc weak
 --BODY--
 State: [0&1] 0 "s0"
 0

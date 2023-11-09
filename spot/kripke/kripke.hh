@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2009, 2010, 2013, 2014, 2016, 2017, 2019, 2020 Laboratoire
-// de Recherche et Developpement de l'Epita
+// Copyright (C) 2009, 2010, 2013, 2014, 2016, 2017, 2019, 2020, 2023
+// Laboratoire de Recherche et Developpement de l'Epita
 //
 // This file is part of Spot, a model checking library.
 //
@@ -180,6 +180,7 @@ namespace spot
     kripke(const bdd_dict_ptr& d)
       : fair_kripke(d)
       {
+        prop_weak(true);
       }
 
     virtual ~kripke();

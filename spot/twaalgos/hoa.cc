@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2014-2022 Laboratoire de Recherche et
+// Copyright (C) 2014-2023 Laboratoire de Recherche et
 // Developpement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -507,6 +507,11 @@ namespace spot
             }
         }
 
+    if (SPOT_UNLIKELY(aut->prop_weak().is_false()
+                      && (aut->acc().is_t() || aut->acc().is_f())))
+      throw std::runtime_error("print_hoa(): automaton is declared not weak, "
+                               "but the acceptance makes this impossible");
+
     metadata md(aut, implicit_labels, state_labels);
 
     if (acceptance == Hoa_Acceptance_States && !md.has_state_acc)
@@ -724,7 +729,7 @@ namespace spot
       }
     if (aut->prop_terminal())
       prop(" terminal");
-    if (aut->prop_very_weak() && (verbose || aut->prop_terminal() != true))
+    if (aut->prop_very_weak())
       prop(" very-weak");
     if (aut->prop_weak() && (verbose || (aut->prop_terminal() != true &&
                                          aut->prop_very_weak() != true)))

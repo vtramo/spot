@@ -65,7 +65,7 @@ Start: 0
 AP: 3 "b" "a" "c"
 acc-name: all
 Acceptance: 0 t
-properties: trans-labels explicit-labels state-acc univ-branch
+properties: trans-labels explicit-labels state-acc univ-branch weak
 --BODY--
 State: 0
 [1] 1

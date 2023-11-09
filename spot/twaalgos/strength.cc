@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2010-2011, 2013-2018 Laboratoire de Recherche et
-// Développement de l'Epita (LRDE)
+// Copyright (C) 2010-2011, 2013-2018, 2023 Laboratoire de Recherche
+// et Développement de l'Epita (LRDE)
 //
 // This file is part of Spot, a model checking library.
 //
@@ -43,6 +43,8 @@ namespace spot
       if (inweak)
         si->determine_unknown_acceptance();
 
+      acc_cond::mark_t mask = aut->get_acceptance().used_sets();
+
       bool is_inweak = true;
       bool is_weak = true;
       bool is_single_state_scc = true;
@@ -66,9 +68,9 @@ namespace spot
                   if (first)
                     {
                       first = false;
-                      m = t.acc;
+                      m = t.acc & mask;
                     }
-                  else if (m != t.acc)
+                  else if (m != (t.acc & mask))
                     {
                       is_weak = false;
                       if (!inweak)

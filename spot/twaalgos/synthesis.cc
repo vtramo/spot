@@ -1469,6 +1469,9 @@ namespace spot
         edge.acc = {};
       }
       res->set_acceptance(acc_cond::acc_code::t());
+      res->prop_weak(true);
+      if (res->prop_terminal().is_false())
+        res->prop_terminal(trival::maybe());
       res->set_named_prop<bdd>("synthesis-outputs", new bdd(output_bdd));
 
       return ret_sol_exists(res);
@@ -1478,6 +1481,7 @@ namespace spot
       if (!want_strategy)
         return ret_sol_exists(nullptr);
       auto res = make_twa_graph(dict);
+      res->prop_weak(true);
 
       bdd output_bdd = bddtrue;
       std::set<formula> ins_f = form2props.aps_of(f_g).first;

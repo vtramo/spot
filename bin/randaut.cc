@@ -385,6 +385,8 @@ main(int argc, char** argv)
 
           if (opt_acceptance)
             aut->set_acceptance(accs, code);
+          if (aut->acc().is_t() || aut->acc().is_f())
+            aut->prop_weak(true);
 
           if (opt_uniq)
             {

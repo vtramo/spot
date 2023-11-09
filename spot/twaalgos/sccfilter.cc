@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2009-2018 Laboratoire de Recherche et Développement
+// Copyright (C) 2009-2018, 2023 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -428,6 +428,15 @@ namespace spot
       res = scc_filter_apply<state_filter
                              <acc_filter_mask<false, true>>>(aut, given_si);
     res->prop_copy(aut, { true, true, false, true, false, true });
+    if (res->num_edges() != aut->num_edges())
+      {
+        if (res->prop_weak().is_false())
+          res->prop_weak(trival::maybe());
+        if (res->prop_very_weak().is_false())
+          res->prop_very_weak(trival::maybe());
+      }
+    if (res->prop_weak().is_true() && res->num_states() <= 1)
+      res->prop_very_weak(true);
     return res;
   }
 
@@ -496,6 +505,16 @@ namespace spot
         if (!given_si)
           delete si;
       }
+    else
+      if (res->num_edges() != aut->num_edges())
+        {
+          if (res->prop_weak().is_false())
+            res->prop_weak(trival::maybe());
+          if (res->prop_very_weak().is_false())
+            res->prop_very_weak(trival::maybe());
+        }
+    if (res->prop_weak().is_true() && res->num_states() <= 1)
+      res->prop_very_weak(true);
     return res;
   }
 

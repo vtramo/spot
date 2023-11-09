@@ -1,6 +1,6 @@
 #!/bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2014-2018, 2020-2022 Laboratoire de Recherche et
+# Copyright (C) 2014-2018, 2020-2023 Laboratoire de Recherche et
 # Développement de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -664,7 +664,7 @@ Start: 0
 AP: 1 "a"
 acc-name: all
 Acceptance: 0 t
-properties: trans-labels explicit-labels state-acc deterministic
+properties: trans-labels explicit-labels state-acc deterministic weak
 --BODY--
 State: 0
 [0] 1
@@ -1322,7 +1322,7 @@ AP: 2 "a" "b"
 acc-name: all
 Acceptance: 0 t
 properties: trans-labels explicit-labels state-acc complete
-properties: deterministic
+properties: deterministic weak
 --BODY--
 State: 0
 [0&!1] 0
@@ -1778,7 +1778,7 @@ Start: 0
 AP: 1 "a"
 Acceptance: 1 t
 properties: trans-labels explicit-labels trans-acc complete
-properties: deterministic
+properties: deterministic weak
 --BODY--
 State: 0 "F(a)"
 [0] 1 {0}
@@ -1844,7 +1844,7 @@ AP: 1 "a"
 acc-name: all
 Acceptance: 0 t
 properties: trans-labels explicit-labels state-acc complete
-properties: deterministic
+properties: deterministic weak
 --BODY--
 State: 0 "F(a)"
 [0] 1
@@ -2079,6 +2079,15 @@ properties: complete !weak very-weak
 --BODY--
 State: 0 0
 --END--
+HOA: v1
+States: 1
+Start: 0
+AP: 0
+Acceptance: 0 t
+properties: complete !very-weak
+--BODY--
+State: 0 0
+--END--
 EOF
 
 expecterr input <<EOF
@@ -2091,14 +2100,18 @@ input:36.36-43: 'properties: terminal' contradicts...
 input:36.13-28: ... 'properties: !inherently-weak' given here
 input:36.36-43: 'properties: terminal' contradicts...
 input:36.30-34: ... 'properties: !weak' given here
+input:36.30-34: an automaton with this condition is necessarily weak
+input:36.13-28: an automaton with this condition is necessarily inherently-weak
 input:46.13-28: 'properties: !inherently-weak' contradicts...
 input:46.35-43: ... 'properties: very-weak' given here
 input:46.30-33: 'properties: weak' contradicts...
 input:46.13-28: ... 'properties: !inherently-weak' given here
 input:55.22-26: 'properties: !weak' contradicts...
 input:55.28-36: ... 'properties: very-weak' given here
+input:55.22-26: an automaton with this condition is necessarily weak
 input:51.1-9: state 1 is unused and undefined
 input:55.13-20: automaton is incomplete because it has undefined states
+input:64.22-31: an automaton with 0 or 1 state is necessarily very-weak
 EOF
 
 

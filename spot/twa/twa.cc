@@ -171,8 +171,8 @@ namespace spot
         // for weak automata, otherwise project(g1) would be unable to
         // compute the correct marks.  See issue #471.  It's OK to
         // optimize the right part if g2 is weak.
-        spot::trival g1weak = g1->prop_weak();
-        std::const_pointer_cast<twa_graph>(g1)->prop_weak(false);
+        trival g1weak = g1->prop_weak();
+        std::const_pointer_cast<twa_graph>(g1)->prop_weak(trival::maybe());
         auto run = generic_accepting_run(product(g1, g2));
         std::const_pointer_cast<twa_graph>(g1)->prop_weak(g1weak);
         if (!run)
