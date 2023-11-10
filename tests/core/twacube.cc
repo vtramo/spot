@@ -81,7 +81,6 @@ int main()
   auto it = aut->succ(2);
   SPOT_ASSUME(it); // GCC 7 warns about potential nullptr.
   for (; !it->done(); it->next())
-  for (; !it->done(); it->next())
     {
       auto& t = aut->trans_storage(it, seed);
       auto& d = aut->trans_data(it, seed);
