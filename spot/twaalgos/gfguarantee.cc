@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2018, 2021 Laboratoire de Recherche et Développement
+// Copyright (C) 2018, 2021, 2023 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -61,6 +61,11 @@ namespace spot
       if (!is_terminal_automaton(aut, &si, true))
         throw std::runtime_error("g_f_terminal() expects a terminal automaton");
 
+      // If a terminal automaton has only one SCC, it is either
+      // universal or empty.   In both cases G(automaton)=automaton.
+      if (si.scc_count() == 1)
+        return aut;
+
       unsigned ns = si.scc_count();
       std::vector<bool> term(ns, false);
       for (unsigned n = 0; n < ns; ++n)
@@ -69,6 +74,9 @@ namespace spot
 
       aut->prop_keep({ false, false, true, false, true, true });
       aut->prop_state_acc(state_based);
+      // The case where the input automaton is universal or empty has
+      // already been dealt with, before do_g_f_terminal_inplace was
+      // called.
       aut->prop_inherently_weak(false);
       aut->set_buchi();
 
@@ -477,8 +485,11 @@ namespace spot
       }
     twa_graph_ptr aut = ltl_to_tgba_fm(f, dict, true);
     twa_graph_ptr reduced = minimize_obligation(aut, f);
+
+    // If f was not an obligation, we cannot deal with it here.
     if (reduced == aut)
       return nullptr;
+
     scc_info si(reduced);
     if (!is_terminal_automaton(reduced, &si, true))
       return nullptr;

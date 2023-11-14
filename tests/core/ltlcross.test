@@ -70,4 +70,6 @@ ltlcross --verbose ltl2tgba ltl2tgba \
 ltlcross ltl2tgba -f '!(X(v3 | G!v5) | ((Xv5 & !(v5 & !X!v3)) U !v5))'
 
 # Issue #546.
-ltlcross 'ltl2tgba --medium -p' 'ltl2tgba -p' -f 'a | FGa | GF(!b | Gb)'
+ltlcross 'ltl2tgba --medium -p' 'ltl2tgba -p' 'ltl2tgba --medium -D -p' \
+         -f 'a | FGa | GF(!b | Gb)' \
+         -f '(~ v1 U ~ v5) | G(F v9 & F G v1) | G F(~ v7 | G v7 | G v3)'
