@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2018, 2022 Laboratoire de Recherche et Développement
-// de l'Epita (LRDE).
+// Copyright (C) 2018, 2022, 2023 Laboratoire de Recherche et
+// Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
 //
@@ -30,17 +30,17 @@ namespace spot
   /// \brief Given a terminal automaton \a f_terminal recognizing
   /// some formula F(φ), modify it to recognize GF(φ).
   ///
-  /// If \a state_based is set, the automaton all terminal states are
-  /// replaced by a unique accepting state that has the same outgoing
-  /// transitions as the initial state, and the initial state is
-  /// actually relocated to that accepting state.  The latter point is
-  /// not necessary, but it favors shorter accepting cycles.
+  /// If \a state_based is set, the automaton's terminal states are
+  /// all replaced by a unique accepting state that has the same
+  /// outgoing transitions as the initial state, and the initial state
+  /// is actually relocated to that accepting state.  The latter point
+  /// is not necessary, but it favors shorter accepting cycles.
   ///
   /// If \a state_based is not set, all transition going to terminal
   /// states are made accepting and redirected to the initial state.
   ///
   /// This construction is inspired by a similar construction in the
-  /// LICS'18 paper by J. Esparza, J. Křetínský, and S. Sickert.
+  /// LICS'18 paper by Esparza et al. \cite esparza.18.lics
   SPOT_API twa_graph_ptr
   g_f_terminal_inplace(twa_graph_ptr f_terminal, bool state_based = false);
 
@@ -57,12 +57,12 @@ namespace spot
   /// Return nullptr if the input formula is not of the supported
   /// form.
   ///
-  /// This construction generalizes a construction in the LICS'18
-  /// paper of J. Esparza, J. Křetínský, and S. Sickert.  This version
-  /// will work if Φ represent a safety property, even if it is not a
-  /// syntactic safety.  When building deterministic transition-based
-  /// automata, it will also try to remove useless trivial components
-  /// at the beginning of wdba(A_Φ).
+  /// This construction generalizes a construction in a LICS'18
+  /// paper by Esparza et al.  \cite esparza.18.lics
+  /// This version will work if Φ represents a safety property, even if
+  /// it is not a syntactic safety.  When building deterministic
+  /// transition-based automata, it will also try to remove useless
+  /// trivial components at the beginning of wdba(A_Φ).
   SPOT_API twa_graph_ptr
   gf_guarantee_to_ba_maybe(formula gf, const bdd_dict_ptr& dict,
                            bool deterministic = true, bool state_based = false);
