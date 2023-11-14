@@ -49,6 +49,10 @@ New in spot 2.11.6.dev  (not yet released)
     supports only one): it now reuse the edges leaving initial states
     without incoming transitions.
 
+  - The automaton parser has a new option "drop_false_edges" to
+    specify where edges labeled by "false" should be ignored during
+    parsing.  It is enabled by default for backward compatibility.
+
   - spot::bdd_to_cnf_formula() is a new variant of spot::bdd_to_formula()
     that converts a BDD into a CNF instead of a DNF.
 
@@ -103,6 +107,12 @@ New in spot 2.11.6.dev  (not yet released)
   - spot::realizability_simplifier is a new class that performs the
     removal of superfluous APs that is now performed by ltlsynt
     (search for --polarity and --global-equivalence above).
+
+  Python:
+
+  - The spot.automata() and spot.automaton() functions now accept a
+    drop_false_edges=False argument to disable the historical behavior
+    of ignoring edges labeled by False.
 
   Bugs fixed:
 

@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2013, 2014, 2015, 2016, 2017, 2022 Laboratoire de Recherche et
+// Copyright (C) 2013-2017, 2022-2023 Laboratoire de Recherche et
 // Développement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -103,6 +103,7 @@ namespace spot
     bool trust_hoa = true;      ///< Trust properties in HOA files
     bool raise_errors = false;  ///< Raise errors as exceptions.
     bool want_kripke = false;   ///< Parse as a Kripke structure.
+    bool drop_false_edges = true; ///< Drop edges with false labels.
   };
 
   /// \brief Parse a stream of automata
@@ -193,12 +194,12 @@ namespace spot
   /// \param opts Additional options to pass to the parser.
   /// \return A pointer to a \c parsed_aut structure.
   ///
-  /// This is a wrapper around spot::automaton_stream_parser that returns
-  /// the first automaton of the file.  Empty inputs are reported as
-  /// syntax errors, so the \c aut field of the result is guaranteed not
-  /// to be null if \c errors is empty.  (This is unlike
-  /// automaton_stream_parser::parse() where a null \c aut denots the
-  /// end of a stream.)
+  /// This is a wrapper around spot::automaton_stream_parser that
+  /// returns the first automaton of the file.  Empty inputs are
+  /// reported as syntax errors, so the \c aut field of the result is
+  /// guaranteed not to be null if \c errors is empty.  (This is
+  /// unlike automaton_stream_parser::parse() where a null \c aut
+  /// denotes the end of a stream.)
   ///
   /// \warning This function is not reentrant.
   SPOT_API parsed_aut_ptr

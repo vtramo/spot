@@ -1649,7 +1649,7 @@ incorrectly-unlabeled-edge: checked-state-num trans-acc_opt
 				      "(previous edge is labeled)");
 			      else
 				cond = res.state_label;
-			      if (cond != bddfalse)
+			      if (cond != bddfalse || !res.opts.drop_false_edges)
 				{
                                   unsigned e;
 				  if (res.opts.want_kripke)
@@ -1665,12 +1665,13 @@ incorrectly-unlabeled-edge: checked-state-num trans-acc_opt
 labeled-edge: trans-label checked-state-num trans-acc_opt
 	      {
                 unsigned e = 0;
-		if (res.cur_label != bddfalse ||
+		if (res.cur_label != bddfalse
+                    || !res.opts.drop_false_edges
                     // As a hack to allow states to be accepting
                     // even if they do not have transitions, we
                     // do not ignore false-labeled self-loops if they
                     // have some colors)
-                    ($2 == res.cur_state && !!($3 | res.acc_state)))
+                    || ($2 == res.cur_state && !!($3 | res.acc_state)))
 		  {
 		    if (res.opts.want_kripke)
 		      e = res.h->ks->new_edge(res.cur_state, $2);
@@ -1684,7 +1685,7 @@ labeled-edge: trans-label checked-state-num trans-acc_opt
 	    | trans-label state-conj-checked trans-acc_opt
 	      {
                 unsigned e = 0;
-                if (res.cur_label != bddfalse)
+                if (res.cur_label != bddfalse || !res.opts.drop_false_edges)
                   {
                     assert(!res.opts.want_kripke);
                     e = res.h->aut->new_univ_edge(res.cur_state,
@@ -1737,7 +1738,7 @@ unlabeled-edge: checked-state-num trans-acc_opt
 			}
 		    }
                   unsigned e = 0;
-		  if (cond != bddfalse)
+		  if (cond != bddfalse || !res.opts.drop_false_edges)
 		    {
 		      if (res.opts.want_kripke)
 			e = res.h->ks->new_edge(res.cur_state, $1);
@@ -1770,7 +1771,7 @@ unlabeled-edge: checked-state-num trans-acc_opt
 			}
 		    }
                   unsigned e = 0;
-		  if (cond != bddfalse)
+		  if (cond != bddfalse || !res.opts.drop_false_edges)
 		    {
 		      assert(!res.opts.want_kripke);
                       e = res.h->aut->new_univ_edge(res.cur_state,

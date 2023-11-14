@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2012, 2014, 2015, 2022 Laboratoire de Recherche et
+# Copyright (C) 2012, 2014, 2015, 2022, 2023 Laboratoire de Recherche et
 # Développement de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -35,11 +35,60 @@ out.write(contents)
 out.close()
 
 a = spot.parse_aut(filename, spot.make_bdd_dict())
-
 tc.assertFalse(a.errors)
-
 spot.print_dot(spot.get_cout(), a.aut)
-
 del a
-
 os.unlink(filename)
+
+
+autstr = """
+HOA: v1
+States: 2
+Start: 0
+AP: 0
+Acceptance: 0 t
+spot.highlight.edges: 1 1 2 2 3 3 4 4
+--BODY--
+State: 0
+[t] 1
+[f] 0
+State: 1
+[f] 0
+[t] 0
+--END--
+"""
+
+a1 = spot.automaton(autstr)
+tc.assertEqual(a1.to_str("hoa", "1.1"), """HOA: v1.1
+States: 2
+Start: 0
+AP: 0
+acc-name: all
+Acceptance: 0 t
+properties: trans-labels explicit-labels state-acc complete
+properties: deterministic weak
+spot.highlight.edges: 1 1 2 4
+--BODY--
+State: 0
+[t] 1
+State: 1
+[t] 0
+--END--""")
+a2 = spot.automaton(autstr, drop_false_edges=False)
+tc.assertEqual(a2.to_str("hoa", "1.1"), """HOA: v1.1
+States: 2
+Start: 0
+AP: 0
+acc-name: all
+Acceptance: 0 t
+properties: trans-labels explicit-labels state-acc complete
+properties: deterministic weak
+spot.highlight.edges: 1 1 2 2 3 3 4 4
+--BODY--
+State: 0
+[t] 1
+[f] 0
+State: 1
+[f] 0
+[t] 0
+--END--""")

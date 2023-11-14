@@ -564,7 +564,7 @@ function acd{num}_node(node, acc){{
 
 def automata(*sources, timeout=None, ignore_abort=True,
              trust_hoa=True, no_sid=False, debug=False,
-             want_kripke=False):
+             want_kripke=False, drop_false_edges=True):
     """Read automata from a list of sources.
 
     Parameters
@@ -587,6 +587,9 @@ def automata(*sources, timeout=None, ignore_abort=True,
         If True, the input is expected to discribe Kripke
         structures, in the HOA format, and the returned type
         will be of type kripke_graph_ptr.
+    drop_false_edges : bool, optional
+        If True (the default), edges labeled by false will
+        be ignored during parsing.
     no_sid : bool, optional
         When an automaton is obtained from a subprocess, this
         subprocess is started from a shell with its own session
@@ -647,6 +650,7 @@ def automata(*sources, timeout=None, ignore_abort=True,
     o.trust_hoa = trust_hoa
     o.raise_errors = True
     o.want_kripke = want_kripke
+    o.drop_false_edges = drop_false_edges
 
     for filename in sources:
         try:
