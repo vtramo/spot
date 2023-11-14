@@ -118,6 +118,17 @@ extern "C" int strverscmp(const char *s1, const char *s2);
       bool in_alias = false;
       map_t dest_map;
       std::vector<state_info> info_states; // States declared and used.
+      // Mapping of edges in the HOA file to edges in the automaton.
+      // Edges are counted from 0 in the HOA file and from 1 in the
+      // automaton.  Given edge #i in the HOA file, edge_map[i] gives
+      // corresponding edge in the automaton, or 0 if that edge was
+      // removed (because labeled by bddfalse).  This map is used to
+      // update properties such as highlight_edges after the automaton
+      // has been read.  Note that the parser may also introduce
+      // unlisted edges, e.g., a bddfalse self-loop to hold the
+      // acceptance of a state without declared outgoing edge.  Those
+      // added edges are not a concern for this edge_map.
+      std::vector<unsigned> edge_map;
       std::vector<std::pair<spot::location,
                             std::vector<unsigned>>> start; // Initial states;
       std::unordered_map<std::string, bdd> alias;
@@ -1431,10 +1442,8 @@ states: %empty
          if (res.acc_state &&
              !res.opts.want_kripke &&
              res.h->aut->get_graph().state_storage(res.cur_state).succ == 0)
-           {
-             res.h->aut->new_edge(res.cur_state, res.cur_state,
-                                  bddfalse, res.acc_state);
-           }
+           res.h->aut->new_edge(res.cur_state, res.cur_state,
+                                bddfalse, res.acc_state);
 	}
 state: state-name labeled-edges
      | state-name unlabeled-edges
@@ -1642,16 +1651,20 @@ incorrectly-unlabeled-edge: checked-state-num trans-acc_opt
 				cond = res.state_label;
 			      if (cond != bddfalse)
 				{
+                                  unsigned e;
 				  if (res.opts.want_kripke)
-				    res.h->ks->new_edge(res.cur_state, $1);
+				    e = res.h->ks->new_edge(res.cur_state, $1);
 				  else
-				    res.h->aut->new_edge(res.cur_state, $1,
-							 cond,
-							 $2 | res.acc_state);
+				    e = res.h->aut->new_edge(res.cur_state, $1,
+                                                             cond,
+                                                             $2 |
+                                                             res.acc_state);
+                                  res.edge_map.push_back(e);
 				}
 			    }
 labeled-edge: trans-label checked-state-num trans-acc_opt
 	      {
+                unsigned e = 0;
 		if (res.cur_label != bddfalse ||
                     // As a hack to allow states to be accepting
                     // even if they do not have transitions, we
@@ -1660,22 +1673,26 @@ labeled-edge: trans-label checked-state-num trans-acc_opt
                     ($2 == res.cur_state && !!($3 | res.acc_state)))
 		  {
 		    if (res.opts.want_kripke)
-		      res.h->ks->new_edge(res.cur_state, $2);
+		      e = res.h->ks->new_edge(res.cur_state, $2);
 		    else
-		      res.h->aut->new_edge(res.cur_state, $2,
-					   res.cur_label, $3 | res.acc_state);
+		      e = res.h->aut->new_edge(res.cur_state, $2,
+                                               res.cur_label,
+                                               $3 | res.acc_state);
 		  }
+                res.edge_map.push_back(e);
 	      }
 	    | trans-label state-conj-checked trans-acc_opt
 	      {
+                unsigned e = 0;
                 if (res.cur_label != bddfalse)
                   {
                     assert(!res.opts.want_kripke);
-                    res.h->aut->new_univ_edge(res.cur_state,
-                                              $2->begin(), $2->end(),
-                                              res.cur_label,
-                                              $3 | res.acc_state);
+                    e = res.h->aut->new_univ_edge(res.cur_state,
+                                                  $2->begin(), $2->end(),
+                                                  res.cur_label,
+                                                  $3 | res.acc_state);
                   }
+                res.edge_map.push_back(e);
                 delete $2;
 	      }
 
@@ -1719,14 +1736,16 @@ unlabeled-edge: checked-state-num trans-acc_opt
 			  cond = *res.cur_guard++;
 			}
 		    }
+                  unsigned e = 0;
 		  if (cond != bddfalse)
 		    {
 		      if (res.opts.want_kripke)
-			res.h->ks->new_edge(res.cur_state, $1);
+			e = res.h->ks->new_edge(res.cur_state, $1);
 		      else
-			res.h->aut->new_edge(res.cur_state, $1,
-					     cond, $2 | res.acc_state);
+			e = res.h->aut->new_edge(res.cur_state, $1,
+                                                 cond, $2 | res.acc_state);
 		    }
+                  res.edge_map.push_back(e);
 		}
 	      | state-conj-checked trans-acc_opt
 		{
@@ -1750,13 +1769,15 @@ unlabeled-edge: checked-state-num trans-acc_opt
 			  cond = *res.cur_guard++;
 			}
 		    }
+                  unsigned e = 0;
 		  if (cond != bddfalse)
 		    {
 		      assert(!res.opts.want_kripke);
-                      res.h->aut->new_univ_edge(res.cur_state,
-                                                $1->begin(), $1->end(),
-                                                cond, $2 | res.acc_state);
+                      e = res.h->aut->new_univ_edge(res.cur_state,
+                                                    $1->begin(), $1->end(),
+                                                    cond, $2 | res.acc_state);
 		    }
+                  res.edge_map.push_back(e);
                   delete $1;
 		}
 incorrectly-labeled-edge: trans-label unlabeled-edge
@@ -2919,7 +2940,17 @@ namespace spot
     if (r.state_names)
       r.aut_or_ks->set_named_prop("state-names", r.state_names);
     if (r.highlight_edges)
-      r.aut_or_ks->set_named_prop("highlight-edges", r.highlight_edges);
+      {
+        // Update the highlight_edges map to deal with removed/added
+        // edges.
+        std::map<unsigned, unsigned> remap;
+        for (auto [edgnum, color]: *r.highlight_edges)
+          if (edgnum > 0) /* not expected, but can't trust input data */
+            if (unsigned newnum = r.edge_map[edgnum - 1]; newnum > 0)
+              remap[newnum] = color;
+        std::swap(remap, *r.highlight_edges);
+        r.aut_or_ks->set_named_prop("highlight-edges", r.highlight_edges);
+      }
     if (r.highlight_states)
       r.aut_or_ks->set_named_prop("highlight-states", r.highlight_states);
     if (r.state_player)

@@ -127,6 +127,8 @@ New in spot 2.11.6.dev  (not yet released)
     (This cheap check will not catch all automata incorrectly labeled
     by !weak, but helps detects some issues nonetheless.)
 
+  - The automaton parser forgot to update the list of highlighted
+    edges while dropping edges labeled by bddfalse.  (issue #548.)
 
 New in spot 2.11.6  (2023-08-01)
 

@@ -1,6 +1,6 @@
 #!/bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2016-2019 Laboratoire de Recherche et Développement
+# Copyright (C) 2016-2019, 2023 Laboratoire de Recherche et Développement
 # de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -231,3 +231,27 @@ cat >expect.hoa <<EOF
 spot.highlight.edges: 2 2 5 2 10 2 13 2
 EOF
 diff out expect.hoa
+
+
+# Issue #548
+cat >bug548.hoa <<EOF
+HOA: v1
+States: 2
+Start: 0
+AP: 0
+Acceptance: 0 t
+spot.highlight.edges: 1 1 2 2 3 3 4 4
+--BODY--
+State: 0
+[t] 1
+[f] 0
+State: 1
+[f] 0
+[t] 0
+--END--
+EOF
+autfilt bug548.hoa -H1.1 | grep highlight > out.hoa
+cat >expect.hoa <<EOF
+spot.highlight.edges: 1 1 2 4
+EOF
+diff out.hoa expect.hoa
