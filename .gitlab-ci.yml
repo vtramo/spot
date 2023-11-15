@@ -376,7 +376,12 @@ debpkg-unstable-i386:
       - _build_unstable/
 
 rpm-pkg:
-  stage: build
+  stage: build2
+  needs:
+    - job: make-dist
+      artifacts: true
+  variables:
+    GIT_STRATEGY: none
   only:
     - /-rpm$/
     - master
@@ -384,12 +389,10 @@ rpm-pkg:
     - stable
   image: gitlab-registry.lre.epita.fr/spot/buildenv/fedora
   script:
-    - autoreconf -vfi
-    - ./configure
-    - make
-    - make dist
-    - cp spot-*.tar.gz ~/rpmbuild/SOURCES/
-    - cp spot.spec ~/rpmbuild/SPECS/
+    - VERSION=`cat VERSION`
+    - tar xvf spot-$VERSION.tar.gz spot-$VERSION/spot.spec
+    - cp spot-$VERSION.tar.gz ~/rpmbuild/SOURCES/
+    - cp spot-$VERSION/spot.spec ~/rpmbuild/SPECS/
     - rpmbuild -bb ~/rpmbuild/SPECS/spot.spec
     - mv ~/rpmbuild/RPMS/x86_64/*.rpm .
   allow_failure: true
