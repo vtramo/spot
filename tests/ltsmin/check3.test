@@ -1,6 +1,6 @@
 #!/bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2016, 2017 Laboratoire de Recherche
+# Copyright (C) 2016-2017, 2023 Laboratoire de Recherche
 # et Développement de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
@@ -28,10 +28,6 @@ fi
 set -e
 
 for opt in '' '--compress 1'; do
-  # The three examples from the README.
-  # (Don't run the first one using "run 0" because it would take too much
-  # time with valgrind.).
-
   run 1 ../modelcheck $opt --is-empty --model  $srcdir/beem-peterson.4.gal \
     --formula '!G("P_0.state==2" -> F "P_0.state==1")'
   run 1 ../modelcheck $opt --is-empty --model $srcdir/beem-peterson.4.gal \

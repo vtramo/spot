@@ -1,6 +1,6 @@
 ## -*- coding: utf-8 -*-
-## Copyright (C) 2011-2017, 2020, 2022 Laboratoire de Recherche et Développement
-## de l'Epita (LRDE).
+## Copyright (C) 2011-2017, 2020, 2022-2023 Laboratoire de Recherche
+## et Développement de l'Epita (LRDE).
 ## Copyright (C) 2003, 2005  Laboratoire d'Informatique de Paris 6 (LIP6),
 ## département Systèmes Répartis Coopératifs (SRC), Université Pierre
 ## et Marie Curie.
@@ -69,7 +69,7 @@ EXTRA_DIST = HACKING ChangeLog.1 tools/gitlog-to-changelog	\
 	     tools/help2man tools/man2html.pl			\
 	     tools/test-driver-teamcity $(UTF8) $(DEBIAN)	\
 	     m4/gnulib-cache.m4 .dir-locals.el			\
-	     spot.spec spot.spec.in
+	     spot.spec spot.spec.in README.ltsmin
 
 dist-hook: gen-ChangeLog
 

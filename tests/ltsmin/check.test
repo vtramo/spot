@@ -1,7 +1,7 @@
 #!/bin/sh
 # -*- coding: utf-8 -*-
-# Copyright (C) 2011, 2012, 2014, 2015, 2016, 2017, 2019, 2020 Laboratoire
-# de Recherche et Développement de l'Epita (LRDE).
+# Copyright (C) 2011-2012, 2014-2017, 2019-2020, 2023 Laboratoire de
+# Recherche et Développement de l'Epita (LRDE).
 #
 # This file is part of Spot, a model checking library.
 #
@@ -48,7 +48,7 @@ fi
 
 # dve2
 for opt in '' '--compress 1'; do
-  # The three examples from the README.
+  # The three examples from README.ltsmin.
   # (Don't run the first one using "run 0" because it would take too much
   # time with valgrind.).
 

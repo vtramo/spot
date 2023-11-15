@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2019, 2020 Laboratoire de Recherche et Développement
+// Copyright (C) 2019, 2020, 2023 Laboratoire de Recherche et Développement
 // de l'Epita (LRDE)
 //
 // This file is part of Spot, a model checking library.
@@ -45,22 +45,26 @@ namespace spot
     static void
     compile_model(std::string& filename, const std::string& ext)
     {
+      const char* cmd;
       std::string command;
       std::string compiled_ext;
 
       if (ext == ".gal")
         {
-          command = "gal2c " + filename;
+          cmd = "gal2c ";
+          command = cmd + filename;
           compiled_ext = "2C";
         }
       else if (ext == ".prom" || ext == ".pm" || ext == ".pml")
         {
-          command = "spins " + filename;
+          cmd = "spins ";
+          command = cmd + filename;
           compiled_ext = ".spins";
         }
       else if (ext == ".dve")
         {
-          command = "divine compile --ltsmin " + filename;
+          cmd = "divine ";
+          command = cmd + "compile --ltsmin "s + filename;
           command += " 2> /dev/null"; // FIXME needed for Clang on MacOSX
           compiled_ext = "2C";
         }
@@ -92,9 +96,17 @@ namespace spot
 
       int res = system(command.c_str());
       if (res)
-        throw std::runtime_error("Execution of '"s
-                                 + command.c_str() + "' returned exit code "
-                                 + std::to_string(WEXITSTATUS(res)));
+        {
+          std::ostringstream os;
+          int status = WEXITSTATUS(res);
+          os << "Execution of '" << command << "' returned exit code "
+             << status << '.';
+          if (status == 127)
+            os << "\nIs " << cmd << "installed and on your $PATH?\n"
+              "Read README.ltsmin in Spot's sources for "
+              "installation instructions.";
+          throw std::runtime_error(os.str());
+        }
     }
   }
 

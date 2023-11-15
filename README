@@ -93,6 +93,10 @@ automata.
 If the SAT-solver glucose is found on your system, it will be used by
 our test suite to test our SAT-based minimization algorithm.
 
+If you want to use Spot with DiVinE2 (for model checking DVE models)
+or with SpinS (for model checking Promela models), please read the
+file named "README.ltsmin" for installation instructions.
+
 Spot used to distribute a modified version of LBTT (an LTL to Büchi
 test bench), mostly fixing errors reported by recent compilers.
 However Spot now distributes its own reimplementation of LBTT, called
