@@ -128,28 +128,30 @@ autfilt --stats='%s states, %e edges, %a acc-sets, %c SCCs, det=%d'
 
 The following =%= sequences are available:
 #+BEGIN_SRC sh :exports results
-ltl2tgba --help | sed -n '/ sequences:/,/^$/p' | sed '1d;$d'
+autfilt --help | sed -n '/ for output):/,/^$/p' | sed '1d;$d'
 #+END_SRC
 #+RESULTS:
 #+begin_example
-  %<                         the part of the line before the formula if it
-                             comes from a column extracted from a CSV file
-  %>                         the part of the line after the formula if it comes
-                             from a column extracted from a CSV file
   %%                         a single %
-  %a                         number of acceptance sets
-  %c, %[LETTERS]c            number of SCCs; you may filter the SCCs to count
+  %<                         the part of the line before the automaton if it
+                             comes from a column extracted from a CSV file
+  %>                         the part of the line after the automaton if it
+                             comes from a column extracted from a CSV file
+  %A, %a                     number of acceptance sets
+  %C, %c, %[LETTERS]C, %[LETTERS]c
+                             number of SCCs; you may filter the SCCs to count
                              using the following LETTERS, possibly
                              concatenated: (a) accepting, (r) rejecting, (c)
                              complete, (v) trivial, (t) terminal, (w) weak,
                              (iw) inherently weak. Use uppercase letters to
                              negate them.
-  %d                         1 if the output is deterministic, 0 otherwise
-  %e, %[LETTER]e             number of edges (add one LETTER to select (r)
-                             reachable [default], (u) unreachable, (a) all).
-  %f                         the formula, in Spot's syntax
+  %D, %d                     1 if the automaton is deterministic, 0 otherwise
+  %E, %e, %[LETTER]E, %[LETTER]e   number of edges (add one LETTER to select
+                             (r) reachable [default], (u) unreachable, (a)
+                             all).
   %F                         name of the input file
-  %g, %[LETTERS]g            acceptance condition (in HOA syntax); add brackets
+  %G, %g, %[LETTERS]G, %[LETTERS]g
+                             acceptance condition (in HOA syntax); add brackets
                              to print an acceptance name instead and LETTERS to
                              tweak the format: (0) no parameters, (a)
                              accentuated, (b) abbreviated, (d) style used in
@@ -158,31 +160,32 @@ ltl2tgba --help | sed -n '/ sequences:/,/^$/p' | sed '1d;$d'
                              parameter, (p) no parity parameter, (o) name
                              unknown acceptance as 'other', (s) shorthand for
                              'lo0'.
-  %h                         the automaton in HOA format on a single line (use
-                             %[opt]h to specify additional options as in
-                             --hoa=opt)
+  %H, %h                     the automaton in HOA format on a single line (use
+                             %[opt]H or %[opt]h to specify additional options
+                             as in --hoa=opt)
   %L                         location in the input file
-  %m                         name of the automaton
-  %n                         number of nondeterministic states in output
-  %p                         1 if the output is complete, 0 otherwise
+  %l                         serial number of the output automaton (0-based)
+  %M, %m                     name of the automaton
+  %N, %n                     number of nondeterministic states
+  %P, %p                     1 if the automaton is complete, 0 otherwise
   %r                         wall-clock time elapsed in seconds (excluding
                              parsing)
   %R, %[LETTERS]R            CPU time (excluding parsing), in seconds; Add
-                             LETTERS to restrict to(u) user time, (s) system
+                             LETTERS to restrict to (u) user time, (s) system
                              time, (p) parent process, or (c) children
                              processes.
-  %s, %[LETTER]s             number of states (add one LETTER to select (r)
-                             reachable [default], (u) unreachable, (a) all).
-  %t, %[LETTER]t             number of transitions (add one LETTER to select
+  %S, %s, %[LETTER]S, %[LETTER]s   number of states (add one LETTER to select
                              (r) reachable [default], (u) unreachable, (a)
                              all).
-  %u, %[e]u                  number of states (or [e]dges) with universal
-                             branching
-  %u, %[LETTER]u             1 if the automaton contains some universal
+  %T, %t, %[LETTER]T, %[LETTER]t   number of transitions (add one LETTER to
+                             select (r) reachable [default], (u) unreachable,
+                             (a) all).
+  %U, %u, %[LETTER]U, %[LETTER]u   1 if the automaton contains some universal
                              branching (or a number of [s]tates or [e]dges with
                              universal branching)
-  %w                         one word accepted by the output automaton
-  %x, %[LETTERS]x            number of atomic propositions declared in the
+  %W, %w                     one word accepted by the automaton
+  %X, %x, %[LETTERS]X, %[LETTERS]x
+                             number of atomic propositions declared in the
                              automaton;  add LETTERS to list atomic
                              propositions with (n) no quoting, (s) occasional
                              double-quotes with C-style escape, (d)

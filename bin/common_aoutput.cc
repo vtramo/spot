@@ -213,7 +213,7 @@ static const argp_option io_options[] =
       0, nullptr, OPTION_DOC | OPTION_NO_USAGE,
       "number of edges (add one LETTER to select (r) reachable [default], "
       "(u) unreachable, (a) all).", 0 },
-    { "%T, %t, %[LETTER]E, %[LETTER]e",
+    { "%T, %t, %[LETTER]T, %[LETTER]t",
       0, nullptr, OPTION_DOC | OPTION_NO_USAGE,
       "number of transitions (add one LETTER to select (r) reachable "
       "[default], (u) unreachable, (a) all).", 0 },
