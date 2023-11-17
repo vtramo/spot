@@ -48,7 +48,7 @@ namespace spot
       return;
 
     relabel_bool_ = opt->get("relabel-bool", 4);
-    relabel_overlap_ = opt->get("relabel-overlap", 6);
+    relabel_overlap_ = opt->get("relabel-overlap", 8);
     comp_susp_ = opt->get("comp-susp", 0);
     if (comp_susp_ == 1)
       {
