@@ -150,8 +150,20 @@ namespace spot
       {
         auto new_acc = acc_cond::acc_code::parity(output_max,
                                                   output_odd, num_sets);
+        // Even if change_kind || change_style, it may be
+        // the case that the new acceptance is the same as the old.
+        // For instance "t" can be both "min even" or "max odd".
+        if (num_sets <= 1 && new_acc == aut->get_acceptance())
+          return aut;
         aut->set_acceptance(num_sets, new_acc);
       }
+    else
+      {
+        if (num_sets <= 1)
+          return aut;           // Nothing to do
+      }
+    // even if the acceptance is not changed, this code will remove
+    // superfluous colors in case a transition has more than one.
     change_acc(aut, old_num_sets, change_kind,
                change_style, output_max, current_max);
     return aut;
