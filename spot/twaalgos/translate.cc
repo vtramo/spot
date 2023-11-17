@@ -576,7 +576,12 @@ namespace spot
     auto aut = run_aux(r);
 
     if (!m.empty())
-      relabel_here(aut, &m);
+      {
+        unsigned ne = aut->num_edges();
+        relabel_here(aut, &m);
+        if (aut->num_edges() < ne)
+          return finalize(do_scc_filter(aut));
+      }
     return aut;
   }
 

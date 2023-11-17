@@ -527,3 +527,16 @@ v29)))& (G F (v11 -> (v46 & v29)))& (G F (v13 -> (v47 & v29)))&
 (v11 | (v13 | (v15 | (v17 | v19))))))))))))'
 ltl2tgba -p'min even' -D -C "$f" --stats='%s %e'>out
 test '22 288' = "`cat out`"
+
+# Make sure relabel-overlap still reduce empty automata.  Issue #551.
+f='(G(!(G(p16) U G(p5))))&&((p5&&!p3&&p4&&!p2)) &&
+((p16&&!p14&&p5&&p15)) && (p5) && (p16) && (X(p5)) &&
+(X(!(p2&&!p3&&p4&&!p5))) && (X(!(p3&&p4&&!p5))) && (X(X(!(p3&&!p5))))
+&& (X(X(!(p2&&!p3&&!p5)))) && (X(X(p5))) && (X((!p14&&p5))) &&
+(X(X((!p14&&p5)))) && (F(G(p5))) && (F(G(!p16))) && (G((!p2||p3||p5))) &&
+(G((!p3||p5))) && (G((!p2||p3||!p4||p5))) && (G((!p3||!p4||p5)))'
+
+s8=`ltl2tgba -x relabel-overlap=8 -f "$f" --stats=%g,%s,%e`
+test "$s8" = "t,1,0"
+s7=`ltl2tgba -x relabel-overlap=7 -f "$f" --stats=%g,%s,%e`
+test "$s7" = "t,1,0"
