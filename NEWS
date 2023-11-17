@@ -108,6 +108,15 @@ New in spot 2.11.6.dev  (not yet released)
     removal of superfluous APs that is now performed by ltlsynt
     (search for --polarity and --global-equivalence above).
 
+  - scc_filter used to reduce automata tagged with the inherently-weak
+    property to weak Büchi automata (unless the acceptance was already
+    t or co-Büchi).  In case where the input automaton had no
+    rejecting cycle, the Büchi acceptance was overkill: scc_filter
+    will now use "t" acceptance.  This change may have unexpected
+    conseqences in code paths that assume running scc_filter on a
+    Büchi automaton will always return a Büchi automaton.  For those,
+    a "keep_one_color" option has been added to scc_filter.
+
   - ltsmin's interface will now point to README.ltsmin in case an
     error is found while running divine or spins.
 
@@ -142,6 +151,10 @@ New in spot 2.11.6.dev  (not yet released)
 
   - The automaton parser forgot to update the list of highlighted
     edges while dropping edges labeled by bddfalse.  (issue #548.)
+
+  - The comparison operators for acceptance condition (==, !=)
+    could fail to equate two "t" condition, because we have two ways
+    to represent "t": the empty condition, or the empty "Inf({})".
 
 New in spot 2.11.6  (2023-08-01)
 

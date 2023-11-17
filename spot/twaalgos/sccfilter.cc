@@ -124,12 +124,14 @@ namespace spot
       }
     };
 
-    // Transform inherently weak automata into weak Büchi automata.
-    template <bool buchi, class next_filter = id_filter>
+    // Transform inherently weak automata into weak Büchi automata, or
+    // t automata.
+    template <bool buchi, bool keep_one_color, class next_filter = id_filter>
     struct weak_filter: next_filter
     {
       acc_cond::mark_t acc_m = {0};
       acc_cond::mark_t rej_m = {};
+      bool true_acc = false;
 
       template<typename... Args>
       weak_filter(scc_info* si, Args&&... args)
@@ -140,6 +142,23 @@ namespace spot
             acc_m = {};
             if (si->get_aut()->acc().is_co_buchi())
               rej_m = {0};
+          }
+        if (!keep_one_color)
+          {
+            unsigned ns = si->scc_count();
+            bool may_reject = false;
+            for (unsigned i = 0; i < ns; ++i)
+              if (!si->is_trivial(i) && !si->is_accepting_scc(i))
+                {
+                  may_reject = true;
+                  break;
+                }
+            if (!may_reject)
+              {
+                true_acc = true;
+                acc_m = {};
+                rej_m = {};
+              }
           }
       }
 
@@ -164,7 +183,9 @@ namespace spot
 
       void fix_acceptance(const twa_graph_ptr& out)
       {
-        if (buchi)
+        if (true_acc)
+          out->set_generalized_buchi(0);
+        else if (buchi)
           out->set_buchi();
         else
           out->copy_acceptance_of(this->si->get_aut());
@@ -216,8 +237,8 @@ namespace spot
             //
             // The above rules are made more complex with two flags:
             //
-            // - If PreserveSBA is set, we have to tree a transition
-            //   leaving an SCC as other transitions inside the SCC,
+            // - If PreserveSBA is set, we have to treat a transition
+            //   leaving an SCC like other transitions inside the SCC,
             //   otherwise we will break the property that all
             //   transitions leaving the same state have identical set
             //   membership.
@@ -442,7 +463,7 @@ namespace spot
 
   twa_graph_ptr
   scc_filter(const const_twa_graph_ptr& aut, bool remove_all_useless,
-             scc_info* given_si)
+             scc_info* given_si, bool keep_one_color)
   {
     twa_graph_ptr res;
     scc_info* si = given_si;
@@ -455,10 +476,13 @@ namespace spot
                             | scc_info_options::TRACK_STATES_IF_FIN_USED);
         if (aut->acc().is_t() || aut->acc().is_co_buchi())
           res =
-            scc_filter_apply<state_filter<weak_filter<false>>>(aut, si);
+            scc_filter_apply<state_filter<weak_filter<false, false>>>(aut, si);
+        else if (keep_one_color)
+          res =
+            scc_filter_apply<state_filter<weak_filter<true, true>>>(aut, si);
         else
           res =
-            scc_filter_apply<state_filter<weak_filter<true>>>(aut, si);
+            scc_filter_apply<state_filter<weak_filter<true, false>>>(aut, si);
       }
     else if (aut->acc().is_generalized_buchi())
       {

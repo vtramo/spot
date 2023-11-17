@@ -27,6 +27,7 @@ trans-acc --BODY-- State: 0 [!0&!1] 3 [!0&!1] 4 State: 1 [!0&!1] 4 {3}
 [0&!1] 0 {2} [!0&1] 1 {2} State: 2 [!0&1] 0 {0 2} [!0&!1] 1 State: 3
 [!0&1] 2 State: 4 [0&!1] 3 --END--""")
 b = spot.zielonka_tree_transform(a)
+spot.is_weak_automaton(b)
 tc.assertTrue(spot.are_equivalent(a, b))
 tc.assertTrue(b.acc().is_buchi())
 

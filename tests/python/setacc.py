@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2016, 2018, 2021, 2022 Laboratoire de Recherche et
+# Copyright (C) 2016, 2018, 2021, 2022, 2023 Laboratoire de Recherche et
 # Développement de l'EPITA.
 #
 # This file is part of Spot, a model checking library.
@@ -104,10 +104,10 @@ except RuntimeError as e:
 from gc import collect
 acc = spot.translate('a').acc()
 collect()
-tc.assertEqual(acc, spot.acc_cond('Inf(0)'))
+tc.assertEqual(acc, spot.acc_cond('t'))
 acc = spot.translate('b').get_acceptance()
 collect()
-tc.assertEqual(acc, spot.acc_code('Inf(0)'))
+tc.assertEqual(acc, spot.acc_code('t'))
 
 
 c = spot.acc_cond('Fin(0)&Fin(1)&(Inf(2)|Fin(3))')

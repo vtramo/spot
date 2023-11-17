@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2009, 2010, 2012, 2013, 2014, 2015, 2018 Laboratoire de
+// Copyright (C) 2009, 2010, 2012, 2013, 2014, 2015, 2018, 2023 Laboratoire de
 // Recherche et Developpement de l'Epita (LRDE).
 //
 // This file is part of Spot, a model checking library.
@@ -51,12 +51,17 @@ namespace spot
   /// accepting SCC are accepting.
   ///
   /// If the input is inherently weak, the output will be a weak
-  /// automaton with state-based acceptance.  The acceptance condition
-  /// is set to Büchi unless the input was co-Büchi or t (in which
-  /// case we keep this acceptance).
+  /// automaton with state-based acceptance.  If the automaton had no
+  /// rejecting SCC, the acceptance condition is set to "t".
+  /// Otherwise, the acceptance condition is set to Büchi unless the
+  /// input was co-Büchi (in which case we keep this acceptance).
   ///
-  /// If \a given_sm is supplied, the function will use its result
+  /// If \a given_si is supplied, the function will use its result
   /// without computing a map of its own.
+  ///
+  /// If \a keep_one_color is set, the output will keep at least color
+  /// if the input had colors.  Normally scc_filter removes as many
+  /// colors as possible.
   ///
   /// \warning Calling scc_filter on a TωA that is not inherently weak
   /// and has the SBA property (i.e., transitions leaving accepting
@@ -64,7 +69,7 @@ namespace spot
   /// Use scc_filter_states() instead.
   SPOT_API twa_graph_ptr
   scc_filter(const const_twa_graph_ptr& aut, bool remove_all_useless = false,
-             scc_info* given_si = nullptr);
+             scc_info* given_si = nullptr, bool keep_one_color = false);
 
   /// \brief Prune unaccepting SCCs.
   ///

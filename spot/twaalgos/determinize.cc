@@ -881,7 +881,7 @@ namespace spot
         aut_tmp->copy_state_names_from(a);
       if (use_simulation)
         {
-          aut_tmp = spot::scc_filter(aut_tmp);
+          aut_tmp = spot::scc_filter(aut_tmp, true, nullptr, true);
           auto aut2 = simulation(aut_tmp, &implications, trans_pruning);
           if (pretty_print)
             aut2->copy_state_names_from(aut_tmp);

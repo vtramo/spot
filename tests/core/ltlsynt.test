@@ -736,7 +736,7 @@ there are 2 subformulas
 trying to create strategy directly for (b & (b | y)) -> y
 direct strategy might exist but was not found.
 translating formula done in X seconds
-automaton has 2 states and 1 colors
+automaton has 2 states and 0 colors
 LAR construction done in X seconds
 DPA has 2 states, 0 colors
 split inputs and outputs done in X seconds
@@ -747,7 +747,7 @@ simplification took X seconds
 trying to create strategy directly for (a | x) -> x
 direct strategy might exist but was not found.
 translating formula done in X seconds
-automaton has 2 states and 1 colors
+automaton has 2 states and 0 colors
 LAR construction done in X seconds
 DPA has 2 states, 0 colors
 split inputs and outputs done in X seconds
@@ -850,7 +850,7 @@ there are 3 subformulas
 trying to create strategy directly for a -> b
 direct strategy might exist but was not found.
 translating formula done in X seconds
-automaton has 2 states and 1 colors
+automaton has 2 states and 0 colors
 LAR construction done in X seconds
 DPA has 2 states, 0 colors
 split inputs and outputs done in X seconds
@@ -861,7 +861,7 @@ simplification took X seconds
 trying to create strategy directly for a -> c
 direct strategy might exist but was not found.
 translating formula done in X seconds
-automaton has 2 states and 1 colors
+automaton has 2 states and 0 colors
 LAR construction done in X seconds
 DPA has 2 states, 0 colors
 split inputs and outputs done in X seconds
@@ -872,7 +872,7 @@ simplification took X seconds
 trying to create strategy directly for a -> d
 direct strategy might exist but was not found.
 translating formula done in X seconds
-automaton has 2 states and 1 colors
+automaton has 2 states and 0 colors
 LAR construction done in X seconds
 DPA has 2 states, 0 colors
 split inputs and outputs done in X seconds
@@ -934,7 +934,7 @@ ltlsynt -f 'G(c) & (G(a) <-> GFb)' --outs=b,c --decompose=yes --pol=no \
 cat >exp <<EOF
 there are 2 subformulas
 translating formula done in X seconds
-automaton has 1 states and 1 colors
+automaton has 1 states and 0 colors
 LAR construction done in X seconds
 DPA has 1 states, 0 colors
 split inputs and outputs done in X seconds
@@ -967,7 +967,7 @@ solving game with acceptance: generalized-Streett 1 1
 game solved in X seconds
 simplification took X seconds
 translating formula done in X seconds
-automaton has 1 states and 1 colors
+automaton has 1 states and 0 colors
 ACD construction done in X seconds
 DPA has 1 states, 0 colors
 split inputs and outputs done in X seconds

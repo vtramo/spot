@@ -482,6 +482,9 @@ namespace spot
 
      bool operator==(const acc_code& other) const
       {
+        // We have two ways to represent t, unfortunately.
+        if (is_t() && other.is_t())
+          return true;
         unsigned pos = size();
         if (other.size() != pos)
           return false;
@@ -513,6 +516,9 @@ namespace spot
 
       bool operator<(const acc_code& other) const
       {
+        // We have two ways to represent t, unfortunately.
+        if (is_t() && other.is_t())
+          return false;
         unsigned pos = size();
         auto osize = other.size();
         if (pos < osize)
@@ -1560,7 +1566,11 @@ namespace spot
 
     bool operator==(const acc_cond& other) const
     {
-      return other.num_sets() == num_ && other.get_acceptance() == code_;
+      if (other.num_sets() != num_)
+        return false;
+      const acc_code& ocode = other.get_acceptance();
+      // We have two ways to represent t, unfortunately.
+      return (ocode == code_ || (ocode.is_t() && code_.is_t()));
     }
 
     bool operator!=(const acc_cond& other) const

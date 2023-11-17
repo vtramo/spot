@@ -106,12 +106,12 @@ HOA: v1
 States: 1
 Start: 0
 AP: 0
-acc-name: Buchi
-Acceptance: 1 Inf(0)
-properties: trans-labels explicit-labels state-acc colored complete
+acc-name: all
+Acceptance: 0 t
+properties: trans-labels explicit-labels state-acc complete
 properties: deterministic terminal very-weak
 --BODY--
-State: 0 {0}
+State: 0
 [t] 0
 --END--
 EOF

@@ -538,7 +538,8 @@ tc.assertEqual(spot.reduce_iterated_sba(aut).to_str(), '''HOA: v1
 States: 1
 Start: 0
 AP: 1 "a"
-Acceptance: 1 t
+acc-name: all
+Acceptance: 0 t
 properties: trans-labels explicit-labels state-acc deterministic
 properties: very-weak
 --BODY--

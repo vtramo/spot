@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2017-2019, 2021-2022 Laboratoire de Recherche et
+# Copyright (C) 2017-2019, 2021-2023 Laboratoire de Recherche et
 # Développement de l'EPITA.
 #
 # This file is part of Spot, a model checking library.
@@ -114,7 +114,7 @@ properties: deterministic stutter-invariant very-weak
 --BODY--
 State: 0 {0}
 [t] 0
-State: 1
+State: 1 {0}
 [0] 0
 [!0] 2
 State: 2

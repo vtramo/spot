@@ -47,13 +47,28 @@ namespace spot
   namespace
   {
     static twa_graph_ptr
-    ensure_ba(twa_graph_ptr& a)
+    ensure_ba(twa_graph_ptr& a, bool no_trivial)
     {
       if (a->acc().is_t())
         {
           auto m = a->set_buchi();
-          for (auto& t: a->edges())
-            t.acc = m;
+          if (!no_trivial)
+            {
+              for (auto& t: a->edges())
+                t.acc = m;
+            }
+          else
+            {
+              scc_info si(a);
+              unsigned nc = si.scc_count();
+              for (unsigned i = 0; i < nc; ++i)
+                // Cannot use "is_accepting_scc" because the
+                // acceptance condition was already changed.
+                if (!si.is_trivial(i))
+                  for (auto& e: si.edges_of(i))
+                    const_cast<acc_cond::mark_t&>(e.acc) = m;
+            }
+          a->prop_state_acc(true);
         }
       return a;
     }
@@ -219,7 +234,7 @@ namespace spot
     if (state_based_ && a->prop_state_acc().is_true())
       return scc_filter_states(a, arg);
     else
-      return scc_filter(a, arg);
+      return scc_filter(a, arg, nullptr, type_ == CoBuchi || type_ == Buchi);
   }
 
   twa_graph_ptr
@@ -251,7 +266,7 @@ namespace spot
     if (state_based_)
       tmp = sbacc(tmp);
     if (type_ == Buchi)
-      tmp = ensure_ba(tmp);
+      tmp = ensure_ba(tmp, level_ == High);
     if (want_parity)
       {
         if (!acd_was_used_ || (COMP_ && !was_complete))
@@ -480,7 +495,7 @@ namespace spot
             // We just need to add an acceptance set if there is none.
             dba_is_minimal = dba_is_wdba = true;
             if (type_ == Buchi)
-              ensure_ba(dba);
+              ensure_ba(dba, level_ == High);
           }
         else
           {

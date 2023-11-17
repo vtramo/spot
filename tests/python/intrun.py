@@ -52,27 +52,27 @@ tc.assertEqual(str(r), """Prefix:
   1
   |  a
   0
-  |  1	{0}
+  |  1
   0
-  |  a	{0}
+  |  a
 Cycle:
   0
-  |  1	{0}
+  |  1
 """)
 tc.assertEqual(r.as_twa().to_str(), """HOA: v1
 States: 4
 Start: 0
 AP: 1 "a"
-acc-name: Buchi
-Acceptance: 1 Inf(0)
+acc-name: all
+Acceptance: 0 t
 properties: trans-labels explicit-labels state-acc deterministic
 --BODY--
 State: 0
 [0] 1
-State: 1 {0}
+State: 1
 [t] 2
-State: 2 {0}
+State: 2
 [0] 3
-State: 3 {0}
+State: 3
 [t] 3
 --END--""")

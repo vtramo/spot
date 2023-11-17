@@ -76,10 +76,10 @@ Acceptance: 1 Fin(0)
 properties: trans-labels explicit-labels state-acc complete
 properties: deterministic very-weak
 --BODY--
-State: 0
+State: 0 {0}
 [0] 2
 [!0] 3
-State: 1
+State: 1 {0}
 [t] 0
 State: 2 {0}
 [t] 2
