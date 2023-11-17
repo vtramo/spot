@@ -298,6 +298,11 @@ for dir in "$TOP/spot" "$TOP/bin" "$TOP/tests"; do
       $GREP 'catch *([^.]' $tmp | $GREP -v 'const.*&' &&
 	diag 'Always capture exceptions by const reference.'
 
+      # iterating over edge_vector() is suspicious, because the
+      # first edge should not be used.
+      $GREP 'for (.*:.*edge_vector()' $tmp &&
+	diag 'Did you mean to iterate over edges()?'
+
       case $file in
 	*.hh | *.hxx)
 	  if $GREP -E '(<<|>>)' $tmp >/dev/null; then

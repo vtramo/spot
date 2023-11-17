@@ -2556,7 +2556,7 @@ static void fix_acceptance(result_& r)
   auto onlyneg = r.neg_acc_sets - r.pos_acc_sets;
   if (onlyneg)
     {
-      for (auto& t: r.h->aut->edge_vector())
+      for (auto& t: r.h->aut->edges())
 	t.acc ^= onlyneg;
     }
 
@@ -2570,7 +2570,7 @@ static void fix_acceptance(result_& r)
   if (both)
     {
       base = acc.add_sets(both.count());
-      for (auto& t: r.h->aut->edge_vector())
+      for (auto& t: r.h->aut->edges())
         {
           unsigned i = 0;
 	  if ((t.acc & both) != both)

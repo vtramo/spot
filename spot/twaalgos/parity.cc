@@ -50,7 +50,7 @@ namespace spot
     change_acc(twa_graph_ptr& aut, unsigned num_sets, bool change_kind,
                bool change_style, bool output_max, bool input_max)
     {
-      for (auto& e: aut->edge_vector())
+      for (auto& e: aut->edges())
         if (e.acc)
           {
             unsigned msb = (input_max ? e.acc.max_set() : e.acc.min_set()) - 1;

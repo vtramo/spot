@@ -144,7 +144,7 @@ namespace spot
             if (need_acc_fix)
               {
                 auto a = aut->set_buchi();
-                for (auto& t: aut->edge_vector())
+                for (auto& t: aut->edges())
                   t.acc = a;
                 if (aut->num_edges())
                   acc = a;

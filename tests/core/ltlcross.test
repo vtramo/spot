@@ -69,7 +69,12 @@ ltlcross --verbose ltl2tgba ltl2tgba \
 # Issue #524.
 ltlcross ltl2tgba -f '!(X(v3 | G!v5) | ((Xv5 & !(v5 & !X!v3)) U !v5))'
 
-# Issue #546.
-ltlcross 'ltl2tgba --medium -p' 'ltl2tgba -p' 'ltl2tgba --medium -D -p' \
+# Issue #546, Issue #552.
+ltlcross 'ltl2tgba --medium -p' \
+         'ltl2tgba -p' \
+         'ltl2tgba --medium -D -p' \
+         'ltl2tgba --medium --colored-parity="min even" -C -D' \
+         'ltl2tgba --colored-parity="min even" -C -D' \
          -f 'a | FGa | GF(!b | Gb)' \
-         -f '(~ v1 U ~ v5) | G(F v9 & F G v1) | G F(~ v7 | G v7 | G v3)'
+         -f '(~ v1 U ~ v5) | G(F v9 & F G v1) | G F(~ v7 | G v7 | G v3)' \
+         -f 'FG((a | Fb | FG!b) & !G(c & d))'
