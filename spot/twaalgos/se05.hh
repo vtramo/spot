@@ -1,9 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2013, 2014, 2019 Laboratoire de Recherche et
-// Developpement de l'Epita (LRDE).
-// Copyright (C) 2004, 2005 Laboratoire d'Informatique de Paris 6
-// (LIP6), département Systèmes Répartis Coopératifs (SRC), Université
-// Pierre et Marie Curie.
+// Copyright (C) by the Spot authors, see the AUTHORS file for details.
 //
 // This file is part of Spot, a model checking library.
 //

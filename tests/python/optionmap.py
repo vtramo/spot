@@ -1,9 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright (C) 2010, 2012, 2018, 2022 Laboratoire de Recherche et
-# Développement de l'EPITA.
-# Copyright (C) 2005  Laboratoire d'Informatique de Paris 6 (LIP6),
-# département Systèmes Répartis Coopératifs (SRC), Université Pierre
-# et Marie Curie.
+# Copyright (C) by the Spot authors, see the AUTHORS file for details.
 #
 # This file is part of Spot, a model checking library.
 #

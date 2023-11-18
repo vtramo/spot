@@ -1,6 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2013-2016, 2018-2019 Laboratoire de Recherche et
-// Developement de l'Epita (LRDE).
+// Copyright (C) by the Spot authors, see the AUTHORS file for details.
 //
 // This file is part of Spot, a model checking library.
 //

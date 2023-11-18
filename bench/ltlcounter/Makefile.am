@@ -1,5 +1,4 @@
-# Copyright (C) 2009, 2014 Laboratoire de Recherche et Développement
-# de l'EPITA (LRDE)
+# Copyright (C) by the Spot authors, see the AUTHORS file for details.
 #
 # This file is part of Spot, a model checking library.
 #

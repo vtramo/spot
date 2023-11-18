@@ -3,8 +3,7 @@ Upstream-Name: spot
 Source: http://www.lrde.epita.fr/dload/spot/
 
 Files: *
-Copyright: 2003-2007 Laboratoire d'Informatique de Paris 6 (LIP6)
-	   2007-2022 Laboratoire de Recherche et Développement de l'Epita (LRDE)
+Copyright: 2003-2023 the Spot authors
 License: GPL-3+
  Spot is free software; you can redistribute it and/or modify it
  under the terms of the GNU General Public License as published by
@@ -161,7 +160,7 @@ License: GPL-3+
  Public License version 3 can be found in "/usr/share/common-licenses/GPL-3".
 
 Files: debian/*
-Copyright: 2015-2018 Laboratoire de Recherche et Développement de l'Epita (LRDE)
+Copyright: 2015-2023 the Spot authors
 License: GPL-3+
  This package is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
