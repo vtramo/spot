@@ -679,7 +679,7 @@ AP: 1 "a"
 acc-name: Buchi
 Acceptance: 1 Inf(0)
 properties: trans-labels explicit-labels trans-acc complete
-properties: deterministic very-weak
+properties: deterministic terminal very-weak
 --BODY--
 State: 0
 [t] 0

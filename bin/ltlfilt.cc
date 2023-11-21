@@ -843,7 +843,7 @@ namespace
                     {
                       spot::scc_info si(min);
                       matched &= !guarantee
-                        || is_terminal_automaton(min, &si, true);
+                        || is_terminal_automaton(min, &si);
                       matched &= !safety || is_safety_automaton(min, &si);
                     }
                 }

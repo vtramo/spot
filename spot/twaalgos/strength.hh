@@ -25,11 +25,8 @@ namespace spot
   /// \brief Check whether an automaton is terminal.
   ///
   /// An automaton is terminal if it is weak, all its accepting SCCs
-  /// are complete, and no accepting transitions lead to a
-  /// non-accepting SCC.
-  ///
-  /// If ignore_trivial_scc is set, accepting transitions from trivial
-  /// SCCs are ignored.
+  /// are complete, and no accepting SCC may lead to a non-accepting
+  /// SCC.
   ///
   /// This property guarantees that a word is accepted if it has some
   /// prefix that reaches an accepting transition.
@@ -43,8 +40,16 @@ namespace spot
   /// the prop_terminal() property of the automaton as a side-effect,
   /// so further calls will return in constant-time.
   SPOT_API bool
-  is_terminal_automaton(const const_twa_graph_ptr& aut, scc_info* sm = nullptr,
-                        bool ignore_trivial_scc = false);
+  is_terminal_automaton(const const_twa_graph_ptr& aut,
+                        scc_info* sm = nullptr);
+
+
+  // 3-arg form was deprecated in Spot 2.12
+  SPOT_DEPRECATED("is third argument of is_terminal_automaton()"
+                  " is now ignored")
+  SPOT_API bool
+  is_terminal_automaton(const const_twa_graph_ptr& aut,
+                        scc_info* sm, bool);
 
   /// \brief Check whether an automaton is weak.
   ///

@@ -57,7 +57,7 @@ namespace spot
       bool want_merge_edges = false;
       twa_graph_ptr aut = std::const_pointer_cast<twa_graph>(si.get_aut());
 
-      if (!is_terminal_automaton(aut, &si, true))
+      if (!is_terminal_automaton(aut, &si))
         throw std::runtime_error("g_f_terminal() expects a terminal automaton");
 
       // If a terminal automaton has only one SCC, it is either
@@ -490,13 +490,13 @@ namespace spot
       return nullptr;
 
     scc_info si(reduced);
-    if (!is_terminal_automaton(reduced, &si, true))
+    if (!is_terminal_automaton(reduced, &si))
       return nullptr;
     do_g_f_terminal_inplace(si, state_based);
     if (!deterministic)
       {
         scc_info si2(aut);
-        if (!is_terminal_automaton(aut, &si2, true))
+        if (!is_terminal_automaton(aut, &si2))
           return reduced;
         do_g_f_terminal_inplace(si2, state_based);
         if (aut->num_states() < reduced->num_states())
