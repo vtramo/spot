@@ -826,7 +826,7 @@ test `autfilt --is-terminal -c output4` = 0
 
 sed 's/\[0\]/[t]/g' expect4 > output4d
 test `autfilt -B --small output4d | autfilt --is-terminal -c` = 1
-test `autfilt --is-terminal -c output4d` = 0  # FIXME: Issue #553
+test `autfilt --is-terminal -c output4d` = 1    # Issue #553
 
 autfilt -B -Hv --small input4 >output5
 cat >expect5<<EOF

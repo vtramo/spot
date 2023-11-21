@@ -549,10 +549,7 @@ namespace spot
       return run_;
     }
 
-    // A simple enum for the different automata strengths.
-    enum twa_strength { STRONG, WEAK, TERMINAL };
-
-    template<bool is_explicit, twa_strength strength>
+    template<bool is_explicit, bool is_strong>
     class couvreur99_new : public emptiness_check, public ec_statistics
     {
       using T = twa_iteration<is_explicit>;
@@ -696,7 +693,7 @@ namespace spot
           state_t init = T::initial_state(ecs_->aut);
           ecs_->h[init] = 1;
           ecs_->root.push(1);
-          if (strength == STRONG)
+          if (is_strong)
             arc.push({});
           auto iter = T::succ(ecs_->aut, init);
           todo.emplace(init, iter);
@@ -706,7 +703,7 @@ namespace spot
 
         while (!todo.empty())
           {
-            if (strength == STRONG)
+            if (is_strong)
               assert(ecs_->root.size() == arc.size());
 
             // We are looking at the next successor in SUCC.
@@ -727,7 +724,7 @@ namespace spot
                 assert(!ecs_->root.empty());
                 if (ecs_->root.top().index == ecs_->h[curr])
                   {
-                    if (strength == STRONG)
+                    if (is_strong)
                       {
                         assert(!arc.empty());
                         arc.pop();
@@ -759,21 +756,7 @@ namespace spot
               }
 
             // Fetch the values we are interested in...
-            auto acc = succ->acc();
-            if (!need_accepting_run)
-              if (strength == TERMINAL && ecs_->aut->acc().accepting(acc))
-                {
-                  // We have found an accepting SCC.
-                  // Release all iterators in todo.
-                  while (!todo.empty())
-                    {
-                      T::it_destroy(ecs_->aut, todo.top().second);
-                      todo.pop();
-                      dec_depth();
-                    }
-                  // We do not need an accepting run.
-                  return true;
-                }
+            acc_cond::mark_t acc = succ->acc();
             state_t dest = succ->dst();
             // ... and point the iterator to the next successor, for
             // the next iteration.
@@ -788,7 +771,7 @@ namespace spot
                 // Yes.  Bump number, stack the stack, and register its
                 // successors for later processing.
                 ecs_->root.push(++num);
-                if (strength == STRONG)
+                if (is_strong)
                   arc.push(acc);
                 iterator_t iter = T::succ(ecs_->aut, dest);
                 todo.emplace(dest, iter);
@@ -818,7 +801,7 @@ namespace spot
             while (threshold < ecs_->root.top().index)
               {
                 assert(!ecs_->root.empty());
-                if (strength == STRONG)
+                if (is_strong)
                   {
                     assert(!arc.empty());
                     acc |= ecs_->root.top().condition;
@@ -864,20 +847,18 @@ namespace spot
 
   } // anonymous namespace
 
-  template<twa_strength strength>
-  using cna = couvreur99_new<false, strength>;
-  template<twa_strength strength>
-  using cne = couvreur99_new<true, strength>;
+  template<bool is_strong>
+  using cna = couvreur99_new<false, is_strong>;
+  template<bool is_strong>
+  using cne = couvreur99_new<true, is_strong>;
 
   emptiness_check_ptr
   get_couvreur99_new_abstract(const const_twa_ptr& a, option_map o)
   {
-    // NB: The order of the if's matter.
-    if (a->prop_terminal())
-      return SPOT_make_shared_enabled__(cna<TERMINAL>, a, o);
     if (a->prop_weak())
-      return SPOT_make_shared_enabled__(cna<WEAK>, a, o);
-    return SPOT_make_shared_enabled__(cna<STRONG>, a, o);
+      return SPOT_make_shared_enabled__(cna<false>, a, o);
+    else
+      return SPOT_make_shared_enabled__(cna<true>, a, o);
   }
 
   emptiness_check_ptr
@@ -886,12 +867,10 @@ namespace spot
     const_twa_graph_ptr ag = std::dynamic_pointer_cast<const twa_graph>(a);
     if (ag) // the automaton is explicit
       {
-        // NB: The order of the if's matter.
-        if (a->prop_terminal())
-          return SPOT_make_shared_enabled__(cne<TERMINAL>, ag, o);
         if (a->prop_weak())
-          return SPOT_make_shared_enabled__(cne<WEAK>, ag, o);
-        return SPOT_make_shared_enabled__(cne<STRONG>, ag, o);
+          return SPOT_make_shared_enabled__(cne<false>, ag, o);
+        else
+          return SPOT_make_shared_enabled__(cne<true>, ag, o);
       }
     else // the automaton is abstract
       {

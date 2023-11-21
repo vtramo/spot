@@ -32,8 +32,7 @@ namespace spot
   namespace
   {
     template <bool terminal, bool inweak = false, bool set = false>
-    bool is_type_automaton(const twa_graph_ptr& aut, scc_info* si,
-                           bool ignore_trivial_term = false)
+    bool is_type_automaton(const twa_graph_ptr& aut, scc_info* si)
     {
       // Create an scc_info if the user did not give one to us.
       bool need_si = !si;
@@ -85,36 +84,29 @@ namespace spot
                   break;
                 }
             }
-          if (terminal && si->is_accepting_scc(i) && !is_complete_scc(*si, i))
+          if (terminal && is_term && si->is_accepting_scc(i))
             {
-              is_term = false;
-              if (!set)
+              is_term = is_complete_scc(*si, i);
+              if (is_term)
+                {
+                  for (unsigned j: si->succ(i))
+                    if (si->is_rejecting_scc(j))
+                      {
+                        is_term = false;
+                        break;
+                      }
+                }
+              if (!is_term && !set)
                 break;
             }
         }
-      // A terminal automaton should accept any word that has a prefix
-      // leading to an accepting edge.  In other words, we cannot have
-      // an accepting edge that goes into a rejecting SCC.
-      if (terminal && is_term && !ignore_trivial_term)
-        for (auto& e: aut->edges())
-          if (si->is_rejecting_scc(si->scc_of(e.dst))
-              && aut->acc().accepting(e.acc))
-            {
-              is_term = false;
-              break;
-            }
     exit:
       if (need_si)
         delete si;
       if (set)
         {
           if (terminal)
-            {
-              if (!ignore_trivial_term)
-                aut->prop_terminal(is_term && is_weak);
-              else if (is_term && is_weak)
-                aut->prop_terminal(true);
-            }
+            aut->prop_terminal(is_term && is_weak);
           aut->prop_weak(is_weak);
           aut->prop_very_weak(is_single_state_scc && is_weak);
           if (inweak)
@@ -127,17 +119,21 @@ namespace spot
   }
 
   bool
-  is_terminal_automaton(const const_twa_graph_ptr& aut, scc_info* si,
-                        bool ignore_trivial_term)
+  is_terminal_automaton(const const_twa_graph_ptr& aut, scc_info* si)
   {
     trival v = aut->prop_terminal();
     if (v.is_known())
       return v.is_true();
     bool res =
-      is_type_automaton<true>(std::const_pointer_cast<twa_graph>(aut), si,
-                              ignore_trivial_term);
+      is_type_automaton<true>(std::const_pointer_cast<twa_graph>(aut), si);
     std::const_pointer_cast<twa_graph>(aut)->prop_terminal(res);
     return res;
+  }
+
+  bool
+  is_terminal_automaton(const const_twa_graph_ptr& aut, scc_info* si, bool)
+  {
+    return is_terminal_automaton(aut, si);
   }
 
   bool

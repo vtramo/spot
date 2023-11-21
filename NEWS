@@ -166,6 +166,22 @@ New in spot 2.11.6.dev  (not yet released)
     computation on that color that caused it to crash with a "Too many
     acceptance sets used" message.  (issue #552)
 
+  - The detection of terminal automata used did not exactly
+    match the definition used in the HOA format.  The definition
+    of a terminal automaton is supposed to be:
+       1. the automaton is weak
+       2. its accepting SCCs are complete
+       3. no accepting cycle can reach a rejecting cycle
+    However the implementation actually replaced the last point
+    by the following variant:
+       3'. no accepting edge can reach a rejecting cycle
+    This caused issues in automata with t acceptance.  Fixing the code
+    by replacing 3' by 3 this also made the third argument of
+    is_terminal_automaton(), an optional boolean indicating whether
+    transition between SCCs should be ignored when computing 3',
+    completely obsolete.  This third argument has been marked as
+    depreated.  (Issue #553)
+
 New in spot 2.11.6  (2023-08-01)
 
   Bug fixes:
