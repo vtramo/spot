@@ -39,7 +39,14 @@ namespace spot
 #define STR(x) #x
 #define VALUESTR(x) STR(x)
     throw std::runtime_error("Too many acceptance sets used.  "
-                             "The limit is " VALUESTR(SPOT_MAX_ACCSETS) ".");
+                             "The limit is " VALUESTR(SPOT_MAX_ACCSETS)
+                             ".\n\nIf you do not mind a slowdown, you could"
+                             " try recompiling Spot with a larger limit.\n"
+                             "See the --enable-max-accsets=N "
+                             "configure option.\n\nIf you believe Spot could"
+                             " be improved to solve your problem\n"
+                             "using the current limit, please email"
+                             " <spot@lrde.epita.fr>.");
   }
 
   std::ostream& operator<<(std::ostream& os, spot::acc_cond::mark_t m)
