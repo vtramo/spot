@@ -411,9 +411,19 @@ namespace spot
         for (auto& i: sup)
           all &= bdd_support(i.first);
         all_ap = aut->ap_vars();
+        // Complains if the transitions use variables that hasn't been
+        // declared in the AP set of the automaton.  The error seems
+        // to be frequent enough to warrant a longer message.  We only
+        // do this diagnostic in the HOA printer and not in the dot
+        // printer so that we still have one way to print the
+        // automaton for debugging.
         if (bdd_exist(all, all_ap) != bddtrue)
-          throw std::runtime_error("print_hoa(): automaton uses "
-                                   "unregistered atomic propositions");
+          throw std::runtime_error
+            ("print_hoa(): automaton uses unregistered atomic propositions\n\n"
+             "This error usually occurs if the algorithm that created "
+             "this automaton is\nmissing a call to copy_ap_of() or "
+             "register_ap().  If you believe this is\na bug in Spot itself, "
+             "please email <spot@lrde.epita.fr>");
         all = all_ap;
 
         while (all != bddtrue)
