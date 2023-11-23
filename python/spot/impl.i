@@ -407,6 +407,16 @@ namespace swig
     $result = SWIG_FromCharPtr($1->c_str());
 }
 
+%typemap(typecheck, precedence=2000) std::nullptr_t {
+     $1 = $input == Py_None;
+}
+
+%typemap(in) std::nullptr_t {
+    if ($input != Py_None)
+      %argument_fail(SWIG_TypeError, "std::nullptr_t", $symname, $argnum);
+    $1 = nullptr;
+}
+
 // For some reason, Swig can convert [aut1,aut2,...]  into
 // std::vector<spot::twa_graph_ptr>, but not into
 // std::vector<spot::const_twa_graph_ptr>.  Let's fix that by using
@@ -1037,6 +1047,21 @@ static void* ptr_for_bdddict(PyObject* obj)
     return self;
   }
 
+  twa* highlight_state(unsigned state, std::nullptr_t color) // color=None
+  {
+    (void) color;
+    if (std::map<unsigned, unsigned>* hs =
+        self->get_named_prop<std::map<unsigned, unsigned>>("highlight-states"))
+      hs->erase(state);
+    return self;
+  }
+
+  twa* remove_highlight_states()
+  {
+    self->set_named_prop("highlight-states", nullptr);
+    return self;
+  }
+
   twa* highlight_edge(unsigned edge, unsigned color)
   {
     auto ht =
@@ -1047,6 +1072,21 @@ static void* ptr_for_bdddict(PyObject* obj)
 	self->set_named_prop("highlight-edges", ht);
       }
     (*ht)[edge] = color;
+    return self;
+  }
+
+  twa* highlight_edge(unsigned edge, std::nullptr_t color) // color=None
+  {
+    (void) color;
+    if (std::map<unsigned, unsigned>* hs =
+        self->get_named_prop<std::map<unsigned, unsigned>>("highlight-edges"))
+      hs->erase(edge);
+    return self;
+  }
+
+  twa* remove_highlight_edges()
+  {
+    self->set_named_prop("highlight-edges", nullptr);
     return self;
   }
 }

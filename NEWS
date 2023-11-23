@@ -126,6 +126,11 @@ New in spot 2.11.6.dev  (not yet released)
     drop_false_edges=False argument to disable the historical behavior
     of ignoring edges labeled by False.
 
+  - Calling aut.highlight_state(s, None) or aut.highlight_edge(e,
+    None) may now be used to remove the highlighting color of some
+    given state or edge.  Use aut.remove_highlight_states() or
+    aut.remove_highlight_edges() to remove all colors. (Issue #554.)
+
   Bugs fixed:
 
   - tgba_determinize()'s use_simulation option would cause it to
