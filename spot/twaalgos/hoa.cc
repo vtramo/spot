@@ -762,7 +762,8 @@ namespace spot
     if (v1_1)
       {
         if (auto hstates = aut->get_named_prop
-            <std::map<unsigned, unsigned>>("highlight-states"))
+            <std::map<unsigned, unsigned>>("highlight-states");
+            hstates && !hstates->empty())
           {
             os << "spot.highlight.states:";
             for (auto& p: *hstates)
@@ -770,7 +771,8 @@ namespace spot
             os << nl;
           }
         if (auto hedges = aut->get_named_prop
-            <std::map<unsigned, unsigned>>("highlight-edges"))
+            <std::map<unsigned, unsigned>>("highlight-edges");
+            hedges && !hedges->empty())
           {
             // Numbering edges is a delicate process.  The
             // "highlight-edges" property uses edges numbers that are
