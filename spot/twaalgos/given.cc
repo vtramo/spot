@@ -177,24 +177,44 @@ namespace spot
   }
 
   twa_graph_ptr stutterize_given(twa_graph_ptr& aut,
-                                 std::vector<const_twa_graph_ptr>& facts)
+                                 std::vector<const_twa_graph_ptr>& facts,
+                                 bool relax)
   {
     if (aut->prop_stutter_invariant().is_true())
       return aut;
-    twa_graph_ptr stut = sl2(closure(aut));
+    twa_graph_ptr stut = sl2_inplace(closure(aut));
     stut->prop_stutter_invariant(true);
     // FIXME: detect whether sl2(closure(aut)) modified the automaton.
     // If not, return stut.
     if (aut->num_states() != stut->num_states()
         || aut->num_edges() != stut->num_edges())
       {
-        // If the part added to aut to make it stuttering is
-        // outside of some fact, then it's ok to keep it.
-        twa_graph_ptr added = product(stut, complement(aut));
-        for (const_twa_graph_ptr& fact: facts)
-          if (!added->intersects(fact))
-            return stut;
-        // ...
+        if (relax)
+          {
+            // If the part added to aut to make it stuttering is
+            // outside of some fact, then it's ok to keep it.
+            twa_graph_ptr added = product(stut, complement(aut));
+            for (const_twa_graph_ptr& fact: facts)
+              if (!added->intersects(fact))
+                return stut;
+            // TODO: It would be nice to have a n-ary intersection test here.
+            // add->intersects(fact1*fact2*...*factn) is a stronger
+            // test than the above loop.
+          }
+        else
+          {
+            twa_graph_ptr neg = complement(aut);
+            // ss is the stutter-sensitive part of aut.
+            twa_graph_ptr ss =
+              product(aut, sl2_inplace(closure(product(stut, neg))));
+            for (const_twa_graph_ptr& fact: facts)
+              if (!ss->intersects(fact))
+                {
+                  twa_graph_ptr p = product(aut, complement(ss));
+                  p->prop_stutter_invariant(true);
+                  return p;
+                }
+          }
       }
     return aut;
   }

@@ -408,11 +408,14 @@ static const argp_option options[] =
     { "given-formula", OPT_GIVEN_FORMULA, "FORMULA", 0,
       "simplify input automata assuming they are only used in a context where "
       "FORMULA holds", 0 },
-    { "given-strategy", OPT_GIVEN_STRAT, "none|minato|stutter|all", 0,
+    { "given-strategy", OPT_GIVEN_STRAT,
+      "none|minato|stutter|stutter-relax|stutter-restrict|all", 0,
       "strategy to use to simplify input automata based on given knowledge: "
       "(minato) simplify edge labels based on knowledge [the default], "
-      "(stutter) build a stutter-invariant results if the added words are "
-      "outside the given knowledge, (all) do both.", 0 },
+      "(stutter,stutter-relax) build a stutter-invariant results if the"
+      " added words are outside the given knowledge, "
+      "(stutter-restrict) build a stutter-invariant results by removing "
+      "words outside the given knowledge, (all) minato then stutter-relax", 0 },
     { "given-fixpoint", OPT_GIVEN_FIXPOINT, nullptr, 0,
       "If multiple knowledges have been given with --given-formula or "
       "--given-automaton repeat their application until we reach a fixpoint.",
@@ -522,16 +525,21 @@ ARGMATCH_VERIFY(aliases_args, aliases_types);
 enum given_strategy {
   GIVEN_NONE = 0,
   GIVEN_MINATO = 1,
-  GIVEN_STUTTER = 2,
+  GIVEN_STUTTER_RELAX = 2,
+  GIVEN_STUTTER_RESTRICT = 4,
   GIVEN_ALL = 3,
 };
 static char const *const given_args[] =
 {
-  "none", "minato", "stutter", "all", nullptr
+  "none", "minato",
+  "stutter", "stutter-relax", "stutter-restrict",
+  "all", nullptr
 };
 static given_strategy const given_types[] =
 {
-  GIVEN_NONE, GIVEN_MINATO, GIVEN_STUTTER, GIVEN_ALL,
+  GIVEN_NONE, GIVEN_MINATO,
+  GIVEN_STUTTER_RELAX, GIVEN_STUTTER_RESTRICT, GIVEN_STUTTER_RESTRICT,
+  GIVEN_ALL,
 };
 ARGMATCH_VERIFY(given_args, given_types);
 
@@ -1639,8 +1647,10 @@ namespace
         {
           if (opt_given_strat & GIVEN_MINATO)
             aut = spot::bounds_simplify_here(aut);
-          if (opt_given_strat & GIVEN_STUTTER)
-            aut = spot::stutterize_given(aut, opt->given_automata);
+          if (opt_given_strat & GIVEN_STUTTER_RELAX)
+            aut = spot::stutterize_given(aut, opt->given_automata, true);
+          if (opt_given_strat & GIVEN_STUTTER_RESTRICT)
+            aut = spot::stutterize_given(aut, opt->given_automata, false);
         }
       // opt_simplify_exclusive_ap is handled only after
       // post-processing.

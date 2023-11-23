@@ -54,7 +54,8 @@ namespace spot
   twa_graph_ptr bounds_simplify(const_twa_graph_ptr& aut);
   SPOT_API
   twa_graph_ptr stutterize_given(twa_graph_ptr& aut,
-                                 std::vector<const_twa_graph_ptr>& facts);
+                                 std::vector<const_twa_graph_ptr>& facts,
+                                 bool relax = true);
   SPOT_API
   twa_graph_ptr update_bounds_given(const_twa_graph_ptr& aut,
                                     const_twa_graph_ptr& fact);
