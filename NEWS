@@ -187,6 +187,10 @@ New in spot 2.11.6.dev  (not yet released)
     completely obsolete.  This third argument has been marked as
     depreated.  (Issue #553)
 
+  - twa::defrag_states(), which is called for instance by
+    purge_dead_state(), did not update the highlight-edges property.
+    (Issue #555.)
+
 New in spot 2.11.6  (2023-08-01)
 
   Bug fixes:

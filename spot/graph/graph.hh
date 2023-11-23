@@ -1485,6 +1485,11 @@ namespace spot
       // Shift all edges in edges_.  The algorithm is
       // similar to remove_if, but it also keeps the correspondence
       // between the old and new index as newidx[old] = new.
+      //
+      // If you change anything to this logic, you might want to
+      // double check twa_graph::defrag_states where we need to
+      // predict the new edges indices in order to update
+      // highlight-edges.
       unsigned tend = edges_.size();
       std::vector<edge> newidx(tend);
       unsigned dest = 1;

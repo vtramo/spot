@@ -1283,6 +1283,31 @@ namespace spot
           }
         std::swap(*hs, hs2);
       }
+    if (auto he = get_named_prop<std::map<unsigned, unsigned>>
+        ("highlight-edges"))
+      {
+        // Unfortunately, the underlying graph, who might remove some
+        // edges, know nothing about named properties.  So we have to
+        // predict the indices of the edges after
+        // graph::defrag_states() will run.  This might break if
+        // graph::defrag_states() is changed.
+        auto& ev = edge_vector();
+        unsigned es = ev.size();
+        std::vector<unsigned> newedges(es, -1U);
+        unsigned edgeidx = 1;
+        for (unsigned e = 1; e < es; ++e)
+          {
+            if (is_dead_edge(e) || newst[ev[e].dst] == -1U)
+              newedges[e] = -1U;
+            else
+              newedges[e] = edgeidx++;
+          }
+        std::map<unsigned, unsigned> he2;
+        for (auto [e, c]: *he)
+          if (newedges[e] != -1U)
+            he2.emplace(newedges[e], c);
+        std::swap(*he, he2);
+      }
     for (const char* prop: {"original-classes",
                             "original-states",
                             "degen-levels"})

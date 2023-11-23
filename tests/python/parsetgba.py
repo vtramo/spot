@@ -91,3 +91,35 @@ State: 1
 [f] 0
 [t] 0
 --END--""")
+
+# Issue #555.
+a3 = spot.automaton("""HOA: v1.1 States: 6 Start: 0 AP: 3 "a" "b" "c"
+acc-name: Buchi Acceptance: 1 Inf(0) properties: trans-labels
+explicit-labels state-acc !complete properties: !deterministic
+exist-branch spot.highlight.edges: 5 3 6 1 7 3 8 2 --BODY-- State: 0 [0] 1 [0] 2
+State: 1 [0] 3 State: 2 [0] 5 State: 3 {0} [0] 3 State: 4 {0} [0] 4
+[1] 4 State: 5 {0} [1] 5 [2] 5 --END--""")
+a3.purge_dead_states()
+tc.assertEqual(a3.to_str("hoa", "1.1"), """HOA: v1.1
+States: 5
+Start: 0
+AP: 3 "a" "b" "c"
+acc-name: Buchi
+Acceptance: 1 Inf(0)
+properties: trans-labels explicit-labels state-acc !complete
+properties: !deterministic exist-branch
+spot.highlight.edges: 5 3 6 2
+--BODY--
+State: 0
+[0] 1
+[0] 2
+State: 1
+[0] 3
+State: 2
+[0] 4
+State: 3 {0}
+[0] 3
+State: 4 {0}
+[1] 4
+[2] 4
+--END--""")
