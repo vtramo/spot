@@ -368,11 +368,12 @@ namespace spot
     unsigned n_edges = e_vec.size();
     if (n_edges <= 1)
       {
-        if (n_states == 1)
+        if (n_states <= 1)
           return 0;
         // We don't have a very convenient way to resize the state
         // vector.
         std::vector<unsigned> remap(n_states, -1U);
+        SPOT_ASSUME(remap.data() != nullptr); // help GCC 9.4
         remap[0] = 0;
         get_graph().defrag_states(remap, 1);
         SPOT_ASSERT(num_states() == 1);

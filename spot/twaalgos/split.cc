@@ -232,7 +232,11 @@ namespace spot
     // number of a BDD that as been (or will be) split, and begin/end
     // denotes a range of existing transition numbers that cover the
     // split.
-    typedef std::pair<unsigned, unsigned> cached_t;
+    //
+    // std::pair causes some noexcept warnings when used in
+    // robin_hood::unordered_map with GCC 9.4.  Use robin_hood::pair
+    // instead.
+    typedef robin_hood::pair<unsigned, unsigned> cached_t;
     robin_hood::unordered_map<unsigned, cached_t> split_cond;
 
     bdd all = aut->ap_vars();
