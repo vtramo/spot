@@ -18,7 +18,6 @@
 
 #include "config.h"
 #include <spot/twaalgos/strength.hh>
-#include <spot/misc/hash.hh>
 #include <spot/twaalgos/isweakscc.hh>
 #include <spot/twaalgos/mask.hh>
 #include <spot/twaalgos/minimize.hh>

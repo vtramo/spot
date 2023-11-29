@@ -28,7 +28,6 @@
 
 #include <cassert>
 #include <list>
-#include <spot/misc/hash.hh>
 #include <spot/twa/twa.hh>
 #include <spot/twaalgos/emptiness.hh>
 #include <spot/twaalgos/emptiness_stats.hh>

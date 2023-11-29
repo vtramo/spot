@@ -18,14 +18,11 @@
 
 #include "config.h"
 #include <cassert>
-#include <algorithm>
 #include <spot/tl/randomltl.hh>
 #include <spot/misc/random.hh>
 #include <iostream>
 #include <cstring>
 #include <spot/misc/optionmap.hh>
-#include <spot/tl/defaultenv.hh>
-#include <sstream>
 
 namespace spot
 {

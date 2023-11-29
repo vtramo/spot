@@ -30,7 +30,6 @@
 #include <list>
 #include <sstream>
 #include <spot/taalgos/minimize.hh>
-#include <spot/misc/hash.hh>
 #include <spot/misc/bddlt.hh>
 #include <spot/ta/tgtaexplicit.hh>
 #include <spot/taalgos/statessetbuilder.hh>

@@ -20,12 +20,9 @@
 #include <spot/twaalgos/relabel.hh>
 #include <spot/twa/formula2bdd.hh>
 #include <spot/tl/formula.hh>
-
 #include <spot/priv/partitioned_relabel.hh>
-
 #include <cmath>
 #include <algorithm>
-#include <iostream>
 
 
 namespace spot

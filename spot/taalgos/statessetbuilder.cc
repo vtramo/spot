@@ -17,7 +17,6 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "config.h"
-#include <iostream>
 #include <spot/ta/ta.hh>
 #include <spot/taalgos/statessetbuilder.hh>
 #include <spot/taalgos/reachiter.hh>

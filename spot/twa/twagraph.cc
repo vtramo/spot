@@ -20,7 +20,6 @@
 #include <spot/twa/twagraph.hh>
 #include <spot/tl/print.hh>
 #include <spot/misc/bddlt.hh>
-#include <spot/misc/timer.hh>
 #include <spot/twa/bddprint.hh>
 #include <spot/kripke/kripkegraph.hh>
 #include <spot/misc/escape.hh>

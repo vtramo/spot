@@ -17,8 +17,6 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "config.h"
-#include <fstream>
-#include <sstream>
 #include <map>
 #include <spot/misc/bddlt.hh>
 #include <spot/misc/optionmap.hh>

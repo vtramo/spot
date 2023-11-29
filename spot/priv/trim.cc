@@ -20,7 +20,6 @@
 #include <spot/priv/trim.hh>
 #include <algorithm>
 #include <cctype>
-#include <locale>
 
 namespace spot
 {

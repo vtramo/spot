@@ -21,7 +21,6 @@
 #include <cstddef>
 #include <cassert>
 #include <spot/misc/intvcomp.hh>
-#include <iostream>
 
 namespace spot
 {

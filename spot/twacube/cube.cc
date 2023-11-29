@@ -20,7 +20,6 @@
 #include <sstream>
 #include <iostream>
 #include <spot/twacube/cube.hh>
-#include <cassert>
 
 namespace spot
 {

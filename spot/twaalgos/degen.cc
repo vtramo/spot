@@ -19,16 +19,12 @@
 #include "config.h"
 #include <spot/twaalgos/degen.hh>
 #include <spot/twa/twagraph.hh>
-#include <spot/misc/hash.hh>
 #include <spot/misc/hashfunc.hh>
+#include <spot/twaalgos/sccinfo.hh>
 #include <deque>
 #include <vector>
 #include <algorithm>
-#include <iterator>
 #include <memory>
-#include <spot/twaalgos/sccinfo.hh>
-#include <spot/twa/bddprint.hh>
-#include <spot/twaalgos/isdet.hh>
 
 //#define DEGEN_DEBUG
 

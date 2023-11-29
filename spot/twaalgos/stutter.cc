@@ -19,25 +19,20 @@
 #include "config.h"
 #include <spot/twaalgos/stutter.hh>
 #include <spot/twa/twa.hh>
-#include <spot/misc/hash.hh>
 #include <spot/misc/hashfunc.hh>
-#include <spot/tl/apcollect.hh>
 #include <spot/twaalgos/translate.hh>
 #include <spot/tl/remove_x.hh>
 #include <spot/twaalgos/product.hh>
 #include <spot/twaalgos/ltl2tgba_fm.hh>
 #include <spot/twaalgos/isdet.hh>
 #include <spot/twaalgos/complement.hh>
-#include <spot/twaalgos/remfin.hh>
 #include <spot/twaalgos/sccinfo.hh>
 #include <spot/twaalgos/word.hh>
 #include <spot/twa/twaproduct.hh>
 #include <spot/twa/bddprint.hh>
 #include <deque>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
-#include <numeric>
 
 namespace spot
 {

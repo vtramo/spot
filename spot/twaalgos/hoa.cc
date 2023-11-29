@@ -27,7 +27,6 @@
 #include <spot/misc/escape.hh>
 #include <spot/misc/bddlt.hh>
 #include <spot/misc/minato.hh>
-#include <spot/twa/formula2bdd.hh>
 #include <spot/tl/formula.hh>
 #include <spot/kripke/fairkripke.hh>
 #include <spot/kripke/kripkegraph.hh>

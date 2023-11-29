@@ -18,7 +18,6 @@
 
 #include "config.h"
 #include <spot/twaalgos/genem.hh>
-#include <spot/twaalgos/cleanacc.hh>
 
 namespace spot
 {

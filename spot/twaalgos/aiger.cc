@@ -29,7 +29,6 @@
 #include <fstream>
 #include <string>
 #include <sstream>
-#include <initializer_list>
 
 #include <spot/twa/twagraph.hh>
 #include <spot/misc/bddlt.hh>

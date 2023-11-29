@@ -17,13 +17,10 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "config.h"
-#include <ltdl.h>
 #include <cstring>
 #include <cstdlib>
 #include <vector>
 #include <sstream>
-#include <sys/stat.h>
-#include <unistd.h>
 
 #include <spot/ltsmin/ltsmin.hh>
 #include <spot/misc/hashfunc.hh>
@@ -32,9 +29,7 @@
 #include <spot/misc/intvcomp.hh>
 #include <spot/misc/intvcmp2.hh>
 
-#include <spot/twaalgos/reachiter.hh>
 #include <string.h>
-#include <spot/mc/utils.hh>
 
 using namespace std::string_literals;
 

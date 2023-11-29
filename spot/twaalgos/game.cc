@@ -20,7 +20,6 @@
 
 #include <utility>
 
-#include <spot/misc/timer.hh>
 #include <spot/twaalgos/game.hh>
 #include <spot/misc/escape.hh>
 #include <spot/twaalgos/sccinfo.hh>

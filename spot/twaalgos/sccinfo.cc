@@ -21,11 +21,8 @@
 #include <stack>
 #include <algorithm>
 #include <queue>
-#include <spot/twa/bddprint.hh>
-#include <spot/twaalgos/bfssteps.hh>
 #include <spot/twaalgos/mask.hh>
 #include <spot/twaalgos/genem.hh>
-#include <spot/misc/escape.hh>
 
 namespace spot
 {

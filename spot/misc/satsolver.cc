@@ -26,7 +26,7 @@
 #include <fstream>
 #include <limits>
 #include <cassert>
-#include <sys/wait.h>
+#include <sys/wait.h>  // could be our replacement WIFEXITED from lib/
 
 namespace spot
 {

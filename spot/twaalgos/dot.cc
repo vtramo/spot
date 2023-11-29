@@ -23,7 +23,6 @@
 #include <spot/tl/print.hh>
 #include <spot/twa/twagraph.hh>
 #include <spot/twaalgos/dot.hh>
-#include <spot/twa/bddprint.hh>
 #include <spot/misc/escape.hh>
 #include <spot/twa/formula2bdd.hh>
 #include <spot/twaalgos/sccinfo.hh>
@@ -32,7 +31,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <algorithm>
-#include <ctype.h>
 #include <utility>
 
 using namespace std::string_literals;

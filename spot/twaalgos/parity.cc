@@ -19,14 +19,10 @@
 #include "config.h"
 #include <spot/twaalgos/parity.hh>
 #include <spot/twa/twagraph.hh>
-#include <spot/twaalgos/product.hh>
-#include <spot/twaalgos/complete.hh>
 #include <spot/twaalgos/sccinfo.hh>
 #include <algorithm>
 #include <vector>
 #include <utility>
-#include <functional>
-#include <queue>
 
 namespace spot
 {

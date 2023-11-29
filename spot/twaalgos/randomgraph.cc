@@ -20,9 +20,6 @@
 #include <spot/twaalgos/randomgraph.hh>
 #include <spot/twa/twagraph.hh>
 #include <spot/misc/random.hh>
-#include <spot/misc/bddlt.hh>
-#include <sstream>
-#include <list>
 #include <set>
 #include <iterator>
 #include <vector>

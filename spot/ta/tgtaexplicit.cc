@@ -18,8 +18,6 @@
 
 #include "config.h"
 #include <spot/ta/tgtaexplicit.hh>
-#include <spot/twa/formula2bdd.hh>
-#include <spot/twa/bddprint.hh>
 
 namespace spot
 {

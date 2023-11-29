@@ -20,7 +20,6 @@
 #include <spot/tl/relabel.hh>
 #include <spot/tl/simplify.hh>
 #include <sstream>
-#include <spot/misc/hash.hh>
 #include <map>
 #include <set>
 #include <stack>

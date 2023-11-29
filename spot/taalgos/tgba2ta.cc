@@ -26,12 +26,9 @@
 #define trace while (0) std::clog
 #endif
 
-#include <spot/twa/formula2bdd.hh>
 #include <cassert>
-#include <spot/twa/bddprint.hh>
 #include <stack>
 #include <spot/taalgos/tgba2ta.hh>
-#include <spot/taalgos/statessetbuilder.hh>
 #include <spot/ta/tgtaexplicit.hh>
 
 using namespace std;

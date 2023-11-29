@@ -18,7 +18,6 @@
 
 #include "config.h"
 #include <spot/twaalgos/sepsets.hh>
-#include <spot/twaalgos/sccinfo.hh>
 
 
 namespace spot

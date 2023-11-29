@@ -21,10 +21,8 @@
 #include <deque>
 #include <stack>
 #include <utility>
-#include <unordered_map>
 #include <set>
 #include <map>
-
 #include <spot/misc/bddlt.hh>
 #include <spot/twaalgos/sccinfo.hh>
 #include <spot/twaalgos/determinize.hh>

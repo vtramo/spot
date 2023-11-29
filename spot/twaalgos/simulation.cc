@@ -20,8 +20,6 @@
 #include <queue>
 #include <map>
 #include <utility>
-#include <cmath>
-#include <limits>
 #include <numeric>
 #include <spot/twaalgos/simulation.hh>
 #include <spot/misc/minato.hh>

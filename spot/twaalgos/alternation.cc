@@ -20,8 +20,8 @@
 #include <algorithm>
 #include <sstream>
 #include <spot/twaalgos/alternation.hh>
+#include <spot/twaalgos/sccinfo.hh>
 #include <spot/misc/minato.hh>
-#include <spot/twaalgos/strength.hh>
 
 namespace spot
 {

@@ -25,7 +25,6 @@
 #include <spot/twaalgos/gtec/gtec.hh>
 #include <spot/twaalgos/gv04.hh>
 #include <spot/twaalgos/magic.hh>
-#include <spot/misc/hash.hh>
 #include <spot/twaalgos/se05.hh>
 #include <spot/twaalgos/tau03.hh>
 #include <spot/twaalgos/tau03opt.hh>

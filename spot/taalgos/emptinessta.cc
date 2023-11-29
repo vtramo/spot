@@ -27,9 +27,7 @@
 #endif
 
 #include <spot/taalgos/emptinessta.hh>
-#include <spot/misc/memusage.hh>
 #include <cstdlib>
-#include <spot/twa/bddprint.hh>
 
 namespace spot
 {

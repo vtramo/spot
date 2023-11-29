@@ -30,7 +30,6 @@
 #include <utility>
 #include <vector>
 #include <spot/twa/twa.hh>
-#include <spot/misc/hash.hh>
 #include <spot/twaalgos/emptiness.hh>
 #include <spot/twaalgos/emptiness_stats.hh>
 #include <spot/twaalgos/gv04.hh>

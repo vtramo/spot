@@ -22,8 +22,6 @@
 #include <iostream>
 #include <spot/twaalgos/cleanacc.hh>
 #include <spot/twaalgos/totgba.hh>
-#include <spot/twaalgos/isdet.hh>
-#include <spot/twaalgos/mask.hh>
 #include <spot/twaalgos/alternation.hh>
 #include <spot/twaalgos/degen.hh>
 

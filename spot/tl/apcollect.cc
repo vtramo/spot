@@ -19,12 +19,10 @@
 #include "config.h"
 #include <map>
 #include <spot/tl/apcollect.hh>
-#include <spot/twa/twa.hh>
 #include <spot/twa/twagraph.hh>
 #include <spot/twa/bdddict.hh>
-#include <spot/twaalgos/hoa.hh>
+#include <spot/twaalgos/game.hh>
 #include <spot/twaalgos/sccinfo.hh>
-#include <spot/twaalgos/synthesis.hh>
 #include <spot/tl/relabel.hh>
 #include <spot/priv/robin_hood.hh>
 

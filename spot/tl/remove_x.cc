@@ -17,7 +17,6 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "config.h"
-#include <spot/tl/simplify.hh>
 #include <spot/tl/apcollect.hh>
 #include <spot/tl/remove_x.hh>
 

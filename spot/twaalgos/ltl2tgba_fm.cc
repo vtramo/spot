@@ -17,10 +17,8 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "config.h"
-#include <spot/misc/hash.hh>
 #include <spot/misc/bddlt.hh>
 #include <spot/misc/minato.hh>
-#include <spot/tl/nenoform.hh>
 #include <spot/tl/print.hh>
 #include <spot/tl/apcollect.hh>
 #include <spot/tl/mark.hh>

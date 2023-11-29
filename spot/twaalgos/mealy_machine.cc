@@ -22,7 +22,6 @@
 #include <queue>
 #include <deque>
 #include <set>
-#include <list>
 #include <vector>
 #include <sstream>
 #include <string>
@@ -33,9 +32,7 @@
 #include <spot/misc/timer.hh>
 #include <spot/misc/minato.hh>
 #include <spot/twaalgos/game.hh>
-#include <spot/twaalgos/hoa.hh>
 #include <spot/twaalgos/product.hh>
-#include <spot/twaalgos/relabel.hh>
 #include <spot/twaalgos/synthesis.hh>
 #include <spot/priv/partitioned_relabel.hh>
 

@@ -17,10 +17,8 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "config.h"
-#include <map>
 #include <algorithm>
 #include <iterator>
-#include <iostream>
 #include <spot/twa/formula2bdd.hh>
 #include <spot/tl/print.hh>
 #include <spot/twa/taatgba.hh>

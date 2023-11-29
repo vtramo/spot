@@ -18,8 +18,6 @@
 
 #include "config.h"
 #include <spot/tl/mark.hh>
-#include <cassert>
-#include <algorithm>
 #include <set>
 #include <vector>
 

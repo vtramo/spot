@@ -20,7 +20,6 @@
 #include <cassert>
 #include <spot/taalgos/reachiter.hh>
 
-#include <iostream>
 using namespace std;
 
 namespace spot

@@ -19,7 +19,6 @@
 #include "config.h"
 #include <spot/twaalgos/remprop.hh>
 #include <spot/twaalgos/mask.hh>
-#include <spot/misc/casts.hh>
 #include <ctype.h>
 #include <sstream>
 

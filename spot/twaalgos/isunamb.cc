@@ -21,8 +21,6 @@
 #include <spot/twaalgos/product.hh>
 #include <spot/twaalgos/sccinfo.hh>
 #include <spot/twaalgos/mask.hh>
-#include <set>
-#include <list>
 
 namespace spot
 {

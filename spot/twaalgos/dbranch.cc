@@ -19,9 +19,7 @@
 #include "config.h"
 
 #include <spot/twaalgos/dbranch.hh>
-#include <spot/misc/bddlt.hh>
 #include <spot/priv/robin_hood.hh>
-#include <unordered_map>
 #include <utility>
 #include <stack>
 

@@ -28,9 +28,6 @@
 #endif
 
 #include <spot/ta/tgtaproduct.hh>
-#include <string>
-#include <cassert>
-#include <spot/misc/hashfunc.hh>
 #include <spot/kripke/kripke.hh>
 
 namespace spot

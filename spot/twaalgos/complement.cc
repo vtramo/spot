@@ -18,7 +18,6 @@
 
 #include "config.h"
 #include <deque>
-#include <map>
 #include <spot/twaalgos/complement.hh>
 #include <spot/twaalgos/dualize.hh>
 #include <spot/twaalgos/isdet.hh>

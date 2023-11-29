@@ -19,7 +19,6 @@
 #include "config.h"
 #include <spot/tl/exclusive.hh>
 #include <spot/twaalgos/mask.hh>
-#include <spot/misc/casts.hh>
 #include <spot/misc/minato.hh>
 #include <spot/tl/apcollect.hh>
 

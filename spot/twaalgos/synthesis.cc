@@ -29,14 +29,11 @@
 #include <spot/twaalgos/synthesis.hh>
 #include <spot/twaalgos/translate.hh>
 #include <spot/twaalgos/zlktree.hh>
-#include <spot/misc/minato.hh>
-#include <spot/twaalgos/totgba.hh>
 #include <spot/twaalgos/toparity.hh>
 #include <spot/tl/parse.hh>
-
-
 #include <algorithm>
 #include <string>
+#include <stack>
 
 // Helper function/structures for split_2step
 namespace{

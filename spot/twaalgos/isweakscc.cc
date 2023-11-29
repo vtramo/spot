@@ -17,7 +17,6 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "config.h"
-#include <spot/tl/formula.hh>
 #include <spot/twaalgos/isweakscc.hh>
 #include <spot/twaalgos/genem.hh>
 

@@ -23,7 +23,6 @@
 #include <sstream>
 #include <map>
 #include <set>
-#include <tuple>
 #include <cstring>
 #include <algorithm>
 #include <spot/misc/bareword.hh>

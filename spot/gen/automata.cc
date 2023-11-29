@@ -19,7 +19,6 @@
 #include "config.h"
 #include <spot/twa/twagraph.hh>
 #include <spot/gen/automata.hh>
-#include <spot/tl/parse.hh>
 #include <spot/misc/clz.hh>
 
 namespace spot

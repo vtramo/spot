@@ -21,7 +21,7 @@
 
 #include <spot/misc/bddlt.hh>
 #include <spot/misc/bitvect.hh>
-#include <spot/misc/hash.hh>
+#include <spot/misc/hashfunc.hh>
 #include <spot/twa/acc.hh>
 #include <spot/twa/bddprint.hh>
 #include <spot/twa/twagraph.hh>

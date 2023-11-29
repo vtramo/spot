@@ -24,11 +24,9 @@
 #include <spot/twaalgos/ltl2tgba_fm.hh>
 #include <spot/twaalgos/minimize.hh>
 #include <spot/twaalgos/simulation.hh>
-#include <spot/twaalgos/strength.hh>
 #include <spot/tl/print.hh>
-#include <queue>
+#include <deque>
 #include <sstream>
-#include <spot/tl/environment.hh>
 
 namespace spot
 {

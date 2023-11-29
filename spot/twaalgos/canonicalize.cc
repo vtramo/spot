@@ -19,7 +19,6 @@
 #include "config.h"
 #include <spot/twaalgos/canonicalize.hh>
 #include <spot/twa/twagraph.hh>
-#include <set>
 #include <vector>
 
 namespace

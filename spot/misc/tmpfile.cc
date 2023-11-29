@@ -20,7 +20,7 @@
 #include <spot/misc/tmpfile.hh>
 #include <errno.h>
 #include <stdlib.h>
-#include <unistd.h>
+#include <unistd.h>             // unlink
 #include <string.h>
 
 using namespace std::string_literals;

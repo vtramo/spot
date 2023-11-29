@@ -24,7 +24,6 @@
 #include <spot/twaalgos/isdet.hh>
 #include <deque>
 #include <unordered_map>
-#include <spot/misc/hash.hh>
 
 using namespace std::string_literals;
 

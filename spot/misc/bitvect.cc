@@ -25,7 +25,6 @@
 #include <cmath>
 #include <hashfunc.hh>
 #include <cstring>
-#include <climits>
 
 namespace spot
 {

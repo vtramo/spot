@@ -19,9 +19,6 @@
 #include "config.h"
 #include <spot/twaalgos/split.hh>
 #include <spot/twaalgos/forq_contains.hh>
-
-#include <spot/twaalgos/contains.hh>
-#include <spot/twaalgos/product.hh>
 #include <spot/twaalgos/word.hh>
 #include <spot/misc/bddlt.hh>
 #include <spot/twa/twagraph.hh>
@@ -34,7 +31,6 @@
 #include <iterator>
 #include <optional>
 #include <vector>
-#include <string>
 #include <memory>
 #include <array>
 

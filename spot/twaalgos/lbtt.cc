@@ -17,15 +17,11 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "config.h"
-#include <spot/twaalgos/lbtt.hh>
-#include <map>
-#include <string>
-#include <ostream>
-#include <spot/twa/formula2bdd.hh>
-#include <spot/twaalgos/reachiter.hh>
-#include <spot/misc/bddlt.hh>
-#include "spot/priv/accmap.hh"
 #include <spot/tl/print.hh>
+#include <spot/twaalgos/lbtt.hh>
+#include <spot/twaalgos/reachiter.hh>
+#include <spot/twa/formula2bdd.hh>
+#include <spot/twa/twagraph.hh>
 
 using namespace std::string_literals;
 

@@ -20,7 +20,6 @@
 #include "config.h"
 #include <iostream>
 #include <sstream>
-#include <set>
 #include <cctype>
 #include <cstring>
 #include <map>

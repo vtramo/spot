@@ -27,7 +27,6 @@
 #include <spot/twaalgos/isdet.hh>
 #include <spot/twaalgos/product.hh>
 #include <spot/twaalgos/sccinfo.hh>
-#include <spot/twaalgos/hoa.hh>
 #include <spot/twaalgos/dbranch.hh>
 
 namespace spot

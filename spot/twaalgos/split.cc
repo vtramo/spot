@@ -18,12 +18,8 @@
 
 #include "config.h"
 #include <spot/twaalgos/split.hh>
-#include <spot/misc/minato.hh>
 #include <spot/misc/bddlt.hh>
 #include <spot/priv/robin_hood.hh>
-
-#include <algorithm>
-#include <map>
 #include <unordered_set>
 
 namespace std

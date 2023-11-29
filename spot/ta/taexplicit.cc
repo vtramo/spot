@@ -27,7 +27,6 @@
 #endif
 
 #include <spot/ta/taexplicit.hh>
-#include <spot/twa/formula2bdd.hh>
 #include <cassert>
 #include <spot/twa/bddprint.hh>
 

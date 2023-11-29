@@ -18,11 +18,9 @@
 
 #include "config.h"
 #include <ostream>
-#include <sstream>
 #include <cassert>
 #include <spot/tl/print.hh>
 #include <spot/tl/formula.hh>
-#include <spot/tl/defaultenv.hh>
 #include "spot/priv/bddalloc.hh"
 #include <spot/twa/bdddict.hh>
 

@@ -18,9 +18,7 @@
 
 #include "config.h"
 #include <ostream>
-#include <sstream>
 #include <spot/twaalgos/neverclaim.hh>
-#include <spot/twa/bddprint.hh>
 #include <spot/twa/twagraph.hh>
 #include <spot/tl/print.hh>
 #include <spot/twa/formula2bdd.hh>

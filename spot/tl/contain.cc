@@ -18,11 +18,9 @@
 
 #include "config.h"
 #include <spot/tl/contain.hh>
-#include <spot/tl/simplify.hh>
 #include <spot/tl/formula.hh>
 #include <spot/twaalgos/product.hh>
 #include <spot/twaalgos/are_isomorphic.hh>
-#include <spot/misc/hash.hh>
 #include <spot/priv/robin_hood.hh>
 #include <spot/twaalgos/ltl2tgba_fm.hh>
 
