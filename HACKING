@@ -290,6 +290,26 @@ would understand with:
   make check LOG_DRIVER=$PWD/tools/test-driver-teamcity
 
 
+Generating compile_commands.json
+--------------------------------
+
+The file compile_commands.json is used by many clang tools in order to
+know how a single file is compiled (in particular, which include paths
+should be used).  Autotools-based build systems do not support the
+generation of this file, but there is a tool called "bear" (for "Build
+EAR") that is packaged with most distribution that can be used here.
+Simply run a full build through "bear" using something like this:
+
+   % ./configure CC=clang-17 CXX=clang++-17
+   % make -j8 clean # make sure your will rebuild everything
+   % bear -- make -j8
+
+This will simply intercept all command executions are record them in
+the compile_commands.json database.  Depending on the tools you plan to
+use, you probably want to compile everything with clang, as shown above.
+
+
+
 C++ Coding conventions
 ======================
 
