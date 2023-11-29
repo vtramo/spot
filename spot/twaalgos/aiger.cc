@@ -2042,9 +2042,10 @@ namespace
                       repr = repr[0];
                     }
                   // is repr an input?
+                  auto ap_name = repr.ap_name();
                   if (auto it2 = std::find(input_names_all.begin(),
                                           input_names_all.end(),
-                                          repr.ap_name());
+                                          ap_name);
                       it2 != input_names_all.end())
                     {
                       unsigned ivar =
@@ -2055,10 +2056,9 @@ namespace
                   // is repr an output?
                   else
                     {
-                      assert(std::find(output_names_all.begin(),
-                                       output_names_all.end(),
-                                       repr.ap_name()) ==
-                             output_names_all.end());
+                      it2 = std::find(output_names_all.begin(),
+                                      output_names_all.end(), ap_name);
+                      assert(it2 != output_names_all.end());
                       unsigned outnum = it2 - output_names_all.begin();
                       unsigned outvar = circuit.output(outnum);
                       circuit.set_output(i, outvar + neg_repr);
