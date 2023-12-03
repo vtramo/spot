@@ -1287,7 +1287,7 @@ namespace spot
         ("highlight-edges"))
       {
         // Unfortunately, the underlying graph, who might remove some
-        // edges, know nothing about named properties.  So we have to
+        // edges, knows nothing about named properties.  So we have to
         // predict the indices of the edges after
         // graph::defrag_states() will run.  This might break if
         // graph::defrag_states() is changed.
@@ -1297,7 +1297,9 @@ namespace spot
         unsigned edgeidx = 1;
         for (unsigned e = 1; e < es; ++e)
           {
-            if (is_dead_edge(e) || newst[ev[e].dst] == -1U)
+            if (is_dead_edge(e)
+                || newst[ev[e].dst] == -1U
+                || newst[ev[e].src] == -1U)
               newedges[e] = -1U;
             else
               newedges[e] = edgeidx++;

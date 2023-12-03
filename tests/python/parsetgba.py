@@ -146,3 +146,46 @@ State: 4 {0}
 [1] 4
 [2] 4
 --END--""")
+
+# Issue #555 again.
+a4 = spot.automaton("""HOA: v1.1 States: 5 Start: 2 AP: 3 "p36" "p38"
+"p37" acc-name: Buchi Acceptance: 1 Inf(0) properties: trans-labels
+explicit-labels state-acc !complete properties: !deterministic
+exist-branch spot.highlight.edges: 1 1 3 1 8 1 12 1 --BODY-- State: 0
+[t] 1 State: 1 {0} [!0] 1 State: 2 [!0 | !1 | 2] 0 [t] 3 State: 3 [2]
+1 [!2] 4 [2] 1 [!2] 4 State: 4 [!0&2] 1 [!0&!2] 4 [!0&2] 1 [!0&!2] 4
+--END--""")
+oi = a4.out_iteraser(2)
+while oi:
+    n = a4.edge_number(oi.current())
+    if n == 3:
+        oi.erase()
+    else:
+        oi.advance()
+a4.purge_dead_states()
+tc.assertEqual(a4.to_str("hoa", "1.1"),
+"""HOA: v1.1
+States: 4
+Start: 1
+AP: 3 "p36" "p38" "p37"
+acc-name: Buchi
+Acceptance: 1 Inf(0)
+properties: trans-labels explicit-labels state-acc !complete
+properties: !deterministic exist-branch
+spot.highlight.edges: 6 1 10 1
+--BODY--
+State: 0 {0}
+[!0] 0
+State: 1
+[t] 2
+State: 2
+[2] 0
+[!2] 3
+[2] 0
+[!2] 3
+State: 3
+[!0&2] 0
+[!0&!2] 3
+[!0&2] 0
+[!0&!2] 3
+--END--""")
