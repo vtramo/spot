@@ -147,15 +147,17 @@ State: 4 {0}
 [2] 4
 --END--""")
 
-# Issue #555 again.
+# Issue #555 again.   The pairs 30 1 for states and edges are for issue #556
 a4 = spot.automaton("""HOA: v1.1 States: 5 Start: 2 AP: 3 "p36" "p38"
 "p37" acc-name: Buchi Acceptance: 1 Inf(0) properties: trans-labels
 explicit-labels state-acc !complete properties: !deterministic
-exist-branch spot.highlight.edges: 1 1 3 1 8 1 12 1 --BODY-- State: 0
-[t] 1 State: 1 {0} [!0] 1 State: 2 [!0 | !1 | 2] 0 [t] 3 State: 3 [2]
-1 [!2] 4 [2] 1 [!2] 4 State: 4 [!0&2] 1 [!0&!2] 4 [!0&2] 1 [!0&!2] 4
---END--""")
+exist-branch spot.highlight.edges: 1 1 3 1 8 1 12 1 30 1
+spot.highlight.states: 30 1 --BODY-- State: 0 [t] 1 State: 1 {0} [!0]
+1 State: 2 [!0 | !1 | 2] 0 [t] 3 State: 3 [2] 1 [!2] 4 [2] 1 [!2] 4
+State: 4 [!0&2] 1 [!0&!2] 4 [!0&2] 1 [!0&!2] 4 --END--""")
 oi = a4.out_iteraser(2)
+a4.highlight_edge(40, 10);
+a4.highlight_state(40, 10);
 while oi:
     n = a4.edge_number(oi.current())
     if n == 3:

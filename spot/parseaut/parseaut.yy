@@ -2943,9 +2943,12 @@ namespace spot
       {
         // Update the highlight_edges map to deal with removed/added
         // edges.
+        unsigned ems = r.edge_map.size();
         std::map<unsigned, unsigned> remap;
         for (auto [edgnum, color]: *r.highlight_edges)
-          if (edgnum > 0) /* not expected, but can't trust input data */
+          /* edge numbers outside of the actual number of edges read are
+             not expected, but we can't trust input data */
+          if (SPOT_LIKELY(edgnum > 0 && edgnum <= ems))
             if (unsigned newnum = r.edge_map[edgnum - 1]; newnum > 0)
               remap[newnum] = color;
         std::swap(remap, *r.highlight_edges);

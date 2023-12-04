@@ -1274,9 +1274,15 @@ namespace spot
     if (auto hs = get_named_prop<std::map<unsigned, unsigned>>
         ("highlight-states"))
       {
+        unsigned ns = newst.size();
         std::map<unsigned, unsigned> hs2;
         for (auto p: *hs)
           {
+            // Let's just ignore unexisting states.  Raising an
+            // exception here would leave the automaton in a strange
+            // state.
+            if (SPOT_UNLIKELY(p.first >= ns))
+              continue;
             unsigned dst = newst[p.first];
             if (dst != -1U)
               hs2[dst] = p.second;
@@ -1306,7 +1312,11 @@ namespace spot
           }
         std::map<unsigned, unsigned> he2;
         for (auto [e, c]: *he)
-          if (newedges[e] != -1U)
+          // Let's just ignore unexisting edges.  Raising an exception
+          // here would leave the automaton in a strange state.
+          if (SPOT_UNLIKELY(e > es))
+            continue;
+          else if (newedges[e] != -1U)
             he2.emplace(newedges[e], c);
         std::swap(*he, he2);
       }
