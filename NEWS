@@ -131,6 +131,9 @@ New in spot 2.11.6.dev  (not yet released)
     given state or edge.  Use aut.remove_highlight_states() or
     aut.remove_highlight_edges() to remove all colors. (Issue #554.)
 
+  - Calling aut.get_hight_state(s) or get.highlight_edge(e) will
+    return the highlight color of that state/edge or None.
+
   Bugs fixed:
 
   - tgba_determinize()'s use_simulation option would cause it to

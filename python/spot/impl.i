@@ -594,6 +594,14 @@ namespace std {
 %}
 
 // Must occur before the twa declaration
+%typemap(out) unsigned* spot::twa::get_highlight_state,
+              unsigned* spot::twa::get_highlight_edge %{
+  if (!$1)
+    $result = SWIG_Py_Void();
+  else
+    $result = swig::from(*$1);
+%}
+
 %typemap(out) SWIGTYPE* spot::twa::get_product_states %{
   if (!$1)
     $result = SWIG_Py_Void();
@@ -1056,6 +1064,18 @@ static void* ptr_for_bdddict(PyObject* obj)
     return self;
   }
 
+  unsigned* get_highlight_state(unsigned state)
+  {
+    std::map<unsigned, unsigned>* hs =
+      self->get_named_prop<std::map<unsigned, unsigned>>("highlight-states");
+    if (!hs)
+      return nullptr;
+    auto it = hs->find(state);
+    if (it == hs->end())
+      return nullptr;
+    return &it->second;
+  }
+
   twa* remove_highlight_states()
   {
     self->set_named_prop("highlight-states", nullptr);
@@ -1082,6 +1102,18 @@ static void* ptr_for_bdddict(PyObject* obj)
         self->get_named_prop<std::map<unsigned, unsigned>>("highlight-edges"))
       hs->erase(edge);
     return self;
+  }
+
+  unsigned* get_highlight_edge(unsigned edge)
+  {
+    std::map<unsigned, unsigned>* he =
+      self->get_named_prop<std::map<unsigned, unsigned>>("highlight-edges");
+    if (!he)
+      return nullptr;
+    auto it = he->find(edge);
+    if (it == he->end())
+      return nullptr;
+    return &it->second;
   }
 
   twa* remove_highlight_edges()
