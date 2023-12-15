@@ -446,6 +446,7 @@ TESTS_python = \
   python/relabel.py \
   python/remfin.py \
   python/removeap.py \
+  python/safety.py \
   python/satmin.py \
   python/sbacc.py \
   python/sccfilter.py \

@@ -104,12 +104,24 @@ namespace spot
 
   /// \brief Check whether an automaton is a safety automaton.
   ///
-  /// A safety automaton has only accepting SCCs (or trivial
-  /// SCCs).
+  /// An automaton is a safety automaton if its acceptance condition
+  /// can be changed to "true" without changing its language.
   ///
-  /// A minimized WDBA (as returned by a successful run of
-  /// minimize_obligation()) represents safety property if it is a
-  /// safety automaton.
+  /// The test performed by this function differs depending on
+  /// the nature of the input \a aut.
+  ///
+  /// If \a aut is an automaton with `t` acceptance, it is necessarily
+  /// a safety automaton.
+  ///
+  /// Else we check for the absence of rejecting cycle in the
+  /// useful part of the automaton.  This absence is only a sufficient
+  /// condition in the non-deterministic case, because a rejecting
+  /// run might correspond to a word that is accepted by another run.
+  ///
+  /// If the previous test could not conclude, we build the automaton
+  /// B that is a copy of \a aut with acceptance set to true, and we
+  /// check that \a aut contains all words of B.  This last test
+  /// requires complementing \a aut.
   ///
   /// \param aut the automaton to check
   ///

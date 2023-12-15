@@ -23,6 +23,8 @@
 #include <spot/twaalgos/minimize.hh>
 #include <spot/twaalgos/isdet.hh>
 #include <spot/twaalgos/sccfilter.hh>
+#include <spot/twaalgos/contains.hh>
+#include <spot/twaalgos/stripacc.hh>
 
 using namespace std::string_literals;
 
@@ -182,23 +184,55 @@ namespace spot
   {
     if (aut->acc().is_t())
       return true;
+    if (!aut->is_existential())
+      throw std::runtime_error
+        ("is_safety_automaton() does not support alternation");
 
-    bool need_si = !si;
-    if (need_si)
-      si = new scc_info(aut);
+    std::unique_ptr<scc_info> localsi;
+    if (!si)
+      {
+        localsi = std::make_unique<scc_info>(aut);
+        si = localsi.get();
+      }
+    si->determine_unknown_acceptance();
 
-    bool res = true;
-    unsigned scount = si->scc_count();
-    for (unsigned scc = 0; scc < scount; ++scc)
-      if (!si->is_trivial(scc) && si->is_rejecting_scc(scc))
+    // a trim automaton without rejecting cycle is a safety automaton
+    bool has_rejecting_cycle = false;
+
+    // first, look for rejecting SCCs.
+    unsigned scccount = si->scc_count();
+    for (unsigned scc = 0; scc < scccount; ++scc)
+      if (si->is_useful_scc(scc)
+          && !si->is_trivial(scc)
+          && si->is_rejecting_scc(scc))
         {
-          res = false;
+          has_rejecting_cycle = true;
           break;
         }
+    if (!has_rejecting_cycle && !aut->prop_inherently_weak().is_true())
+      {
+        // maybe we have rejecting cycles inside accepting SCCs?
+        for (unsigned scc = 0; scc < scccount; ++scc)
+          if (si->is_useful_scc(scc)
+              && !si->is_trivial(scc)
+              && si->is_accepting_scc(scc)
+              && scc_has_rejecting_cycle(*si, scc))
+            {
+              has_rejecting_cycle = true;
+              break;
+            }
+      }
+    if (!has_rejecting_cycle)
+      return true;
 
-    if (need_si)
-      delete si;
-    return res;
+    // If the automaton has a rejecting loop and is deterministic, it
+    // cannot be a safety automaton.
+    if (is_universal(aut))
+      return false;
+
+    twa_graph_ptr b = make_twa_graph(aut, twa::prop_set::all());
+    strip_acceptance_here(b);
+    return spot::contains(aut, b);
   }
 
 

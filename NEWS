@@ -120,6 +120,12 @@ New in spot 2.11.6.dev  (not yet released)
   - ltsmin's interface will now point to README.ltsmin in case an
     error is found while running divine or spins.
 
+  - spot::is_safety_automaton() was generalized to detect any
+    automaton for which the acceptance could be changed to "t" without
+    changing the language.  In previous versions this function assumed
+    weak automata as input, but the documentation did not reflect
+    this.
+
   Python:
 
   - The spot.automata() and spot.automaton() functions now accept a
