@@ -293,7 +293,7 @@ namespace spot
         else
           return s ? 'S' : 'O';
       }
-    // Not an obligation.  Could by 'P', 'R', or 'T'.
+    // Not an obligation.  Could be 'P', 'R', or 'T'.
     if (is_recurrence(f, aut))
       return 'R';
     if (is_persistence(f, aut))
