@@ -23,6 +23,7 @@
 #include <exception>
 #include <string>
 #include <sstream>
+#include <cstdint>
 
 #ifndef TEST
 #define TEST(n)         void n()
