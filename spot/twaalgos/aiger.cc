@@ -1331,6 +1331,7 @@ namespace spot
 
     std::deque<unsigned> todo;
     todo.push_back(0);
+    assert(n_max_states > 0);
     std::vector<bool> seen(n_max_states, false);
     seen[0] = true;
 
