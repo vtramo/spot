@@ -3,7 +3,7 @@ Upstream-Name: spot
 Source: http://www.lrde.epita.fr/dload/spot/
 
 Files: *
-Copyright: 2003-2023 the Spot authors
+Copyright: 2003-2024 the Spot authors
 License: GPL-3+
  Spot is free software; you can redistribute it and/or modify it
  under the terms of the GNU General Public License as published by
