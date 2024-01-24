@@ -126,6 +126,10 @@ New in spot 2.11.6.dev  (not yet released)
     weak automata as input, but the documentation did not reflect
     this.
 
+  - spot::remove_alternation() has a new argument to decide whether it
+    should raise an exception of return nullptr if it requires more
+    acceptance sets than supported.
+
   Python:
 
   - The spot.automata() and spot.automaton() functions now accept a
@@ -199,6 +203,9 @@ New in spot 2.11.6.dev  (not yet released)
   - twa::defrag_states(), which is called for instance by
     purge_dead_state(), did not update the highlight-edges property.
     (Issue #555.)
+
+  - spot::minimize_obligation will skip attempts to complement very
+    weak automata when those would require too many acceptance sets.
 
 New in spot 2.11.6  (2023-08-01)
 

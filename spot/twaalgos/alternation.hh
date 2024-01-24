@@ -100,12 +100,17 @@ namespace spot
   /// \param named_states name each state for easier debugging
   ///
   /// \param aborter Return nullptr if the built automaton would
-  /// be larger than the size specified by the \a aborter.
+  /// be larger than the size specified by the \a aborter, or
+  /// if it would require too many acceptance sets.
+  ///
+  /// \param raise_if_too_many_sets when set to false, return
+  /// nullptr in cases where we would need too many colors
   /// @}
   SPOT_API
   twa_graph_ptr remove_alternation(const const_twa_graph_ptr& aut,
                                    bool named_states = false,
-                                   const output_aborter* aborter = nullptr);
+                                   const output_aborter* aborter = nullptr,
+                                   bool raise_if_too_many_sets = true);
 
 
   // Remove universal edges on the fly.
