@@ -347,7 +347,8 @@ namespace spot
       }
 
 
-      twa_graph_ptr run(bool named_states, const output_aborter* aborter)
+      twa_graph_ptr run(bool named_states, const output_aborter* aborter,
+                        bool raise_if_too_many_sets)
       {
         // First, we classify each SCC into three possible classes:
         //
@@ -355,6 +356,10 @@ namespace spot
         // 2) rejecting of size 1
         // 3) rejecting of size >1
         classify_each_scc();
+
+        if (!raise_if_too_many_sets &&
+            (has_reject_more_ + reject_1_count_) > SPOT_MAX_ACCSETS)
+          return nullptr;
 
         // Rejecting SCCs of size 1 can be handled using genralized
         // Büchi acceptance, using one set per SCC, as in Gastin &
@@ -367,6 +372,7 @@ namespace spot
         // We preserve deterministic-like properties, and
         // stutter-invariance.
         res->prop_copy(aut_, {false, false, false, true, true, true});
+        // This will raise an exception if we request too many sets.
         res->set_generalized_buchi(has_reject_more_ + reject_1_count_);
 
         // We for easier computation of outgoing sets, we will
@@ -502,14 +508,15 @@ namespace spot
 
   twa_graph_ptr remove_alternation(const const_twa_graph_ptr& aut,
                                    bool named_states,
-                                   const output_aborter* aborter)
+                                   const output_aborter* aborter,
+                                   bool raise_if_too_many_sets)
   {
     if (aut->is_existential())
       // Nothing to do, why was this function called at all?
       return std::const_pointer_cast<twa_graph>(aut);
 
     alternation_remover ar(aut);
-    return ar.run(named_states, aborter);
+    return ar.run(named_states, aborter, raise_if_too_many_sets);
   }
 
 

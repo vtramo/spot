@@ -512,7 +512,11 @@ namespace spot
     if (!aut->is_existential() || is_universal(aut))
       return dualize(aut);
     if (is_very_weak_automaton(aut))
-      return remove_alternation(dualize(aut), aborter);
+      // removing alternation may need more acceptance sets than we support.
+      // in this case res==nullptr and we try the other determinization.
+      if (twa_graph_ptr res = remove_alternation(dualize(aut), false,
+                                                 aborter, false))
+        return res;
     // Determinize
     spot::option_map m;
     if (aborter)

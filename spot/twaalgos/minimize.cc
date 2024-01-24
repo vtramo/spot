@@ -681,7 +681,10 @@ namespace spot
         else if (is_very_weak_automaton(aut_f))
           {
             // Very weak automata are easy to complement.
-            aut_neg_f = remove_alternation(dualize(aut_f));
+            aut_neg_f = remove_alternation(dualize(aut_f), false,
+                                           nullptr, false);
+            if (!aut_neg_f) // this required too many colors
+              return nullptr;
           }
         else
           {
