@@ -1110,3 +1110,13 @@ diff out expected
 f1="((G ((p0) <-> (! (p1)))) && (((((F ((b) && (G (F (a))))) ||\
   (F ((c) && (G (F (! (a))))))) && (F (b))) && (F (c))) <-> (G (F (p0)))))"
 ltlsynt -f "$f1" --outs="p1, p0" --aiger > /dev/null
+
+# issue #557
+ltlsynt  -f 'G(in1 <-> out0) & G(in0 <-> out1)' --ins=in1,in0 --verb 2>err >out
+grep := err > err2
+cat >err2.ex <<EOF
+  out0 := in1
+  out1 := in0
+EOF
+diff err2 err2.ex
+grep -F '[!0&!1&!2&!3 | !0&!1&2&3 | 0&1&!2&!3 | 0&1&2&3] 0' out

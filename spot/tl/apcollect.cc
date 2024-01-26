@@ -411,9 +411,9 @@ namespace spot
                       continue;
                     SPOT_ASSUME(lit != nullptr);
                     if (lit.is(spot::op::Not))
-                      add_to_mapping(lit[0], repr_is_input, not_repr);
+                      add_to_mapping(lit[0], false, not_repr);
                     else
-                      add_to_mapping(lit, repr_is_input, repr);
+                      add_to_mapping(lit, false, repr);
                     rm_has_new_terms = true;
                   }
               }
