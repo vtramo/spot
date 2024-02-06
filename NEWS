@@ -7,8 +7,8 @@ New in spot 2.11.6.dev  (not yet released)
     to produce the 0-based serial number of the produced object.  This
     differs from the existing '%L' that is usually related to the line
     number of the input (when that makes sense).  For instance to
-    split a file that contains many automaton into several files, one
-    per automata, do
+    split a file that contains many automata into several files, one
+    per automaton, do
 
         autfilt input.hoa -o output-%l.hoa
 
@@ -46,11 +46,11 @@ New in spot 2.11.6.dev  (not yet released)
 
   - The HOA parser is a bit smarter when merging multiple initial
     states into a single initial state (Spot's automaton class
-    supports only one): it now reuse the edges leaving initial states
+    supports only one): it now reuses the edges leaving initial states
     without incoming transitions.
 
   - The automaton parser has a new option "drop_false_edges" to
-    specify where edges labeled by "false" should be ignored during
+    specify whether edges labeled by "false" should be ignored during
     parsing.  It is enabled by default for backward compatibility.
 
   - spot::bdd_to_cnf_formula() is a new variant of spot::bdd_to_formula()
@@ -85,14 +85,14 @@ New in spot 2.11.6.dev  (not yet released)
     For instance on Alexandre's laptop, running
       'ltlsynt --tlsf SPIReadManag.tlsf --aiger'
     with Spot 2.11.6 used to produce an AIG circuit with 48 nodes in
-    36 seconds; it now produce an AIG circuit with 53 nodes in only
+    36 seconds; it now produces an AIG circuit with 53 nodes in only
     0.1 second.
 
   - spot::contains_forq() is a implementation of the paper "FORQ-Based
     Language Inclusion Formal Testing" (Doveri, Ganty, Mazzocchi;
     CAV'22) contributed by Jonah Romero.
 
-  - spot::contains() still default to the complementation-based
+  - spot::contains() still defaults to the complementation-based
     algorithm, however by calling
     spot::containment_select_version("forq") or by setting
     SPOT_CONTAINMENT_CHECK=forq in the environment, the
@@ -102,7 +102,7 @@ New in spot 2.11.6.dev  (not yet released)
     The above also impacts autfilt --included-in option.
 
   - spot::scc_info has a new option PROCESS_UNREACHABLE_STATES that
-    causes it to enumerated even unreachable SCCs.
+    causes it to enumerate even unreachable SCCs.
 
   - spot::realizability_simplifier is a new class that performs the
     removal of superfluous APs that is now performed by ltlsynt
@@ -149,7 +149,7 @@ New in spot 2.11.6.dev  (not yet released)
   - tgba_determinize()'s use_simulation option would cause it to
     segfault on automata with more than 2^16 SCCs, due to overflows in
     computations of indices in the reachability matrix for SCCs.
-    (Issue #541.)  This has been fixed by disabled the use_simulation
+    (Issue #541.)  This has been fixed by disabling the use_simulation
     optimization in this case.
 
   - product_or_susp() and product_susp() would behave incorrectly in
