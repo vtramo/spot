@@ -487,6 +487,11 @@ GF(a && GF(b) && c), G(F(a & c) & Fb)
 {first_match(1:e[*0..3])[*]}[]-> c, c W !e
 {first_match(first_match(a*;e);b)}[]->a, {first_match(a[*];e)}[]-> X(a | !b)
 {first_match(first_match(a*;e):b*)}[]->a, {first_match(a[*];e)}[]-> (a | !b)
+
+# issue 558 (was a false alarm, but still good to test)
+{(!b)[*3];b}!, !b & X(!b & X(!b & Xb))
+{(!b)[+];b}!, !b & XFb
+{(!b)[*];b}!, Fb
 EOF
 
 run 0 ../reduccmp nottau.txt
