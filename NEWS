@@ -219,6 +219,10 @@ New in spot 2.11.6.dev  (not yet released)
     fail to color some transiant edges when the "acd" option was
     activated.
 
+  - The formula printer incorrectly replaced a SERE like "(!a)[*3];a"
+    by "a[->]".  The latter should only replace "(!a)[*];a".
+    (Issue #559.)
+
 New in spot 2.11.6  (2023-08-01)
 
   Bug fixes:

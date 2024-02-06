@@ -348,6 +348,8 @@ namespace spot
     static formula
     strip_star_not(formula f)
     {
+      if (!f.is_Kleene_star())
+        return nullptr;
       return f.get_child_of({op::Star, op::Not});
     }
 
