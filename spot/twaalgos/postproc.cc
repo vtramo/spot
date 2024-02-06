@@ -407,7 +407,7 @@ namespace spot
       // ignored.
       a = scc_filter_states(a);
     else
-      a = do_scc_filter(a, (PREF_ == Any));
+      a = do_scc_filter(a, (PREF_ == Any) && !COLORED_);
 
     if (type_ == Monitor)
       {
@@ -721,23 +721,11 @@ namespace spot
           sim = nullptr;
       }
 
-    if (level_ == High && scc_filter_ != 0)
-      {
-        if (dba)
-          {
-            // Do that even for WDBA, to remove marks from transitions
-            // leaving trivial SCCs.
-            dba = do_scc_filter(dba, true);
-            assert(!sim);
-          }
-        else if (sim)
-          {
-            sim = do_scc_filter(sim, true);
-            assert(!dba);
-          }
-      }
-
     sim = dba ? dba : sim;
+    if (level_ == High && scc_filter_ != 0 && !(acd_was_used_ && COLORED_))
+      // Do that even for WDBA, to remove marks from transitions
+      // leaving trivial SCCs.
+      sim = do_scc_filter(sim, true);
 
     if (type_ == CoBuchi)
       {
