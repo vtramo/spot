@@ -529,7 +529,13 @@ namespace std {
   %template(vectorstring) vector<string>;
   %template(vectorint) vector<int>;
   %template(pair_formula_vectorstring) pair<spot::formula, vector<string>>;
-  %template(atomic_prop_set) set<spot::formula>;
+   // We specify the optional std::less/std::allocator arguments of set
+   // to work around an issue that appeared with Swig 4.2.  Without those
+   // arguments the type of set<spot::formula> used in module ltlsmin.i
+   // does not match the type of set<spot::formula> used here!
+  %template(atomic_prop_set) set<spot::formula,
+                                 std::less<spot::formula>,
+                                 std::allocator<spot::formula>>;
   %template(vectorofvectorofformulas) vector<vector<spot::formula>>;
   %template(setunsigned) set<unsigned>;
   %template(relabeling_map) map<spot::formula, spot::formula>;
@@ -813,7 +819,9 @@ def state_is_accepting(self, src) -> "bool":
 %include <spot/taalgos/stats.hh>
 %include <spot/taalgos/minimize.hh>
 
-%extend std::set<spot::formula> {
+%extend std::set<spot::formula,
+                 std::less<spot::formula>,
+                 std::allocator<spot::formula>> {
   std::string __str__()
   {
     std::ostringstream os;
