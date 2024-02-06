@@ -59,7 +59,7 @@
 // The strong_X operator was introduced in Spot 2.8.2 to fix an issue
 // with from_ltlf().  As adding a new operator is a backward
 // incompatibility, causing new warnings from the compiler.
-#if defined(SPOT_BUILD) or defined(SPOT_USES_STRONG_X)
+#if defined(SPOT_BUILD) || defined(SPOT_USES_STRONG_X)
 // Use #if SPOT_HAS_STRONG_X in code that need to be backward
 // compatible with older Spot versions.
 #  define SPOT_HAS_STRONG_X 1

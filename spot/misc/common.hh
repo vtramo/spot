@@ -67,7 +67,7 @@
 // Else use SPOT_ASSERT so the assert() are removed from user's
 // builds.
 #define spot_assert__ assert
-#if defined(SPOT_BUILD) or defined(SPOT_DEBUG)
+#if defined(SPOT_BUILD) || defined(SPOT_DEBUG)
   #define SPOT_ASSERT(x) spot_assert__(x)
 #else
    // Do not replace by SPOT_ASSUME(x), as x can have some costly
