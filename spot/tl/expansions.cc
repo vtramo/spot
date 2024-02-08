@@ -304,6 +304,113 @@ namespace spot
       return res;
     }
 
+    expansion_t
+    unique_prefix(const expansion_t& exp)
+    {
+      std::map<bdd, formula, bdd_less_than> unique_map;
+      for (const auto& [prefix, suffix] : exp)
+      {
+        auto res = unique_map.insert({prefix, suffix});
+        if (!res.second)
+        {
+          auto it = res.first;
+          it->second = formula::OrRat({it->second, suffix});
+        }
+      }
+
+      expansion_t res(unique_map.begin(), unique_map.end());
+      return res;
+    }
+
+    expansion_t
+    unique_prefix_seen(const expansion_t& exp, std::unordered_set<formula>* seen)
+    {
+      std::map<bdd, formula, bdd_less_than> unique_map;
+      for (const auto& [prefix, suffix] : exp)
+      {
+        auto res = unique_map.insert({prefix, suffix});
+        if (!res.second)
+        {
+          auto it = res.first;
+          it->second = formula::OrRat({it->second, suffix});
+        }
+      }
+
+      expansion_t res;
+
+      for (const auto [prefix, suffix] : unique_map)
+      {
+        if (!suffix.is(op::OrRat))
+        {
+          res.push_back({prefix, suffix});
+          continue;
+        }
+
+        std::vector<formula> merge;
+        std::vector<formula> single;
+
+        for (const auto& sub_f : suffix)
+          {
+            if (seen->find(sub_f) != seen->end())
+              {
+                single.push_back(sub_f);
+              }
+            else
+              {
+                merge.push_back(sub_f);
+              }
+          }
+
+        for (const auto& sub_f : single)
+          res.push_back({prefix, sub_f});
+
+        if (!merge.empty())
+          res.push_back({prefix, formula::OrRat(merge)});
+      }
+
+      return res;
+    }
+
+    size_t count_new(const expansion_t& exp, std::unordered_set<formula>* seen)
+    {
+      size_t count = 0;
+      for (const auto& [_, suffix] : exp)
+      {
+        if (seen->find(suffix) == seen->end())
+          count++;
+      }
+      return count;
+    }
+
+    const expansion_t&
+    find_smallest(const expansion_t& left,
+                  const expansion_t& right,
+                  std::unordered_set<formula>* seen)
+    {
+      size_t left_new = count_new(left, seen);
+      size_t right_new = count_new(right, seen);
+
+      if (left_new < right_new)
+        return left;
+
+      if (left_new == right_new && left.size() > right.size())
+        return right;
+
+      return right;
+    }
+
+    expansion_t
+    unique_prefix_count(const expansion_t& exp, std::unordered_set<formula>* seen)
+    {
+      expansion_t up = unique_prefix(exp);
+      expansion_t up_seen = unique_prefix_seen(exp, seen);
+
+      const expansion_t& maybe_smallest = find_smallest(exp, up, seen);
+      const expansion_t& smallest = find_smallest(maybe_smallest, up_seen, seen);
+
+      return smallest;
+    }
+
     void
     finalize(expansion_t& exp, exp_opts::expand_opt opts, bdd_dict_ptr d, std::unordered_set<formula>* seen)
     {
@@ -336,50 +443,9 @@ namespace spot
 
       if (opts & exp_opts::expand_opt::UniquePrefix)
       {
-        std::map<bdd, formula, bdd_less_than> unique_map;
-        for (const auto& [prefix, suffix] : exp)
-        {
-          auto res = unique_map.insert({prefix, suffix});
-          if (!res.second)
-          {
-            auto it = res.first;
-            it->second = formula::OrRat({it->second, suffix});
-          }
-        }
-
-        exp.clear();
-
-        for (const auto [prefix, suffix] : unique_map)
-        {
-          if ((opts & exp_opts::expand_opt::UniquePrefixSeenOpt)
-              && suffix.is(op::OrRat))
-          {
-            std::vector<formula> merge;
-            std::vector<formula> single;
-
-            for (const auto& sub_f : suffix)
-              {
-                if (seen->find(sub_f) != seen->end())
-                  {
-                    single.push_back(sub_f);
-                  }
-                else
-                  {
-                    merge.push_back(sub_f);
-                  }
-              }
-
-            for (const auto& sub_f : single)
-              exp.push_back({prefix, sub_f});
-
-            if (!merge.empty())
-              exp.push_back({prefix, formula::OrRat(merge)});
-          }
-          else
-          {
-            exp.push_back({prefix, suffix});
-          }
-        }
+        exp = unique_prefix(exp);
+        //exp = unique_prefix_seen(exp, seen);
+        //exp = unique_prefix_count(exp, seen);
       }
 
       if (opts & exp_opts::expand_opt::UniqueSuffixPost)
