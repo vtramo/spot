@@ -559,19 +559,18 @@ header: format-version header-items
 	    if (ss > 1)
 	      {
 		if (det)
-		  {
-		    error(det.loc,
-			  "deterministic automata should have at most "
-			  "one initial state");
-                    res.universal = spot::trival::maybe();
-		  }
+                  error(det.loc,
+                        "deterministic automata should have at most "
+                        "one initial state");
                 else if (no_exist)
-                  {
-		    error(no_exist.loc,
-			  "universal automata should have at most "
-			  "one initial state");
-                    res.universal = spot::trival::maybe();
-                  }
+                  error(no_exist.loc,
+                        "universal automata should have at most "
+                        "one initial state");
+                // res.universal defaults to maybe() and this is what
+                // we need here.  In presence of multiple initial
+                // state, fix_initial_state() will have to fuse them,
+                // and this could turn a non-deterministic automaton
+                // into a deterministic one.
 	      }
 	    else
 	      {
@@ -2662,10 +2661,6 @@ static void fix_initial_state(result_& r)
 	  return;
 	}
       auto& aut = r.h->aut;
-      // Fiddling with initial state may turn an incomplete automaton
-      // into a complete one.
-      if (aut->prop_complete().is_false())
-        aut->prop_complete(spot::trival::maybe());
       // Multiple initial states.  We might need to add a fake one,
       // unless one of the actual initial state has no incoming edge.
       std::vector<unsigned char> has_incoming(aut->num_states(), 0);
@@ -2695,6 +2690,19 @@ static void fix_initial_state(result_& r)
       if (!found || init_alternation)
 	// We do need a fake initial state
 	init = aut->new_state();
+      else
+        // Modifying one existing initial state may turn an incomplete
+        // automaton into a complete one.  For instance if the state
+        // that we elected as the future initial state was the only
+        // incomplete state of the automaton.  Similarly this could
+        // also turn a non-deterministic automaton into a
+        // deterministic one, but we don't have to deal with this are
+        // automata with multiple initial states have prop_universal()
+        // set to maybe() already in prevision of what this function
+        // will do.
+        if (aut->prop_complete().is_false())
+          aut->prop_complete(spot::trival::maybe());
+
       aut->set_init_state(init);
 
       // The non-alternating case is the easiest, we simply declare

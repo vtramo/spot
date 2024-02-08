@@ -191,3 +191,34 @@ State: 3
 [!0&2] 0
 [!0&!2] 3
 --END--""")
+
+
+# Spot supports only one initial state, but the HOA format allows for
+# more.  Spot's automaton parser will fuse multiple initial states to
+# fit into the Spot definition of an automaton.  Depending on how the
+# fusing is done, this can turn a complete automaton into a incomplete
+# one, and vice-versa.  See Issue #560.
+a = spot.automaton("""HOA: v1 States: 8 Start: 0 Start: 1 AP: 0
+acc-name: generalized-Buchi 2 properties: complete Acceptance: 2
+Inf(0)&Inf(1) --BODY-- State: 0 {0} [t] 2 [t] 3 [t] 0 State: 1 {0} [t]
+4 [t] 5 State: 2 {0} [t] 2 [t] 3 State: 3 {0} [t] 6 [t] 7 State: 4 {1}
+[t] 4 [t] 5 State: 5 {1} [t] 6 [t] 7 State: 6 [t] 6 [t] 7 State: 7 [t]
+6 [t] 7 --END--""")
+tc.assertTrue(a.prop_complete().is_true())
+
+a = spot.automaton("""HOA: v1 States: 8 Start: 0 Start: 1 AP: 0
+acc-name: generalized-Buchi 2 properties: complete Acceptance: 2
+Inf(0)&Inf(1) --BODY-- State: 0 {0} [t] 2 [t] 3 State: 1 {0} [t] 4 [t]
+5 State: 2 {0} [t] 2 [t] 3 State: 3 {0} [t] 6 [t] 7 State: 4 {1} [t] 4
+[t] 5 State: 5 {1} [t] 6 [t] 7 State: 6 [t] 6 [t] 7 State: 7 [t] 6 [t]
+7 --END--""")
+tc.assertTrue(a.prop_complete().is_false())
+
+a = spot.automaton("""HOA: v1.1 States: 8 Start: 0 Start: 1 AP: 1 "a"
+acc-name: generalized-Buchi 2 properties: !complete Acceptance: 2
+Inf(0)&Inf(1) --BODY-- State: 0 {0} [0] 2 [0] 3 State: 1 {0} [t] 1 [t]
+5 State: 2 {0} [t] 2 [t] 3 State: 3 {0} [t] 6 [t] 7 State: 4 {1} [t] 4
+[t] 5 State: 5 {1} [t] 6 [t] 7 State: 6 [t] 6 [t] 7 State: 7 [t] 6 [t]
+7 --END--""")
+tc.assertTrue(a.prop_complete().is_maybe())
+tc.assertTrue(spot.is_complete(a))

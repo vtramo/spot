@@ -293,3 +293,31 @@ State: 1
 EOF
 autfilt -q --is-deterministic in.hoa && exit 1
 autfilt --merge-transitions in.hoa | autfilt --is-deterministic
+
+
+
+# This is a peculiarity of Spot: because it supports only one initial
+# state, but the HOA format allows for more, Spot's automaton parser
+# will fuse multiple initial states to fit into the Spot definition of
+# an automaton.  While this is preserving the original language, this
+# fusing of initial states may turn a non-deterministic automaton
+# (because of the multiple declared initial states) into a
+# deterministic one.  (Issue #560.)
+cat >560.hoa <<EOF
+HOA: v1.1
+States: 3
+Start: 1
+Start: 2
+AP: 1 "a"
+Acceptance: 0 t
+properties: !deterministic
+--BODY--
+State: 0
+[t] 0
+State: 1
+[0] 0
+State: 2
+[!0] 0
+--END--
+EOF
+test "1 2 1" = "`autfilt --stats='%d %[r]s %[u]s' 560.hoa`"

@@ -1034,7 +1034,7 @@ layers.
     distributed with the rest of Spot, their source-code is publicly
     available (in case you want to contribute or run a local version).
     The [[https://spot-sandbox.lrde.epita.fr/][=spot-sandbox=]] website runs from a Docker container whose
-    configuration can be found in [[https://gitlab.lre.epita.fr/spot/sandbox/tree/master=][this repository]].  The client and
+    configuration can be found in [[https://gitlab.lre.epita.fr/spot/sandbox/tree/master][this repository]].  The client and
     server parts of the [[https://spot.lrde.epita.fr/app/][online LTL translator]] can be found in [[https://gitlab.lre.epita.fr/spot/spot-web-app/][this
     repository]].
 
@@ -1065,9 +1065,9 @@ automaton, and that can be queried or set by algorithms:
 | =very_weak=          | weak automaton where all SCCs have size 1                                                    |
 | =terminal=           | automaton is weak, accepting SCCs are complete, accepting edges may not go to rejecting SCCs |
 | =complete=           | for any letter ℓ, each state has is at least one outgoing transition compatible with ℓ       |
-| =deterministic=      | there is at most one run *recognizing* a word, but not necessarily accepting it              |
+| =universal=          | there is at most one run *recognizing* each word, but not necessarily accepting it           |
 | =semi_deterministic= | any nondeterminism occurs before entering an accepting SCC                                   |
-| =unambiguous=        | there is at most one run *accepting* a word (but it might be recognized several time)        |
+| =unambiguous=        | there is at most one run *accepting* each word (but it might be recognized several time)     |
 | =stutter_invariant=  | the property recognized by the automaton is [[https://www.lrde.epita.fr/~adl/dl/adl/michaud.15.spin.pdf][stutter-invariant]]                                |
 
 For each flag =flagname=, the =twa= class has a method

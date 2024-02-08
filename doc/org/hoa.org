@@ -8,7 +8,7 @@
 The [[http://adl.github.io/hoaf/][Hanoi Omega-Automata format]] is a textual representation of
 ω-automata labeled by Boolean formulas over a set of atomic
 propositions, and using an arbitrary acceptance condition. The
-typical acceptances conditions like Büchi, generalized-Büchi,
+typical acceptance conditions like Büchi, generalized-Büchi,
 co-Büchi, Rabin, Streett, parity, ... are all supported, but the main
 advantage of this format is that any arbitrary acceptance condition
 can be defined.  The HOA format has support for many features such as
@@ -20,7 +20,7 @@ automaton.
 The HOA format is already supported in [[http://adl.github.io/hoaf/support.html][several tools]].  The goal of
 this page is to detail the support of this format in Spot.  It contains
 some information that are useful to better understand the behavior
-of the tools distributed by Spot, and it also look at some lower-level,
+of the tools distributed by Spot, and it also looks at some lower-level,
 discussing details that are interesting when programming with Spot.
 
 Spot can read files written using either version 1 or version 1.1 of
@@ -69,21 +69,6 @@ the HOA format, the output may not be exactly the same as the input.
   using option =--enable-max-accsets=N=, but doing so will consume
   more memory and time.
 
-- Multiple (or missing) initial states are emulated.
-
-  The internal TωA representation used by Spot supports only a single
-  initial state.  When an HOA with multiple initial states is read, it
-  is transformed into an equivalent TωA by merging the initial states
-  into a single one.  The merged state can either be one of the
-  original initial states (if one of those has no incoming edge) or a
-  new state introduced for that purpose.  This "conversion" may change
-  the completeness property of the automaton.
-
-  Similarly, when an automaton with no initial state is loaded (this
-  includes the case where the automaton has no state), a disconnected
-  initial state is added.  As a consequence, Spot's HOA output always
-  contains at least one state, even when the input had no state.
-
 - =Fin(!x)= and =Inf(!x)= are rewritten away.
 
   Internally Spot only deals with acceptance conditions involving the
@@ -99,6 +84,58 @@ the HOA format, the output may not be exactly the same as the input.
   acceptance =Inf(0)&Inf(!0)= can only be fixed by adding a new set,
   =1=, that stores the complement of set =0=, and using
   =Inf(0)&Inf(1)=.
+
+- Multiple (or missing) initial states are emulated.
+
+  The internal TωA representation used by Spot supports only a single
+  initial state.  To make it possible to still process HOA files
+  that declare multiple initial states, Spot's automaton parser
+  will automatically transform the parsed automaton into an equivalent
+  TωA by merging the initial states into a single initial state that
+  has no incoming edge.  This can be achieved in two ways:
+
+  - If one of the original initial states has no incoming edge, it can
+    serve as the new initial state.  The parse simply has to duplicate
+    the edges leaving the other initial states onto this one.  (As an
+    optimization, if the other initial state alsos do not have any
+    incoming edge, the source of its outgoing edges are changed to
+    avoid copying them.)
+
+  - If all of the original initial states has incoming edges, a new
+    state is created to serve as the new initial states, with a copy
+    of all the outgoing edges of the original initial states.
+
+  This process is done in such a way that the states are not
+  renumbered: states are kept even if they become useless after the
+  above change, and if a new state is added, it is added after all
+  declared states.
+
+  This fusing of initial states may have puzzling consequences if you
+  are unaware of it:
+
+  - An automaton with multiple initial states is considered
+    non-deterministic and can be declared as so in the HOA 1.1 format.
+    However, fusing its initial states could potentially turn in into a
+    deterministic automaton if the only nondeterminism was in the
+    choice of the initial state.  For this reason Spot's parser will
+    keep the [[file:concepts.org::#property-flags][prop_universal()]] set to =maybe()= when multiple initial
+    states are declared, regardless of any determinism property
+    specified in the HOA file.
+
+  - Similarly, fusing all initial states into an existing one
+    can change the [[file:concepts.org::#property-flags][prop_complete()]] property of the automaton.
+
+  - Finally, if an automaton that declares state-based acceptance, and
+    uses different acceptance marks on their initial states.  Only one
+    of these acceptance marks will be kept on the single initial
+    state.  Remember that the new initial state has no incoming edge,
+    so it cannot be part of any loop and its acceptance mark is
+    actually irrelevant.
+
+  Similarly, when an automaton with no initial state is loaded (this
+  includes the case where the automaton has no state), a disconnected
+  initial state is added.  As a consequence, Spot's HOA output always
+  contains at least one state, even when the input had no state.
 
 * Internal representations of some features
 
@@ -194,7 +231,7 @@ State: 2
 #+END_SRC
 
 Even if an input HOA file uses only state-based acceptance, Spot
-internally stores it using transition-based acceptance.  However in
+internally stores it using transition-based acceptance.  However, in
 that case the TωA will have a property flag indicating that it actually
 represents an automaton with the "state-based acceptance" property:
 this implies that transitions leaving one state all belong to the same
@@ -207,7 +244,7 @@ the automaton satisfies this property.  In that case, it outputs the
 automaton with state-based acceptance.
 
 For instance in the following automaton, the outgoing transitions of
-each states belong to the same sets:
+each state belong to the same sets:
 
 #+NAME: state-based-example
 #+BEGIN_SRC sh :wrap SRC hoa
@@ -258,7 +295,7 @@ State: 2 {0 1}
 --END--
 #+END_SRC
 
-The rational for this automatic switch to state-based acceptance is as follows:
+The rationale for this automatic switch to state-based acceptance is as follows:
 - Tools that support transition-based acceptance can easily see
   state-based acceptance as syntactic sugar, so they should be
   able to process state-based or transition-based acceptance
@@ -302,7 +339,7 @@ State: 2
 #+END_SRC
 
 By default, the output uses either state-based acceptance, or
-transition-based acceptance.  However there is no restriction in the
+transition-based acceptance.  However, there is no restriction in the
 format to prevents mixing the two: if you use =-Hm=, the decision of
 using state or transition-based acceptance will be made for each state
 separately.  For instance:
@@ -391,7 +428,7 @@ Whenever an HOA file is output, Spot attempts to recognize the
 acceptance condition to give it a suitable =acc-name:= (even if Spot
 does not use this line, it is useful to tools that only deal with one
 specific acceptance condition and that do not want to parse the
-=Acceptance:= line).  However the HOA output routine has no idea of
+=Acceptance:= line).  However, the HOA printer has no idea of
 what type of automata you are trying to output: it is only looking at
 the acceptance condition and trying to name it as precisely as
 possible.  This could be a problem when a given condition accepts
@@ -402,7 +439,7 @@ format]] the condition =Inf(0)= could be called =Buchi=, or
 =generalized-Buchi 1=, or (why not?) =parity min even 1= or =parity
 max even 1=.  Spot will always call this acceptance condition =Buchi=.
 
-Similarly the acceptance condition =t= is always called =all= (not
+Similarly, the acceptance condition =t= is always called =all= (not
 =generalized-Buchi 0= or =Rabin 0=, etc.), and while =f= is always
 named =none=.
 
@@ -595,7 +632,7 @@ instance it is easier to complement a deterministic automaton that is
 known to be inherently weak.
 
 Spot stores the properties that matters to its algorithms as
-[[file:concepts.org::#property-flags][additional bits attached to each automaton]].  Currently the HOA parser
+[[file:concepts.org::#property-flags][additional bits attached to each automaton]].  Currently, the HOA parser
 ignores all the properties that are unused by Spot.
 
 Some of the supported properties are double-checked when the automaton
@@ -636,7 +673,7 @@ redundant and useless properties.  For instance =deterministic=
 automata are necessarily =unambiguous=, and people interested in
 unambiguous automata know that, so Spot only outputs the =unambiguous=
 property if an unambiguous automaton is non-deterministic.  Similarly,
-while Spot may output alternating automata, it does not output
+while Spot may produce alternating automata, it does not output
 the =no-univ-branch= property because we cannot think of a situation
 where this would be useful.  This decision can be overridden by
 passing the =-Hv= (or =--hoa=v=) option to the command-line tools:
@@ -754,13 +791,13 @@ State: 2 "so am I" {0 1}
 --END--
 #+end_SRC
 
-However when Spot performs some transformation, and actually has to
+However, when Spot performs some transformation, and actually has to
 construct a new automaton, those properties will not be quarried over
 to the new automaton.  First because it is not obvious that the new
 automaton should have the same name, and second because if a new
 automaton is created, there might not be clear correspondence between
 the old states and the new ones.  =autfilt= tries to preserve aliases
-by reintroducing them to the automaton before it is outputs it (unless
+by reintroducing them to the automaton before it prints it (unless
 option =--aliases=drop= is used).
 
 Here is for instance the result when =autfilt= is instructed to
@@ -938,7 +975,7 @@ by tools that produce automata in a stream to cancel the current one.
 This makes sense for instance when the automaton is constructed
 on-the-fly, while it is being output.  This scenario does not occur in
 Spot (automata are constructed before they are output), so it does not
-emit =--ABORT--=.  However the input parser is fully aware of this
+emit ~--ABORT--~.  However, the input parser is fully aware of this
 token.  Tools like =autfilt= will diagnose aborted automata in the
 input, and continue processing with the next automaton.  The Python
 bindings for the HOA parser can be configured in two modes: skip
@@ -1013,7 +1050,7 @@ autfilt decorate.hoa -d'.#'
 
 
 On the above example, we call =autfilt= with option =-d#= to display
-edges numbers, which helps identifying the edges to highlight.  The
+edges numbers, which helps identify the edges to highlight.  The
 headers ~spot.highlight.states:~ and ~spot.highlight.edges:~ are both
 followed by a list of alternating state/edges numbers and color numbers.
 
@@ -1040,7 +1077,7 @@ acceptance sets.  This might change in the future.
 
 The automaton parser will not complain if these headers are used in
 some =HOA: v1= file, even if =v1= disallows dots in header names.
-However [[https://en.wikipedia.org/wiki/Robustness_principle][the automaton printer is more rigorous]] and will only output
+However, [[https://en.wikipedia.org/wiki/Robustness_principle][the automaton printer is more rigorous]] and will only output
 these lines when version 1.1 is selected.
 
 Compare:
@@ -1155,11 +1192,6 @@ State: 2 {0}
 rm -f stvstracc.hoa sba.hoa stvstrlab.hoa decorate.hoa
 #+END_SRC
 
-#  LocalWords:  html args Büchi accsets BDD SRC stvstracc EOF sed sba
-#  LocalWords:  acc Buchi Hm tgba GFa Fb encodings parametered ary Hk
-#  LocalWords:  bitsets randaut stvstrlab aut Hv hw bigwedge mathsf
-#  LocalWords:  genltl gf GFp Fp parser's rankdir br labelloc ffffa
-#  LocalWords:  fillcolor fontname svg txt Xa
 ** Arenas for two-player games
 
 An automaton can be seen as a two-player game by simply annotating
@@ -1240,3 +1272,9 @@ $txt
 
 #+RESULTS:
 [[file:exgame.svg]]
+
+#  LocalWords:  html args Büchi accsets BDD SRC stvstracc EOF sed sba
+#  LocalWords:  acc Buchi Hm tgba GFa Fb encodings parametered ary Hk
+#  LocalWords:  bitsets randaut stvstrlab aut Hv hw bigwedge mathsf
+#  LocalWords:  genltl gf GFp Fp parser's rankdir br labelloc ffffa
+#  LocalWords:  fillcolor fontname svg txt Xa
