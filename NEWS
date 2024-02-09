@@ -144,6 +144,17 @@ New in spot 2.11.6.dev  (not yet released)
   - Calling aut.get_hight_state(s) or get.highlight_edge(e) will
     return the highlight color of that state/edge or None.
 
+  - Recent version Jupyter Notebook and Jupyter Lab started to render
+    SVG elements using <img...> tag to make it easier to copy/paste
+    those image.  This breaks several usages, including the
+    possibility to have informative tooltips on states and edges (used
+    in Spot).  See the following issues for more details.
+      https://github.com/jupyter/notebook/issues/7114
+      https://github.com/jupyterlab/jupyterlab/issues/10464
+
+    This version of Spot now declares its svg outputs as HTML to
+    prevent Jypyter from wrapping them is images.
+
   Bugs fixed:
 
   - tgba_determinize()'s use_simulation option would cause it to

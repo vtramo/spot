@@ -145,6 +145,10 @@ class aig:
         print_dot(ostr, self, opt)
         return _ostream_to_svg(ostr)
 
+    # see spot.jupyter.SVG for why we need _repr_html_ instead of _repr_svg_
+    def _repr_html_(self):
+        return self._repr_svg_()
+
     def show(self, opt=None):
         from spot.jupyter import SVG
         return SVG(self._repr_svg_(opt))
@@ -209,6 +213,10 @@ class twa:
             opt = _show_default
         print_dot(ostr, self, opt)
         return _ostream_to_svg(ostr)
+
+    # see spot.jupyter.SVG for why we need _repr_html_ instead of _repr_svg_
+    def _repr_html_(self):
+        return self._repr_svg_()
 
     def show(self, opt=None):
         """Display the automaton as SVG, in the IPython/Jupyter notebook"""
@@ -478,6 +486,10 @@ class zielonka_tree:
         ostr = ostringstream()
         self.dot(ostr)
         return _ostream_to_svg(ostr)
+
+    # see spot.jupyter.SVG for why we need _repr_html_ instead of _repr_svg_
+    def _repr_html_(self):
+        return self._repr_svg_()
 
 _acdnum = 0
 
