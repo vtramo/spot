@@ -12,7 +12,7 @@ there are two different interfaces that can be used:
   2. the *explicit* =twa_graph= interface.
 
 To demonstrate the difference between the two interfaces, we will
-write an small depth-first search that prints all states accessible
+write a small depth-first search that prints all states accessible
 from the initial state of an automaton.
 
 * The explicit interface
@@ -543,12 +543,12 @@ which returns a pointer to a =state=.  Then, calling
 that allows iterating over all successors.
 
 Different subclasses of =twa= will instantiate different subclasses of
-=state= and =twa_succ_iterator= .  In the case of =twa_graph=, the
+=state= and ~twa_succ_iterator~.  In the case of =twa_graph=, the
 subclasses used are =twa_graph_succ_iterator= and =twa_graph_state=,
 but you can ignore that until you have to write your own =twa=
 subclass.
 
-The interface puts few requirement on memory management: we want to be
+The interface puts few requirements on memory management: we want to be
 able to write automata that can forget about their states (and
 recompute them), so there is no guarantee that reaching the same state
 twice will return the same pointer twice.  Even calling
@@ -625,7 +625,7 @@ are $n$ successors, there will be $1$ call to =first()=, $n$ calls to
 =next()=, and $n+1$ calls to =done()=, so a total of $2n+2$ virtual
 method calls.
 
-However =first()= and =next()= also return a Boolean stating whether
+However, =first()= and =next()= also return a Boolean stating whether
 the loop could continue.  This allows rewriting the above code as
 follows:
 
@@ -688,13 +688,13 @@ following equivalent code:
 : 0->1
 : 0->2
 
-This works in a similar way as =out(s)= in the explicit interface.
+This works similarly to =out(s)= in the explicit interface.
 Calling =aut->succ(s)= creates a fake container
 (=internal::succ_iterable=) with =begin()= and =end()= methods that
 return STL-like iterators (=internal::succ_iterator=).  Incrementing
 the =internal::succ_iterator= will actually increment the
 =twa_succ_iterator= they hold.  Upon completion of the loop, the
-temporary =internal::succ_iterable= is destroyed and its destructor
+temporary =internal::succ_iterable= is destroyed, and its destructor
 passes the iterator back to =aut->release_iter()= for recycling.
 
 ** Recursive DFS (v1)
@@ -823,7 +823,7 @@ They are performed in =state_unicity_table::is_new()= and in
 ** Iterative DFS
 
 For a non-recursive version, let us use a stack of
-=twa_succ_iterator=.  However these iterators do not know their
+=twa_succ_iterator=.  However, these iterators do not know their
 source, so we better store that in the stack as well if we want to
 print it.
 

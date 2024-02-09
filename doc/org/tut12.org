@@ -16,7 +16,7 @@ automata over infinite words.
 ltlfilt --from-ltlf -f "$f"
 #+end_src
 
-However there is a trick we can use in case we want to use Spot to
+However, there is a trick we can use in case we want to use Spot to
 build a finite automaton that recognize some LTLf (i.e. LTL with
 finite semantics) property.  The plan is as follows:
 
@@ -233,8 +233,8 @@ you could replace =alive= by =!dead= by using ~ltlfilt
 
 When working with LTLf, there are two different semantics for the next
 operator:
-- The weak next: =X a= is true if =a= hold in the next step or if
-  there are no next step.  In particular, =X(0)= is true iff there are
+- The weak next: =X a= is true if =a= hold in the next step, or if
+  there is no next step.  In particular, =X(0)= is true iff there is
   no successor.  (By the way, you cannot write =X0= because that is an
   atomic proposition: use =X(0)= or =X 0=.)
 - The strong next: =X[!] a= is true if =a= hold in the next step *and*

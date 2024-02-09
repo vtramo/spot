@@ -10,7 +10,7 @@ This page explains how to build formulas and how to iterate over their
 syntax trees.
 
 We will first describe how to build a formula from scratch, by using
-the constructors associated to each operators, and show the basic
+the constructors associated to each operator, and show the basic
 accessor methods for formulas.  We will do that for C++ first, and
 then Python.  Once these basics are covered, we will show examples for
 traversing and transforming formulas (again in C++ then Python).
@@ -166,7 +166,7 @@ The Python equivalent is similar:
   for child in f:
      print("  *", child)
   # the type of the operator can be accessed with kind(), which returns
-  # an op_XXX constant (corresponding the the spot::op enum of C++)
+  # an op_XXX constant (corresponding to the spot::op enum of C++)
   print(f[1][0], "is F" if f[1][0].kind() == spot.op_F else "is not F")
   # "is" is keyword in Python, the so shortcut is called _is:
   print(f[1][1], "is G" if f[1][1]._is(spot.op_G) else "is not G")
@@ -191,8 +191,8 @@ formulas (for instance the [[file:tut02.org][relabeling function]]) actually rec
 traverse the input formula to construct the output formula.
 
 Using the operators described in the previous section is enough to
-write algorithms on formulas.  However there are two special methods
-that makes it a lot easier: =traverse= and =map=.
+write algorithms on formulas.  However, there are two special methods
+that make it a lot easier: =traverse= and =map=.
 
 =traverse= takes a function =fun=, and applies it to each subformulas
 of a given formula, including that starting formula itself.  The
@@ -206,7 +206,7 @@ in the formula.  We also print each subformula to show the recursion,
 and stop the recursion as soon as we encounter a subformula without
 sugar (the =is_sugar_free_ltl()= method is a constant-time operation
 that tells whether a formula contains a =F= or =G= operator) to save
-time time by not exploring further.
+time by not exploring further.
 
 #+NAME: gcount_cpp
 #+BEGIN_SRC C++
@@ -375,11 +375,11 @@ without lambda:
 : exchanges:  6
 
 Now let's pretend that we want to define =xchg_fg= as a lambda, and
-=count= to by captured by reference.  In order to call pass the lambda
-recursively to =map=, the lambda needs to know its address.
+that we want =count= to be captured by reference.  In order to pass
+the lambda recursively to =map=, the lambda needs to know its address.
 Unfortunately, if the lambda is stored with type =auto=, it cannot
 capture itself.  A solution is to use =std::function= but that has a
-large penalty cost.  We can work around that by assuming that that
+large penalty cost.  We can work around that by assuming that the
 address will be passed as an argument (=self=) to the lambda:
 
 #+BEGIN_SRC C++

@@ -6,7 +6,7 @@
 #+PROPERTY: header-args:sh :results verbatim :exports both
 
 This page discusses features available in Spot's command-line
-tools to produce an consume CSV files.
+tools to produce and consume CSV files.
 
 * Producing CSV files
 
@@ -176,7 +176,7 @@ Note that if the =--format= option is not specified, the default
 format is one of: =%f=, =%<,%f=, =%f,%>=, or =%<,%f,%>= depending on
 whether the input CSV had column before and after the selected one.
 Furthermore, the formula field is automatically double-quoted if the
-formula actually use double quotes, and the input CSV file had more
+formula actually uses double quotes, and the input CSV file had more
 than one column.
 
 Typical uses of =ltlfilt= on CSV file include:
@@ -251,7 +251,7 @@ cat csv-aut.csv
 
 Note that when producing CSV files, it is important to surround =%h=
 with double quotes to indicate that double quotes from the HOA format
-(output by =%h=) should be escaped.  Otherwise the result would not be
+(output by =%h=) should be escaped.  Otherwise, the result would not be
 a valid CSV file.
 
 [[file:autfilt.org][=autfilt=]] can process a column of such a CSV file using the same

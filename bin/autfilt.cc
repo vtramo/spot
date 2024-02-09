@@ -230,7 +230,7 @@ static const argp_option options[] =
     { "is-alternating", OPT_IS_ALTERNATING, nullptr, 0,
       "keep only automata using universal branching", 0 },
     { "intersect", OPT_INTERSECT, "FILENAME", 0,
-      "keep automata whose languages have an non-empty intersection with"
+      "keep automata whose languages have a non-empty intersection with"
       " the automaton from FILENAME", 0 },
     { "included-in", OPT_INCLUDED_IN, "FILENAME", 0,
       "keep automata whose languages are included in that of the "

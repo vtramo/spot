@@ -141,7 +141,7 @@ ltlfilt -ps --relabel-bool=pnn --define -f '"Proc@Here" U ("var > 10" | "var < 4
 
    For instance =a U (a & b)= will not be relabeled into =(p0) U (p1)=
    because that would hide the fact that both =p0= and =p1= check for
-   =a=.  Instead we get this:
+   =a=.  Instead, we get this:
 
 #+BEGIN_SRC sh
 ltlfilt -ps --relabel-bool=pnn --define -f 'a U (a & b)'

@@ -123,7 +123,7 @@ The "universality" of an edge can be tested using the
 =twa_graph::is_univ_dest()= method: it takes a destination state as
 input, as in =aut->is_univ_dest(t.dst)= or
 =aut->is_univ_dest(aut->get_init_state_number())=.  For convenience
-this method can also be called on a edge, as in =aut->is_univ_dest(t)=.
+this method can also be called on an edge, as in =aut->is_univ_dest(t)=.
 
 The set of destination states of a universal edge can be iterated over
 via the =twa_graph::univ_dests()= method.  This takes either a

@@ -198,7 +198,7 @@ State: 1
 #+END_SRC
 
 Option =m= uses mixed acceptance, i.e, some states might use
-state-based acceptance while other will not:
+state-based acceptance while others will not:
 
 #+BEGIN_SRC sh :wrap SRC hoa
 ltl2tgba -Hm '(Ga -> Gb) W c'
@@ -569,16 +569,16 @@ The dot output can also be customized via two environment variables:
 - =SPOT_DOTDEFAULT= contains default arguments for the =--dot= option
   (for when it is used implicitly, or used as just =--dot= without
   argument).  For instance after =export SPOT_DOTDEFAULT=vcsn=, using
-  =--dot= is equivalent to =--dot=vcsn=.  However using =--dot=xyz=
+  =--dot= is equivalent to =--dot=vcsn=.  However, using =--dot=xyz=
   (for any value of =xyz=, even empty) will ignore the
   =SPOT_DOTDEFAULT= variable.  If the argument of =--dot= contains
   a dot character, then this dot is replaced by the contents of
   =SPOT_DOTDEFAULT=.  So ~--dot=.A~ would be equivalent to =--dot=vcsnA=
   with our example definition of =SPOT_DOTDEFAULT=.
-- =SPOT_DOTEXTRA= may contains an arbitrary string that will be emitted
+- =SPOT_DOTEXTRA= may contain an arbitrary string that will be emitted
   in the dot output before the first state.  This can be used to modify
   any attribute.  For instance (except for this page, where we had
-  do demonstrate the various options of =--dot=, and a few pages where
+  to demonstrate the various options of =--dot=, and a few pages where
   we show the =--dot= output verbatim) all the automata displayed in
   this documentation are generated with the following environment
   variables set:
@@ -598,7 +598,7 @@ passing option =i= to the dot printer, this unique number will be used
 to form a unique =id= attribute for these elements: a prefix =S= (for
 state), =E= (for edge), or "SCC=" is simply added to the unique
 number.  Additionally, using =i(graphid)= will define =graphid= as
-that =id= of the automaton.  GraphViz will keep these identifier in
+that =id= of the automaton.  GraphViz will keep these identifiers in
 the generated SVG, so this makes it possible to modify rendering
 of the automaton using CSS or javascript.
 
@@ -683,7 +683,7 @@ ltl2tgba -G -D '!a & FGa' --dot=sbarx | dot2tex --autosize --nominsize > out.tex
 
 Caveats:
 - =dot2tex= should be called with option =--autosize= in order to
-  compute the size of each label before calling GraphViz to layout the
+  compute the size of each label before calling GraphViz to lay out the
   graph.  This is because GraphViz cannot compute the correct size of
   mathematical formulas.  Make sure you use =dot2tex= version 2.11 or
   later, as earlier releases had a bug where sizes were interpreted
@@ -836,7 +836,7 @@ current process and any of its children: adding =p= (parent) and =c=
 (children) will show only the selected time.  Note that few tools
 actually execute other processes: [[file:autfilt.org][=autfilt=]] and [[file:ltl2tgba.org][=ltl2tgba=]] can do so
 when calling a SAT solver for [[file:satmin.org][SAT-based minimization]], and [[file:ltldo.org][=ltldo=]] will
-obviously call any listed tool.  However in the case of =ltldo= the
+obviously call any listed tool.  However, in the case of =ltldo= the
 measured time is that of executing the other tools, so the result of
 =%[p]R= is likely to be always 0.
 

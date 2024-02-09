@@ -108,13 +108,13 @@ them.  Rather than running =randltl= several times with different
 seeds, we can use the =-n= option to specify a number of formulas to
 produce as seen in the very first example of this page.
 
-By default =randltl= will never output the same formula twice (this
+By default, =randltl= will never output the same formula twice (this
 can be changed with the =--allow-dups= option), so it may generate
 more formulas internally than it eventually prints.  To ensure
 termination, for each output formula the number of ignored (because
 duplicated) random formulas that are generated is limited to 100000.
-Therefore in some situations, most likely when generating small
-formulas, with few atomic proposition, you may see =randltl= stop
+Therefore, in some situations, most likely when generating small
+formulas with few atomic propositions, you may see =randltl= stop
 before the requested number of formulas has been output with an error
 message.
 
@@ -142,7 +142,7 @@ randltl -n 5 a b c --tree-size=22..30
 : 1
 
 The tree size is just the number of nodes in the syntax tree of the
-formula during its construction.  However because Spot automatically
+formula during its construction.  However, because Spot automatically
 applies some /trivial simplifications/ during the construction of its
 formulas (e.g., =F(F(a)= is reduced to =F(a)=, =a&0= to =0=, etc.),
 the actual size of the formula output may be smaller than the
@@ -150,7 +150,7 @@ tree size specified.
 
 It is pretty common to obtain the formulas =0= or =1= among the first
 formulas output, since many random formulas trivially simplify to
-these.  However because duplicate formulas are suppressed by default,
+these.  However, because duplicate formulas are suppressed by default,
 they shall only occur once.
 
 Stronger simplifications may be requested using the =-r= option, that
@@ -257,7 +257,7 @@ randltl -B -n 5 a b c
 
 In that case, priorities should be set with =--boolean-priorities=.
 
-Finally, PSL formulas may be output using the =-P= option.  However
+Finally, PSL formulas may be output using the =-P= option.  However,
 keep in mind that since LTL formulas are PSL formulas, generating
 random PSL formula may produce many LTL formulas that do not use any
 PSL operator (this is even more so the case when simplifications are
@@ -329,7 +329,7 @@ or	1
 The =--ltl-priorities= option we have seen previously now recognize
 some new PSL-specific operators: =Closure= is the ={sere}= operator,
 =EConcat= is the ={sere}<>->f= operator, and =UConcat= is the
-={sere}[]->f= operator.  When these operator are selected, they
+={sere}[]->f= operator.  When these operators are selected, they
 require a SERE argument which is generated according to the priorities
 set by =--sere-priorities=: =eword= is the empty word, =boolform= is a
 Boolean formula (generated using the priorities set by

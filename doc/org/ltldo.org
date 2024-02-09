@@ -22,7 +22,7 @@ any other tool.
 
 As a motivating example, consider a scenario where we want to run
 [[https://sourceforge.net/projects/ltl3ba/][=ltl3ba=]] on a set of 10 formulas stored in a file.  For each formula
-we would like to compute compute the number of states and edges in the
+we would like to compute the number of states and edges in the
 Büchi automaton produced by =ltl3ba=.
 
 Here is the input file:
@@ -192,7 +192,7 @@ ltldo --help | sed -n '/character sequences:/,/^$/p' | sed '1d;$d'
 :                              ltl2dstar's format
 
 Contrarily to =ltlcross=, it this not mandatory to specify an output
-filename using one of the sequence for that last line.  For instance
+filename using one of the sequence for that last line.  For instance,
 we could simply run a formula though =echo= to compare different
 output syntaxes:
 
@@ -328,7 +328,7 @@ will be changed into
   '{DRA} ~/mytools/ltl2dstar-0.5.2 --output-format=hoa %[MW]L %O'
 #+end_example
 
-Therefore you can type the following to obtain a Dot output (as
+Therefore, you can type the following to obtain a Dot output (as
 requested with =-d=) for the neverclaim produced by =ltl2ba -f a=.
 
 #+BEGIN_SRC sh :prologue export SPOT_DOTEXTRA= SPOT_DOTDEFAULT=
@@ -354,7 +354,7 @@ The =ltl2ba= argument passed to =ltldo= was interpreted as if you had
 typed ={ltl2ba}ltl2ba -f %s>%O=.
 
 Those shorthand patterns are only tested if the command string does
-not contains any =%= character.  They should always patch a prefix of
+not contain any =%= character.  They should always patch a prefix of
 the command, ignoring any leading directory.  This makes it possible
 to add options:
 
@@ -415,7 +415,7 @@ syntax, but cannot cope with double-quoted atomic propositions).
 There are some cases where the renaming is not completely transparent.
 For instance if a translator tool outputs some HOA file named after
 the formula translated, the name will be output unmodified (since this
-can be any text string, there is not way for =ltldo= to assume it is
+can be any text string, there is no way for =ltldo= to assume it is
 an LTL formula).  In the following example, you can see that the
 automaton uses the atomic proposition =Error=, but its name contains a
 reference to =p0=.
@@ -518,9 +518,9 @@ The sorting criterion can be specified using =--smallest= or
 =--greatest=, optionally followed by a format string with
 =%=-sequences.  The default criterion is =%s,%e=, so the number of
 states will be compared first, and in case of equality the number of
-edges.  If we desire the automaton that has the fewest states, and in
-case of equality the smallest number of non-deterministic states, we
-can use the following command instead.
+edges.  If we desire the automaton that has the fewest states (=%s=),
+and in case of equality the smallest number of non-deterministic
+states (=%n=), we can use the following command instead.
 
 #+BEGIN_SRC sh
 ltldo ltl2ba ltl3ba 'ltl2tgba -s' -f 'F(a & Xa | FGa)' --smallest=%s,%n
@@ -549,20 +549,19 @@ State: 2 {0}
 --END--
 #+end_example
 
-We can of course apply this on a large number of formulas.  For
-instance here is a more complex pipeline, where we take 11 patterns
-from Dwyer et al. (FMSP'98), and print which translator among
-=ltl2ba=, =ltl3ba=, and =ltl2tgba -s= would produce the smallest
-automaton.
+We can of course apply this to a stream of formulas.  For instance
+here is a more complex pipeline, where we take 11 patterns from [[https://doi.org/10.1145/302405.302672][Dwyer
+et al. (FMSP'98)]], and print which translator among =ltl2ba=,
+=ltl3ba=, and =ltl2tgba -s= would produce the smallest automaton.
 
 #+BEGIN_SRC sh
-genltl --dac=10..20 --format=%F:%L,%f |
+  genltl --dac=10..20 --format=%F:%L,%f |
   ltldo -F-/2 ltl2ba ltl3ba 'ltl2tgba -s' --smallest --stats='%<,%T'
 #+END_SRC
 #+RESULTS:
 #+begin_example
 dac-patterns:10,ltl2ba
-dac-patterns:11,ltl3ba
+dac-patterns:11,ltl2ba
 dac-patterns:12,ltl2tgba -s
 dac-patterns:13,ltl2tgba -s
 dac-patterns:14,ltl2tgba -s
@@ -603,22 +602,22 @@ dac-patterns:20,G((p0 & !p1) -> (p2 W p1))
 This is a two-column CSV file where each line is a description of the
 origin of the formula (=%F:%L=), followed by the formula itself
 (=%f=).  The =ltldo= from the previous pipeline simply takes its input
-from the second column of its standard input (=-F-/2=), run that
-formula through the three translator, pick the smallest automaton
-(=--smallest=), and for this automaton, it display the translator that
+from the second column of its standard input (=-F-/2=), runs that
+formula through the three translators, picks the smallest automaton
+(=--smallest=), and for this automaton, it displays the translator that
 was used (=%T=) along with the portion of the CSV file that was before
 the input column (=%<=).
 
 
-If you are curious about the actually size of the automata produced by
+If you are curious about the actual size of the automata produced by
 =ltl2ba=, =ltl3ba=, and =ltl2tgba -s= in the above example, you can
 quickly build a CSV file using the following pipeline where each
-command append a new column.  We wrap =ltl2ba= and =ltl3ba= with
+command appends a new column.  We wrap =ltl2ba= and =ltl3ba= with
 =ltldo= so that they can process one column of the CSV that is input,
 and output statistics in CSV as output.  =ltl2tgba= does not need
 that, as it already supports those features. In the resulting CSV
 file, displayed as a table below, entries like =2s 4e 0d= represent an
-automaton with 2 states, 4 edges, and that is not deterministic.  .
+automaton with 2 states, 4 edges, and that is not deterministic.
 (We have a [[file:csv.org][separate page]] with more examples of reading and writing CSV
 files.)
 
@@ -679,8 +678,8 @@ When a timeout occurs a warning is printed on stderr, and no automaton
 command/formula.  The processing then continue with other formulas and
 tools.  Timeouts are not considered as errors, so they have no effect
 on the exit status of =ltldo=.  This behavior can be changed with
-option =--fail-on-timeout=, in which case timeouts are considered
-as errors.
+option =--fail-on-timeout=, in which case timeouts are considered as
+errors.
 
 For each command (that does not terminate with a timeout) the runtime
 can be printed using the =%r= escape sequence.  This makes =ltldo= an

@@ -5,7 +5,7 @@
 #+HTML_LINK_UP: tools.html
 #+PROPERTY: header-args:sh :results verbatim :exports code
 
-This tool generates various form of Testing Automata, i.e., automata
+This tool generates various forms of Testing Automata, i.e., automata
 that observe the /changes/ of atomic propositions, not their values.
 
 Three types of automata can be output.  The only output format

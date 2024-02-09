@@ -5,9 +5,8 @@
 #+HTML_LINK_UP: tools.html
 #+PROPERTY: header-args:sh :results verbatim :exports both
 
-:results scalar: Is the same as :results verbatim.
-
-:results table: Interprets the results as an Org This tool lists
+This tool lists formulas that are similar to but simpler than a given
+formula by applying simple mutations to it, like removing operands or
 formulas that are similar to but simpler than a given formula by
 applying simple mutations to it, like removing operands or
 operators. This is meant to be used with ltlcross to simplify a
@@ -66,7 +65,7 @@ The idea behind this tool is that when a bogus algorithm is found with
 =ltlcross=, you probably want to debug it using a smaller formula than
 the one found by =ltlcross=. So you would give the formula found by
 =ltlcross= as an argument to =ltlgrind= and then use the resulting
-mutations as an new input for =ltlcross=. It might report an error on
+mutations as a new input for =ltlcross=. It might report an error on
 one of the mutation, which is guaranteed to be simpler than the
 initial formula. The process can then be repeated until no error is
 reported by =ltlcross=.

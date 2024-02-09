@@ -35,7 +35,7 @@ experience of updating a couple of projects that are using Spot.
 
   4. [[#formulas][The implementation of LTL formulas has been rewritten]].
 
-     They are no longer pointers but plain objects that performs their
+     They are no longer pointers but plain objects that perform their
      own reference counting, freeing the programmer from this tedious
      and error-prone task.  They could be handled as if they were
      shared pointer, with the small difference that they are not using
@@ -72,7 +72,7 @@ experience of updating a couple of projects that are using Spot.
      using preconditions: the acceptance condition does not appear in
      the type of the C++ object representing the automaton.
 
-  7. [[*Various renamings][Several class, functions, and methods, have been renamed]].  Some
+  7. [[*Various renamings][Several classes, functions, and methods, have been renamed]].  Some
      have been completely reimplemented, with different interfaces.
      In particular the =tgba_explicit_*= family of classes
      (=tgba_explicit_formula=, =tgba_explicit_number=,
@@ -110,7 +110,7 @@ experience of updating a couple of projects that are using Spot.
 
 
 If Spot 1.2.6 was installed in =/usr/local=, its headers are
-in =/usr/local/include/spot=.   One would to write include statements
+in =/usr/local/include/spot=.  One would to write include statements
 such as
 #+BEGIN_SRC C++
   #include <tgba/tgba.hh>
@@ -370,7 +370,7 @@ removed, ~8200 lines added), and brings some nice benefits:
   friendly, and several algorithms that spanned a few pages have been
   reduced to a few lines.  [[file:tut03.org][This page]] illustrates the new interface.
 
-Also the =spot::ltl= namespace has been removed: everything is
+Also, the =spot::ltl= namespace has been removed: everything is
 directly in =spot= now.
 
 In code where formulas are just parsed from input string, and then
@@ -455,7 +455,7 @@ name:
 #+BEGIN_SRC C++
      if (!input->acc().is_generalized_buchi())
         throw std::runtime_error
-          ("myalgorithm() can only works with generalized Büchi acceptance");
+          ("myalgorithm() can only work with generalized Büchi acceptance");
 #+END_SRC
 
 - Some methods of the =tgba= class have been removed, include some
@@ -518,7 +518,7 @@ name:
   So not only do we save the calls to =new= and =delete=, but we also
   save the time it takes to construct the objects (including setting
   up the virtual table), and via a =recycle()= method that has to be
-  added to the iterator, we update only the attributes that needs to
+  added to the iterator, we update only the attributes that need to
   be updated (for instance if the iterator contains a pointer back to
   the automaton, this pointer requires no update when the iterator is
   recycled).
@@ -586,7 +586,7 @@ for (auto i: aut->succ(s))
 
 - Each =twa= now has a BDD dictionary, so the =get_dict()= method is
   implemented once for all in =twa=, and should not be implemented
-  anymore in sub-classes.
+  anymore in subclasses.
 
 - There should now be very few cases where it is necessary to call
   methods of the BDD dictionary attached to a =twa=.  Registering

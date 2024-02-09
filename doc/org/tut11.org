@@ -145,9 +145,9 @@ State: 1
 If you drop the =-D= option from =ltl2tgba=, or the =det= argument
 from =spot.translate()=, or the
 =set_pref(spot::postprocessor::Deterministic)= in C++, then a
-non-deterministic monitor can be output.  By default Spot will build
-both a deterministic and a non-deterministic monitor, it will output
-the smallest one.
+non-deterministic monitor can be output.  By default, Spot will try to
+build both a deterministic and a non-deterministic monitor, then it will
+keep the smallest one.
 
 * Details
 
@@ -198,7 +198,7 @@ ltl2tgba -D -M 'G(press -> red U green)' -d
 
 This monitor will report violations if both *red* and *green* are off
 when the button is pressed, and also if *red* goes off without *green*
-going on.  However note that in the original formula, =red U green=
+going on.  However, note that in the original formula, =red U green=
 implies that *green* will eventually become true, and the monitor
 cannot ensure that: a system where *red* is continuously on, and
 *green* is continuously off would not trigger any violation.  The
@@ -280,7 +280,7 @@ State: 1
 
 * Further reading
 
-If your application requires monitors and you plan to build them with
+If your application requires monitors, and you plan to build them with
 Spot, it is very likely that you will want to convert the resulting
 automata to your own data structure.  See [[file:tut21.org][how to print an automaton in
 a custom format]] to learn all you need to iterate over Spot's automata.

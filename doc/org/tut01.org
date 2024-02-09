@@ -12,7 +12,7 @@ Our first task is to read formulas and print them in another syntax.
 * Shell command
 
 Using =ltlfilt=, you can easily read an LTL formula in one syntax, and
-output it in another syntax.  By default the parser will accept a
+output it in another syntax.  By default, the parser will accept a
 formula in [[file:ioltl.org][any infix syntax]], but if the input is in the prefix syntax
 of LBT, you should use [[file:ioltl.org][=--lbt-input=]].  The output syntax is controlled
 using different options such as (=--spin=, =--lbt=, =--latex=, etc.).
@@ -364,7 +364,7 @@ atomically output in a way that Spin can parse.
 This Spin syntax is not accepted by default by the infix parser, but
 it has an option for that.  This is called /lenient parsing/: when the
 parser finds a parenthetical block it does not understand, it simply
-assume that this block represents an atomic proposition.
+assumes that this block represents an atomic proposition.
 
 #+BEGIN_SRC sh
 ltlfilt --lenient -f '(a > 4) U (b < 5)'

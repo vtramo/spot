@@ -16,6 +16,10 @@ genaut --help | sed -n '/Pattern selection:/,/^$/p' | sed '1d;$d'
 
 #+RESULTS:
 #+begin_example
+      --cyclist-proof-dba=RANGE   A DBA with N+2 states that should be included
+                             in cyclist-trace-nba=B.
+      --cyclist-trace-nba=RANGE   An NBA with N+2 states that should include
+                             cyclist-proof-dba=B.
       --ks-nca=RANGE         A co-Büchi automaton with 2N+1 states for which
                              any equivalent deterministic co-Büchi automaton
                              has at least 2^N/(2N+1) states.
@@ -26,7 +30,7 @@ genaut --help | sed -n '/Pattern selection:/,/^$/p' | sed '1d;$d'
                              complementary Streett automaton needs at least N!
                              states.
       --m-nba=RANGE          An NBA with N+1 states whose determinization needs
-                             at least N! states
+                             at least N! states.
 #+end_example
 
 

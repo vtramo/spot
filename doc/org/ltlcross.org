@@ -31,7 +31,7 @@ The main differences with LBTT are:
 Although =ltlcross= performs similar sanity checks as LBTT, it does
 not implement any of the interactive features of LBTT.  In our almost
 10-year usage of LBTT, we never had to use its interactive features to
-understand bugs in our translation.  Therefore =ltlcross= will report
+understand bugs in our translation.  Therefore, =ltlcross= will report
 problems, maybe with a counterexample, but you will be on your own to
 investigate and fix them (the =--grind= option may help you reduce the
 problem to a shorter formula).
@@ -243,7 +243,7 @@ If a translator exits with a non-zero status code, or fails to output
 an automaton =ltlcross= can read, and error will be displayed and the
 result of the translation will be discarded.
 
-Otherwise =ltlcross= performs the following checks on all translated
+Otherwise, =ltlcross= performs the following checks on all translated
 formulas ($P_i$ and $N_i$ designate respectively the translation of
 positive and negative formulas by the ith translator).
 
@@ -302,7 +302,7 @@ positive and negative formulas by the ith translator).
     likewise if it's $N_i$ that is deterministic.
 
     When validating a translator with =ltlcross= without using the
-    =--determinize= option we highly recommend to include a translator
+    =--determinize= option we highly recommend including a translator
     with good deterministic output to augment test coverage.  Using
     '=ltl2tgba -D %f >%O=' will produce deterministic automata for all
     obligation properties and many recurrence properties.  Using
@@ -312,7 +312,7 @@ positive and negative formulas by the ith translator).
 
   - Cross-comparison checks: for some state-space $S$,
     all $P_i\otimes S$ are either all empty, or all non-empty.
-    Similarly all $N_i\otimes S$ are either all empty, or all non-empty.
+    Similarly, all $N_i\otimes S$ are either all empty, or all non-empty.
 
     A cross-comparison failure could be displayed as:
 
@@ -328,7 +328,7 @@ positive and negative formulas by the ith translator).
 
     These products tests may sometime catch errors that were not
     captured by the first two tests if one non-deterministic automaton
-    recognize less words than what it should.  If the input automata
+    recognize fewer words than what it should.  If the input automata
     are all deterministic or the =--determinize= option is used, this test
     is redundant and can be disabled.  (In fact, the =--determinize=
     option implies option =--product=0= to do so.)
@@ -349,7 +349,7 @@ positive and negative formulas by the ith translator).
     printed.
 
     This test may catch errors that were not captured by the first two
-    tests if one non-deterministic automaton recognize less words than
+    tests if one non-deterministic automaton recognize fewer words than
     what it should.  If the input automata are deterministic or the
     =--determinize= option is used, this test is redundant and can be
     disabled.  (In fact, the =--determinize= option implies option
@@ -569,7 +569,7 @@ since most statistics cannot be computed without an automaton...
 Those lines with missing data can be omitted with the =--omit-missing=
 option (this used to be the default up to Spot 1.2).
 
-However data for bogus automata are still included: as shown below
+However, data for bogus automata are still included: as shown below
 =ltlcross= will report inconsistencies between automata as errors, but
 it does not try to guess who is incorrect.
 
@@ -579,9 +579,9 @@ The number of column output in the CSV or JSON outputs depend on the
 options passed to =ltlcross=. Additional columns will be output if
 =--strength=, =--ambiguous=, =--automata=, or =--product=+N= are used.
 
-Columns =formula= and =tool= contain the formula translated and the
+Columns =formula= and =tool= contain the formula translated, and the
 command run to translate it.  In the CSV, these columns contain the
-actual text.  In the JSON output, these column contains an index into
+actual text.  In the JSON output, these columns contain an index into
 the =formula= and =tool= table declared separately.
 
 =exit_status= and =exit_code= are used to indicate if the translator
@@ -634,7 +634,7 @@ These SCC strengths can be used to compute the strength of the
 automaton as a whole:
 - an automaton is terminal if it contains only non-accepting or
   terminal SCCs,
-- an automaton is weak if it it contains only non-accepting,
+- an automaton is weak if it contains only non-accepting,
   terminal, or weak SCCs,
 - an automaton is strong if it contains at least one strong SCC.
 
@@ -645,7 +645,7 @@ usually prefer terminal automata over weak automata, and weak automata
 over strong automata, because the emptiness check of terminal (and
 weak) automata is easier.  When working with alternating automata, all
 those strength-related columns will be empty, because the routines
-used to compute those statistic do not yet support universal edges.
+used to compute those statistics do not yet support universal edges.
 
 =nondetstates= counts the number of non-deterministic states in the
 automaton.  =nondeterministic= is a Boolean value indicating if the
@@ -669,7 +669,7 @@ count the number of state, transitions and strongly-connect components
 in the product that has been built between the translated automaton
 and a random model.  For a given formula, the same random model is of
 course used against the automata translated by all tools.  Comparing
-the size of these product might give another indication of the
+the size of these products might give another indication of the
 "conciseness" of a translated automaton.
 
 There is of course a certain "luck factor" in the size of the product.
@@ -868,7 +868,7 @@ Classes ‘data.table’ and 'data.frame':	20 obs. of  16 variables:
  - attr(*, ".internal.selfref")=<externalptr>
 #+end_example
 
-Currently the data frame shows one line per couple (formula, tool).
+Currently, the data frame shows one line per couple (formula, tool).
 This makes comparing tools quite difficult, as their results are on
 different lines.
 
@@ -952,8 +952,8 @@ ggplot(dt2, aes(x=states.small, y=states.deter)) +
 ** =--stop-on-error=
 
 The =--stop-on-error= option will cause =ltlcross= to abort on the
-first detected error.  This include failure to start some translator,
-read its output, or failure to passe the sanity checks.  Timeouts are
+first detected error.  This includes failure to start some translator,
+read its output, or failure to pass the sanity checks.  Timeouts are
 allowed unless =--fail-on-time= is also given.
 
 One use for this option is when =ltlcross= is used in combination with
@@ -1003,7 +1003,7 @@ Here is the procedure used:
      them by length (as [[file:ltlgrind.org][=ltlgrind --sort=]] would do)
    - process every mutation until one is found that exhibit the bug
    - repeat the process with this new formula, and again until a formula
-     is found for which no mutation exhibit the bug
+     is found for which no mutation exhibits the bug
    - output that last formula in =FILENAME=
 
 If =--save-bogus=OTHERFILENAME= is provided, every bogus formula found
@@ -1172,7 +1172,7 @@ The =--no-check= option disables all sanity checks, and only use the supplied
 formulas in their positive form.
 
 When checks are enabled, the negated formulas are intermixed with the
-positives ones in the results.  Therefore the =--no-check= option can
+positives ones in the results.  Therefore, the =--no-check= option can
 be used to gather statistics about a specific set of formulas.
 
 ** =--verbose=
@@ -1183,7 +1183,7 @@ be used to gather statistics about a specific set of formulas.
 The verbose option can be useful to troubleshoot problems or simply
 follow the list of transformations and tests performed by =ltlcross=.
 
-For instance here is what happens if we try to cross check =ltl2tgba=
+For instance here is what happens if we try to cross-check =ltl2tgba=
 and =ltl3ba -H1= on the formula =FGa=.  Note that =ltl2tgba= will
 produce transition-based generalized Büchi automata, while =ltl3ba
 -H1= produces co-Büchi alternating automata.
@@ -1231,8 +1231,8 @@ First =FGa= and its negations =!FGa= are translated with the two
 tools, resulting in four automata: two positive automata =P0= and =P1=
 for =FGa=, and two negative automata =N0= and =N1=.
 
-Some basic information about the collected automata are displayed.
-For instance we can see that although =ltl3ba -H1= outputs co-Büchi
+Some basic information about the collected automata is displayed.
+For instance, we can see that although =ltl3ba -H1= outputs co-Büchi
 alternating automata, only automaton =N1= uses universal edges: the
 automaton =P1= can be used like a non-alternating co-Büchi automaton.
 
@@ -1250,9 +1250,9 @@ rewriting them to get rid of any =Fin= acceptance.
 
 After this preparatory work, it is time to actually compare these
 automata.  Together, the tests =P0*N0= and =Comp(N0)*Comp(P0)= ensure
-that the automaton =N0= is really the complement of =P0=.  Similarly
+that the automaton =N0= is really the complement of =P0=.  Similarly,
 =P1*N1= and =Comp(N1)*Comp(P1)= ensure that =N1= is the complement of
-=P1=.  Finally =P0*N1= and =P1*N0= ensure that =P1= is equivalent to
+=P1=.  Finally, =P0*N1= and =P1*N0= ensure that =P1= is equivalent to
 =P0= and =N1= is equivalent to =N0=.
 
 Note that if we reduce =ltlcross='s ability to determinize
@@ -1377,7 +1377,7 @@ No problem detected.
    :END:
 
   The =ltlcross= command itself has no built-in support for
-  parallelization (patches welcome).  However its interface makes it
+  parallelization (patches welcome).  However, its interface makes it
   rather easy to parallelize =ltlcross= runs with third-party tools
   such as:
 
@@ -1405,7 +1405,7 @@ No problem detected.
     with 8 processes in parallel.  Here =ltlcross= is called with
     option =-q= to silence most its regular output as the 8 instances
     of =ltlcross= would be otherwise writing to the same terminal.
-    With =-q=, only errors are displayed.  Additionally =--save-bogus=
+    With =-q=, only errors are displayed.  Additionally, =--save-bogus=
     is used to keep track of all formulas causing errors.  The =>>bugs.ltl=
     syntax means to open =bugs.ltl= in append mode, so that =bugs.ltl= does
     not get overwritten each time a new =ltlcross= instance finds a bug.

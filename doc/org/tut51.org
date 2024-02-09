@@ -37,7 +37,7 @@ often holds as well.
 ** What needs to be done
 
 In Spot, Kripke structures are implemented as subclass of =twa=, but
-some operations have specialized versions that takes advantages of the
+some operations have specialized versions that take advantage of the
 state-labeled nature of Kripke structure.  For instance the on-the-fly
 product of a Kripke structure with a =twa= is slightly more efficient
 than the on-the-fly product of two =twa=.
@@ -202,7 +202,7 @@ implement =compare()= using =hash()=.
 #+RESULTS: demo-state
 
 Note that a state does not know how to print itself, this
-a job for the automaton.
+is a job for the automaton.
 
 ** Implementing the =kripke_succ_iterator= subclass
 
@@ -575,7 +575,7 @@ It is perfectly possible to write a =kripke= (or even =twa=) subclass
 that returns pointers to preallocated states.  In that case
 =state::destroy()= would have to be overridden with an empty body so
 that no deallocation occurs, and the automaton would have to get rid
-of the allocated states in its destructor.  Also the =state::clone()=
+of the allocated states in its destructor.  Also, the =state::clone()=
 methods is overridden by a function that returns the identity.  An
 example of class following this convention is =twa_graph=, were states
 returned by the on-the-fly interface are just pointers into the actual

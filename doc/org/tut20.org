@@ -7,7 +7,8 @@
 #+PROPERTY: header-args:python :results output :exports both
 #+PROPERTY: header-args:C+++ :results verbatim :exports both
 
-The goal is to start from a never claim, as produced by Spin, e.g.:
+Our goal convert never claim produced by Spin into an automaton in [[file:hoa.org][the
+HOA format]].  We will use the following never claim as input:
 
 #+BEGIN_SRC sh
   spin -f '[]<>foo U bar' > tut20.never
@@ -42,11 +43,10 @@ accept_all:
 }
 #+end_example
 
-and convert this into an automaton in [[file:hoa.org][the HOA format]].
 
 Note that the automaton parser of Spot can read automata written
 either as never claims, in LBTT's format, in ltl2dstar's format or in
-the HOA format, and there is no need to specify which format you
+the HOA format, and there is no need to specify which format it should
 expect.  Even if our example uses a never claim as input, the code we
 write will read any of those formats.
 
@@ -203,7 +203,7 @@ existing atomic propositions will reuse the existing variable.
 
 In the example for [[file:tut10.org][translating LTL into BA]], we did not specify any
 =bdd_dict=, because the =translator= object will create a new one by
-default.  However it is possible to supply such a =bdd_dict= to the
+default.  However, it is possible to supply such a =bdd_dict= to the
 translator as well.  Similarly, in the Python bindings, there is a
 global =bdd_dict= that is implicitly used for all operations, but it
 can be specified if needed.

@@ -158,7 +158,7 @@ faked as follows:
 - additionally, we set =prop_state_acc(true)= to indicate that the
   automaton should output as if it were state-based.
 
-Some algorithm recognize the =prop_state_acc()= properties and trigger
+Some algorithms recognize the =prop_state_acc()= properties and trigger
 some special handling of the automaton, maybe to preserve its "fake
 state-based nature".
 

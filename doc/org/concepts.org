@@ -93,7 +93,7 @@ to write that word using [[https://en.wikipedia.org/wiki/Canonical_normal_form#M
 An ω-automaton is used to represent sets of ω-word.
 
 Those look like the classical [[https://en.wikipedia.org/wiki/Nondeterministic_finite_automaton][Nondeterministic Finite Automata]] in the
-sense that they also have states and transitions.  However ω-automata
+sense that they also have states and transitions.  However, ω-automata
 recognize [[#word][ω-words]] instead of finite words.  In this context, the
 notion of /final state/ makes no sense, and is replaced by the notion
 of [[#acceptance-condition][acceptance condition]]: a run of the automaton (i.e., an infinite
@@ -108,7 +108,7 @@ are compatible with the minterms used as letters in the word.
 
 The /language/ of an ω-automaton is the set of ω-words it accepts.
 
-There are many kinds of ω-Automata and they mostly differ by their
+There are many kinds of ω-Automata, and they mostly differ by their
 [[#acceptance-condition][acceptance condition]].  The different types of acceptance condition,
 and whether the automata are deterministic or not can affect their
 expressive power.
@@ -143,7 +143,6 @@ $txt
 
 The above automaton would accept the [[#word][ω-word we used previously as an
 example]].
-
 
 As a more concrete example, here is a (complete) Büchi automaton for
 the [[#ltl][LTL formula]] =G(door_open -> light_on)= that specifies that
@@ -260,15 +259,15 @@ and as many transitions.
 
 Spot has some function to merge those "parallel transitions" into
 larger edges.  Limiting the number of edges helps most of the
-algorithms that have to explore automata, since they have less
+algorithms that have to explore automata, since they have fewer
 successors to consider.
 
 The distinction between *edge* and *transition* is something we try
-maintain in the various interfaces of Spot.  For instance the
+to maintain in the various interfaces of Spot.  For instance the
 [[file:oaut.org::#stats][=--stats= option]] has =%e= or =%t= to count either edges or
 transitions.  The method used to add new edge into an automaton is
 called =new_edge(...)=, not =new_transition(...)=, because it takes a
-[[#bdd][BDD]] (representing a Boolean formula) as label.  However that naming
+[[#bdd][BDD]] (representing a Boolean formula) as label.  However, that naming
 convention is recent in the history of Spot.  Spot versions up to
 1.2.6 used to call everything /transition/ (and what we now call
 /transition/ was sometime called /sub-transition/), and traces of this
@@ -396,7 +395,7 @@ $txt
 #+RESULTS:
 [[file:concept-tgba1.svg]]
 
-This automaton accept all ω-words that infinitely often match the
+This automaton accepts all ω-words that infinitely often match the
 pattern $a^+;b$ (that is: a positive number of letters where $a$ is
 true are followed by one letter where $b$ is true).
 
@@ -477,8 +476,8 @@ following formula: =(Fin(0)&Inf(1)) | (Fin(2)&Inf(3)) |
 
 The following table gives an overview of how some classical acceptance
 condition are encoded.  The first column gives a name that is more
-human readable (those names are defined in the [[#hoa][HOA]] format and are also
-recognized by Spot).  The second column give the encoding as a
+human-readable (those names are defined in the [[#hoa][HOA]] format and are also
+recognized by Spot).  The second column gives the encoding as a
 formula.  Everything here is case-sensitive.
 
 #+BEGIN_SRC python :results verbatim raw :exports results
@@ -880,9 +879,9 @@ $txt
 
 
 Since this file format is the only one able to represent the range of
-ω-automata supported by Spot, and it its default output format.
+ω-automata supported by Spot, and it is its default output format.
 
-However note that Spot does not support all automata that can be
+However, note that Spot does not support all automata that can be
 expressed using the HOA format.  The present support for the HOA
 format in Spot, is discussed on [[file:hoa.org][a separate page]], with a section
 dedicated to the [[file:hoa.org::#restrictions][restrictions]].
@@ -961,7 +960,7 @@ For example the formula ={(1;1)[*]}[]->a= can be interpreted as follows:
 - the part =...[]->a= requests that =a= should be true at the end of each
   matched prefix.
 
-Therefore this formula ensures that =a= is true at every even instant
+Therefore, this formula ensures that =a= is true at every even instant
 (if we consider the first instant to be odd).  This is the canonical
 example of formula that can be expressed in PSL but not in LTL.
 
@@ -1018,7 +1017,7 @@ layers.
     generate families of automata, useful for benchmarking and testing
   - all the supplied [[file:tools.org][command-line tools]] distributed with Spot are
     built upon the =libspot= or =libspotgen= libraries
-  - =libspotltsmin= is a library that helps interfacing Spot with
+  - =libspotltsmin= is a library that helps to interface Spot with
     dynamic libraries that [[http://fmt.cs.utwente.nl/tools/ltsmin/][LTSmin]] uses to represent state-spaces.  It
     currently supports libraries generated from Promela models using
     SpinS or a patched version of DiVinE, but you have to install
@@ -1067,7 +1066,7 @@ automaton, and that can be queried or set by algorithms:
 | =complete=           | for any letter ℓ, each state has is at least one outgoing transition compatible with ℓ       |
 | =universal=          | there is at most one run *recognizing* each word, but not necessarily accepting it           |
 | =semi_deterministic= | any nondeterminism occurs before entering an accepting SCC                                   |
-| =unambiguous=        | there is at most one run *accepting* each word (but it might be recognized several time)     |
+| =unambiguous=        | there is at most one run *accepting* each word (but it might be recognized several times)    |
 | =stutter_invariant=  | the property recognized by the automaton is [[https://www.lrde.epita.fr/~adl/dl/adl/michaud.15.spin.pdf][stutter-invariant]]                                |
 
 For each flag =flagname=, the =twa= class has a method
@@ -1097,7 +1096,7 @@ existential.
 
 These automata properties are encoded into the [[file:hoa.org::#property-bits][HOA format]], so they can
 be preserved when building a processing pipeline using the shell.
-However the HOA format has support for more properties that do not
+However, the HOA format has support for more properties that do not
 correspond to any =twa= flag.
 
 * Named properties for automata
@@ -1125,7 +1124,7 @@ Here is a list of named properties currently used inside Spot:
 | ~degen-levels~      | ~std::vector<unsigned>~                   | level associated to each state by the degeneralization algorithm                                                                                      |
 | ~highlight-edges~   | ~std::map<unsigned, unsigned>~            | map of (edge number, color number) for highlighting the output                                                                                        |
 | ~highlight-states~  | ~std::map<unsigned, unsigned>~            | map of (state number, color number) for highlighting the output                                                                                       |
-| ~incomplete-states~ | ~std::set<unsigned>~                      | set of states numbers that should be displayed as incomplete  (used internally by ~print_dot()~ when truncating large automata)                       |
+| ~incomplete-states~ | ~std::set<unsigned>~                      | set of states numbers that should be displayed as incomplete (used internally by ~print_dot()~ when truncating large automata)                        |
 | ~original-classes~  | ~std::vector<unsigned>~                   | class number associated to each state of a construction (used by some algorithms like =tgba_deternize()=)                                             |
 | ~original-clauses~  | ~std::vector<unsigned>~                   | original DNF clause associated to each state in automata created by =dnf_to_streett()=                                                                |
 | ~original-states~   | ~std::vector<unsigned>~                   | original state number before transformation (used by some algorithms like =degeneralize()=)                                                           |

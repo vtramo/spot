@@ -79,14 +79,22 @@ ltlfilt --help | sed -n '/Transformation options.*:/,/^$/p' | sed '1d;$d'
       --nnf                  rewrite formulas in negative normal form
       --relabel[=abc|pnn]    relabel all atomic propositions, alphabetically
                              unless specified otherwise
-      --relabel-bool[=abc|pnn]   relabel Boolean subexpressions, alphabetically
+      --relabel-bool[=abc|pnn]   relabel Boolean subexpressions that do not
+                             share atomic propositions, relabel alphabetically
                              unless specified otherwise
+      --relabel-overlapping-bool[=abc|pnn]
+                             relabel Boolean subexpressions even if they share
+                             atomic propositions, relabel alphabetically unless
+                             specified otherwise
       --remove-wm            rewrite operators W and M using U and R (this is
                              an alias for --unabbreviate=WM)
       --remove-x             remove X operators (valid only for
                              stutter-insensitive properties)
   -r, --simplify[=LEVEL]     simplify formulas according to LEVEL (see below);
                              LEVEL is set to 3 if omitted
+      --sonf[=PREFIX]        rewrite formulas in suffix operator normal form
+      --sonf-aps[=FILENAME]  when used with --sonf, output the newly introduced
+                             atomic propositions
       --unabbreviate[=STR]   remove all occurrences of the operators specified
                              by STR, which must be a substring of "eFGiMRW^",
                              where 'e', 'i', and '^' stand respectively for
@@ -110,7 +118,7 @@ be reordered by =ltlfilt= even when the formula is not changed
 otherwise.  This is because Spot internally order all operands of
 commutative and associative operators, and that this order depends on
 the order in which the subformulas are first encountered.  Adding
-transformation options such as =-r= may alter this order.  However
+transformation options such as =-r= may alter this order.  However,
 this difference is semantically insignificant.
 
 Formulas can be easily negated using the =-n= option, rewritten into
@@ -161,14 +169,14 @@ ltlfilt -f '(a & !b) & GF(a & !b) & FG(!c & a)' --relabel-bool=pnn
 
 In the first formula, the independent =a & !b= and =!c= subformulas
 were respectively renamed =p0= and =p1=.  In the second formula, =a &
-!b= and =!c & a= are dependent so they could not be renamed; instead
+!b= and =!c & a= are dependent, so they could not be renamed; instead
 =a=, =!b= and =c= were renamed as =p0=, =p1= and =p2=.
 
 This option was originally developed to remove superfluous formulas
 from benchmarks of LTL translators.  For instance the automata
 generated for =GF(a|b)= and =GF(p0)= should be structurally
 equivalent: replacing =p0= by =a|b= in the second automaton should
-turn in into the first automaton, and vice-versa.  (However algorithms
+turn in into the first automaton, and vice versa.  (However algorithms
 dealing with =GF(a|b)= might be slower because they have to deal with
 more atomic propositions.)  So given a long list of LTL formulas, we
 can combine =--relabel-bool= and =-u= to keep only one instance of
@@ -284,7 +292,7 @@ ltldo ltl3ba -f '"proc@loc1" U "proc@loc2"' --spin
 : }
 
 This case also relabels the formula before calling =ltl3ba=, and it
-then rename all the atomic propositions in the output.
+then renames all the atomic propositions in the output.
 
 An example showing how to use the =--from-ltlf= option is on [[file:tut12.org][a
 separate page]].
@@ -308,13 +316,19 @@ ltlfilt --help | sed -n '/Filtering options.*:/,/^$/p' | sed '1d;$d'
       --guarantee            match guarantee formulas (even pathological)
       --implied-by=FORMULA   match formulas implied by FORMULA
       --imply=FORMULA        match formulas implying FORMULA
+      --liveness             match liveness properties
       --ltl                  match only LTL formulas (no PSL operator)
+  -N, --nth=RANGE            assuming input formulas are numbered from 1, keep
+                             only those in RANGE
       --obligation           match obligation formulas (even pathological)
+      --persistence          match persistence formulas (even pathological)
+      --recurrence           match recurrence formulas (even pathological)
       --reject-word=WORD     keep formulas that reject WORD
       --safety               match safety formulas (even pathological)
       --size=RANGE           match formulas with size in RANGE
       --stutter-insensitive, --stutter-invariant
                              match stutter-insensitive LTL formulas
+      --suspendable          synonym for --universal --eventual
       --syntactic-guarantee  match syntactic-guarantee formulas
       --syntactic-obligation match syntactic-obligation formulas
       --syntactic-persistence   match syntactic-persistence formulas
@@ -471,8 +485,8 @@ size.  So =F(a & b & c)= would have Boolean-size 2.  This type of size
 is probably a better way to classify formulas that are going to be
 translated as automata, since transitions are labeled by Boolean
 formulas: the complexity of the Boolean subformulas has little
-influence on the overall translation.  Here are 10 random formula with
-Boolean-size 5:
+influence on the overall translation.  Here are 10 random formulas
+with Boolean-size 5:
 
 #+BEGIN_SRC sh
 randltl -n -1 --tree-size=12 a b | ltlfilt --bsize=5 -n 10
@@ -513,6 +527,7 @@ ltlfilt --help | sed -n '/ sequences:/,/^$/p' | sed '1d;$d'
   %h, %[vw]h                 the class of the formula is the Manna-Pnueli
                              hierarchy ([v] replaces abbreviations by class
                              names, [w] for all compatible classes)
+  %l                         the serial number of the output formula
   %L                         the original line number in the input file
   %[OP]n                     the nesting depth of operator OP.  OP should be a
                              single letter denoting the operator to count, or
@@ -522,7 +537,7 @@ ltlfilt --help | sed -n '/ sequences:/,/^$/p' | sed '1d;$d'
   %r                         wall-clock time elapsed in seconds (excluding
                              parsing)
   %R, %[LETTERS]R            CPU time (excluding parsing), in seconds; Add
-                             LETTERS to restrict to(u) user time, (s) system
+                             LETTERS to restrict to (u) user time, (s) system
                              time, (p) parent process, or (c) children
                              processes.
   %s                         the length (or size) of the formula
@@ -540,7 +555,7 @@ As a trivial example, use
 #+HTML: <code>--latex --format='$%f$'</code>
 to enclose formula in LaTeX format with =$...$=.
 
-But =--format= can be useful in more complex scenarios.  For instance
+But =--format= can be useful in more complex scenarios.  For instance,
 you could print only the line numbers containing formulas matching
 some criterion.  In the following, we print only the numbers of the
 lines of =scheck.ltl= that contain guarantee formulas:

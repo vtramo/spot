@@ -7,19 +7,18 @@
 
 This tool converts automata into transition-based generalized Büchi
 automata, a.k.a., TGBA.  It can also produce Büchi automata on request
-(=-B=).  It's usage is almost similar to [[file:ltl2tgba.org][=ltl2tgba=]] except that
+(=-B=).  Its usage is almost similar to [[file:ltl2tgba.org][=ltl2tgba=]] except that
 instead of supplying a formula to translate, you should specify a
 filename containing the automaton to convert.
 
 In earlier version (before Spot 1.99.4) =dstar2tgba= was only able to
-read automata written in [[http://www.ltl2dstar.de/docs/ltl2dstar.html][the format output by =ltl2dstar=]].  However
-nowadays it can read automata in any of the supported formats ([[file:hoa.org][HOA]],
-LBTT's format, ltl2dstar's format, and never claims).  Also
-=dstar2tgba= used to be the only tool being able to read ltl2dstar's
-format, but today this format can also be read by any of the tool that
-read automata.  So in practice, running =dstar2tgba some files...=
-produces the same result as running =autfilt --tgba --high --small
-some files...=.
+read automata written in [[http://www.ltl2dstar.de/docs/ltl2dstar.html][the format output by =ltl2dstar=]].  Nowadays,
+it can read automata in any of the supported formats ([[file:hoa.org][HOA]], LBTT's
+format, ltl2dstar's format, and never claims).  Also, =dstar2tgba= used
+to be the only tool being able to read ltl2dstar's format, but today
+this format can also be read by any of the tool that read automata.
+So in practice, running =dstar2tgba some files...= produces the same
+result as running =autfilt --tgba --high --small some files...=.
 
 
 * Two quick examples
@@ -33,7 +32,7 @@ The following command instructs =ltl2dstar= to:
 1. run =ltl2tgba -Ds= to build a Büchi automaton for =(a U b) & GFb=, and then
 2. convert that Büchi automaton into a deterministic Rabin automaton
    (DRA) stored in =fagfb=.
-Additionally we use =ltlfilt= to convert our formula to the
+Additionally, we use =ltlfilt= to convert our formula to the
 prefix format used by =ltl2dstar=.
 
 #+BEGIN_SRC sh :results silent
@@ -247,23 +246,33 @@ dstar2tgba --help | sed -n '/Output format:/,/^$/p' | sed '1d;$d'
                              --lbtt or --spin)
       --check[=PROP]         test for the additional property PROP and output
                              the result in the HOA format (implies -H).  PROP
-                             may be any prefix of 'all' (default),
-                             'unambiguous', 'stutter-invariant', or 'strength'.
-
-  -d, --dot[=1|a|b|B|c|e|f(FONT)|h|n|N|o|r|R|s|t|v|+INT]
+                             may be some prefix of 'all' (default),
+                             'unambiguous', 'stutter-invariant',
+                             'stutter-sensitive-example', 'semi-determinism',
+                             or 'strength'.
+  -d, --dot[=1|a|A|b|B|c|C(COLOR)|e|E|f(FONT)|h|i(ID)|k|K|n|N|o|r|R|s|t|u|v|y|+INT|<INT|#]
                              GraphViz's format.  Add letters for (1) force
-                             numbered states, (a) acceptance display, (b)
+                             numbered states, (a) show acceptance condition
+                             (default), (A) hide acceptance condition, (b)
                              acceptance sets as bullets, (B) bullets except for
                              Büchi/co-Büchi automata, (c) force circular
-                             nodes, (e) force elliptic nodes, (f(FONT)) use
-                             FONT, (h) horizontal layout, (v) vertical layout,
-                             (n) with name, (N) without name, (o) ordered
-                             transitions, (r) rainbow colors for acceptance
-                             sets, (R) color acceptance sets by Inf/Fin, (s)
-                             with SCCs, (t) force transition-based acceptance,
-                             (+INT) add INT to all set numbers
-  -H, --hoaf[=i|l|m|s|t|v]   Output the automaton in HOA format (default).  Add
-                             letters to select (i) use implicit labels for
+                             nodes, (C) color nodes with COLOR, (d) show
+                             origins when known, (e) force elliptic nodes, (E)
+                             force rEctangular nodes, (f(FONT)) use FONT, (g)
+                             hide edge labels, (h) horizontal layout, (i) or
+                             (i(GRAPHID)) add IDs, (k) use state labels when
+                             possible, (K) use transition labels (default), (n)
+                             show name, (N) hide name, (o) ordered transitions,
+                             (r) rainbow colors for acceptance sets, (R) color
+                             acceptance sets by Inf/Fin, (s) with SCCs, (t)
+                             force transition-based acceptance, (u) hide true
+                             states, (v) vertical layout, (y) split universal
+                             edges by color, (+INT) add INT to all set numbers,
+                             (<INT) display at most INT states, (#) show
+                             internal edge numbers
+  -H, --hoaf[=1.1|i|k|l|m|s|t|v]   Output the automaton in HOA format
+                             (default).  Add letters to select (1.1) version
+                             1.1 of the format, (i) use implicit labels for
                              complete deterministic automata, (s) prefer
                              state-based acceptance when possible [default],
                              (t) force transition-based acceptance, (m) mix
@@ -280,7 +289,8 @@ dstar2tgba --help | sed -n '/Output format:/,/^$/p' | sed '1d;$d'
   -s, --spin[=6|c]           Spin neverclaim (implies --ba).  Add letters to
                              select (6) Spin's 6.2.4 style, (c) comments on
                              states
-      --stats=FORMAT         output statistics about the automaton
+      --stats=FORMAT, --format=FORMAT
+                             output statistics about the automaton
 #+end_example
 
 The =--stats= options can output statistics about the input and the
@@ -292,9 +302,9 @@ For instance here is a complex command that will
 1. generate an infinite stream of random LTL formulas with [[file:randltl.org][=randltl=]],
 2. use [[file:ltlfilt.org][=ltlfilt=]] to rewrite the W and M operators away (=--remove-wm=),
    simplify the formulas (=-r=), remove duplicates (=u=) as well as
-   formulas that have a size less then 3 (=--size-min=3=), and
+   formulas that have a size less than 3 (=--size-min=3=), and
    keep only the 10 first formulas (=-n 10=)
-3. loop to process each of these formula:
+3. loop to process each of these formulas:
    - print it
    - then convert the formula into =ltl2dstar='s input format, process
      it with =ltl2dstar= (using =ltl2tgba= as the actual LTL->BA
@@ -346,7 +356,7 @@ An important point you should be aware of when comparing these numbers
 of states is that the deterministic automata produced by =ltl2dstar=
 are complete, while the automata produced by =dstar2tgba=
 (deterministic or not) are not complete by default.  This can explain
-a difference of one state (the so called "sink" state).
+a difference of one state (the so-called "sink" state).
 
 You can instruct =dstar2tgba= to output a complete automaton using the
 =--complete= option (or =-C= for short).
@@ -380,7 +390,7 @@ create one new Fin-accepting set for each conjunct of the CNF.  The
 combination of these two algorithms is implemented by the
 =to_generalized_buchi()= function in Spot.
 
-Finally a TGBA can easily be converted into a BA with classical
+Finally, a TGBA can easily be converted into a BA with classical
 degeneralization algorithms (our version of that includes several
 SCC-based optimizations described in our [[https://www.lrde.epita.fr/~adl/dl/adl/babiak.13.spin.pdf][SPIN'13 paper]]).
 
@@ -396,7 +406,7 @@ to Rabin by adding some extra Fin or Inf terms to the acceptance
 conditions and ensuring that those terms are always true.
 
 The conversion implemented is a variation of Krishnan et al.'s
-"Deterministic ω-Automata vis-a-vis Deterministic Büchi Automata"
+[[https://doi.org/10.1007/3-540-58325-4_202]["Deterministic ω-Automata vis-a-vis Deterministic Büchi Automata"]]
 (ISAAC'94) paper.  They explain how to convert a deterministic Rabin
 automaton (DRA) into a deterministic Büchi automaton (DBA) when such
 an automaton exist.  The surprising result is that when a DRA is
@@ -408,8 +418,8 @@ SCC-wise: any DRA will be converted into a BA, and the determinism
 will be conserved only for strongly connected components where
 determinism can be conserved.  (If some SCC is not DBA-realizable, it
 will be cloned into several deterministic SCC, but the jumps between
-these SCCs will be nondeterministic.)  Our implementation also work on
-automata with transition-based acceptance.
+these SCCs will be nondeterministic.)  Our implementation also works
+on automata with transition-based acceptance.
 
 This specialized conversion is built in the =remove_fin()= procedure
 described above.

@@ -8,7 +8,7 @@
 The =randaut= tool generates random (connected) automata.
 
 By default, it will generate a random automaton with 10 states, no
-acceptance sets, and using a set of atomic propositions you have to
+acceptance set, and using a set of atomic propositions you have to
 supply.
 
 #+NAME: randaut1
@@ -37,7 +37,7 @@ In an automaton with $Q$ states and density $e$, the degree of each
 state will follow a normal distribution with mean $1+(Q-1)d$ and
 variance $(Q-1)e(1-e)$.
 
-In particular =-e0= will cause all states to have 1 successors, and
+In particular =-e0= will cause all states to have 1 successor, and
 =-e1= will cause all states to be interconnected.
 
 #+NAME: randaut2
@@ -212,7 +212,7 @@ The output format can be controlled using [[file:oaut.org][the common output opt
 like =--hoaf=, =--dot==, =--lbtt=, and =--spin=.  Note that =--spin=
 automatically implies =--ba=.
 
-Automata are send to standard output by default, by you can use =-o=
+Automata are sent to standard output by default, by you can use =-o=
 to give a filename, or even a pattern for filenames.  For instance the
 following generates 20 automata, but store them in different files
 according to the acceptance condition.  The format =%g= represent the

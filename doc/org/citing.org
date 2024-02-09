@@ -71,12 +71,6 @@ be more specific about a particular aspect of Spot.
   Presents the automaton format [[file:hoa.org][supported by Spot]] and [[http://adl.github.io/hoaf/support.html][several other
   tools]].
 
-- *Reactive Synthesis from LTL Specification with Spot*,
-  /Thibaud Michaud/, /Maximilien Colange/.
-  In Proc. of SYNT@CAV'18.  ([[https://www.lrde.epita.fr/~max/bibtexbrowser.php?key=michaud.18.synt&bib=perso.bib][bib]] | [[https://www.lrde.epita.fr/dload/papers/michaud.18.synt.pdf][pdf]])
-
-  Presents the tool [[file:ltlsynt.org][=ltlsynt=]].
-
 - *Generic Emptiness Check for Fun and Profit*,
   /Christel Baier/, /František Blahoudek/, /Alexandre Duret-Lutz/,
   /Joachim Klein/, /David Müller/, and /Jan Strejček/.
@@ -90,6 +84,15 @@ be more specific about a particular aspect of Spot.
   and /Salomon Sickert/.
   In. Proc. of TACAS'22, LNCS 13244, pp. 99--117, Apr 2022.  ([[https://www.lrde.epita.fr/~adl/dl/adl_bib.html#casares.22.tacas][bib]] | [[https://www.lrde.epita.fr/~adl/dl/adl/casares.22.tacas.pdf][pdf]] |
   [[https://www.lrde.epita.fr/~adl/dl/adl/casares.22.tacas.slides.pdf][slides1]] | [[https://www.lrde.epita.fr/~adl/dl/adl/casares.22.tacas.slides2.pdf][slides2]])
+
+  Shows applications of the ACD implemented in Spot.
+
+- *Dissecting ltlsynt*,
+  /Florian Renkin/, /Philipp Schlehuber-Caissier/, /Alexandre Duret-Lutz/,
+  and Adrien Pommellet.
+  In Formal Methods in System Design, 2023.  ([[https://www.lrde.epita.fr/~adl/dl/adl_bib.html#renkin.23.scp][bib]] | [[https://www.lrde.epita.fr/~adl/dl/adl/renkin.23.scp.pdf][pdf]])
+
+  Discuss the implementation of [[file:ltlsynt.org][=ltlsynt=]].
 
 * Obsolete references
 
@@ -110,6 +113,14 @@ be more specific about a particular aspect of Spot.
 
   For a while, this used to be the only paper presenting Spot as a
   model-checking library.
+
+- *Reactive Synthesis from LTL Specification with Spot*,
+  /Thibaud Michaud/, /Maximilien Colange/.
+  In Proc. of SYNT@CAV'18.  ([[https://www.lrde.epita.fr/~max/bibtexbrowser.php?key=michaud.18.synt&bib=perso.bib][bib]] | [[https://www.lrde.epita.fr/dload/papers/michaud.18.synt.pdf][pdf]])
+
+  Was the first presentation of the tool [[file:ltlsynt.org][=ltlsynt=]].  The paper
+  *Dissecting ltlsynt*, mentioned earlier, is more up-to-date.
+
 
 #  LocalWords:  utf html Alexandre Duret Lutz Lewkowicz Amaury Xu pdf
 #  LocalWords:  Fauchille Thibaud Michaud Etienne Proc ATVA LNCS TGBA

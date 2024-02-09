@@ -29,7 +29,7 @@ process them in batch.  (The only restriction is that inside a file an
 automaton in LBTT's format may not follow an automaton in
 =ltl2dstar='s format.)
 
-By default the output uses the HOA format.  This can be changed using
+By default, the output uses the HOA format.  This can be changed using
 [[file:oaut.org][the common output options]] like =--spin=, =--lbtt=, =--dot=,
 =--stats=...
 
@@ -196,7 +196,7 @@ autfilt --help | sed -n '/ for output):/,/^$/p' | sed '1d;$d'
 #+end_example
 
 When a letter is available both as uppercase and lowercase, the
-uppercase version refer to the input automaton, while the lowercase
+uppercase version refers to the input automaton, while the lowercase
 refer to the output automaton.  Of course this distinction makes sense
 only if =autfilt= was instructed to perform an operation on the input
 automaton.
@@ -237,7 +237,7 @@ autfilt --help | sed -n '/Filtering options.*:/,/^$/p' | sed '1d;$d'
                              inherently-weak SCCs is in RANGE.  An accepting
                              SCC is inherently weak if it does not have a
                              rejecting cycle.
-      --intersect=FILENAME   keep automata whose languages have an non-empty
+      --intersect=FILENAME   keep automata whose languages have a non-empty
                              intersection with the automaton from FILENAME
       --is-alternating       keep only automata using universal branching
       --is-colored           keep colored automata (i.e., exactly one
@@ -349,7 +349,7 @@ autfilt --help | sed -n '/Simplification level:/,/^$/p' | sed '1d;$d'
 
 
 By default, =--any --low= is used, which cause all simplifications to
-be skipped.  However if any goal is given, than the simplification level
+be skipped.  However, if any goal is given, then the simplification level
 defaults to =--high= (unless specified otherwise).  If a simplification
 level is given without specifying any goal, then the goal default to =--small=.
 
@@ -370,7 +370,7 @@ depending on the constraints on the acceptance conditions:
   in the output, but it may not always succeed and may output
   non-deterministic automata.  Note that if =autfilt --deterministic
   --tgba= fails to output a deterministic automaton, it does not
-  necessarily implies that a deterministic TGBA does not exist: it
+  necessarily imply that a deterministic TGBA does not exist: it
   just implies that =autfilt= could not find it.
 
 
@@ -442,19 +442,27 @@ autfilt --help | sed -n '/Transformations:/,/^$/p' | sed '1d;$d'
                              generalized Rabin definition from the HOA format;
                              the "share-inf" option allows clauses to share Inf
                              sets, therefore reducing the number of sets
-      --generalized-streett[=unique-fin|share-fin], --gsa[=unique-fin|share-fin]                                                          rewrite the
-                             acceptance condition as generalized Streett; the
-                             "share-fin" option allows clauses to share Fin
-                             sets, therefore reducing the number of sets; the
-                             default "unique-fin" does not
+      --generalized-streett[=unique-fin|share-fin], --gsa[=unique-fin|share-fin]
+                             rewrite the acceptance condition as generalized
+                             Streett; the "share-fin" option allows clauses to
+                             share Fin sets, therefore reducing the number of
+                             sets; the default "unique-fin" does not
       --instut[=1|2]         allow more stuttering (two possible algorithms)
       --keep-states=NUM[,NUM...]   only keep specified states.  The first state
                              will be the new initial state.  Implies
                              --remove-unreachable-states.
+      --kill-states=NUM[,NUM...]   mark the specified states as dead (no
+                             successor), and remove them.  Implies
+                             --remove-dead-states.
       --mask-acc=NUM[,NUM...]   remove all transitions in specified acceptance
                              sets
       --merge-transitions    merge transitions with same destination and
                              acceptance
+      --partial-degeneralize[=NUM1,NUM2,...]
+                             Degeneralize automata according to sets
+                             NUM1,NUM2,... If no sets are given, partial
+                             degeneralization is performed for all conjunctions
+                             of Inf and disjunctions of Fin.
       --product=FILENAME, --product-and=FILENAME
                              build the product with the automaton in FILENAME
                              to intersect languages
@@ -467,8 +475,8 @@ autfilt --help | sed -n '/Transformations:/,/^$/p' | sed '1d;$d'
                              quantification, or by assigning them 0 or 1
       --remove-dead-states   remove states that are unreachable, or that cannot
                              belong to an infinite path
-      --remove-fin           rewrite the automaton without using Fin acceptance
-
+      --remove-fin           rewrite the automaton without using Fin
+                             acceptance
       --remove-unreachable-states
                              remove states that are unreachable from the
                              initial state
@@ -505,6 +513,10 @@ autfilt --help | sed -n '/Transformations:/,/^$/p' | sed '1d;$d'
                              sum languages
       --sum-and=FILENAME     build the sum with the automaton in FILENAME to
                              intersect languages
+      --to-finite[=alive]    Convert an automaton with "alive" and "!alive"
+                             propositions into a Büchi automaton interpretable
+                             as a finite automaton.  States with a outgoing
+                             "!alive" edge are marked as accepting.
 #+end_example
 
 * Decorations

@@ -26,7 +26,7 @@ $txt
 [[file:tut30in.svg]]
 
 Our goal is to generate an equivalent Büchi automaton, preserving
-determinism if possible.  However nothing of what we will write is
+determinism if possible.  However, nothing of what we will write is
 specific to Rabin acceptance: the same code will convert automata with
 any acceptance to Büchi acceptance.
 
@@ -82,9 +82,9 @@ $txt
 #+RESULTS:
 [[file:tut30out.svg]]
 
-In the general case transforming an automaton with a complex
+In the general case, transforming an automaton with a complex
 acceptance condition into a Büchi automaton can make the output
-bigger.  However the post-processing routines may manage to simplify
+bigger.  However, the post-processing routines may manage to simplify
 the result further.
 
 

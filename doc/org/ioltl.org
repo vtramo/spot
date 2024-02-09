@@ -165,7 +165,7 @@ The following operators are supported:
 As an extension to LBT's syntax, alphanumeric atomic propositions that
 follow the "=p= + number" rule will be accepted if they do not
 conflict with one of the operators (e.g., =i=, the /implies/ operator,
-cannot be used as an atomic proposition).  Also any atomic proposition
+cannot be used as an atomic proposition).  Also, any atomic proposition
 may be double-quoted.  These extensions are compatible with the syntax
 used by [[http://www.ltl2dstar.de][ltl2dstar]].
 
@@ -224,7 +224,7 @@ that case discussing associativity and parentheses makes no sense.
 The =--csv= causes the formulas to be double-quoted (with inner
 double-quotes doubled, as per RFC 4180), regardless of the selected
 format.  This is needed if the formula should appear in a CSV file,
-and you want to be robust to formulas that contains commas or
+and you want to be robust to formulas that contain commas or
 double-quotes.  We have [[file:csv.org][examples of reading or writing CSV files on a
 separate page]].
 
@@ -244,7 +244,7 @@ Other =%=-sequences are supported by these tools, and documented in
 the output of =--help=.  For instance =%s= can be used to compute the
 size of a formula.
 
-By default everything is output to standard output, so that you can
+By default, everything is output to standard output, so that you can
 redirect the output to a file, and pipe it to another tool.  The
 =--output= (or =-o=) allows you to construct a filename using some of
 the above =%=-sequences.
@@ -267,7 +267,7 @@ wc -l example-*.ltl
 Option =-0= is useful if the list of formulas is passed to =xargs=.
 =xargs= normally splits its input on white space (which are frequent
 in LTL formulas), but you can use =xargs -0= to split the input on
-null characters.   So for instance the following two invocations have
+null characters.  So for instance the following two invocations have
 nearly the same output:
 
 #+BEGIN_SRC sh

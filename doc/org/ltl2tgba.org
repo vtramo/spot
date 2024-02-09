@@ -32,7 +32,7 @@ less frequent.
 Except for =-B= which forces state-based acceptance, these options
 build transition-based automata by default.  Internally, Spot only
 supports transition-based automata.  However, while transition-based
-automata can be smaller then their state-based counterpart, there are
+automata can be smaller than their state-based counterpart, there are
 many cases where transition-based acceptance does not bring any benefits.
 
 In case where it is detected that the transition-based automaton looks
@@ -105,7 +105,7 @@ $txt
 
 Characters like ⓿, ❶, etc. denotes the acceptance sets a transition
 belongs to.  In this case, there is only one acceptance set, called
-=0=, containing a single transition.  An acceptance set can contains
+=0=, containing a single transition.  An acceptance set can contain
 multiple transitions, and a transition may also belong to multiple
 acceptance sets.  An infinite path through this automaton is accepting
 iff it visits each acceptance set infinitely often.  Therefore, in the
@@ -238,7 +238,7 @@ ltl2tgba --help | sed -n '/Output format:/,/^$/p' | sed '1d;$d'
                              'unambiguous', 'stutter-invariant',
                              'stutter-sensitive-example', 'semi-determinism',
                              or 'strength'.
-  -d, --dot[=1|a|A|b|B|c|C(COLOR)|e|E|f(FONT)|h|k|K|n|N|o|r|R|s|t|u|v|y|+INT|<INT|#]
+  -d, --dot[=1|a|A|b|B|c|C(COLOR)|e|E|f(FONT)|h|i(ID)|k|K|n|N|o|r|R|s|t|u|v|y|+INT|<INT|#]
                              GraphViz's format.  Add letters for (1) force
                              numbered states, (a) show acceptance condition
                              (default), (A) hide acceptance condition, (b)
@@ -247,16 +247,17 @@ ltl2tgba --help | sed -n '/Output format:/,/^$/p' | sed '1d;$d'
                              nodes, (C) color nodes with COLOR, (d) show
                              origins when known, (e) force elliptic nodes, (E)
                              force rEctangular nodes, (f(FONT)) use FONT, (g)
-                             hide edge labels, (h) horizontal layout, (k) use
-                             state labels when possible, (K) use transition
-                             labels (default), (n) show name, (N) hide name,
-                             (o) ordered transitions, (r) rainbow colors for
-                             acceptance sets, (R) color acceptance sets by
-                             Inf/Fin, (s) with SCCs, (t) force transition-based
-                             acceptance, (u) hide true states, (v) vertical
-                             layout, (y) split universal edges by color, (+INT)
-                             add INT to all set numbers, (<INT) display at most
-                             INT states, (#) show internal edge numbers
+                             hide edge labels, (h) horizontal layout, (i) or
+                             (i(GRAPHID)) add IDs, (k) use state labels when
+                             possible, (K) use transition labels (default), (n)
+                             show name, (N) hide name, (o) ordered transitions,
+                             (r) rainbow colors for acceptance sets, (R) color
+                             acceptance sets by Inf/Fin, (s) with SCCs, (t)
+                             force transition-based acceptance, (u) hide true
+                             states, (v) vertical layout, (y) split universal
+                             edges by color, (+INT) add INT to all set numbers,
+                             (<INT) display at most INT states, (#) show
+                             internal edge numbers
   -H, --hoaf[=1.1|i|k|l|m|s|t|v]   Output the automaton in HOA format
                              (default).  Add letters to select (1.1) version
                              1.1 of the format, (i) use implicit labels for
@@ -327,8 +328,8 @@ T0_S3:
 #+end_example
 
 Since Spin 6 extended its syntax to support arbitrary atomic
-propositions, you may also need put the parser in =--lenient= mode to
-support these:
+propositions, you may also need to put the parser in =--lenient= mode
+to support these:
 
 #+BEGIN_SRC sh
 ltl2tgba -s --lenient '(a < b) U (process[2]@ok)'
@@ -363,9 +364,9 @@ ltl2tgba --help | sed -n '/Simplification goal:/,/^$/p' | sed '1d;$d'
 :       --small                prefer small automata (default)
 
 The =--any= option tells the translator that it should attempt to
-reduce or produce a deterministic result result: any automaton
-denoting the given formula is OK.  This effectively disables
-post-processings and speeds up the translation.
+reduce or produce a deterministic result: any automaton denoting the
+given formula is OK.  This effectively disables post-processings and
+speeds up the translation.
 
 With the =-D= or =--deterministic= option, the translator will
 /attempt/ to produce a deterministic automaton, even if this requires
@@ -488,9 +489,9 @@ recognized by at most one accepting run of the automaton (however a
 word can be rejected by multiple runs, so unambiguous automata can be
 non-deterministic).
 
-The following example is an ambiguous Büchi automaton, because the are
-two ways to accept a run that repeats continuously the configuration
-$\bar ab$.
+The following example is an ambiguous Büchi automaton, because there
+are two ways to accept a run that repeats continuously the
+configuration $\bar ab$.
 
 #+NAME: ambig1
 #+BEGIN_SRC sh :exports code
@@ -628,13 +629,13 @@ automaton is overkill (you only need an accepted run).
 
 Finally, it should be noted that the default optimization options
 (=--small --high=) are usually overkill.  =--low= will produce good
-automata most of the time.  Most of pattern formulas of [[file:genltl.org][=genltl=]] will
-be efficiently translated in this configuration (meaning that =--small
---high= will not produce a better automaton).  If you are planning to
-generate automata for large family of pattern formulas, it makes sense
-to experiment with the different settings on a small version of the
-pattern, and select the lowest setting that satisfies your
-expectations.
+automata most of the time.  Most of the pattern formulas of [[file:genltl.org][=genltl=]]
+will be efficiently translated in this configuration (meaning that
+=--small --high= will not produce a better automaton).  If you are
+planning to generate automata for large family of pattern formulas, it
+makes sense to experiment with the different settings on a small
+version of the pattern, and select the lowest setting that satisfies
+your expectations.
 
 * Deterministic automata with =--generic --deterministic=
    :PROPERTIES:
@@ -698,7 +699,7 @@ ltl2tgba "Fb|Gc" -G -D -d
 [[file:ltl2tgba-fbgc-D.svg]]
 
 
-Finally if we translate the conjunction of these two subformulas, a
+Finally, if we translate the conjunction of these two subformulas, a
 product of these two automata will be made, producing:
 
 #+NAME: ltl2tgba-fbgcfga-D
@@ -777,7 +778,7 @@ understood in the sense of the HOA format, where:
   sets), and
 - the parity acceptance is only a type of acceptance condition, i.e.,
   a formula expressed in terms of acceptance sets, and does not have
-  additional constraints on these sets.  In particular it is not
+  additional constraints on these sets.  In particular, it is not
   necessary the case that each transition or state belongs to exactly
   one acceptance set (this is the "colored" property, see below).
 
@@ -917,7 +918,8 @@ ltl2tgba --help | sed -n '/ sequences:/,/^$/p' | sed '1d;$d'
                              (iw) inherently weak. Use uppercase letters to
                              negate them.
   %d                         1 if the output is deterministic, 0 otherwise
-  %e                         number of reachable edges
+  %e, %[LETTER]e             number of edges (add one LETTER to select (r)
+                             reachable [default], (u) unreachable, (a) all).
   %f                         the formula, in Spot's syntax
   %F                         name of the input file
   %g, %[LETTERS]g            acceptance condition (in HOA syntax); add brackets
@@ -933,6 +935,7 @@ ltl2tgba --help | sed -n '/ sequences:/,/^$/p' | sed '1d;$d'
                              %[opt]h to specify additional options as in
                              --hoa=opt)
   %L                         location in the input file
+  %l                         serial number of the output automaton (0-based)
   %m                         name of the automaton
   %n                         number of nondeterministic states in output
   %p                         1 if the output is complete, 0 otherwise
@@ -942,8 +945,16 @@ ltl2tgba --help | sed -n '/ sequences:/,/^$/p' | sed '1d;$d'
                              LETTERS to restrict to(u) user time, (s) system
                              time, (p) parent process, or (c) children
                              processes.
-  %s                         number of reachable states
-  %t                         number of reachable transitions
+  %s, %[LETTER]s             number of states (add one LETTER to select (r)
+                             reachable [default], (u) unreachable, (a) all).
+  %t, %[LETTER]t             number of transitions (add one LETTER to select
+                             (r) reachable [default], (u) unreachable, (a)
+                             all).
+  %u, %[e]u                  number of states (or [e]dges) with universal
+                             branching
+  %u, %[LETTER]u             1 if the automaton contains some universal
+                             branching (or a number of [s]tates or [e]dges with
+                             universal branching)
   %w                         one word accepted by the output automaton
   %x, %[LETTERS]x            number of atomic propositions declared in the
                              automaton;  add LETTERS to list atomic
@@ -955,7 +966,7 @@ ltl2tgba --help | sed -n '/ sequences:/,/^$/p' | sed '1d;$d'
                              will be used to separate propositions
 #+end_example
 
-For instance we can study the size of the automata generated for the
+For instance, we can study the size of the automata generated for the
 right-nested =U= formulas as follows:
 
 #+BEGIN_SRC sh

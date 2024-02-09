@@ -16,7 +16,7 @@ The core of =autcross= is a loop that does the following steps:
     will be named =A0=, =A1=, and =A2=.
   - Ensure that all produced automata are equivalent.
 
-Statistics about the results of each tools can optionally be saved in
+Statistics about the results of each tool can optionally be saved in
 a CSV file.  And in case only those statistics matters, it is also
 possible to disable the equivalence checks.
 
@@ -46,7 +46,7 @@ following character sequences:
 :   %O                         filename for the automaton output in HOA, never
 :                              claim, LBTT, or ltl2dstar's format
 
-For instance we can use =autfilt --complement %H >%O= to indicate that
+For instance, we can use =autfilt --complement %H >%O= to indicate that
 =autfilt= reads one file (=%H=) in the HOA format, and to redirect the
 output in file so that =autcross= can find it.  The output format is
 automatically detected, so a generic =%O= is used for the output file
@@ -203,7 +203,7 @@ time) will appear with empty columns at the end of the CSV line.
 Those lines with missing data can be omitted with the =--omit-missing=
 option.
 
-However data for bogus automata are still included: as shown below
+However, data for bogus automata are still included: as shown below
 =autcross= will report inconsistencies between automata as errors, but
 it does not try to guess who is incorrect.
 
@@ -251,9 +251,9 @@ EOF
 
 * Transformation that preserve or complement languages
 
-By default =autcross= assumes that for a given input the automata
-produced by all tools should be equivalent.  However it does not
-assume that those language should be equivalent to the input (it is
+By default, =autcross= assumes that for a given input the automata
+produced by all tools should be equivalent.  However, it does not
+assume that those languages should be equivalent to the input (it is
 clearly not the case in our complementation test above).
 
 If the transformation being tested does preserve the language of an
@@ -277,19 +277,19 @@ If a translator exits with a non-zero status code, or fails to output
 an automaton =autcross= can read, and error will be displayed and the
 result of the tool will be discarded.
 
-Otherwise =autcross= performs equivalence checks between each pair of
+Otherwise, =autcross= performs equivalence checks between each pair of
 automata.   This is done in two steps.  First, all produced automata
 =A0=, =A1=, etc. are complemented: the complement automata are
 named =Comp(A0)=, =Comp(A1)= etc.  Second, =autcross= ensures
 that =Ai*Comp(Aj)= is empty for all =i= and =j=.
 
 If the =--language-preserved= option is passed, the =input= automaton
-also participate to these equivalence checks.
+also participates to these equivalence checks.
 
 
-To simulate a problem, let's compare pretend we want verify that
-=autfilt --complement= preserves the input language (clearly it does
-not, since it actually complement the language of the automaton).
+To simulate a problem, let's pretend we want to verify that =autfilt
+--complement= preserves the input language (clearly it does not, since
+it actually complements the language of the automaton).
 
 #+BEGIN_SRC sh :prologue "exec 2>&1" :epilogue true
 randaut -B -n 3 a b --name="automaton %L" |
@@ -334,15 +334,15 @@ examples would not exit if the language was really preserved by the
 tool.
 
 Incoherence between the output of several tools (even with
-=--language-preserved=) are reported in a similar way.
+=--language-preserved=) are reported similarly.
 
 * Miscellaneous options
 
 ** =--stop-on-error=
 
 The =--stop-on-error= option will cause =autcross= to abort on the
-first detected error.  This include failure to start some tool,
-read its output, or failure to passe the sanity checks.  Timeouts are
+first detected error.  This includes failure to start some tool,
+read its output, or failure to pass the sanity checks.  Timeouts are
 allowed unless =--fail-on-timeout= is also given.
 
 One use for this option is when =autcross= is used in combination with
@@ -472,7 +472,7 @@ Performing sanity checks and gathering statistics...
 No problem detected.
 #+end_example
 
-However in practice you could also use the =name:= field of the input
+However, in practice you could also use the =name:= field of the input
 automaton, combined with =%M= in the tool specification, to designate
 an alternate filename to load, or some key to look up somewhere.
 

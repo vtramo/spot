@@ -49,7 +49,7 @@ might need to tell the compiler several things:
    search path with =-I location=.
 3. The linker should be able to find the Spot library (on Linux it would
    be called =libspot.so=, unless you forced a static compilation, in which
-   case it would be  =libspot.a=).  This might require appending another
+   case it would be =libspot.a=).  This might require appending another
    directory to the library search path with =-L location= in addition to
    passing the =-lspot= option.
 
@@ -120,7 +120,7 @@ to tell the dynamic loader about this location.
 
 * Case 3: You compiled Spot yourself, and installed it in a custom directory
 
-For instance you might have used
+For instance, you might have used
 #+BEGIN_SRC sh
 ./configure --prefix ~/usr
 make
@@ -147,7 +147,7 @@ it every time you want to run a binary that depends on Spot.
 * Case 4: You compiled Spot yourself, but did not install it
 
 We do not recommend this, but it is possible to compile programs
-that uses an uninstalled version of Spot.
+that use an uninstalled version of Spot.
 
 So you would just compile Spot in some directory (let's call it
 =/dir/spot-X.Y/=) with
@@ -164,7 +164,7 @@ There are at least two traps with this scenario:
    =/usr/local/include/spot/= using the same layout, but it also
    includes some private, internal headers.  These headers are
    normally not installed, so in the other scenarios you cannot use
-   them.  In this setup however, you might use them by mistake.  Also
+   them.  In this setup however, you might use them by mistake.  Also,
    that directory contains =*.cc= files implementing all the features
    of the library.  Clearly those file should be considered private as
    well.
@@ -192,7 +192,7 @@ Using =libtool link g++= instead of =g++= will cause =libtool= to
 edit the =g++= command line, and replace
 =/dir/spot-X.Y/spot/libspot.la= by whatever options are
 needed to link against the library represented by this /Libtool
-archive/.  Furthermore the resulting =hello= executable will not be a
+archive/.  Furthermore, the resulting =hello= executable will not be a
 binary, but a shell script that defines some necessary environment
 variables (like =LD_LIBRARY_PATH= to make sure the Spot library is
 found) before running the actual binary.
@@ -215,7 +215,7 @@ will need to add =-pthread= to the compiler flags.
 
 In the fourth case where =libtool= is used to link against
 =libspot.la= linking against =libbddx.la= should not be necessary because
-Libtool already handles such dependencies.  However the version of =libtool=
+Libtool already handles such dependencies.  However, the version of =libtool=
 distributed with Debian is patched to ignore those dependencies, so in this
 case you have to list all dependencies.
 
@@ -237,8 +237,8 @@ will turn on assertions, and debugging options, while
 #+END_SRC
 will disable assertions and enable more optimizations.
 
-If you are writing programs against Spot, we recommend to compile Spot
-with =--enable-devel= while your are developing your programs (the
+If you are writing programs against Spot, we recommend compiling Spot
+with =--enable-devel= while you are developing your programs (the
 assertions in Spot can be useful to diagnose problems in your program,
 or in Spot), and then use =--disable-devel= once you are confident and
 desire speed.

@@ -51,7 +51,7 @@ Let us first state a few facts about this minimization procedure.
 
 * How to change the SAT solver used
 
-By default Spot uses PicoSAT call_version()[:results raw], this SAT-solver
+By default, Spot uses PicoSAT call_version()[:results raw], this SAT-solver
 is built into the Spot library, so that no temporary files are used to
 store the problem.
 
@@ -79,10 +79,10 @@ post-processing routine used by both tools to prefer a
 deterministic automaton over a smaller equivalent nondeterministic
 automaton.
 
-However =-D= is not a guarantee to obtain a deterministic automaton,
+However, =-D= is not a guarantee to obtain a deterministic automaton,
 even if one exists.  For instance, =-D= fails to produce a
-deterministic automaton for =a U X(b | GF!b)=.  Instead we get a 4-state
-non-deterministic automaton.
+deterministic automaton for =a U X(b | GF!b)=.  Instead, we get a
+4-state non-deterministic automaton.
 
 #+BEGIN_SRC sh
 ltl2tgba -D 'a U X(b | GF!b)' --stats='states=%s, det=%d'
@@ -161,7 +161,7 @@ some help from [[http://www.ltl2dstar.de/][=ltl2dstar=]].
 
 The first is purely syntactic.  If a formula belongs to the class of
 "syntactic recurrence formulas", it expresses a syntactic property.
-(Of course there are formulas that expresses a syntactic properties
+(Of course there are formulas that expresses syntactic properties
 without being syntactic recurrences.)  [[file:ltlfilt.org][=ltlfilt=]] can be instructed to
 print only formulas that are syntactic recurrences:
 
@@ -220,9 +220,9 @@ minimized into an even smaller automaton if we use multiple acceptance
 sets.
 
 Unfortunately because =dstar2tgba= does not know the formula being
-translated, and it always convert a DRA into a DBA (with a single
+translated, and it always converts a DRA into a DBA (with a single
 acceptance set) before further processing, it does not know if using
-more acceptance sets could be useful to further minimize it.   This
+more acceptance sets could be useful to further minimize it.  This
 number of acceptance sets can however be specified on the command-line
 with option =-x sat-acc=M=.  For instance:
 
@@ -257,10 +257,10 @@ options).
 The picture is slightly inaccurate in the sense that both =ltl2tgba=
 and =dstar2tgba= are actually using the same post-processing chain:
 only the initial translation to TGBA or conversion to DBA differs, the
-rest is the same.  However in the case of =dstar2tgba=, no
+rest is the same.  However, in the case of =dstar2tgba=, no
 degeneration or determinization are needed.
 
-Also the picture does not show what happens when =-B= is used: any
+Also, the picture does not show what happens when =-B= is used: any
 DTBA is degeneralized into a DBA, before being sent to "DTBA SAT
 minimization", with a special option to request state-based output.
 
@@ -285,7 +285,7 @@ The following options can be used to fine-tune this procedure:
                   resulting DTBA is equivalent to the input.
 - =-x sat-minimize= :: enable SAT-based minimization. It is the same as
      =-x sat-minimize=1= (which is the default value). It performs a dichotomy
-     to find the correct automaton size.This option implies =-x tba-det=.
+     to find the correct automaton size.  This option implies =-x tba-det=.
 - =-x sat-minimize=[2|3]= :: enable SAT-based
      minimization. Let us consider each intermediate automaton as a =step=
      towards the minimal automaton and assume =N= as the size of the starting
@@ -311,7 +311,7 @@ The following options can be used to fine-tune this procedure:
 - =-x sat-incr-steps=N= :: set the value of =sat-incr-steps= to N. It does not
      make sense to use it without =-x sat-minimize=2= or =-x sat-minimize=3=.
 - =-x sat-acc=$m$= :: attempt to build a minimal DTGBA with $m$ acceptance sets.
-     This options implies =-x sat-minimize=.
+     This option implies =-x sat-minimize=.
 - =-x sat-states=$n$= :: attempt to build an equivalent DTGBA with $n$
      states.  This also implies =-x sat-minimize= but won't perform
      any loop to lower the number of states.  Note that $n$ should be
@@ -319,7 +319,7 @@ The following options can be used to fine-tune this procedure:
      and =dstar2tgba= both remove sink states in their output by
      default (use option =--complete= to output a complete automaton).
      Also note that even with the =--complete= option, the output
-     automaton may have appear to have less states because the other
+     automaton may appear to have fewer states because the other
      are unreachable.
 - =-x state-based= :: for all outgoing transition of each state
      to belong to the same acceptance sets.
@@ -332,7 +332,7 @@ is implied.
 
 * Using =autfilt --sat-minimize= to minimize any deterministic ω-automaton
 
-This interface is new in Spot 1.99 and allows to minimize any
+This interface is new in Spot 1.99 and allows minimizing any
 deterministic ω-automaton, regardless of the acceptance condition
 used.  By default, the procedure will try to use the same acceptance
 condition (or any inferior one) and produce transition-based
@@ -389,7 +389,7 @@ $txt
 
 This is clearly smaller than the input automaton.  In this example the
 acceptance condition did not change.  The SAT-based minimization only
-tries to minimize the number of states, but sometime the
+tries to minimize the number of states, but sometimes the
 simplifications algorithms that are run before we attempt SAT-solving
 will simplify the acceptance, because even removing a single
 acceptance set can halve the run time.
@@ -411,7 +411,7 @@ $txt
 
 
 Note that instead of naming the acceptance condition, you can actually
-give an acceptance formula in the [[http://adl.github.io/hoaf/#acceptance][HOA syntax]].  For example we can
+give an acceptance formula in the [[http://adl.github.io/hoaf/#acceptance][HOA syntax]].  For example, we can
 attempt to create a co-Büchi automaton with
 
 #+NAME: autfiltsm5
@@ -444,7 +444,7 @@ obtain an upper bound on the number of states if you haven't specified
 specify by hand.
 
 Here is an example demonstrating the case where the input automaton is
-smaller than the output.   Let's take this small TGBA as input:
+smaller than the output.  Let's take this small TGBA as input:
 
 #+NAME: autfiltsm6
 #+BEGIN_SRC sh :exports code
@@ -472,7 +472,7 @@ echo $?
 #+RESULTS: autfiltsm7
 : 1
 
-However if we allow more states, it will work:
+However, if we allow more states, it will work:
 
 #+NAME: autfiltsm8
 #+BEGIN_SRC sh :exports code
@@ -491,7 +491,7 @@ By default, the SAT-based minimization tries to find a smaller automaton by
 performing a binary search starting from =N/2= (N being the size of the
 starting automaton). After various benchmarks, this algorithm proves to be the
 best. However, in some cases, other rather similar methods might be better. The
-algorithm to execute and some other parameters can be set thanks to the
+algorithm to execute, and some other parameters can be set thanks to the
 =--sat-minimize= option.
 
 The =--sat-minimize= option takes a comma separated list of arguments
@@ -530,9 +530,9 @@ that can be any of the following:
 - =sat-naive= :: use the =naive= algorithm to find a smaller automaton. It starts
      from =N= and then checks =N-1=, =N-2=, etc. until the last successful
      check.
-- =sat-langmap= :: Find  the lower bound of default sat-minimize procedure. This
+- =sat-langmap= :: Find the lower bound of default sat-minimize procedure. This
      relies on the fact that the size of the minimal automaton is at least equal
-     to the  total  number  of different languages recognized by the automaton's
+     to the total number of different languages recognized by the automaton's
      states.
 - =colored= :: force all transitions (or all states if =-S= is used)
      to belong to exactly one acceptance condition.
@@ -559,7 +559,7 @@ $txt
 [[file:autfiltsm9.svg]]
 
 ... to the following, where the automaton is colored, i.e., each state
-belong to exactly one acceptance set:
+belongs to exactly one acceptance set:
 
 #+NAME: autfiltsm10
 #+BEGIN_SRC sh :exports code
@@ -589,7 +589,7 @@ dstar2tgba -D -x sat-minimize,sat-acc=2 --stats='input(states=%S) output(states=
 #+RESULTS:
 : input(states=11) output(states=5, acc-sets=2, det=1)
 
-Here is the contents of the =stats.csv= file:
+Here are the contents of the =stats.csv= file:
 #+begin_src sh :exports results :results output raw
 sed '1a\
 |-|
@@ -623,8 +623,8 @@ file follows RFC4180 in escaping double-quote by doubling them.
 
 In the above example, the DRA produced by =ltl2dstar= had 11 states.
 In the first line of the =stats.csv= file, you can see the
-minimization function had a 8-state input, which means that
-=dstar2tgba= first reduced the 11-state (complete) DRA into a 8-state
+minimization function had an 8-state input, which means that
+=dstar2tgba= first reduced the 11-state (complete) DRA into an 8-state
 (complete) DBA before calling the SAT-based minimization (the fact
 that the input was reduced to a *DBA* is not very obvious from this
 trace), This first line shows the SAT-based minimization for a

@@ -133,14 +133,14 @@ sudo dnf install spot python3-spot spot-devel spot-doc
 or a subset of those packages.  The package =spot= contains the
 command-line tools, =python3-spot= contains the Python bindings,
 =spot-devel= contains the C++ header files, and =spot-doc= the
-documentation that you can also find online.  Those packages depends
+documentation that you can also find online.  Those packages depend
 on =libspot= that contains the shared libraries.
 
 * Installing as a Conda package
 
   Spot is available as a [[https://anaconda.org/conda-forge/spot][Conda-forge package]] for Linux and OS X.
 
-  A typical installation would go as follow:
+  A typical installation would go as follows:
 
 #+BEGIN_SRC sh
   conda create --name myenv python=3.8 # adjust as desired
@@ -150,7 +150,7 @@ on =libspot= that contains the shared libraries.
 
   Note that this package is built automatically by the conda-forge
   infrastructure, but this requires some manual trigger after each
-  release.  Therefore there might be a delay between the moment a
+  release.  Therefore, there might be a delay between the moment a
   release of Spot is announced, and the availability of the Conda
   package.
 

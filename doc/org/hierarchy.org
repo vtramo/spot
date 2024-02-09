@@ -73,7 +73,7 @@ makes it possible to express constraints on finite prefixes.
 and /guarantee/ properties, while /reactivity/ properties are Boolean
 combinations of /recurrence/ and /persistence/ properties.  The
 negation of a /safety/ property is a /guarantee/ property (and
-vice-versa), and the same duality hold for /persistence/ and
+vice versa), and the same duality hold for /persistence/ and
 /recurrence/ properties.
 
 The red letters in each of these seven classes are keys used in
@@ -176,13 +176,13 @@ G({[*]}[]-> Fa)
 #+end_example
 
 Note that the order of the =ltlfilt= filters could be changed provided
-the =-n10= stays at the end.  For instance we could first keep all
+the =-n10= stays at the end.  For instance, we could first keep all
 recurrence before removing obligations and then removing LTL formulas.
 The order given above actually starts with the easier checks first and
-keep the most complex tests at the end of the pipeline so they are
+keep the most complex tests at the end of the pipeline, so they are
 applied to fewer formulas.  Testing whether a formula is an LTL
 formula is very cheap, testing if a formula is an obligation is harder
-(it may involves a translation to automata and a powerset
+(it may involve a translation to automata and a powerset
 construction), and testing whether a formula is a recurrence is the
 most costly procedure (it involves a translation as well, plus
 conversion to deterministic Rabin automata, and an attempt to convert
@@ -225,10 +225,10 @@ is not in class syntactic-C (we just know that some equivalent formula
 is in class syntactic-C).
 
 =ltlfilt= has options like =--syntactic-guarantee=,
-=--syntactic-persistence=, etc. to match formulas from this classes.
+=--syntactic-persistence=, etc. to match formulas from these classes.
 
 Here is how to generate 10 random LTL formulas that describe safety
-properties but that are not in the syntactic-safety class:
+properties, but that are not in the syntactic-safety class:
 
 #+BEGIN_SRC sh
 randltl -n-1 a b |
@@ -262,7 +262,7 @@ ltlfilt --simplify -f 'b M Gb'
 #+RESULTS:
 : Gb
 
-However in the general case Spot is not able to provide the equivalent
+However, in the general case Spot is not able to provide the equivalent
 formula from the appropriate syntactic class.
 
 * What to do with each class?
@@ -318,9 +318,9 @@ $txt
 Note that the default translation used by =ltl2tgba= will turn any
 syntactic persistence formulas (this includes obligations formulas)
 into a weak automaton.  In a weak automaton, the acceptance condition
-could be defined in term of SCCs, i.e., the cycles of some SCCs are
-either all accepting, or all rejecting.  As a consequence, it there is
-no incentive to use transition-based acceptance; instead, state-based
+could be defined in terms of SCCs, i.e., the cycles of some SCCs are
+either all accepting, or all rejecting.  As a consequence, if there is
+no incentive to use transition-based acceptance, state-based
 acceptance is output by default.
 
 With =ltl2tgba -D= we get a (minimal) deterministic weak Büchi
@@ -437,7 +437,7 @@ already be =t= (meaning that all runs are accepting).  However since
 the translator does not do anything particular about safety formulas,
 it is possible to find some pathological formulas for which the
 translator outputs a non-deterministic Büchi automaton where not all
-run are accepting.
+runs are accepting.
 
 Here is an example:
 
@@ -622,7 +622,7 @@ requirement.
 
 ** Persistence
 
-Since /persistence/ properties are outside of the /recurrence/ class,
+Since /persistence/ properties are outside the /recurrence/ class,
 they cannot be represented by deterministic Büchi automata.  The typical
 persistence formula is =FGa=, and using =-D= on this is hopeless.
 
@@ -665,7 +665,7 @@ return an automaton whose acceptance is one of =Fin(0)=, =t=, or =f=.
 The translator is aware of that, so when it detects that the input
 formula is a syntactic-persistence, it simplifies its translation
 slightly to ensure that the output will use at most one acceptance
-set.  (It is possible to define a persistence properties using an LTL
+set.  (It is possible to define a persistence property using an LTL
 formula that is not a syntactic-persistence, in that case this
 optimization is simply not applied.)
 

@@ -18,8 +18,8 @@ put for a toy example.
 
 This document shows how to create a Kripke structure that is stored as
 an explicit graph.  The class for those is =spot::kripke_graph= and
-works in a similar way as the class =spot::twa_graph= used for
-automata.  The main difference between those two classes is that
+works similarly to the class =spot::twa_graph= (used for
+automata).  The main difference between those two classes is that
 Kripke structures labels the states instead of the transitions.  Using
 =spot::kripke_graph= instead of =spot::twa_graph= saves a bit of
 memory.
@@ -188,8 +188,7 @@ int main()
 
 Note that this main function is similar to the main function we used
 for [[file:tut51.org::#check-prop][the on-the-fly version]] except for [[(ck)][the line that creates the Kripke
-structure]].  You can modify it to display the counterexample in a
-similar way.
+structure]].  You can modify it to display the counterexample similarly.
 
 * Python implementation
 ** Building the state space

@@ -61,7 +61,7 @@ static const argp_option options[] =
       "equivalent deterministic Rabin automaton of less than N! states.", 0},
     { "m-nba", gen::AUT_M_NBA, "RANGE", 0,
       "An NBA with N+1 states whose determinization needs at least "
-      "N! states", 0},
+      "N! states.", 0},
     { "cyclist-trace-nba", gen::AUT_CYCLIST_TRACE_NBA, "RANGE", 0,
       "An NBA with N+2 states that should include cyclist-proof-dba=B.", 0},
     { "cyclist-proof-dba", gen::AUT_CYCLIST_PROOF_DBA, "RANGE", 0,

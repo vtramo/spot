@@ -71,7 +71,7 @@ autfilt --dot='.#' tut40.hoa
 Whether two states are in simulation can be decided as a game between
 two players.  If the game is in state $(q,q')$, spoiler (player 0)
 first selects a transition from state $q$, and duplicator (player 1)
-then has to chose a compatible transition from state $q'$.  Duplicator
+then has to choose a compatible transition from state $q'$.  Duplicator
 of course wins if it always manages to select compatibles transitions,
 otherwise spoiler wins.
 
@@ -136,7 +136,7 @@ $txt
 Since player 1 is winning from state $(4,0)$, we know that state 4
 simulates state 0.  Also since player 1 would also win from state
 $(5,1)$, we can tell that state 5 simulates state 1.  We also learn
-that state 5 does not simulates states 2 and 3.  We could build other
+that state 5 does not simulate states 2 and 3.  We could build other
 games, or add more state to this game, to learn about other pairs of
 states.
 
@@ -225,13 +225,13 @@ To solve a safety game =g= that has been created by the above method,
 it is enough to just call =solve_safety_game(g)=.  The function
 =solve_game(g)= used below is a more generic interface that looks at
 the acceptance condition of the game to dispatch to the more specific
-game solver.  These functions returns the player winning in the
-initial state.  However, as a side-effect they define additional
+game solver.  These functions return the player winning in the
+initial state.  However, as a side effect they define additional
 automaton properties that indicate the winner of each state, and the
 associated strategy.
 
-Therefore to list all simulation pairs we learned from a game starting
-in state $(i,j)$, we could proceed as follow:
+Therefore, to list all simulation pairs we learned from a game starting
+in state $(i,j)$, we could proceed as follows:
 
 #+NAME: computesim_tut40
 #+BEGIN_SRC python :exports code

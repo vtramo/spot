@@ -19,7 +19,7 @@ There are other algorithms where BDDs are used from different tasks.
 For instance, our simulation-based reduction function computes a
 *signature* of each state as a BDD that is essentially the disjunction
 of all outgoing edges, represented by their guard, their acceptance
-sets, and their destination *classes*.  Also the translation of LTL
+sets, and their destination *classes*.  Also, the translation of LTL
 formulas to transition-based generalized Büchi automata is using an
 intermediate representation of states that is similar to the
 aforementioned signatures, excepts that classes are replaced by
@@ -125,7 +125,7 @@ is implicitly used in both cases.  Similarly, when we call
 =spot.translate()= the same global =bdd_dict= is used by default.
 
 What really confuses people, is that the association between an atomic
-proposition (=a=, =b=, ...) and a BDD variable (=0=, =1=, ...)  will
+proposition (=a=, =b=, ...) and a BDD variable (=0=, =1=, ...) will
 only be held by the =bdd_dict= for the lifetime of the objects (here the
 automata) that registered this association to the =bdd_dict=.
 
@@ -232,9 +232,9 @@ interface:
                                            const void* for_me);
 #+END_SRC
 
-The last function may be bit tricky to use, because we need to be sure
-that another object has registered some variables.  You can rely on
-the fact that each =twa= automaton register its variables this way.
+The last function may be a bit tricky to use, because we need to be
+sure that another object has registered some variables.  You can rely
+on the fact that each =twa= automaton register its variables this way.
 
 Now, in most cases, there is no need to worry about the =bdd_dict=.
 Automata will register and unregister variables as needed.  Other
@@ -290,7 +290,7 @@ The above code has two definitions.
 2. The =accepting_set= function iterates over an automaton, and saves
    all transitions that belong to a given acceptance set number.
 
-For instance we can now translate an automaton, compute its acceptance
+For instance, we can now translate an automaton, compute its acceptance
 set 0, and print it as follows:
 
 #+begin_src python :noweb strip-export
@@ -325,15 +325,15 @@ In this case, the temporary automaton constructed by
 =spot.translate()= and passed to the =accepting_set()= function is
 destroyed right after the =ts= object has been constructed.  When the
 automaton is destroyed, it removes all its associations from the
-=bdd_dict=.  This means that before the =print(ts)= the dictionary
-that was used by the automaton, and that is still stored in the =ts=
-objects is now empty: calling =bdd_format_formula()= raises an
-exception.
+=bdd_dict=.  This means that before the =print(ts)=, the dictionary
+that was used by the automaton and that is still stored in the =ts=
+objects is now empty.  Consequently, calling =bdd_format_formula()=
+raises an exception.
 
 This can be fixed in a couple of ways.  The easy way is to store the
 automaton inside the =trans_set= object, to ensure that it will live
 at least as long as the =trans_set= object.  But maybe the automaton
-is too big and we really want to get rid of it?  In this case
+is too big, and we really want to get rid of it?  In this case
 =trans_set= should tell the =bdd_dict= that it want to retain the
 associations.  The easiest way in this case is to call the
 =register_all_variables_of()= method, because we know that each
@@ -398,15 +398,15 @@ int bdd_dict::register_anonymous_variables(int n, const void* for_me);
 A range of =n= variables will be allocated starting at the returned
 index.
 
-For instance, let's say the our =trans_set= should now store a
-symbolic representation of a transition relation.  For simplicity we
+For instance, let's say that our =trans_set= should now store a
+symbolic representation of a transition relation.  For simplicity, we
 assume we just want to store set of pairs =(src,dst)=: each pair will
 be a conjunction $v_{src}\land v'_{dst}$ between two BDD variables
 taken from two ranges ($v_i$ representing a source state $i$ and $v'i$
 representing a destination state $i$), and the entire set will be a
 disjunction of all these pairs.  If the automaton has $n$ states, we
 want to allocate $2n$ BDD variables for this purpose.  We call these
-variables *anonymous* because their meaning is unknown the the
+variables *anonymous* because their meaning is unknown to the
 =bdd_dict=.
 
 #+begin_src python
