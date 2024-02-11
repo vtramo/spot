@@ -50,7 +50,7 @@ namespace spot
   /// edges that are kept.  If some edges are ignored or cut, the
   /// SCC graph that you can explore with scc_info::initial() and
   /// scc_info::succ() will be restricted to the portion reachable
-  /// with "keep" edges.  Additionally SCCs might be created when
+  /// with "keep" edges.  Additionally, SCCs might be created when
   /// edges are cut, but those will not be reachable from
   /// scc_info::initial()..
   enum class edge_filter_choice { keep, ignore, cut };
@@ -389,7 +389,7 @@ namespace spot
     /// Using this option is a precondition for using succ(),
     /// is_useful_scc(), and is_useful_state().
     TRACK_SUCCS = 4,
-    /// Conditionally track states if the acceptance conditions uses Fin.
+    /// Conditionally track states if the acceptance condition uses Fin.
     /// This is sufficiant for determine_unknown_acceptance().
     TRACK_STATES_IF_FIN_USED = 8,
     /// Also compute SCCs for the unreachable states.  When this is
@@ -431,7 +431,7 @@ namespace spot
   /// \brief Compute an SCC map and gather assorted information.
   ///
   /// This takes twa_graph as input and compute its SCCs.  This
-  /// class maps all input states to their SCCs, and vice-versa.
+  /// class maps all input states to their SCCs, and vice versa.
   /// It allows iterating over all SCCs of the automaton, and checks
   /// their acceptance or non-acceptance.
   ///
@@ -546,7 +546,7 @@ namespace spot
     ///
     /// If an accepting SCC has been found, return its number.
     /// Otherwise return -1.  Note that when the acceptance condition
-    /// contains Fin, -1 does not implies that all SCCs are rejecting:
+    /// contains Fin, -1 does not imply that all SCCs are rejecting:
     /// it just means that no accepting SCC is known currently.  In
     /// that case, you might want to call
     /// determine_unknown_acceptance() first.
@@ -758,10 +758,26 @@ namespace spot
     ///
     /// Pretend that the transitions of SCC \a scc that belong to any
     /// of the sets given in \a sets have been removed, and return a
-    /// set of automata necessary to cover all remaining states.
+    /// set of automata with disjoint sets of transitions that cover
+    /// all cycles that remain after the removal.  Two cycles that
+    /// share a state are guaranteed to be in the same automaton.
+    /// State and transitions that do not belong to any cycle after
+    /// removal may or may not be covered by the returned automata.
+    /// All returned automata have at least one edge, but it is
+    /// also possible that they may not contain any cycle.
     ///
     /// Set \a preserve_names to True if you want to keep the original
     /// name of each states for display.  (This is a bit slower.)
+    ///
+    /// This method was originally used as a part of our generic
+    /// emptiness check \cite baier.19.atva .  However, creating new
+    /// automata made it quite slow, so today our generic emptiness
+    /// check does not use split_on_sets().  Instead, it passes an
+    /// scc_and_mark_filter to scc_info in order to explore SCCs while
+    /// ignoring edges with some given colors and without any copy.
+    ///
+    /// \see scc_and_mark_filter
+    /// \see generic_emptiness_check_for_scc
     std::vector<twa_graph_ptr> split_on_sets(unsigned scc,
                                              acc_cond::mark_t sets,
                                              bool preserve_names = false) const;
