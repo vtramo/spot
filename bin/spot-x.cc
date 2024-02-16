@@ -56,7 +56,7 @@ as product or sum of subformulas.") },
 (done during translation, may create more states) and delayed-branching \
 (almost similar, but done after translation to only remove states).  \
 Set to 1 to force branching-postponement, and to 2 \
-to force delayed-branching.  By default delayed-branching is used.") },
+to force delayed-branching.  By default, delayed-branching is used.") },
     { DOC("comp-susp", "Set to 1 to enable compositional suspension, \
 as described in our SPIN'13 paper (see Bibliography below).  Set to 2, \
 to build only the skeleton TGBA without composing it.  Set to 0 (the \
@@ -87,7 +87,7 @@ the alternatinc cycle decomposition.  Set to 0 to use paritization based \
 on latest appearance record variants.") },
     { DOC("scc-filter", "Set to 1 (the default) to enable \
 SCC-pruning and acceptance simplification at the beginning of \
-post-processing.  Transitions that are outside of accepting SCC are \
+post-processing.  Transitions that are outside accepting SCC are \
 removed from accepting sets, except those that enter into an accepting \
 SCC.  Set to 2 to remove even these entering transition from the \
 accepting sets.  Set to 0 to disable this SCC-pruning and acceptance \
@@ -106,7 +106,7 @@ uses the first level created, 2 uses the minimum level seen so far, and \
 will compute an independent degeneralization order for each SCC it \
 processes.  This is currently disabled by default.") },
     { DOC("degen-lskip", "If non-zero (the default), the degeneralization \
-algorithm will skip as much levels as possible for each transition.  This \
+algorithm will skip as many levels as possible for each transition.  This \
 is enabled by default as it very often reduce the number of resulting \
 states.  A consequence of skipping levels is that the degeneralized \
 automaton tends to have smaller cycles around the accepting states.  \
@@ -176,27 +176,27 @@ The default is the value of parameter \"simul\" in --high mode, and 0 \
 therwise.") },
     { DOC("merge-states-min", "Number of states above which states are \
 merged using a cheap approximation of a bisimulation quotient before \
-attempting simulation-based reductions.   Defaults to 128.  Set to 0 to \
+attempting simulation-based reductions.  Defaults to 128.  Set to 0 to \
 never merge states.") },
     { DOC("simul-max", "Number of states above which simulation-based \
 reductions are skipped. Defaults to 4096.  Set to 0 to disable.  This \
 applies to all simulation-based optimization, including thoses of the \
 determinization algorithm.") },
     { DOC("simul-trans-pruning", "Number of equivalence classes above which \
-simulation-based transition-pruning for non-deterministic automata is disabled \
-automata. Defaults to 512.  Set to 0 to disable.  This applies to all \
-simulation-based reduction, as well as to the simulation-based optimization of \
-the determinization algorithm. Simulation-based reduction perform a number of \
-BDD implication checks that is quadratic in the number of classes to implement \
-transition pruning.  The equivalence classes is equal to the number \
-of output states of simulation-based reduction when transition-pruning is \
-disabled, it is just an upper bound otherwise.") },
+simulation-based transition-pruning for non-deterministic automata is \
+disabled.  Defaults to 512.  Set to 0 to disable.  This applies to all \
+simulation-based reductions, as well as to the simulation-based optimization \
+of the determinization algorithm.  Simulation-based reductions perform a \
+number of BDD implication checks that is quadratic in the number of classes to \
+implement transition pruning.  The number of equivalence classes is equal to \
+the number of output states of the simulation-based reduction when \
+transition-pruning is disabled, it is just an upper bound otherwise.") },
     { DOC("relabel-bool", "If set to a positive integer N, a formula \
 with N atomic propositions or more will have its Boolean subformulas \
 abstracted as atomic propositions during the translation to automaton. \
 This relabeling can speeds the translation if a few Boolean subformulas \
-use a large number of atomic propositions.  This relabeling make sure \
-the subexpression that are replaced do not share atomic propositions.  \
+use many atomic propositions.  This relabeling make sure \
+the subexpressions that are replaced do not share atomic propositions.  \
 By default N=4.  Setting this value to 0 will disable the rewriting.") },
     { DOC("relabel-overlap", "If set to a positive integer N, a formula \
 with N atomic propositions or more will have its Boolean subformulas \
@@ -204,7 +204,7 @@ abstracted as atomic propositions during the translation to automaton. \
 This version does not care about overlapping atomic propositions, so \
 it can cause the created temporary automata to have incompatible \
 combinations of atomic propositions that will be eventually be removed. \
-This relabeling is attempted after relabel-bool.  By default N=8.  Setting \
+This relabeling is attempted after relabel-bool.  By default, N=8.  Setting \
 this value to 0 will disable the rewriting.") },
     { DOC("wdba-minimize", "Set to 0 to disable WDBA-minimization, to 1 to \
 always try it, or 2 to attempt it only on syntactic obligations or on automata \
@@ -220,7 +220,7 @@ or when det-max-states is set.") },
 if the TGBA is not already deterministic.  Doing so will degeneralize \
 the automaton.  This is disabled by default, unless sat-minimize is set.") },
     { DOC("dba-simul", "Set to 1 to enable simulation-based reduction after \
-running the powerset determinization enabled by \"tba-det\".  By default this \
+running the powerset determinization enabled by \"tba-det\".  By default, this \
 is disabled at low level or if parameter \"simul\" is set to 0.") },
     { DOC("sat-minimize",
           "Set to a value between 1 and 4 to enable SAT-based minimization \
@@ -255,7 +255,7 @@ sets sat-minimize to 1 if not set differently.") },
     { DOC("state-based",
           "Set to 1 to instruct the SAT-minimization procedure to produce \
 an automaton where all outgoing transition of a state have the same acceptance \
-sets.  By default this is only enabled when options -B or -S are used.") },
+sets.  By default, this is only enabled when options -B or -S are used.") },
     { DOC("simul-method",
           "Chose which simulation based reduction to use: 1 force the \
 signature-based BDD implementation, 2 force matrix-based and 0, the default, \
