@@ -1143,3 +1143,7 @@ ltlsynt --ins='/^in/,/env/' --outs='/^out/,/control/' \
   -f 'G(controlenv <-> input)' 2>err && :
 test $? -eq 2
 grep 'controlenv.*matches both' err
+
+
+ltlsynt --polarity=1 --global-e=1 -f 'G(i -> Xo) & G(!i -> F!o)' --real
+ltlsynt --polarity=0 --global-e=0 -f 'G(i -> Xo) & G(!i -> F!o)' --real

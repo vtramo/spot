@@ -467,6 +467,12 @@ namespace
                   sub_outs[0].insert(ap);
               }
           }
+        else
+          {
+            for (const std::string& apstr: output_aps)
+              sub_outs[0].insert(spot::formula::ap(apstr));
+          }
+
       }
     std::vector<std::vector<std::string>> sub_outs_str;
     std::transform(sub_outs.begin(), sub_outs.end(),
