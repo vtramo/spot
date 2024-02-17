@@ -242,7 +242,7 @@ automaton has 6 states
 solving game with acceptance: co-Büchi
 game solved in X seconds
 EOF
-ltlsynt -f "G(Fi0 && Fi1 && Fi2) -> G(i1 <-> o0)" --outs="o0" --algo=lar \
+ltlsynt -f "G(Fi0 && Fi1 && Fi2) -> G(i1 <-> o0)" --algo=lar \
         --verbose --realizability 2> out
 sed 's/ [0-9.e-]* seconds/ X seconds/g' out > outx
 diff outx exp
@@ -625,14 +625,14 @@ diff stdout expected
 
 ltlsynt --ins=a,b --outs=c,a -f 'GFa | FGc | GFb' 2>stderr && :
 test $? -eq 2
-grep "'a' appears both" stderr
+grep "'a' appears in both" stderr
 
 ltlsynt --ins=a --outs=c -f 'GFa | FGb | GFc' 2>stderr && :
 test $? -eq 2
-grep "both.*but 'b' is unlisted" stderr
+grep "one.*should match 'b'" stderr
 ltlsynt -f 'GFa | FGb | GFc' 2>stderr && :
 test $? -eq 2
-grep "one of --ins or --outs" stderr
+grep "[-]-ins or --outs" stderr
 
 # Try to find a direct strategy for GFa <-> GFb and a direct strategy for
 # Gc
@@ -903,7 +903,7 @@ ltlsynt --outs="" -f "GFb" | grep "UNREALIZABLE"
 ltlsynt --outs="" -f "1"
 
 ltlsynt --outs="" --ins="" -f "GFa" 2>&1 | \
-  grep "both --ins and --outs are specified"
+  grep "one of --ins or --outs should match 'a'"
 
 LTL='(((((G (((((((g_0) && (G (! (r_0)))) -> (F (! (g_0)))) && (((g_0) &&
 (X ((! (r_0)) && (! (g_0))))) -> (X ((r_0) R (! (g_0)))))) && (((g_1) &&
@@ -1099,17 +1099,23 @@ s7="G(o07 <-> (i7 & i8)) & G((i7 & i8) -> (o11 U i3)) & GFo12 & G(o04 <-> "
 s8="(i4 & i6)) & G(o05 <-> !(i4 & i6)) & G(o15 <-> (i7 & i8)) & G(i7 -> o02) & "
 s9="G((!i7 & !(i1 & i2 & !i5 & i6)) -> o03) & G(o01 <-> (i1 & i2 & !i5 & i6))))"
 s=$s1$s2$s3$s4$s5$s6$s7$s8$s9
-ltlsynt --decomp=yes -f "$s" --ins=i1,i2,i3,i4,i5,i6,i7,i8 --realizability >out
-ltlsynt --decomp=no -f "$s" --ins=i1,i2,i3,i4,i5,i6,i7,i8 --realizability >>out
+ltlsynt --decomp=yes -f "$s" --realizability >out
+ltlsynt --decomp=no --outs='/^o[0-9]*$/' -f "$s" --realizability >>out
+ltlsynt --decomp=no --outs='/^o[0-9]$/' -f "$s" --realizability >>out && :
+ltlsynt  -f "$s" --ins='/^i[0-9]*$/' --realizability >>out
 cat >expected <<EOF
 REALIZABLE
+REALIZABLE
+UNREALIZABLE
 REALIZABLE
 EOF
 diff out expected
 
 f1="((G ((p0) <-> (! (p1)))) && (((((F ((b) && (G (F (a))))) ||\
   (F ((c) && (G (F (! (a))))))) && (F (b))) && (F (c))) <-> (G (F (p0)))))"
-ltlsynt -f "$f1" --outs="p1, p0" --aiger > /dev/null
+ltlsynt -f "$f1" --outs="p1, p0" --aiger > out1.hoa
+ltlsynt -f "$f1" --outs="p1, /^p/" --aiger > out2.hoa
+diff out1.hoa out2.hoa
 
 # issue #557
 ltlsynt  -f 'G(in1 <-> out0) & G(in0 <-> out1)' --ins=in1,in0 --verb 2>err >out
@@ -1120,3 +1126,20 @@ cat >err2.ex <<EOF
 EOF
 diff err2 err2.ex
 grep -F '[!0&!1&!2&!3 | !0&!1&2&3 | 0&1&!2&!3 | 0&1&2&3] 0' out
+
+ltlsynt -f 'G((in1 && in2) <-> XXout2) && G((in1 | !in2) -> Fout2)' \
+        --realizability >out && :
+test $? -eq 1
+# specitying --outs=in2 should have priority over regular expressions
+ltlsynt -f 'G((in1 && in2) <-> XXout2) && G((in1 | !in2) -> Fout2)' \
+        --realizability --ins='/^i/' --outs='out2,in2' >>out
+cat >expected <<EOF
+UNREALIZABLE
+REALIZABLE
+EOF
+diff out expected
+
+ltlsynt --ins='/^in/,/env/' --outs='/^out/,/control/' \
+  -f 'G(controlenv <-> input)' 2>err && :
+test $? -eq 2
+grep 'controlenv.*matches both' err

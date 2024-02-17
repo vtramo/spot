@@ -43,6 +43,7 @@
 #include <spot/twaalgos/product.hh>
 #include <spot/twaalgos/synthesis.hh>
 #include <spot/twaalgos/translate.hh>
+#include <regex>
 
 enum
 {
@@ -73,10 +74,10 @@ static const argp_option options[] =
     { nullptr, 0, nullptr, 0, "Input options:", 1 },
     { "outs", OPT_OUTPUT, "PROPS", 0,
       "comma-separated list of controllable (a.k.a. output) atomic"
-      " propositions", 0 },
+      " propositions, , interpreted as a regex if enclosed in slashes", 0 },
     { "ins", OPT_INPUT, "PROPS", 0,
       "comma-separated list of uncontrollable (a.k.a. input) atomic"
-      " propositions", 0 },
+      " propositions, interpreted as a regex if enclosed in slashes", 0 },
     { "tlsf", OPT_TLSF, "FILENAME", 0,
       "Read a TLSF specification from FILENAME, and call syfco to "
       "convert it into LTL", 0 },
@@ -171,8 +172,16 @@ Exit status:\n\
   1   if at least one input problem was not realizable\n\
   2   if any error has been reported";
 
+// --ins and --outs, as supplied on the command-line
 static std::optional<std::vector<std::string>> all_output_aps;
 static std::optional<std::vector<std::string>> all_input_aps;
+
+// first, separate the filters that are regular expressions from
+// the others.  Compile the regular expressions while we are at it.
+static std::vector<std::regex> regex_in;
+static std::vector<std::regex> regex_out;
+// map identifier to input/output (false=input, true=output)
+static std::unordered_map<std::string, bool> identifier_map;
 
 static const char* opt_csv = nullptr;
 static bool opt_print_pg = false;
@@ -690,78 +699,111 @@ namespace
       }
   }
 
+  static std::unordered_set<std::string>
+  list_aps_in_formula(spot::formula f)
+  {
+    std::unordered_set<std::string> aps;
+    f.traverse([&aps](spot::formula s) {
+      if (s.is(spot::op::ap))
+        aps.emplace(s.ap_name());
+      return false;
+    });
+    return aps;
+  }
+
+  // Takes a set of the atomic propositions appearing in the formula,
+  // and seperate them into two vectors: input APs and output APs.
+  static std::pair<std::vector<std::string>, std::vector<std::string>>
+  filter_list_of_aps(const std::unordered_set<std::string>& aps,
+                     const char* filename, int linenum)
+  {
+    // now iterate over the list of atomic propositions to filter them
+    std::vector<std::string> matched[2]; // 0 = input, 1 = output
+    for (const std::string& a: aps)
+      {
+        if (auto it = identifier_map.find(a); it != identifier_map.end())
+          {
+            matched[it->second].push_back(a);
+            continue;
+          }
+
+        bool found_in = false;
+        for (const std::regex& r: regex_in)
+          if (std::regex_search(a, r))
+            {
+              found_in = true;
+              break;
+            }
+        bool found_out = false;
+        for (const std::regex& r: regex_out)
+          if (std::regex_search(a, r))
+            {
+              found_out = true;
+              break;
+            }
+        if (all_input_aps.has_value() == all_output_aps.has_value())
+          {
+            if (!all_input_aps.has_value())
+              {
+                // If the atomic proposition hasn't been classified
+                // because neither --ins nor --out were specified,
+                // attempt to classify automatically using the first
+                // letter.
+                int fl = a[0];
+                if (fl == 'i' || fl == 'I')
+                  found_in = true;
+                else if (fl == 'o' || fl == 'O')
+                  found_out = true;
+              }
+            if (found_in && found_out)
+              error_at_line(2, 0, filename, linenum,
+                            "'%s' matches both --ins and --outs",
+                            a.c_str());
+            if (!found_in && !found_out)
+              {
+                if (all_input_aps.has_value() || all_output_aps.has_value())
+                  error_at_line(2, 0, filename, linenum,
+                                "one of --ins or --outs should match '%s'",
+                                a.c_str());
+                else
+                  error_at_line(2, 0, filename, linenum,
+                                "since '%s' does not start with 'i' or 'o', "
+                                "it is unclear if it is an input or "
+                                "an output;\n    use --ins or --outs",
+                                a.c_str());
+              }
+          }
+        else
+          {
+            // if we had only --ins or only --outs, anything not
+            // matching was was given is assumed to belong to the
+            // other one.
+            if (!all_input_aps.has_value() && !found_out)
+              found_in = true;
+            else if (!all_output_aps.has_value() && !found_in)
+              found_out = true;
+          }
+        matched[found_out].push_back(a);
+      }
+    return {matched[0], matched[1]};
+  }
+
+
+
   class ltl_processor final : public job_processor
   {
-  private:
-    std::optional<std::vector<std::string>> input_aps_;
-    std::optional<std::vector<std::string>> output_aps_;
-
   public:
-    ltl_processor(std::optional<std::vector<std::string>> input_aps_,
-                  std::optional<std::vector<std::string>> output_aps_)
-        : input_aps_(std::move(input_aps_)),
-          output_aps_(std::move(output_aps_))
+    ltl_processor()
     {
     }
 
     int process_formula(spot::formula f,
                         const char* filename, int linenum) override
     {
-      auto unknown_aps = [](spot::formula f,
-                    const std::optional<std::vector<std::string>>& known,
-                    const std::optional<std::vector<std::string>>& known2 = {})
-      {
-        std::vector<std::string> unknown;
-        std::set<spot::formula> seen;
-        // If we don't have --ins and --outs, we must not find an AP.
-        bool can_have_ap = known.has_value();
-        f.traverse([&](const spot::formula& s)
-        {
-          if (s.is(spot::op::ap))
-            {
-              if (!seen.insert(s).second)
-                return false;
-              const std::string& a = s.ap_name();
-              if (!can_have_ap
-                  || (std::find(known->begin(), known->end(), a) == known->end()
-                  && (!known2.has_value()
-                      || std::find(known2->begin(),
-                                   known2->end(), a) == known2->end())))
-                unknown.push_back(a);
-            }
-          return false;
-        });
-        return unknown;
-      };
-
-      // Decide which atomic propositions are input or output.
-      int res;
-      if (!input_aps_.has_value() && output_aps_.has_value())
-        {
-          res = solve_formula(f, unknown_aps(f, output_aps_), *output_aps_);
-        }
-      else if (!output_aps_.has_value() && input_aps_.has_value())
-        {
-          res = solve_formula(f, *input_aps_, unknown_aps(f, input_aps_));
-        }
-      else if (!output_aps_.has_value() && !input_aps_.has_value())
-        {
-          for (const std::string& ap: unknown_aps(f, input_aps_, output_aps_))
-            error_at_line(2, 0, filename, linenum,
-                          "one of --ins or --outs should list '%s'",
-                          ap.c_str());
-          res = solve_formula(f, *input_aps_, *output_aps_);
-        }
-      else
-        {
-          for (const std::string& ap: unknown_aps(f, input_aps_, output_aps_))
-            error_at_line(2, 0, filename, linenum,
-                          "both --ins and --outs are specified, "
-                          "but '%s' is unlisted",
-                          ap.c_str());
-          res = solve_formula(f, *input_aps_, *output_aps_);
-        }
-
+      std::unordered_set<std::string> aps = list_aps_in_formula(f);
+      auto [input_aps, output_aps] =
+        filter_list_of_aps(aps, filename, linenum);
+      int res = solve_formula(f, input_aps, output_aps);
       if (opt_csv)
         print_csv(f);
       return res;
@@ -782,7 +824,7 @@ namespace
       // The set of atomic proposition will be temporary set to those
       // given by syfco, unless they were forced from the command-line.
       bool reset_aps = false;
-      if (!input_aps_.has_value() && !output_aps_.has_value())
+      if (!all_input_aps.has_value() && !all_output_aps.has_value())
         {
           reset_aps = true;
           static char arg5[] = "--print-output-signals";
@@ -790,12 +832,17 @@ namespace
                               const_cast<char*>(filename), nullptr };
           std::string res = read_stdout_of_command(command);
 
-          output_aps_.emplace(std::vector<std::string>{});
-          split_aps(res, *output_aps_);
+          all_output_aps.emplace(std::vector<std::string>{});
+          split_aps(res, *all_output_aps);
+          for (const std::string& a: *all_output_aps)
+            identifier_map.emplace(a, true);
         }
       int res = process_string(tlsf_string, filename);
       if (reset_aps)
-        output_aps_.reset();
+        {
+          all_output_aps.reset();
+          identifier_map.clear();
+        }
       return res;
     }
 
@@ -1077,14 +1124,29 @@ main(int argc, char **argv)
 
     check_no_formula();
 
-    // Check if inputs and outputs are distinct
-    if (all_input_aps.has_value() && all_output_aps.has_value())
-      for (const std::string& ai : *all_input_aps)
-        if (std::find(all_output_aps->begin(), all_output_aps->end(), ai)
-            != all_output_aps->end())
-          error(2, 0, "'%s' appears both in --ins and --outs", ai.c_str());
+    // Filter identifiers from regexes.
+    if (all_input_aps.has_value())
+      for (const std::string& f: *all_input_aps)
+        {
+          unsigned sz = f.size();
+          if (f[0] == '/' && f[sz - 1] == '/')
+            regex_in.push_back(std::regex(f.substr(1, sz - 2)));
+          else
+            identifier_map.emplace(f, false);
+        }
+    if (all_output_aps.has_value())
+      for (const std::string& f: *all_output_aps)
+        {
+          unsigned sz = f.size();
+          if (f[0] == '/' && f[sz - 1] == '/')
+            regex_out.push_back(std::regex(f.substr(1, sz - 2)));
+          else if (auto [it, is_new] = identifier_map.try_emplace(f, true);
+                   !is_new && !it->second)
+            error(2, 0, "'%s' appears in both --ins and --outs",
+                  f.c_str());
+        }
 
-    ltl_processor processor(all_input_aps, all_output_aps);
+    ltl_processor processor;
     if (int res = processor.run(); res == 0 || res == 1)
       {
         // Diagnose unused -x options

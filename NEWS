@@ -16,6 +16,19 @@ New in spot 2.11.6.dev  (not yet released)
     will replace boolean subformulas by fresh atomic propositions even
     if those subformulas share atomic propositions.
 
+  - ltlsynt's --ins and --outs options will iterpret any atomic
+    proposition surrounded by '/' as a regular expressions.
+    For intance with
+
+      ltlsynt --ins='/^in/,/env/' --outs=/^out/,/control/' ...
+
+    any atomic proposition that start with 'in' or contains 'env'
+    will be considered as inputs, and those that start with 'out'
+    or contain 'control' will be considered output.
+
+    By default, if neither --ins nor --outs is given, ltlsynt will
+    behave as if --ins='/^[iI]/' and --outs='/^[oO]/ were used.
+
   - ltlsynt will now check for atomic propositions that always have
     the same polarity in the specification.  When this happens, these
     output APs are replaced by true or false before running the
