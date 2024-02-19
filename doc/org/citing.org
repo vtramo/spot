@@ -89,7 +89,7 @@ be more specific about a particular aspect of Spot.
 
 - *Dissecting ltlsynt*,
   /Florian Renkin/, /Philipp Schlehuber-Caissier/, /Alexandre Duret-Lutz/,
-  and Adrien Pommellet.
+  and /Adrien Pommellet/.
   In Formal Methods in System Design, 2023.  ([[https://www.lrde.epita.fr/~adl/dl/adl_bib.html#renkin.23.scp][bib]] | [[https://www.lrde.epita.fr/~adl/dl/adl/renkin.23.scp.pdf][pdf]])
 
   Discuss the implementation of [[file:ltlsynt.org][=ltlsynt=]].
