@@ -36,4 +36,8 @@ namespace spot
   class twa_product;
   typedef std::shared_ptr<const twa_product> const_twa_product_ptr;
   typedef std::shared_ptr<twa_product> twa_product_ptr;
+
+  struct twa_word;
+  typedef std::shared_ptr<const twa_word> const_twa_word_ptr;
+  typedef std::shared_ptr<twa_word> twa_word_ptr;
 }

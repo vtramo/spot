@@ -155,6 +155,12 @@ namespace spot
     return !otf_product(self, other)->is_empty();
   }
 
+  bool
+  twa::intersects(const_twa_word_ptr w) const
+  {
+    return intersects(w->as_automaton());
+  }
+
   twa_run_ptr
   twa::intersecting_run(const_twa_ptr other) const
   {

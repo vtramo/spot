@@ -85,6 +85,16 @@ namespace spot
     /// This is useful to evaluate a word on an automaton.
     twa_graph_ptr as_automaton() const;
 
+    /// \brief Check if a the twa_word intersect another automaton.
+    ///
+    /// If the twa_word actually represent a word (i.e., if each
+    /// Boolean formula that label its steps have a unique satisfying
+    /// valuation), this is equivalent to a membership test.
+    bool intersects(const_twa_ptr aut) const
+    {
+      return as_automaton()->intersects(aut);
+    }
+
     /// \brief Print a twa_word
     ///
     /// Words are printed as
@@ -100,8 +110,6 @@ namespace spot
   private:
     bdd_dict_ptr dict_;
   };
-
-  typedef std::shared_ptr<twa_word> twa_word_ptr;
 
   /// \brief Create an empty twa_word
   ///

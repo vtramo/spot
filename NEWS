@@ -114,6 +114,11 @@ New in spot 2.11.6.dev  (not yet released)
 
     The above also impacts autfilt --included-in option.
 
+  - Given a twa_word_ptr W and a twa_ptr A both sharing the same
+    alphabet, one can now write W->intersects(A) or A->intersects(W)
+    instead of the longuer W->as_automaton()->intersects(A) or
+    A->intersects(W->as_automaton()).
+
   - spot::scc_info has a new option PROCESS_UNREACHABLE_STATES that
     causes it to enumerate even unreachable SCCs.
 

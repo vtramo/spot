@@ -578,10 +578,8 @@ namespace spot::forq
           auto shared_dict = setup.context.A.aut->get_dict();
           auto current_word = util::as_twa_word_ptr(shared_dict, word_of_u,
                                                     word_of_v);
-          if (!setup.context.B.aut->intersects(current_word->as_automaton()))
-            {
-              return current_word;
-            }
+          if (!current_word->intersects(setup.context.B.aut))
+            return current_word;
         }
     }
     return nullptr;

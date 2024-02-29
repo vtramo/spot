@@ -865,6 +865,13 @@ namespace spot
     /// this case an explicit product is performed.
     virtual bool intersects(const_twa_ptr other) const;
 
+    /// \brief Check if this automaton _word intersects a word.
+    ///
+    /// If the twa_word actually represent a word (i.e., if each
+    /// Boolean formula that label its steps have a unique satisfying
+    /// valuation), this is equivalent to a membership test.
+    virtual bool intersects(const_twa_word_ptr w) const;
+
     /// \brief Return an accepting run recognizing a word accepted by
     /// two automata.
     ///
