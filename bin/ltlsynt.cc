@@ -63,6 +63,7 @@ enum
   OPT_PRINT_HOA,
   OPT_REAL,
   OPT_SIMPLIFY,
+  OPT_SPLITTYPE,
   OPT_TLSF,
   OPT_VERBOSE,
   OPT_VERIFY
@@ -116,6 +117,9 @@ static const argp_option options[] =
       "reduction with output assignment, (sat) SAT-based minimization, "
       "(bisim-sat) SAT after bisim, (bwoa-sat) SAT after bwoa.  Defaults "
       "to 'bwoa'.", 0 },
+    { "splittype", OPT_SPLITTYPE, "expl|semisym|fullysym|auto", 0,
+      "Selects the algorithm to use to transform the automaton into "
+      "a game graph. Defaults to 'auto'.", 0},
     /**************************************************/
     { nullptr, 0, nullptr, 0, "Output options:", 20 },
     { "print-pg", OPT_PRINT, nullptr, 0,
@@ -276,6 +280,23 @@ static unsigned simplify_values[] =
     5, 5,
   };
 ARGMATCH_VERIFY(simplify_args, simplify_values);
+
+static const char* const splittype_args[] =
+  {
+    "expl",
+    "semisym",
+    "fullysym",
+    "auto",
+    nullptr
+  };
+static spot::synthesis_info::splittype splittype_values[] =
+  {
+    spot::synthesis_info::splittype::EXPL,
+    spot::synthesis_info::splittype::SEMISYM,
+    spot::synthesis_info::splittype::FULLYSYM,
+    spot::synthesis_info::splittype::AUTO,
+  };
+ARGMATCH_VERIFY(splittype_args, splittype_values);
 
 namespace
 {
@@ -870,7 +891,7 @@ namespace
           return 2;
         }
       if (!arena->get_named_prop<std::vector<bool>>("state-player"))
-        arena = spot::split_2step(arena, true);
+        arena = spot::split_2step(arena, gi);
       else
         {
           // Check if the game is alternating and fix trivial cases
@@ -1087,6 +1108,10 @@ parse_opt(int key, char *arg, struct argp_state *)
     case OPT_SIMPLIFY:
       gi->minimize_lvl = XARGMATCH("--simplify", arg,
                                    simplify_args, simplify_values);
+      break;
+    case OPT_SPLITTYPE:
+      gi->sp = XARGMATCH("--splittype", arg,
+                         splittype_args, splittype_values);
       break;
     case OPT_TLSF:
       jobs.emplace_back(arg, job_type::TLSF_FILENAME);

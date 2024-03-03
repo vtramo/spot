@@ -25,6 +25,71 @@
 
 namespace spot
 {
+
+  /// \ingroup synthesis
+  /// \brief Benchmarking data and options for synthesis
+  struct SPOT_API synthesis_info
+  {
+    enum class algo
+    {
+      DET_SPLIT=0,
+      SPLIT_DET,
+      DPA_SPLIT,
+      LAR,
+      LAR_OLD,
+      ACD,
+    };
+
+    enum class splittype
+    {
+      AUTO=0,  // Uses a heuristic to choose
+      EXPL,  // Explicit enumerations of inputs
+      SEMISYM,  // Works on one bdd per env state
+      FULLYSYM  // Works on a fully symbolic version of the automaton
+    };
+
+    struct bench_var
+    {
+      double total_time = 0.0;
+      double trans_time = 0.0;
+      double split_time = 0.0;
+      double paritize_time = 0.0;
+      double solve_time = 0.0;
+      double strat2aut_time = 0.0;
+      double simplify_strat_time = 0.0;
+      double aig_time = 0.0;
+      unsigned nb_states_arena = 0;
+      unsigned nb_states_arena_env = 0;
+      unsigned nb_strat_states = 0;
+      unsigned nb_strat_edges = 0;
+      unsigned nb_simpl_strat_states = 0;
+      unsigned nb_simpl_strat_edges = 0;
+      unsigned nb_latches = 0;
+      unsigned nb_gates = 0;
+      bool realizable = false;
+    };
+
+    synthesis_info()
+        : force_sbacc{false},
+          s{algo::LAR},
+          minimize_lvl{2},
+          sp{splittype::AUTO},
+          bv{},
+          verbose_stream{nullptr},
+          dict(make_bdd_dict())
+    {
+    }
+
+    bool force_sbacc;
+    algo s;
+    int minimize_lvl;
+    splittype sp;
+    std::optional<bench_var> bv;
+    std::ostream* verbose_stream;
+    option_map opt;
+    bdd_dict_ptr dict;
+  };
+
   /// \addtogroup synthesis Reactive Synthesis
   /// \ingroup twa_algorithms
 
@@ -51,18 +116,33 @@ namespace spot
   ///                     are treated as inputs
   /// \param complete_env Whether the automaton should be complete for the
   ///                     environment, i.e. the player of inputs
+  /// \param sp           Defines which splitting algo to use
   /// \note This function also computes the state players
   /// \note If the automaton is to be completed, sink states will
   ///       be added for both env and player if necessary
   SPOT_API twa_graph_ptr
   split_2step(const const_twa_graph_ptr& aut,
-              const bdd& output_bdd, bool complete_env = true);
+              const bdd& output_bdd, bool complete_env = true,
+              synthesis_info::splittype sp
+                = synthesis_info::splittype::AUTO);
 
   /// \ingroup synthesis
   /// \brief Like split_2step but relying on the named property
   /// 'synthesis-outputs'
   SPOT_API twa_graph_ptr
-  split_2step(const const_twa_graph_ptr& aut, bool complete_env = true);
+  split_2step(const const_twa_graph_ptr& aut, bool complete_env = true,
+              synthesis_info::splittype sp
+                            = synthesis_info::splittype::AUTO);
+
+  /// \ingroup synthesis
+  /// \brief Like split_2step but allows to fine-tune the splitting
+  /// via the options set in \a gi, always completes the
+  /// environment states and relies on the named property to
+  /// extract the output proposition
+  SPOT_API twa_graph_ptr
+  split_2step(const const_twa_graph_ptr& aut,
+              synthesis_info& gi);
+
 
   /// \ingroup synthesis
   /// \brief the inverse of split_2step
@@ -74,60 +154,6 @@ namespace spot
   /// \note This function relies on the named property "state-player"
   SPOT_API twa_graph_ptr
   unsplit_2step(const const_twa_graph_ptr& aut);
-
-  /// \ingroup synthesis
-  /// \brief Benchmarking data and options for synthesis
-  struct SPOT_API synthesis_info
-  {
-    enum class algo
-    {
-      DET_SPLIT=0,
-      SPLIT_DET,
-      DPA_SPLIT,
-      LAR,
-      LAR_OLD,
-      ACD,
-    };
-
-    struct bench_var
-    {
-      double total_time = 0.0;
-      double trans_time = 0.0;
-      double split_time = 0.0;
-      double paritize_time = 0.0;
-      double solve_time = 0.0;
-      double strat2aut_time = 0.0;
-      double simplify_strat_time = 0.0;
-      double aig_time = 0.0;
-      unsigned nb_states_arena = 0;
-      unsigned nb_states_arena_env = 0;
-      unsigned nb_strat_states = 0;
-      unsigned nb_strat_edges = 0;
-      unsigned nb_simpl_strat_states = 0;
-      unsigned nb_simpl_strat_edges = 0;
-      unsigned nb_latches = 0;
-      unsigned nb_gates = 0;
-      bool realizable = false;
-    };
-
-    synthesis_info()
-    : force_sbacc{false},
-      s{algo::LAR},
-      minimize_lvl{2},
-      bv{},
-      verbose_stream{nullptr},
-      dict(make_bdd_dict())
-    {
-    }
-
-    bool force_sbacc;
-    algo s;
-    int minimize_lvl;
-    std::optional<bench_var> bv;
-    std::ostream* verbose_stream;
-    option_map opt;
-    bdd_dict_ptr dict;
-  };
 
   /// \ingroup synthesis
   /// \brief Stream algo
