@@ -32,9 +32,15 @@
 #include <spot/twaalgos/toparity.hh>
 #include <spot/tl/parse.hh>
 #include <algorithm>
+#include <cassert>
+#include <cmath>
 #include <string>
 #include <stack>
+#include <variant>
 
+#ifndef NDEBUG
+#include <spot/twaalgos/hoa.hh>
+#endif
 // Helper function/structures for split_2step
 namespace{
   using namespace spot;
@@ -440,9 +446,11 @@ namespace{
 
 namespace spot
 {
+  namespace
+  {
   twa_graph_ptr
-  split_2step(const const_twa_graph_ptr& aut,
-              const bdd& output_bdd, bool complete_env)
+  split_2step_expl_impl(const const_twa_graph_ptr& aut,
+                        const bdd& output_bdd, bool complete_env)
   {
     assert(!aut->get_named_prop<region_t>("state-player")
            && "aut is already split!");
@@ -681,14 +689,961 @@ namespace spot
 
     // Done
     return split;
+  } // End split old impl
+
+  std::vector<bdd>
+  do_bin_encode_(unsigned N, int var0, unsigned Nvar)
+  {
+    auto bddvec = std::vector<std::array<bdd, 2>>(Nvar);
+    for (unsigned i = 0; i < Nvar; ++i)
+      bddvec[i] = {bdd_nithvar(var0+i), bdd_ithvar(var0+i)};
+
+    auto do_bin_encode_1 = [&bddvec, Nvar](unsigned s) -> bdd {
+      bdd res = bddtrue;
+
+      for (unsigned i = 0; i < Nvar; ++i)
+        {
+          res &= bddvec[i][s&1];
+          s >>= 1;
+        }
+      return res;
+    };
+
+    auto s2bdd = std::vector<bdd>(N);
+    for (unsigned s = 0; s < N; ++s)
+      s2bdd[s] = do_bin_encode_1(s);
+
+    return s2bdd;
+  }
+
+  struct bitVectDecodeIterator{
+    const std::vector<unsigned>& v_;
+    unsigned u_, idx_ = 0u, vsize_;
+    bool first_ = true;
+
+    bitVectDecodeIterator(const std::vector<unsigned>& v, unsigned init)
+        : v_{v}
+        , u_{init}
+        , vsize_(v_.size())
+    {
+    }
+
+    // Sets to zero all variable bits before the current idx
+    void small_reset_() noexcept {
+      // Skip current idx
+      for (--idx_; idx_!= -1u; --idx_)
+        u_ ^= (1u << v_[idx_]);
+      idx_ = 0;
+    }
+
+    bitVectDecodeIterator& operator++() noexcept {
+      first_ = false;
+      // Search for the next variable bit to increase
+      while (idx_ < vsize_)
+        {
+          auto curr = 1u << v_[idx_];
+          if (!(u_ & curr)){
+            u_ |= curr;
+            small_reset_();
+            return *this;
+          }
+          ++idx_;
+        }
+      return *this;
+    }
+
+    unsigned operator*() const noexcept {
+      return u_;
+    }
+
+    explicit operator bool() const noexcept{
+      // There is always at least one element
+      return idx_ < vsize_ || first_;
+    }
+
+  };
+
+  class bitVectDecodeRange
+  {
+  private:
+    const std::vector<unsigned>& v_;
+    const unsigned initval_;
+
+  public:
+    bitVectDecodeRange(const std::vector<unsigned>& v, unsigned init)
+        : v_{v}
+        , initval_{init}
+    {
+    }
+
+    auto
+    begin() const
+    {
+      return bitVectDecodeIterator(v_, initval_);
+    }
+
+  };
+
+  template<bool FULLYSYM>
+  twa_graph_ptr
+  split_2step_sym_impl(const const_twa_graph_ptr& aut,
+                       const bdd& output_bdd, bool complete_env)
+  {
+
+    assert(!aut->get_named_prop<region_t>("state-player")
+           && "aut is already split!");
+
+    auto split = make_twa_graph(aut->get_dict());
+
+    auto [has_unsat, unsat_mark] = aut->acc().unsat_mark();
+    bool max_par, odd_par, color_env;
+    color_env = aut->acc().is_parity(max_par, odd_par, true);
+    const unsigned Ncolor = aut->acc().all_sets().max_set();
+
+    split->copy_ap_of(aut);
+    split->new_states(aut->num_states());
+    split->set_init_state(aut->get_init_state_number());
+    set_synthesis_outputs(split, output_bdd);
+    //split->prop_copy(aut, twa::prop_set::all()); // todo why?
+
+    const auto use_color = has_unsat;
+    color_env &= use_color;
+    if (has_unsat)
+      split->copy_acceptance_of(aut);
+    else
+      {
+        if (complete_env)
+          {
+            split->set_co_buchi(); // Fin(0)
+            unsat_mark = acc_cond::mark_t({0});
+            has_unsat = true;
+          }
+        else
+          split->acc().set_acceptance(acc_cond::acc_code::t());
+      }
+
+    // Reserve all the necessary variables
+    const unsigned N = split->num_states();
+    const unsigned Nstvars = std::ceil(std::log2(N));
+    // we use one hot encoding for colors
+    constexpr unsigned Ncolorvars = SPOT_MAX_ACCSETS;
+    // Last one is for no color
+
+    auto var_in = std::vector<int>();
+    auto var_out = std::vector<int>();
+
+    {
+    bdd allbdd = split->ap_vars();
+    while (allbdd != bddtrue)
+      {
+        int lvar = bdd_var(allbdd);
+        bdd l = bdd_ithvar(lvar);
+        if (bdd_implies(output_bdd, l))
+          var_out.push_back(lvar);
+        else
+          var_in.push_back(lvar);
+        allbdd = bdd_high(allbdd);
+        assert(allbdd != bddfalse);
+      }
+    }
+
+    const unsigned Nin = var_in.size();
+    const unsigned Nout = var_out.size();
+
+    // Register the vars
+    // Need to be released
+    // Two possibilities for the need of variables:
+    // 1) FULLYSYM == false
+    // in conditions, (dst) states, color x out
+    // [(dst) states, color x out] is a player state
+    // 2) FULLYSYM == true
+    // (src) states, in conditions, (dst) states, color x out
+    // [(dst) states, color x out] is a player state
+
+    int zeroIdx = aut->get_dict()
+                    ->register_anonymous_variables(Nstvars*(1+FULLYSYM)+Nout
+                                                   +Nin+Ncolorvars, &N);
+
+    int srcStIdx = zeroIdx;
+    int inIdx = srcStIdx + Nstvars*FULLYSYM;
+    int dstStIdx = inIdx + Nin;
+    int colorIdx = dstStIdx + Nstvars;
+    int outIdx = colorIdx + Ncolorvars;
+
+    // Construct the pairs
+    bddPair* replace_fwd = bdd_newpair();
+    bddPair* replace_bkwd = bdd_newpair();
+    bddPair* replace_in_fwd = bdd_newpair();
+    bddPair* replace_in_bkwd = bdd_newpair();
+    bddPair* replace_out_fwd = bdd_newpair();
+    bddPair* replace_out_bkwd = bdd_newpair();
+
+    if (not replace_fwd || not replace_in_fwd || not replace_out_fwd
+        || not replace_bkwd || not replace_in_bkwd || not replace_out_bkwd)
+      throw std::runtime_error("split_2step(): bddpair alloc error.");
+
+    { // Map old and contiguous inputs and outputs
+    auto var_new = std::vector<int>(Nin);
+    std::iota(var_new.begin(), var_new.end(), inIdx);
+    bdd_setpairs(replace_fwd, var_in.data(), var_new.data(), Nin);
+    bdd_setpairs(replace_in_fwd, var_in.data(), var_new.data(), Nin);
+    bdd_setpairs(replace_bkwd, var_new.data(), var_in.data(), Nin);
+    bdd_setpairs(replace_in_bkwd, var_new.data(), var_in.data(), Nin);
+
+    var_new.resize(Nout);
+    std::iota(var_new.begin(), var_new.end(), outIdx);
+    bdd_setpairs(replace_fwd, var_out.data(), var_new.data(), Nout);
+    bdd_setpairs(replace_out_fwd, var_out.data(), var_new.data(), Nout);
+    bdd_setpairs(replace_bkwd, var_new.data(), var_out.data(), Nout);
+    bdd_setpairs(replace_out_bkwd, var_new.data(), var_out.data(), Nout);
+    }
+
+    // Encode states -> binary encoding (gray code for faster encode?)
+    auto dstEnvs2bdd = do_bin_encode_(N, dstStIdx, Nstvars);
+    //Source states are only needed once
+
+    // Last bdd is no color
+    auto color2bdd = std::vector<std::array<bdd, 2>>(Ncolorvars);
+    for (int i = 0; i < (int) Ncolorvars; ++i)
+      color2bdd[i] = {bdd_nithvar(colorIdx + i), bdd_ithvar(colorIdx + i)};
+
+    // There are no colors -> All False
+    const bdd noColorBdd
+      = std::accumulate(color2bdd.begin(), color2bdd.end(),
+                        (bdd) bddtrue,
+                        [](const bdd& l, const auto& r) -> bdd
+                        {return l & r[0]; });
+
+    // Each player state corresponds to a set of (dst_state, colors, outs)
+    // We also store the "least accepting" color
+    auto playbdd2st
+      = std::unordered_map<bdd,
+                           std::pair<acc_cond::mark_t, unsigned>,
+                           bdd_hash>();
+    playbdd2st.reserve(N);
+
+    // Encode (in, out, state) and split<
+    auto invar2bdd = std::vector<std::array<bdd, 2>>(Nin);
+    for (int i = 0; i < (int) Nin; ++i)
+      invar2bdd[i] = {bdd_nithvar(inIdx+i), bdd_ithvar(inIdx+i)};
+
+    enum class ctask{
+      PUT = 0,
+      VISIT,
+      POP
+    };
+
+    // Fwd map complete condition
+    // We could work with int, the bdd will stay in the graph
+    auto fwd_comp_repl = std::unordered_map<bdd, bdd, bdd_hash>();
+
+    // Encode a single edge in from aut with the new variables
+    auto encode_edge = [&](const auto& e) -> bdd
+      {
+        // Build color cond
+        // No color -> No bdd
+        bdd color_cond = noColorBdd;
+        if (use_color && e.acc != acc_cond::mark_t{})
+          {
+            color_cond = bddtrue;
+
+            for (unsigned acolor = 0; acolor < Ncolor; ++acolor)
+              color_cond &= color2bdd[acolor][e.acc.has(acolor)];
+          }
+        // The whole edge; Order the and? N-ary and?
+
+        auto [itc, insc]
+            = fwd_comp_repl.try_emplace(e.cond, bddfalse);
+        if (insc)
+          itc->second = bdd_replace(e.cond, replace_fwd);
+        return itc->second & color_cond & dstEnvs2bdd[e.dst];
+      };
+
+    auto abstract_traverse
+        = [](auto& stack, auto&& fput, auto&& fpop, auto&& fvisit) -> void
+      {
+        while (not stack.empty())
+          {
+            auto [ct, current] = std::move(stack.back());
+
+            stack.pop_back();
+
+            switch (ct)
+            {
+              case ctask::PUT:
+                fput(current);
+                break;
+              case ctask::POP:
+                fpop(current);
+                break;
+              case ctask::VISIT:
+                fvisit(current);
+                break;
+            }
+          }
+      };
+
+    auto abstract_put = [](auto& stack, const bdd& ccond, auto&& metaf)
+      {
+        for (int polprime : {0, 1})
+          {
+            bdd cprime = polprime == 0 ? bdd_low(ccond) : bdd_high(ccond);
+
+            if (cprime != bddfalse)
+              {
+                stack.emplace_back(ctask::POP, metaf(polprime));
+                stack.emplace_back(ctask::VISIT, cprime);
+                stack.emplace_back(ctask::PUT, metaf(polprime));
+              }
+          }
+      };
+
+    // Bkwd replace map
+    auto bkwd_out_repl = std::unordered_map<bdd, bdd, bdd_hash>();
+
+    // Final step construct colors and conditions
+    // cond is a bdd over color variables and new outputs
+    auto construct_colorcond
+      = [&](bdd cond)
+      {
+        // We need to do a final traversal of the color
+        // It is similar to the traversal of the states
+
+        // The result
+        auto all_comb = std::vector<std::pair<acc_cond::mark_t, bdd>>();
+
+        // int[2] is relative lvl and polarity
+        using stack_type = std::variant<bdd, unsigned>;
+        auto stack_colors = std::vector<std::pair<ctask, stack_type>>();
+        // Variables that do not appear can take both values
+        auto current_colors = acc_cond::mark_t{};
+
+
+        auto fputCC = [&](const stack_type& ccond) -> void
+        {
+          auto lvl = std::get<unsigned>(ccond);
+          //if (lvl != Ncolorvars - 1)
+          //  current_colors.set(lvl);  // One hot
+          assert(lvl < Ncolorvars || lvl == -1u);
+          if (lvl != -1u)
+            current_colors.set(lvl);  // One hot
+        };
+
+        auto fpopCC = [&](const stack_type& ccond) -> void
+        {
+          auto lvl = std::get<unsigned>(ccond);
+          //if (lvl != Ncolorvars - 1)
+          //  current_colors.clear(lvl); // One cold
+          assert(lvl < Ncolorvars || lvl == -1u);
+          if (lvl != -1u)
+            current_colors.clear(lvl);  // One cold
+        };
+
+        auto fvisitCC = [&](const stack_type& ccondin) -> void
+        {
+          bdd ccond = std::get<bdd>(ccondin);
+          //if (ccond == bddfalse)
+          //  return;  // Nothing to do
+
+          int clvl = ccond == bddtrue ? outIdx : bdd_var(ccond);
+          // We either have a out condition or true
+          if (clvl >= outIdx)
+            {
+              // We have found a new color comb
+              // Leading to ccond -> add
+              auto [itc, insc]
+                = bkwd_out_repl.try_emplace(ccond, bddfalse);
+              if (insc)
+                itc->second = bdd_replace(ccond,
+                                          replace_out_bkwd);
+              all_comb.emplace_back(current_colors,
+                                    itc->second);
+
+            }
+          else
+            {
+              int rel_lvl = clvl - colorIdx;
+              // If the no color mark appears -> mark must be empty
+              auto metaf = [&, ulvl = (unsigned) rel_lvl](int pol)
+                {
+                  // If the polarity is negative ("one cold")
+                  // Then ignore it
+                  assert(!pol || !current_colors.has(ulvl));
+                  return pol == 0 ? -1u : ulvl;
+                };
+              abstract_put(stack_colors, ccond, metaf);
+            }
+
+        };
+
+        stack_colors.emplace_back(ctask::VISIT, cond);
+        abstract_traverse(stack_colors, fputCC, fpopCC, fvisitCC);
+
+        return all_comb;
+      };
+
+
+    // The condition contains variables of dst_state, color x cond
+    // In a much similar manner we need to traverse the states, as we traversed
+    // the inputs
+    // Mapping bdd(color x new outs) -> [mark x old outs]
+    auto bdd2colorCond
+      = std::unordered_map<bdd,
+                           std::vector<std::pair<acc_cond::mark_t, bdd>>,
+                           bdd_hash>();
+
+    struct unsigedItDescr {
+      unsigned val;
+      std::array<char, 32> canChange;
+      std::vector<unsigned> idx;
+
+      unsigedItDescr()
+        : val{0u}
+        , idx{32, -1u}
+      {
+        canChange.fill(true);
+      }
+    };
+
+    auto construct_ply_state
+      = [&](bdd cond) -> std::pair<acc_cond::mark_t, unsigned>
+      {
+
+        // Needed to determine "least" accepting color for this state
+        // That is the color that we can put on all incoming transitions
+        auto thiscolor = acc_cond::mark_t{};
+        bool has_uncolored = false;
+        unsigned thisstate = split->new_state();
+
+        // int[2] is relative lvl and polarity
+        using stack_type = std::variant<bdd, std::array<int, 2>>;
+        auto stack_states = std::vector<std::pair<ctask, stack_type>>();
+        auto current_dst_states = unsigedItDescr{};
+
+        auto fputPlySt
+          = [&current_dst_states](const stack_type& ccond) -> void
+          {
+            assert((std::holds_alternative<std::array<int, 2>>(ccond)));
+            auto [lvl, pol] = std::get<std::array<int, 2>>(ccond);
+            // Fix the corresponding bit
+            // Not changeable
+            current_dst_states.canChange[lvl] = false;
+            if (pol)
+              // Set the bit true
+              current_dst_states.val |= (1u << lvl);
+            else
+              // Unset it
+              current_dst_states.val &= ~(1u << lvl);
+          };
+
+        auto fpopPlySt
+          = [&current_dst_states](const stack_type& ccond) -> void
+          {
+            assert((std::holds_alternative<std::array<int, 2>>(ccond)));
+            // We need to unset the bit and mark it as changeable
+            auto lvl = std::get<std::array<int, 2>>(ccond)[0];
+            current_dst_states.val &= ~(1u << lvl);
+            current_dst_states.canChange[lvl] = true;
+          };
+
+        auto fvisitPlySt = [&](const stack_type& ccondin) -> void
+          {
+            assert(std::holds_alternative<bdd>(ccondin));
+            const bdd& ccond = std::get<bdd>(ccondin);
+            int clvl = ccond == bddtrue ? colorIdx : bdd_var(ccond);
+            if (clvl >= colorIdx)
+              {
+                // We have found a new "cube of states"
+                // Leading to ccond
+                auto [it_cc, ins_cc]
+                  = bdd2colorCond.try_emplace(ccond,
+                                              std::vector<
+                                                std::pair<acc_cond::mark_t,
+                                                          bdd>>());
+                if (ins_cc)
+                  it_cc->second = construct_colorcond(ccond);
+
+                // Loop over all the states in the "cube"
+                //auto state_range = bitVectDecodeRange(current_dst_states);
+                //for (auto it_s = state_range.begin(); (bool) it_s; ++it_s)
+                // Get all the modifiable idx
+                current_dst_states.idx.clear();
+                for (unsigned i = 0; i < Nstvars; ++i)
+                  if (current_dst_states.canChange[i])
+                    current_dst_states.idx.push_back(i);
+                // Loop over them
+                auto state_range = bitVectDecodeRange(current_dst_states.idx,
+                                                      current_dst_states.val);
+                for (auto it_s = state_range.begin(); (bool) it_s; ++it_s)
+                  // Loop over all edges
+                  for (const auto& [acolor, acond] : it_cc->second)
+                    {
+                      split->new_edge(thisstate, *it_s, acond, acolor);
+                      // Update color
+                      thiscolor |= acolor;
+                      has_uncolored |= !acolor;
+                    }
+
+              }
+            else
+              {
+                int rel_lvl = clvl - dstStIdx;
+                auto metaf = [rel_lvl](int pol)
+                {
+                  return std::array<int, 2>{rel_lvl, pol};
+                };
+                abstract_put(stack_states, ccond, metaf);
+              }
+
+          };
+
+        stack_states.emplace_back(ctask::VISIT, cond);
+        abstract_traverse(stack_states, fputPlySt, fpopPlySt, fvisitPlySt);
+
+        // Adjust the color depending on options and acceptance conditions
+        // Todo: check if dead ends are treated correctly
+        if (!color_env | has_uncolored)
+          // Do something smart for TELA?
+          thiscolor = acc_cond::mark_t({});
+        else if (max_par)
+          thiscolor =
+              acc_cond::mark_t({thiscolor.min_set()-1});
+        else // min_par
+          thiscolor =
+              acc_cond::mark_t({thiscolor.max_set()-1});
+
+        return std::make_pair(thiscolor, thisstate);
+    };
+
+    // Fwd map for replacing
+    // Todo is this a good idea?
+    auto bkwd_in_repl = std::unordered_map<bdd, bdd, bdd_hash>();
+
+    auto stack_inputs = std::vector<std::pair<ctask, bdd>>();
+
+    bdd current_in = bddtrue;
+
+    // Define the abstract traverse
+    auto fputInTrav = [&current_in](const bdd& ccond) -> void
+      {
+        current_in &= ccond;
+      };
+
+    auto fpopInTrav = [&current_in](const bdd& ccond) -> void
+      {
+        // At the end, exist is cheap (I hope)
+        current_in = bdd_exist(current_in, ccond);
+      };
+
+
+
+    unsigned sink_env = -1u;
+
+    if constexpr (FULLYSYM)
+      {
+        // First we need to encode the complete automaton
+        // Create the symbolic aut
+        // To avoid reencoding, swap
+        bddPair* replace_dstSt_srcSt = bdd_newpair();
+        {
+          auto varSrc = std::vector<int>(Nstvars);
+          auto varDst = std::vector<int>(Nstvars);
+          std::iota(varSrc.begin(), varSrc.end(), srcStIdx);
+          std::iota(varDst.begin(), varDst.end(), dstStIdx);
+          bdd_setpairs(replace_dstSt_srcSt, varDst.data(),
+                       varSrc.data(), Nstvars);
+        }
+        auto getSrc = [&](unsigned s)
+          {return bdd_replace(dstEnvs2bdd[s], replace_dstSt_srcSt); };
+
+        bdd sym_aut = bddfalse;
+        for (unsigned s = 0; s < N; ++s)
+          {
+            bdd enc_out_s = bddfalse;
+            for (const auto& e : aut->out(s))
+              enc_out_s |= encode_edge(e);
+            sym_aut |= getSrc(s)&enc_out_s;
+          }
+
+        // Define how to construct an extended player state
+        // An extended player is constructing the list
+        // of (player state, input condition) from a bdd
+        // containing (in const, dst state, color cond)
+        // This function needs to traverse the incondition
+        // put and pop can be reused
+        auto construct_ext_ply_state
+          = [&](auto& plystatedict, const bdd& ccond)
+          {
+            current_in = bddtrue;
+
+            auto& [plyconddict, plycondvect] = plystatedict;
+
+            auto fvisitInTrav
+              = [&](const bdd& ccond) -> void
+              {
+
+                int clvl = bdd_var(ccond);
+                assert(clvl >= inIdx);
+                if (clvl >= dstStIdx) // States come after input
+                  {
+                    // We have found a new in cube
+                    // Add to the existing ones if necessary
+                    // Translate to old variables
+                    auto [itc, insc]
+                        = bkwd_in_repl.try_emplace(current_in, bddfalse);
+                    if (insc)
+                      itc->second = bdd_replace(current_in, replace_in_bkwd);
+                    const bdd& current_in_old = itc->second;
+
+                    // treat it
+                    auto [it_s, ins_s]
+                        = playbdd2st.try_emplace(
+                            ccond,
+                            std::make_pair(acc_cond::mark_t{},
+                                           -1u));
+                    if (ins_s)
+                      // A new player state and the corresponding least
+                      // accepting color
+                      it_s->second = construct_ply_state(ccond);
+
+                    // Add the condition
+                    auto [it_e, ins_e]
+                        = plyconddict.try_emplace(ccond, -1u);
+                    // Add the input
+                    if (ins_e)
+                      {
+                        it_e->second = plycondvect.size();
+                        plycondvect.emplace_back(ccond, bddfalse);
+                      }
+                    // The second is the in
+                    plycondvect[it_e->second].second |= current_in_old;
+                    assert(plycondvect[it_e->second].second != bddfalse
+                           && "bddfalse is not allowed as condition");
+                  }
+                else
+                  {
+                    auto metaf = [&bddopts = invar2bdd[clvl - inIdx]](int pol)
+                      {
+                        return bddopts[pol];
+                      };
+                    abstract_put(stack_inputs, ccond, metaf);
+                  }
+              };
+
+            // Do the actual visit
+            assert(stack_inputs.empty());
+            stack_inputs.emplace_back(ctask::VISIT, ccond);
+            abstract_traverse(stack_inputs, fputInTrav,
+                              fpopInTrav, fvisitInTrav);
+          }; // construct_ext_ply_state
+
+        // What we want is
+        // dict[bdd (in, dst, cc) -> dict[ ply state bdd -> input bdd]]
+        // However this is not possible as it would possibly
+        // reorder the transitions
+        // So we need an additional vector and idx only into it
+        // The vector holds the player state cond
+        // (same as the key of the unordered_map)
+        // To ensure efficient iteration
+        auto ext_ply_dict
+          = std::unordered_map<bdd,
+              std::pair<std::unordered_map<bdd, unsigned, bdd_hash>,
+                        std::vector<std::pair<bdd, bdd>>>, bdd_hash>();
+        // bdd over new variables -> bdd over old variables, player state
+
+        // Vist the src states
+        using stack_type = std::variant<bdd, std::array<int, 2>>;
+        auto stack_states = std::vector<std::pair<ctask, stack_type>>();
+        // Variables that do not appear can take both values
+        auto current_src_states = unsigedItDescr{};
+
+        auto fputSrcSt
+          = [&current_src_states](const stack_type& ccond) -> void
+          {
+            assert((std::holds_alternative<std::array<int, 2>>(ccond)));
+            auto [lvl, pol] = std::get<std::array<int, 2>>(ccond);
+            // Fix the corresponding bit
+            // Not changeable
+            current_src_states.canChange[lvl] = false;
+            if (pol)
+              // Set the bit true
+              current_src_states.val |= (1u << lvl);
+            else
+              // Unset it
+              current_src_states.val &= ~(1u << lvl);
+          };
+
+        auto fpopSrcSt
+          = [&current_src_states](const stack_type& ccond) -> void
+          {
+            assert((std::holds_alternative<std::array<int, 2>>(ccond)));
+            // We need to unset the bit and mark it as changeable
+            auto lvl = std::get<std::array<int, 2>>(ccond)[0];
+            current_src_states.val &= ~(1u << lvl);
+            current_src_states.canChange[lvl] = true;
+          };
+
+        auto fvisitSrcSt = [&](const stack_type& ccondin) -> void
+          {
+            assert(std::holds_alternative<bdd>(ccondin));
+            const bdd& ccond = std::get<bdd>(ccondin);
+            int clvl = ccond == bddtrue ? inIdx : bdd_var(ccond);
+            if (clvl >= inIdx)
+              {
+                // We have found a new "cube of states"
+                // Leading to ccond
+                auto [it_cc, ins_cc]
+                    = ext_ply_dict.try_emplace(
+                        ccond,
+                        decltype(ext_ply_dict)::mapped_type{});
+                if (ins_cc)
+                  // Construct "in place"
+                  construct_ext_ply_state(it_cc->second, ccond);
+
+                assert(!it_cc->second.second.empty()
+                       && "Dead ends should not be splitted");
+
+                // Get all the modifiable idx
+                current_src_states.idx.clear();
+                for (unsigned i = 0; i < Nstvars; ++i)
+                  if (current_src_states.canChange[i])
+                    current_src_states.idx.push_back(i);
+                // Loop over them
+                auto state_range = bitVectDecodeRange(current_src_states.idx,
+                                                      current_src_states.val);
+                for (auto it_s = state_range.begin(); (bool) it_s; ++it_s)
+                  // Loop over all edges
+                  for (const auto& [plystcond, incond] : it_cc->second.second)
+                    {
+                      const auto& [acolor, plyst] = playbdd2st[plystcond];
+                      split->new_edge(*it_s, plyst, incond, acolor);
+                    }
+              }
+            else
+              {
+                int rel_lvl = clvl - srcStIdx;
+                auto metaf = [rel_lvl](int pol)
+                  {
+                    return std::array<int, 2>{rel_lvl, pol};
+                  };
+                abstract_put(stack_states, ccond, metaf);
+              }
+
+          };
+
+        stack_states.emplace_back(ctask::VISIT, sym_aut);
+        abstract_traverse(stack_states, fputSrcSt, fpopSrcSt, fvisitSrcSt);
+
+        // Free the pairs
+        bdd_freepair(replace_dstSt_srcSt);
+      }
+    else
+      {
+        // If a completion is demanded we might have to create sinks
+        // Sink controlled by player
+        unsigned sink_con = -1u;
+        auto get_sink_con_state = [&split, &sink_con, &sink_env,
+            um = unsat_mark, hu = has_unsat]
+            (bool create = true)
+          {
+            assert(hu);
+            if (SPOT_UNLIKELY((sink_con == -1u) && create))
+              {
+                sink_con = split->new_state();
+                sink_env = split->new_state();
+                split->new_edge(sink_con, sink_env, bddtrue, um);
+                split->new_edge(sink_env, sink_con, bddtrue, um);
+              }
+            return sink_con;
+          };
+
+        // envstate -> edge number for current state
+        auto s_edge_dict = std::unordered_map<unsigned, unsigned>();
+
+        for (unsigned s = 0; s < N; ++s)
+          {
+            s_edge_dict.clear(); // "Local" dict, outgoing for this state
+
+            // Encode the edge as new bdd over (input, state, color, out) vars
+            bdd enc_out_s = bddfalse;
+            for (const auto &e: aut->out(s))
+              enc_out_s |= encode_edge(e);  // Switch to new ins and outs
+
+            // Can only be false if there is no outgoing edge
+            // In this case: Nothing to do
+            assert(enc_out_s != bddfalse
+                   || (!(aut->out(s).begin())));
+
+            if (enc_out_s == bddfalse)
+            {
+              std::cerr << "Dead end state: " << s << '\n';
+#ifndef NDEBUG
+              print_hoa(std::cerr, aut);
+#endif
+              continue;
+            }
+
+            // traverse the ins to do the actual split
+            assert(stack_inputs.empty());
+            stack_inputs.emplace_back(ctask::VISIT, enc_out_s);
+            current_in = bddtrue;
+
+            bdd all_in = bddfalse;  // Only needed for completion
+
+            auto fvisitInTravS
+              = [&](const bdd& ccond) -> void
+              {
+                int clvl = bdd_var(ccond);
+                if (clvl >= dstStIdx) // States come after input
+                  {
+                    // We have found a new in cube
+                    // Add to the existing ones if necessary
+                    // Translate to old variables
+                    auto [itc, insc]
+                        = bkwd_in_repl.try_emplace(current_in, bddfalse);
+                    if (insc)
+                      itc->second = bdd_replace(current_in, replace_in_bkwd);
+                    const bdd& current_in_old = itc->second;
+
+                    if (complete_env)
+                      all_in |= current_in_old;
+                    // treat it
+                    auto [it_s, ins_s]
+                        = playbdd2st.try_emplace(
+                            ccond,
+                            std::make_pair(acc_cond::mark_t{},
+                                           -1u));
+                    if (ins_s)
+                      // A new player state and the corresponding least
+                      // accepting color
+                      it_s->second = construct_ply_state(ccond);
+
+                    // Add the condition
+                    auto [it_e, ins_e]
+                        = s_edge_dict.try_emplace(it_s->second.second, -1u);
+                    if (ins_e)  // Create a new edge
+                      it_e->second
+                          = split->new_edge(s, it_s->second.second,
+                                            current_in_old,
+                                            it_s->second.first);
+                    else  // Disjunction over input
+                      split->edge_storage(it_e->second).cond
+                        |= current_in_old;
+                  }
+                else
+                  {
+                    auto metaf = [&bddopts = invar2bdd[clvl - inIdx]](int pol)
+                    {
+                      return bddopts[pol];
+                    };
+                    abstract_put(stack_inputs, ccond, metaf);
+                  }
+              };
+
+            // Traverse all the ins
+            abstract_traverse(stack_inputs, fputInTrav,
+                              fpopInTrav, fvisitInTravS);
+
+            // Complete if necessary
+            if (complete_env && (all_in != bddtrue))
+              split->new_edge(s, get_sink_con_state(), bddtrue - all_in);
+
+          }  // Current state is now split
+      } // Else
+
+    split->prop_universal(trival::maybe());
+
+    // The named property
+    // compute the owners
+    // env is equal to false
+    auto owner = std::vector<bool>(split->num_states(), false);
+    // All "new" states belong to the player
+    std::fill(owner.begin()+aut->num_states(), owner.end(), true);
+    // Check if sinks have been created
+    if (sink_env != -1u)
+      owner.at(sink_env) = false;
+
+    // !use_color -> all words accepted
+    // complete_env && sink_env == -1u
+    // complet. for env demanded but already
+    // satisfied -> split is also all true
+    if (complete_env && sink_env == -1u && !use_color)
+      split->acc() = acc_cond::acc_code::t();
+
+    set_state_players(split, std::move(owner));
+
+    // release the variables
+    // Release the pairs
+    for (auto pair_ptr : {replace_fwd,
+                                    replace_bkwd,
+                                    replace_in_fwd,
+                                    replace_in_bkwd,
+                                    replace_out_fwd,
+                                    replace_out_bkwd})
+      bdd_freepair(pair_ptr);
+    aut->get_dict()->unregister_all_my_variables(&N);
+
+    // Done
+    return split;
+  }  // New split impl
+
+  twa_graph_ptr
+  split_2step_(const const_twa_graph_ptr& aut,
+               const bdd& output_bdd, bool complete_env,
+               synthesis_info::splittype sp
+                = synthesis_info::splittype::AUTO)
+  {
+    // Heuristic for AUTO goes here
+    // For the moment semisym is almost always best except if there are
+    // really few inputs
+    unsigned nIns = aut->ap().size() - bdd_nodecount(output_bdd);
+    sp = sp == synthesis_info::splittype::AUTO ?
+         (nIns < 4 ? synthesis_info::splittype::EXPL
+                   : synthesis_info::splittype::SEMISYM)
+         : sp;
+
+    switch (sp)
+    {
+      case (synthesis_info::splittype::EXPL):
+        return split_2step_expl_impl(aut, output_bdd, complete_env);
+      case (synthesis_info::splittype::SEMISYM):
+        return split_2step_sym_impl<false>(aut, output_bdd, complete_env);
+      case (synthesis_info::splittype::FULLYSYM):
+        return split_2step_sym_impl<true>(aut, output_bdd, complete_env);
+      default:
+        throw std::runtime_error("split_2step_(): "
+                                 "Expected explicit splittype.");
+    }
+  }
+
+  }  // End anonymous
+
+
+  twa_graph_ptr
+  split_2step(const const_twa_graph_ptr& aut,
+              const bdd& output_bdd, bool complete_env,
+              synthesis_info::splittype sp)
+  {
+    return split_2step_(aut, output_bdd, complete_env, sp);
   }
 
   twa_graph_ptr
-  split_2step(const const_twa_graph_ptr& aut, bool complete_env)
+  split_2step(const const_twa_graph_ptr& aut, bool complete_env,
+              synthesis_info::splittype sp)
   {
-    return split_2step(aut,
-                       get_synthesis_outputs(aut),
-                       complete_env);
+    return split_2step_(aut,
+                        get_synthesis_outputs(aut),
+                        complete_env, sp);
+  }
+
+  twa_graph_ptr
+  split_2step(const const_twa_graph_ptr& aut,
+              synthesis_info& gi)
+  {
+    return split_2step_(aut,
+                        get_synthesis_outputs(aut),
+                        true,
+                        gi.sp);
   }
 
   twa_graph_ptr
@@ -906,6 +1861,12 @@ namespace spot
 
     twa_graph_ptr dpa = nullptr;
 
+    auto set_split = [&outs, &gi](auto& g)
+      {
+        set_synthesis_outputs(g, outs);
+        return split_2step(g, gi);
+      };
+
     switch (gi.s)
     {
       case algo::DET_SPLIT:
@@ -927,7 +1888,8 @@ namespace spot
               << bv->paritize_time << " seconds\n";
         if (bv)
           sw.start();
-        dpa = split_2step(tmp, outs, true);
+
+        dpa = set_split(tmp);
         if (bv)
           bv->split_time += sw.stop();
         if (vs)
@@ -949,7 +1911,7 @@ namespace spot
               << " states\n";
         if (bv)
           sw.start();
-        dpa = split_2step(aut, outs, true);
+        dpa = set_split(aut);
         if (bv)
           bv->split_time += sw.stop();
         if (vs)
@@ -961,7 +1923,7 @@ namespace spot
       case algo::SPLIT_DET:
       {
         sw.start();
-        auto split = split_2step(aut, outs, true);
+        auto split = set_split(aut);
         if (bv)
           bv->split_time += sw.stop();
         if (vs)
@@ -1020,7 +1982,7 @@ namespace spot
 
         if (bv)
           sw.start();
-        dpa = split_2step(dpa, outs, true);
+        dpa = set_split(dpa);
         if (bv)
           bv->split_time += sw.stop();
         if (vs)
@@ -1250,7 +2212,8 @@ namespace spot
       };
 
     auto ret_sol_exists =
-      [&vs, &want_strategy, &tmp, &dict](twa_graph_ptr strat)
+      [&vs, &want_strategy, &tmp, &dict, &output_aps]
+      (twa_graph_ptr strat)
       {
         dict->unregister_all_my_variables(&tmp);
         if (vs)
@@ -1265,7 +2228,17 @@ namespace spot
             }
           }
         if (strat)
-          strat->merge_edges();
+          {
+            strat->merge_edges();
+            bdd outputs = bddtrue;
+            std::for_each(
+                  output_aps.begin(),
+                  output_aps.end(),
+                  [&strat, &outputs](const std::string& ap) -> void
+                  { outputs &= bdd_ithvar(strat->register_ap(ap)); });
+
+            set_synthesis_outputs(strat, outputs);
+          }
         return mealy_like{
                   mealy_like::realizability_code::REALIZABLE_REGULAR,
                   strat,
@@ -1544,7 +2517,8 @@ namespace // anonymous for subsformula
             todo.pop();
             formula current_form = assumptions[current_index];
             done[current_index] = true;
-            auto [ins_current, outs_current] = form2props.aps_of(current_form);
+            auto [ins_current, outs_current]
+              = form2props.aps_of(current_form);
             result.first.insert(ins_current.begin(), ins_current.end());
             result.second.insert(outs_current.begin(), outs_current.end());
             for (unsigned i = 0; i < ass_size; ++i)
@@ -1552,7 +2526,8 @@ namespace // anonymous for subsformula
                 if (done[i])
                   continue;
                 auto other_form = assumptions[i];
-                auto [ins_other, outs_other] = form2props.aps_of(other_form);
+                auto [ins_other, outs_other]
+                  = form2props.aps_of(other_form);
                 if (are_intersecting(ins_current, ins_other) ||
                     are_intersecting(outs_other, outs_other))
                   todo.push(i);
@@ -1587,7 +2562,8 @@ namespace // anonymous for subsformula
     // We merge two assumpt or guar. that share a proposition from decRelProps
     std::vector<formula> assumptions_split, guarantees_split;
 
-    auto fus = [&](std::vector<formula> &forms, std::vector<formula> &res)
+    auto fus = [&](std::vector<formula> &forms,
+                                                 std::vector<formula> &res)
     {
       std::stack<unsigned> todo;
       todo.emplace(0);

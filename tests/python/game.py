@@ -282,8 +282,8 @@ spot.change_parity_here(gdpa, spot.parity_kind_max, spot.parity_style_odd)
 gsdpa = spot.split_2step(gdpa, b, True)
 spot.colorize_parity_here(gsdpa, True)
 tc.assertTrue(spot.solve_parity_game(gsdpa))
-tc.assertEqual(spot.highlight_strategy(gsdpa).to_str("HOA", "1.1"),
-"""HOA: v1.1
+gsdpa_solved_ref = spot.automaton(
+    """HOA: v1.1
 States: 18
 Start: 0
 AP: 2 "a" "b"
@@ -292,7 +292,7 @@ Acceptance: 5 Fin(4) & (Inf(3) | (Fin(2) & (Inf(1) | Fin(0))))
 properties: trans-labels explicit-labels trans-acc colored complete
 properties: deterministic
 spot.highlight.states: 0 4 1 4 2 4 3 4 4 4 5 4 6 4 7 4 8 4 9 4 """
-+"""10 4 11 4 12 4 13 4 14 4 15 4 16 4 17 4
+    +"""10 4 11 4 12 4 13 4 14 4 15 4 16 4 17 4
 spot.highlight.edges: 15 4 17 4 20 4 22 4 24 4 26 4 28 4 30 4 31 4 32 4 33 4
 spot.state-player: 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1 1 1 1
 controllable-AP: 1
@@ -350,6 +350,23 @@ State: 17
 [t] 4 {4}
 --END--"""
 )
+tc.assertTrue(spot.solve_parity_game(gsdpa_solved_ref))
+
+# Check for the same language
+tc.assertTrue(spot.are_equivalent(gsdpa, gsdpa_solved_ref))
+# Check if the winning regions are the same for env states
+# Env states should by construction have the same number as before
+players_new = spot.get_state_players(gsdpa)
+players_ref = spot.get_state_players(gsdpa_solved_ref)
+# States maybe renumbered, but remain in the same "class"
+tc.assertEqual(players_new, players_ref)
+# Check that env states have the same winner
+winners_new = spot.get_state_winners(gsdpa)
+winners_ref = spot.get_state_winners(gsdpa_solved_ref)
+
+tc.assertTrue(all([wn == wr for (wn, wr, p) in
+                   zip(winners_new, winners_ref, players_ref)
+                  if not p]))
 
 # Test the different parity conditions
 gdpa = spot.tgba_determinize(spot.degeneralize_tba(g),

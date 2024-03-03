@@ -484,9 +484,21 @@ i3 i3
 o0 o0
 o1 o1
 EOF
-ltlsynt -f "G((i0 && i1)<->X(o0)) && G((i2|i3)<->X(o1))" --outs="o0,o1"\
-        --aiger=isop+ud --algo=lar --decompose=no --simpl=no >out
+ltlsynt -f "G((i0 && i1)<->X(o0)) && G((i2|i3)<->X(o1))" --outs="o0,o1" \
+        --aiger=isop+ud --algo=lar --decompose=no --simpl=no \
+        --splittype=expl >out
 diff out exp
+
+for splitt in expl semisym fullysym auto
+do
+  res=$(ltlsynt -f "G((i0 && i1)<->X(o0)) && G((i2|i3)<->X(o1))" \
+          --outs="o0,o1" --aiger=isop+ud --algo=lar --decompose=no \
+          --simpl=no --splittype="$splitt" --realizability)
+  if [[ "$res" != "REALIZABLE" ]]; then
+    echo "Expected realizable"
+  fi
+done
+
 
 cat >exp <<EOF
 REALIZABLE
@@ -555,7 +567,8 @@ o0 o0
 o1 o1
 EOF
 ltlsynt -f "G((i0 && i1)<->X(o0)) && G((i2|i3)<->X(o1))" --outs="o0,o1"\
-        --aiger=isop --algo=lar --decompose=no --simpl=no >out
+        --aiger=isop --algo=lar --decompose=no --simpl=no \
+        --splittype=expl >out
 diff out exp
 
 
@@ -590,10 +603,10 @@ o0 o0
 o1 o1
 EOF
 ltlsynt -f "G((i0 && i1)<->X(o0)) && G((i2|i3)<->X(o1))" --outs="o0,o1"\
-  --aiger=isop+ud --algo=lar --decompose=yes --simpl=no >out
+  --aiger=isop+ud --algo=lar --decompose=yes --simpl=no --splittype=expl >out
 diff out exp
 ltlsynt -f "G((i0 && i1)<->X(o0)) && G((i2|i3)<->X(o1))" --outs="o0,o1"\
-  --aiger=isop+ud --algo=lar --simpl=no  >out
+  --aiger=isop+ud --algo=lar --simpl=no --splittype=expl >out
 diff out exp
 
 # Issue #477

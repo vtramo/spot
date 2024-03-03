@@ -21,11 +21,13 @@
 
 set -x
 
-ltlsynt --ins=a,c --outs=b -f 'GF(a <-> XXXc) <-> GFb' --print-game-hoa >out
+ltlsynt --ins=a,c --outs=b -f 'GF(a <-> XXXc) <-> GFb' --print-game-hoa \
+--splittype=expl >out
 grep spot-state-player: out
 autfilt out >out2
 diff out out2
-ltlsynt --ins=a,c --outs=b -f 'GF(a <-> XXXc) <-> GFb' --print-game-hoa=l >out3
+ltlsynt --ins=a,c --outs=b -f 'GF(a <-> XXXc) <-> GFb' --print-game-hoa=l \
+--splittype=expl >out3
 test 1 = `wc -l < out3`
 cmp out out3 && exit 1
 autfilt out3 >out2

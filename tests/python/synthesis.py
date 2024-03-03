@@ -29,8 +29,7 @@ for i in range(0, 2):
     tc.assertFalse(spot.solve_game(game))
 
 # A game can have only inputs
-game = spot.ltl_to_game("GFa", [])
-tc.assertEqual(game.to_str(), """HOA: v1
+game_ref = spot.automaton("""HOA: v1
 States: 3
 Start: 0
 AP: 1 "a"
@@ -49,3 +48,10 @@ State: 1
 State: 2
 [t] 0 {0}
 --END--""")
+
+gi = spot.synthesis_info()
+gi.dict = game_ref.get_dict()
+
+game = spot.ltl_to_game("GFa", [], gi)
+
+tc.assertTrue(spot.are_equivalent(game, game_ref))
