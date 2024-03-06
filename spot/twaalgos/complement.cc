@@ -25,6 +25,7 @@
 #include <spot/twaalgos/postproc.hh>
 #include <spot/twaalgos/strength.hh>
 #include <spot/twaalgos/sccinfo.hh>
+#include <spot/twaalgos/cleanacc.hh>
 
 namespace spot
 {
@@ -510,7 +511,19 @@ namespace spot
   complement(const const_twa_graph_ptr& aut, const output_aborter* aborter)
   {
     if (!aut->is_existential() || is_universal(aut))
-      return dualize(aut);
+      {
+        twa_graph_ptr res = dualize(aut);
+        // There are cases with "t" acceptance that get converted to
+        // Büchi during completion, then dualized to co-Büchi, but the
+        // acceptance is still not used.  To try to clean it up in this
+        // case.
+        if (aut->num_sets() == 0 ||
+            // Also dualize removes sink states, but doesn't simplify
+            // the acceptance condition.
+            res->num_states() < aut->num_states())
+          cleanup_acceptance_here(res);
+        return res;
+      }
     if (is_very_weak_automaton(aut))
       // removing alternation may need more acceptance sets than we support.
       // in this case res==nullptr and we try the other determinization.

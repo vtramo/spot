@@ -115,6 +115,8 @@ tc.assertEqual(dd.num_states(), 1)
 tc.assertEqual(str(dd.get_acceptance()), 'Inf(1) & Fin(0)')
 
 e = spot.dualize(b)
+spot.cleanup_acceptance_here(e)
+tc.assertEqual(str(e.get_acceptance()), 'Fin(0)|Fin(1)')
 de = spot.partial_degeneralize(e, [0, 1])
 tc.assertTrue(de.equivalent_to(e))
 tc.assertEqual(de.num_states(), 4)

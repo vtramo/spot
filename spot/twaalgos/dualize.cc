@@ -308,7 +308,7 @@ namespace spot
           }
         if (is_deterministic(aut_))
           {
-            res = cleanup_acceptance_here(spot::complete(aut_));
+            res = spot::complete(aut_);
             res->set_acceptance(res->num_sets(),
                                 res->get_acceptance().complement());
             // Complementing the acceptance is likely to break the terminal
@@ -368,8 +368,6 @@ namespace spot
         res->prop_terminal(trival::maybe());
         if (!has_sink)
           res->prop_complete(true);
-
-        cleanup_acceptance_here(res);
         return res;
       }
     };

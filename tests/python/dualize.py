@@ -191,8 +191,8 @@ tc.assertEqual(h, """HOA: v1
 States: 2
 Start: 1
 AP: 2 "a" "b"
-acc-name: all
-Acceptance: 0 t
+acc-name: co-Buchi
+Acceptance: 1 Fin(0)
 properties: trans-labels explicit-labels state-acc deterministic
 --BODY--
 State: 0
@@ -227,8 +227,7 @@ tc.assertEqual(h, """HOA: v1
 States: 2
 Start: 1
 AP: 2 "a" "b"
-acc-name: all
-Acceptance: 0 t
+Acceptance: 2 Fin(0) & Fin(1)
 properties: trans-labels explicit-labels state-acc deterministic
 --BODY--
 State: 0

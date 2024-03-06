@@ -148,6 +148,13 @@ New in spot 2.11.6.dev  (not yet released)
     should raise an exception of return nullptr if it requires more
     acceptance sets than supported.
 
+  - [Potential backward incompatibility] spot::dualize() does not call
+    cleanup_acceptance() anymore.  This change ensures that the dual
+    of a Büchi automaton will always be a co-Büchi automaton.
+    Previously cleanup_acceptance(), which remove unused colors from
+    the acceptance, was sometimes able to simplify co-Büchi to "t",
+    causing surprizes.
+
   Python:
 
   - The spot.automata() and spot.automaton() functions now accept a

@@ -49,8 +49,7 @@ HOA: v1
 States: 2
 Start: 0
 AP: 2 "a" "b"
-acc-name: all
-Acceptance: 0 t
+Acceptance: 3 (Fin(0)|Fin(1)) | Inf(2)
 properties: trans-labels explicit-labels trans-acc complete
 properties: deterministic
 --BODY--
@@ -114,8 +113,7 @@ HOA: v1
 States: 9
 Start: 8
 AP: 2 "p0" "p1"
-acc-name: co-Buchi
-Acceptance: 1 Fin(0)
+Acceptance: 2 Fin(0) & Fin(1)
 properties: trans-labels explicit-labels state-acc univ-branch
 --BODY--
 State: 0
@@ -148,8 +146,7 @@ HOA: v1
 States: 9
 Start: 8
 AP: 2 "p0" "p1"
-acc-name: co-Buchi
-Acceptance: 1 Fin(0)
+Acceptance: 2 Fin(0) & Fin(1)
 properties: trans-labels explicit-labels state-acc univ-branch
 Alias: @a 0&!1
 Alias: @b !0&!1
