@@ -20,7 +20,7 @@
 #include "config.h"
 #include <spot/misc/minato.hh>
 #include <spot/priv/robin_hood.hh>
-#include <spot/tl/expansions.hh>
+#include <spot/tl/expansions2.hh>
 #include <spot/twa/bdddict.hh>
 #include <spot/twa/formula2bdd.hh>
 #include <spot/twaalgos/remprop.hh>
@@ -499,7 +499,7 @@ namespace spot
   }
 
   formula
-  expansion_to_formula(expansion_t e, bdd_dict_ptr& d)
+  expansion_to_formula2(expansion_t e, bdd_dict_ptr& d)
   {
     std::vector<formula> res;
 
@@ -512,32 +512,8 @@ namespace spot
     return formula::OrRat(res);
   }
 
-  void print_expansion(const expansion_t& exp, const bdd_dict_ptr& dict)
-  {
-    for (const auto& [prefix, suffix] : exp)
-      {
-        std::cout << bdd_to_formula(prefix, dict) << ": " << suffix << std::endl;
-      }
-  }
-
-  std::vector<std::pair<formula, formula>>
-  expansion_simple(formula f)
-  {
-    int owner = 42;
-    auto d = make_bdd_dict();
-
-    auto exp = expansion(f, d, &owner, exp_opts::None);
-
-    std::vector<std::pair<formula, formula>> res;
-    for (const auto& [bdd, f] : exp)
-      res.push_back({bdd_to_formula(bdd, d), f});
-
-    d->unregister_all_my_variables(&owner);
-    return res;
-  }
-
   expansion_t
-  expansion(formula f, const bdd_dict_ptr& d, void *owner, exp_opts::expand_opt opts, std::unordered_set<formula>* seen)
+  expansion2(formula f, const bdd_dict_ptr& d, void *owner, exp_opts::expand_opt opts, std::unordered_set<formula>* seen)
   {
     using exp_t = expansion_t;
 
@@ -552,7 +528,7 @@ namespace spot
       }
 
     auto rec = [&d, owner, opts, seen](formula f){
-      return expansion(f, d, owner, exp_opts::None, seen);
+      return expansion2(f, d, owner, exp_opts::None, seen);
     };
 
 
@@ -813,20 +789,20 @@ namespace spot
   }
 
   twa_graph_ptr
-  expand_automaton(formula f, bdd_dict_ptr d, exp_opts::expand_opt opts)
+  expand_automaton2(formula f, bdd_dict_ptr d, exp_opts::expand_opt opts)
   {
-    auto finite = expand_finite_automaton(f, d, opts);
+    auto finite = expand_finite_automaton2(f, d, opts);
     return from_finite(finite);
   }
 
   struct signature_hash
   {
     std::size_t
-    operator() (const std::pair<bool, expansion_t>& sig) const noexcept
+    operator() (const expansion_t& sig) const noexcept
     {
-      size_t hash = std::hash<bool>()(sig.first);
+      size_t hash = 0;
 
-      for (const auto& keyvalue : sig.second)
+      for (const auto& keyvalue : sig)
         {
           hash ^= (bdd_hash()(keyvalue.first) ^ std::hash<formula>()(keyvalue.second))
             + 0x9e3779b9 + (hash << 6) + (hash >> 2);
@@ -837,17 +813,17 @@ namespace spot
   };
 
   twa_graph_ptr
-  expand_finite_automaton(formula f, bdd_dict_ptr d, exp_opts::expand_opt opts)
+  expand_finite_automaton2(formula f, bdd_dict_ptr d, exp_opts::expand_opt opts)
   {
     bool signature_merge = opts & exp_opts::expand_opt::SignatureMerge;
 
     auto aut = make_twa_graph(d);
 
-    aut->prop_state_acc(true);
+    aut->prop_state_acc(false);
     const auto acc_mark = aut->set_buchi();
 
     auto formula2state = robin_hood::unordered_map<formula, unsigned>();
-    auto signature2state = std::unordered_map<std::pair<bool, expansion_t>, unsigned, signature_hash>();
+    auto signature2state = std::unordered_map<expansion_t, unsigned, signature_hash>();
     auto seen = std::unordered_set<formula>();
     seen.insert(f);
 
@@ -860,9 +836,21 @@ namespace spot
     for (auto& ap : f_aps)
         aut->register_ap(ap);
 
-    if (signature_merge)
-      signature2state.insert({ {f.accepts_eword(), expansion(f, d, aut.get(), opts, &seen)}, init_state});
+    auto formula2signature = robin_hood::unordered_map<formula, expansion_t>();
+    auto get_signature = [&](const formula& form) -> expansion_t
+      {
+        auto it = formula2signature.find(form);
+        if (it != formula2signature.end())
+          {
+            return it->second;
+          }
+        auto exp = expansion2(form, d, aut.get(), opts, &seen);
+        formula2signature.insert({form, exp});
+        return exp;
+      };
 
+    if (signature_merge)
+      signature2state.insert({ get_signature(f), init_state});
 
     auto todo = std::vector<std::pair<formula, unsigned>>();
     todo.push_back({f, init_state});
@@ -884,9 +872,9 @@ namespace spot
         {
           if (signature_merge)
             {
-              auto exp = expansion(suffix, d, aut.get(), opts, &seen);
-              bool accepting = suffix.accepts_eword();
-              auto it2 = signature2state.find({accepting, exp});
+              auto exp = get_signature(suffix);
+
+              auto it2 = signature2state.find(exp);
               if (it2 != signature2state.end())
                 {
                   formula2state.insert({suffix, it2->second});
@@ -900,7 +888,7 @@ namespace spot
 
           formula2state.insert({suffix, dst});
           if (signature_merge)
-            signature2state.insert({{suffix.accepts_eword(), expansion(suffix, d, aut.get(), opts, &seen)}, dst});
+            signature2state.insert({get_signature(suffix), dst});
 
           std::ostringstream ss;
           ss << suffix;
@@ -915,11 +903,8 @@ namespace spot
         auto [curr_f, curr_state] = todo[todo.size() - 1];
         todo.pop_back();
 
-        auto curr_acc_mark= curr_f.accepts_eword()
-          ? acc_mark
-          : acc_cond::mark_t();
 
-        auto exp = expansion(curr_f, d, aut.get(), opts, &seen);
+        auto exp = get_signature(curr_f);
 
         for (const auto& [letter, suffix] : exp)
           {
@@ -928,14 +913,10 @@ namespace spot
               continue;
 
             auto dst = find_dst(suffix);
+
+            auto curr_acc_mark = suffix.accepts_eword() ? acc_mark : acc_cond::mark_t();
             aut->new_edge(curr_state, dst, letter, curr_acc_mark);
           }
-
-        // if state has no transitions and should be accepting, create
-        // artificial transition
-        if (aut->get_graph().state_storage(curr_state).succ == 0
-            && curr_f.accepts_eword())
-          aut->new_edge(curr_state, curr_state, bddfalse, acc_mark);
       }
 
     aut->set_named_prop("state-names", state_names);

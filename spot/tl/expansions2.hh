@@ -24,49 +24,22 @@
 #include <bddx.h>
 
 #include <spot/misc/bddlt.hh>
+#include <spot/tl/expansions.hh>
 #include <spot/tl/formula.hh>
 #include <spot/twa/bdddict.hh>
 #include <spot/twa/twagraph.hh>
 
 namespace spot
 {
-  using expansion_t = std::vector<std::pair<bdd, formula>>;
-
-  struct exp_opts
-  {
-    enum expand_opt {
-      None = 0,
-      UniqueSuffixPre = 1,
-      UniquePrefix = 2,
-      BddIsop = 4,
-      BddMinterm = 8,
-      BddSigmaStar = 16,
-      BddEncode = 32,
-      MergeEdges = 64,
-      SignatureMerge = 128,
-      Determinize = 256,
-      UniquePrefixSeenOpt = 512,
-      UniqueSuffixPost = 1024,
-      UniquePrefixSeenCountOpt = 2048,
-      TransitionBased = 4096,
-    };
-  };
-
-  SPOT_API std::vector<std::pair<formula, formula>>
-  expansion_simple(formula f);
-
   SPOT_API expansion_t
-  expansion(formula f, const bdd_dict_ptr& d, void *owner, exp_opts::expand_opt opts, std::unordered_set<formula>* seen = nullptr);
+  expansion2(formula f, const bdd_dict_ptr& d, void *owner, exp_opts::expand_opt opts, std::unordered_set<formula>* seen = nullptr);
 
   SPOT_API twa_graph_ptr
-  expand_automaton(formula f, bdd_dict_ptr d, exp_opts::expand_opt opts);
+  expand_automaton2(formula f, bdd_dict_ptr d, exp_opts::expand_opt opts);
 
   SPOT_API twa_graph_ptr
-  expand_finite_automaton(formula f, bdd_dict_ptr d, exp_opts::expand_opt opts);
+  expand_finite_automaton2(formula f, bdd_dict_ptr d, exp_opts::expand_opt opts);
 
   SPOT_API formula
-  expansion_to_formula(expansion_t e, bdd_dict_ptr& d);
-
-  SPOT_API void
-  print_expansion(const expansion_t& exp, const bdd_dict_ptr& dict);
+  expansion_to_formula2(expansion_t e, bdd_dict_ptr& d);
 }
