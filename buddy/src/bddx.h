@@ -1,5 +1,5 @@
 /*========================================================================
-	       Copyright (C) 1996-2003, 2021 by Jorn Lind-Nielsen
+	       Copyright (C) 1996-2003 by Jorn Lind-Nielsen
 			    All rights reserved
 
     Permission is hereby granted, without written agreement and without
@@ -502,6 +502,7 @@ BUDDY_API_VAR const BDD bddtrue;
 #ifdef CPLUSPLUS
 #include <iostream>
 #include <memory>
+#include <type_traits>
 
 /*=== User BDD class ===================================================*/
 
@@ -1134,7 +1135,18 @@ public:
   class minterm_iterator
   {
   public:
-    minterm_iterator(minterms_of* me)
+    typedef bdd value_type;
+    typedef value_type& reference;
+    typedef value_type* pointer;
+    typedef std::ptrdiff_t difference_type;
+    typedef std::forward_iterator_tag iterator_category;
+
+    explicit minterm_iterator() noexcept
+      : me_(nullptr)
+    {
+    }
+
+    minterm_iterator(minterms_of* me) noexcept
       : me_(me)
     {
     }
