@@ -57,13 +57,81 @@
 %module buddy
 
 %include "std_string.i"
+%include "std_container.i"
 
 %{
 #include <sstream>
+#include <iterator>
 #include "bddx.h"
 #include "fddx.h"
 #include "bvecx.h"
+
 %}
+
+
+// Swig come with iterators that implement a decrement method.  This
+// is not supported in our "successor" iterators.
+%fragment("ForwardNullTerminatedIterator_T","header",fragment="SwigPyIterator_T") {
+namespace swig
+{
+  template<typename OutIterator,
+	   typename ValueType =
+	   typename std::iterator_traits<OutIterator>::value_type,
+	   typename FromOper = from_oper<ValueType> >
+  class ForwardNullTerminatedIterator_T :  public SwigPyIterator
+  {
+  public:
+    FromOper from;
+    typedef OutIterator out_iterator;
+    typedef ValueType value_type;
+    typedef SwigPyIterator  base;
+
+    ForwardNullTerminatedIterator_T(out_iterator curr, PyObject *seq)
+    : SwigPyIterator(seq), current(curr)
+    {
+    }
+
+    PyObject *value() const {
+      if (current == nullptr) {
+	throw stop_iteration();
+      } else {
+	return from(static_cast<value_type>(*(current)));
+      }
+    }
+
+    SwigPyIterator *copy() const
+    {
+      return new ForwardNullTerminatedIterator_T(*this);
+    }
+
+    SwigPyIterator *incr(size_t n = 1)
+    {
+      while (n--) {
+	if (current == nullptr) {
+	  throw stop_iteration();
+	} else {
+	  ++current;
+	}
+      }
+      return this;
+    }
+
+  protected:
+    out_iterator current;
+  };
+
+
+  template<typename OutIter>
+  inline SwigPyIterator*
+  make_forward_null_terminated_iterator(const OutIter& begin, PyObject *seq = 0)
+  {
+    return new ForwardNullTerminatedIterator_T<OutIter>(begin, seq);
+  }
+}}
+%fragment("ForwardNullTerminatedIterator_T");
+
+%traits_swigtype(bdd);
+%fragment(SWIG_Traits_frag(bdd));
 
 %typemap(in) (int* input_buf, int input_buf_size) {
   if (!PySequence_Check($input))
@@ -361,4 +429,37 @@ class bvec
   {
     return (*self)[i];
   }
+}
+
+
+class minterms_of
+{
+public:
+  class minterm_iterator
+  {
+  public:
+    minterm_iterator(minterms_of* me);
+    minterm_iterator& operator++();
+    void operator++(int);
+    bool operator==(std::nullptr_t) const;
+    bool operator!=(std::nullptr_t) const;
+    bdd operator*() const;
+  };
+
+  minterms_of(bdd fun, bdd vars);
+  ~minterms_of();
+  minterm_iterator begin();
+  std::nullptr_t end() const;
+  bool done() const;
+  bdd operator*() const;
+  void operator++();
+};
+
+%extend minterms_of {
+  %newobject __iter__(PyObject **PYTHON_SELF);
+  swig::SwigPyIterator* __iter__(PyObject **PYTHON_SELF)
+   {
+      return swig::make_forward_null_terminated_iterator(self->begin(),
+                                                         *PYTHON_SELF);
+   }
 }

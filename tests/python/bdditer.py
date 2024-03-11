@@ -65,6 +65,12 @@ del res2
 del c
 gcollect()
 
+res3 = []
+for i in buddy.minterms_of(buddy.bddtrue, run.aut.ap_vars()):
+    res3.append(str(spot.bdd_to_formula(i)))
+tc.assertEqual(res3, ['!a & !b', '!a & b', 'a & !b', 'a & b'])
+gcollect()
+
 f = spot.bdd_to_formula(b)
 tc.assertTrue(f._is(spot.op_And))
 tc.assertTrue(f[0]._is(spot.op_ap))
