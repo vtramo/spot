@@ -1424,6 +1424,7 @@ namespace spot
                     {
                         // src is in W0
                         deg = 0;
+                        (*strategy)[src] = game->edge_number(edge);
                         break;
                     }
                     else
