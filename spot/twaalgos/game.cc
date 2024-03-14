@@ -1367,7 +1367,7 @@ namespace spot
     std::ofstream stream("/home/poustouflan/tmp/spot.log");
 
     unsigned ns = game->num_states();
-    auto winners = new region_t(ns, true);
+    auto winners = new region_t(ns, false);
     game->set_named_prop("state-winner", winners);
     auto strategy = new strategy_t(ns, 0);
     game->set_named_prop("strategy", strategy);
@@ -1414,13 +1414,13 @@ namespace spot
         std::vector<unsigned> w0;
         for (unsigned src = 0; src < ns; ++src)
           {
-            (*winners)[src] = true;
+            (*winners)[src] = false;
             unsigned deg = 0;
             for (auto& edge: game->out(src))
               {
                 if (t0.find(game->edge_number(edge)) != t0.end())
                 {
-                    if (owners[src] == false)
+                    if (owners[src] == true)
                     {
                         // src is in W0
                         deg = 0;
@@ -1440,7 +1440,7 @@ namespace spot
             if (deg == 0)
               {
                 stream << src << std::endl;
-                (*winners)[src] = false;
+                (*winners)[src] = true;
                 w0.push_back(src);
               }
           }
@@ -1455,16 +1455,16 @@ namespace spot
             for (auto& edge: transposed.out(src))
               {
                 unsigned pred = edge.dst;
-                if ((*winners)[pred] == false)
+                if ((*winners)[pred] == true)
                   continue;
 
                 // check 1 || check 2
                 // Player0 own pred, he can make it win
-                bool check1 = owners[pred] == false;
+                bool check1 = owners[pred] == true;
                 // Player1 own pred but he cannot escape
                 if (check1 || --out_degree[pred] == 0)
                   {
-                    (*winners)[pred] = false;
+                    (*winners)[pred] = true;
                     stream << "new elt in W0: " << pred << std::endl;
                     w0.push_back(pred);
                     if (check1)
@@ -1477,10 +1477,10 @@ namespace spot
         for (unsigned src = 0; src < ns; ++src)
         {
           stream << "strategy for " << src << ": " << (*strategy)[src] << std::endl;
-          if (owners[src] == true && (*winners)[src] == true && (*strategy)[src] == 0)
+          if (owners[src] == false && (*winners)[src] == false && (*strategy)[src] == 0)
           {
             for (auto& edge: game->out(src))
-              if ((*winners)[edge.dst] == true && t0.find(game->edge_number(edge)) == t0.end())
+              if ((*winners)[edge.dst] == false && t0.find(game->edge_number(edge)) == t0.end())
                 {
                   (*strategy)[src] = game->edge_number(edge);
                   stream << "NEW strategy for " << src << ": " << (*strategy)[src] << std::endl;
@@ -1492,7 +1492,7 @@ namespace spot
         for (auto it = t0.begin(); it != t0.end(); )
         {
             auto edge = game->edge_storage(*it);
-            if ((*winners)[edge.dst] != false)
+            if ((*winners)[edge.dst] != true)
             {
                 t0.erase(it++);
                 fixed = false;
