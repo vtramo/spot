@@ -101,6 +101,19 @@ namespace spot
   bool solve_safety_game(const twa_graph_ptr& game);
 
   /// \ingroup games
+  /// \brief Solve a Büchi game.
+  ///
+  /// The transitions may only contain color 0
+  ///
+  /// Player 0 tries to reach this color an infinite number of times
+  /// while player 0 tries to prevent that.
+  ///
+  /// Returns the player winning in the initial state, and sets
+  /// the state-winner and strategy named properties.
+  SPOT_API
+  bool solve_buchi_game(const twa_graph_ptr& game);
+
+  /// \ingroup games
   /// \brief Generic interface for game solving
   ///
   /// Dispatch to solve_safety_game() if the acceptance condition is

@@ -18,6 +18,7 @@
 
 #include "config.h"
 
+#include <fstream>
 #include <utility>
 
 #include <spot/twaalgos/game.hh>
@@ -1356,6 +1357,158 @@ namespace spot
               (*strategy)[s] = game->edge_number(e);
               break;
             }
+
+    return (*winners)[game->get_init_state_number()];
+  }
+
+  bool solve_buchi_game(const twa_graph_ptr& game)
+  {
+    auto owners = get_state_players(game);
+    std::ofstream stream("/home/poustouflan/tmp/spot.log");
+
+    unsigned ns = game->num_states();
+    auto winners = new region_t(ns, true);
+    game->set_named_prop("state-winner", winners);
+    auto strategy = new strategy_t(ns, 0);
+    game->set_named_prop("strategy", strategy);
+
+    // T0 = set of colored transitions
+    // S0 = CPre0(T0) (set of states from which player0 can force to take
+    //                 immediately a transition in T0)
+    // W0 = Attr(T0) (set of states from which player0 can force to eventually
+    //                take a transition in T0)
+    //
+    // We represent a state in W0 as a dead-end (out_degree = 0)
+    // If a P0 state has a transition in T0, it is in W0
+    // TODO: if edges indices are low enough: use bitmap
+    std::set<unsigned> t0;
+    for (auto& edge: game->edge_vector())
+    {
+        if (edge.acc.has(0))
+            t0.insert(game->edge_number(edge));
+    }
+
+    bool fixed = false;
+    while (!fixed)
+    {
+        fixed = true;
+        stream << "T0" << std::endl;
+        for (auto idx : t0)
+        {
+            auto edge = game->edge_storage(idx);
+            stream << edge.src << " -> " << edge.dst << std::endl;
+        }
+
+        stream << "S0" << std::endl;
+        // transposed is a reversed copy of game to compute predecessors
+        // more easily.  It also keep track of the original edge iindex.
+        struct edge_data {
+          unsigned edgeidx;
+        };
+        digraph<void, edge_data> transposed;
+        // Reverse the automaton, compute the out degree of
+        // each state, and save dead-states in queue.
+        transposed.new_states(ns);
+        std::vector<unsigned> out_degree;
+        out_degree.reserve(ns);
+        std::vector<unsigned> w0;
+        for (unsigned src = 0; src < ns; ++src)
+          {
+            (*winners)[src] = true;
+            unsigned deg = 0;
+            for (auto& edge: game->out(src))
+              {
+                if (t0.find(game->edge_number(edge)) != t0.end())
+                {
+                    if (owners[src] == false)
+                    {
+                        // src is in W0
+                        deg = 0;
+                        break;
+                    }
+                    else
+                    {
+                        // player2 cannot take this edge
+                        continue;
+                    }
+                }
+                transposed.new_edge(edge.dst, edge.src, game->edge_number(edge));
+                ++deg;
+              }
+            out_degree.push_back(deg);
+            if (deg == 0)
+              {
+                stream << src << std::endl;
+                (*winners)[src] = false;
+                w0.push_back(src);
+              }
+          }
+
+        stream << "W0" << std::endl;
+        // compute w0
+        while (!w0.empty())
+          {
+            unsigned src = w0.back();
+            w0.pop_back();
+            stream << "analyzing " << src << std::endl;
+            for (auto& edge: transposed.out(src))
+              {
+                unsigned pred = edge.dst;
+                if ((*winners)[pred] == false)
+                  continue;
+
+                // check 1 || check 2
+                // Player0 own pred, he can make it win
+                bool check1 = owners[pred] == false;
+                // Player1 own pred but he cannot escape
+                if (check1 || --out_degree[pred] == 0)
+                  {
+                    (*winners)[pred] = false;
+                    stream << "new elt in W0: " << pred << std::endl;
+                    w0.push_back(pred);
+                    if (check1)
+                      (*strategy)[pred] = edge.edgeidx;
+                  }
+              }
+          }
+
+        // Let's fill in the strategy for Player 1.
+        for (unsigned src = 0; src < ns; ++src)
+        {
+          stream << "strategy for " << src << ": " << (*strategy)[src] << std::endl;
+          if (owners[src] == true && (*winners)[src] == true && (*strategy)[src] == 0)
+          {
+            for (auto& edge: game->out(src))
+              if ((*winners)[edge.dst] == true && t0.find(game->edge_number(edge)) == t0.end())
+                {
+                  (*strategy)[src] = game->edge_number(edge);
+                  stream << "NEW strategy for " << src << ": " << (*strategy)[src] << std::endl;
+                  break;
+                }
+          }
+        }
+
+        for (auto it = t0.begin(); it != t0.end(); )
+        {
+            auto edge = game->edge_storage(*it);
+            if ((*winners)[edge.dst] != false)
+            {
+                t0.erase(it++);
+                fixed = false;
+                stream << "edge removed. fixed point not reached yet" << std::endl;
+            }
+            else {
+                ++it;
+            }
+        }
+        stream << "new t0" << std::endl;
+        for (auto idx : t0)
+        {
+            auto edge = game->edge_storage(idx);
+            stream << edge.src << " -> " << edge.dst << std::endl;
+        }
+
+    }
 
     return (*winners)[game->get_init_state_number()];
   }
