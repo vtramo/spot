@@ -148,6 +148,10 @@ New in spot 2.11.6.dev  (not yet released)
     should raise an exception of return nullptr if it requires more
     acceptance sets than supported.
 
+  - spot::dualize() learned a trick to be faster on states that have
+    less outgoing edges than atomic proposition declared on the
+    automaton.  (Issue #566.)
+
   - [Potential backward incompatibility] spot::dualize() does not call
     cleanup_acceptance() anymore.  This change ensures that the dual
     of a Büchi automaton will always be a co-Büchi automaton.

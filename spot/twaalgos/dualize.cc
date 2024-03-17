@@ -146,29 +146,74 @@ namespace spot
       {
         std::vector<unsigned> st;
         unsigned n = aut_->num_states();
+        unsigned n_ap = res->ap().size();
+        std::vector<bdd> labels;
+
         for (unsigned i = 0; i < n; ++i)
           {
-            bdd delta = dualized_transition_function(i);
+            unsigned n_succs;
+            bdd delta = dualized_transition_function(i, n_succs);
+            if (delta == bddfalse)
+              continue;
             bdd ap = bdd_exist(bdd_support(delta), all_vars_);
             bdd letters = bdd_exist(delta, all_vars_);
 
-            for (bdd oneletter: minterms_of(letters, ap))
-              {
-                minato_isop isop(bdd_restrict(delta, oneletter));
-                bdd dest;
+            // Create edges with label LABEL, and destinations states
+            // encoded in the Boolean function RESTRICTED_DELTA.
+            auto create_edges = [&](bdd label, bdd restricted_delta) {
+              minato_isop isop(restricted_delta);
+              bdd dest;
+              while ((dest = isop.next()) != bddfalse)
+                {
+                  st.clear();
+                  acc_cond::mark_t m = bdd_to_state(dest, st);
+                  if  (st.empty())
+                    {
+                      st.push_back(true_state_);
+                      if (aut_->prop_state_acc())
+                        m = aut_->state_acc_sets(i);
+                    }
+                  res->new_univ_edge(i, st.begin(), st.end(), label, m);
+                }
+            };
 
-                while ((dest = isop.next()) != bddfalse)
+            // Iterating over all mineterms can be very slow when |AP|
+            // is large (see issue #566) .  The else branch implements
+            // another approach that should be exponential in the
+            // number of successors instead of in the number of atomic
+            // propositions.
+            if (n_succs > n_ap)
+              {
+                for (bdd oneletter: minterms_of(letters, ap))
+                  create_edges(oneletter, bdd_restrict(delta, oneletter));
+              }
+            else
+              {
+                // gather all labels in the successors of state,
+                // and split those labels so they are all disjoint.
+                //
+                // LABELS may have 2^{n_succ} elements after this
+                // loop, but since n_succ <= n_ap, we expect this
+                // approach to be faster.
+                labels.clear();
+                labels.reserve(n_succs);
+                labels.push_back(bddtrue);
+                for (auto& e: aut_->out(i))
                   {
-                    st.clear();
-                    acc_cond::mark_t m = bdd_to_state(dest, st);
-                    if  (st.empty())
-                      {
-                        st.push_back(true_state_);
-                        if (aut_->prop_state_acc())
-                          m = aut_->state_acc_sets(i);
-                      }
-                    res->new_univ_edge(i, st.begin(), st.end(), oneletter, m);
+                    // make sure we don't realloc during the loop
+                    labels.reserve(labels.size() * 2);
+                    // Do not use a range-based or iterator-based for
+                    // loop here, as push_back invalidates the end
+                    // iterator.
+                    for (unsigned cur = 0, sz = labels.size(); cur < sz; ++cur)
+                      if (bdd common = labels[cur] & e.cond; common != bddfalse)
+                        {
+                          labels[cur] -= e.cond;
+                          labels.push_back(common);
+                        }
                   }
+                for (auto& cur: labels)
+                  create_edges(cur, bdd_relprod(cur, delta, res->ap_vars()));
               }
           }
       }
@@ -223,14 +268,16 @@ namespace spot
       }
 
       // Returns the dualized transition function of any input state as a bdd.
-      bdd dualized_transition_function(unsigned state_id)
+      bdd dualized_transition_function(unsigned state_id, unsigned& n_succ)
       {
+        n_succ = 0;
         if (state_to_var_[state_id] == bddtrue)
           return bddfalse;
 
         bdd res = bddtrue;
         for (auto& e : aut_->out(state_id))
           {
+            ++n_succ;
             bdd dest = bddfalse;
             for (unsigned d : aut_->univ_dests(e))
               dest |= state_to_var_[d];
