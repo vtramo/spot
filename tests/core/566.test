@@ -135,3 +135,6 @@ EOF
 # but it is difficult to test so in the test suite.
 res=`autfilt --dualize 21.hoa --stats='%S %E %T %s %e %t'`
 test "$res" = "5 13 85 6 13 12582912"
+
+res=`autfilt --complement 21.hoa --stats='%S %E %T %s %e %t'`
+test "$res" = "5 13 85 5 11 10485760"
