@@ -51,276 +51,221 @@ namespace std
 
 namespace spot
 {
-  // We attempt to add a potentially new set of symbols defined as "value" to
-  // our current set of edge partitions, "current_set". We also specify a set
-  // of valid symbols considered
-  static void add_to_lower_bound_set_helper(
-        std::unordered_set<bdd>& current_set,
-        bdd valid_symbol_set,
-        bdd value)
+  namespace
   {
-    // This function's correctness is defined by the invariant, that we never
-    // add a bdd to our current set unless the bdd is disjoint from every other
-    // element in the current_set. In other words, we will only reach the final
-    // set.insert(value), if we can iterate over the whole of current_set
-    // without finding some set intersections
-    if (value == bddfalse) // Don't add empty sets, as they subsume everything
-      {
-        return;
-      }
-    for (auto sym : current_set)
-      {
-        // If a sym is a subset of value, recursively add the set of symbols
-        // defined in value, but not in sym. This ensures the two elements
-        // are disjoint.
-        if (bdd_implies(sym, value))
-          {
-            add_to_lower_bound_set_helper(
-              current_set, valid_symbol_set, (value - sym) & valid_symbol_set);
-            return;
-          }
-        // If a sym is a subset of the value we're trying to add, then we
-        // remove the symbol and add the two symbols created by partitioning
-        // the sym with value.
-        else if (bdd_implies(value, sym))
-          {
-            current_set.erase(sym);
-            add_to_lower_bound_set_helper(current_set,
-                                          valid_symbol_set,
-                                          sym & value);
-            add_to_lower_bound_set_helper(current_set,
-                                          valid_symbol_set,
-                                          sym - value);
-            return;
-          }
+    // We attempt to add a potentially new set of symbols defined as "value" to
+    // our current set of edge partitions, "current_set". We also specify a set
+    // of valid symbols considered
+    static void
+    add_to_lower_bound_set_helper(std::unordered_set<bdd>& current_set,
+                                  bdd valid_symbol_set, bdd value)
+    {
+      // This function's correctness is defined by the invariant, that
+      // we never add a bdd to our current set unless the bdd is
+      // disjoint from every other element in the current_set. In
+      // other words, we will only reach the final set.insert(value),
+      // if we can iterate over the whole of current_set without
+      // finding some set intersections
+      if (value == bddfalse) // Don't add empty sets, as they subsume everything
+        {
+          return;
+        }
+      for (auto sym : current_set)
+        {
+          // If a sym is a subset of value, recursively add the set of symbols
+          // defined in value, but not in sym. This ensures the two elements
+          // are disjoint.
+          if (bdd_implies(sym, value))
+            {
+              add_to_lower_bound_set_helper(current_set,
+                                            valid_symbol_set,
+                                            (value - sym) & valid_symbol_set);
+              return;
+            }
+          // If a sym is a subset of the value we're trying to add, then we
+          // remove the symbol and add the two symbols created by partitioning
+          // the sym with value.
+          else if (bdd_implies(value, sym))
+            {
+              current_set.erase(sym);
+              add_to_lower_bound_set_helper(current_set,
+                                            valid_symbol_set,
+                                            sym & value);
+              add_to_lower_bound_set_helper(current_set,
+                                            valid_symbol_set,
+                                            sym - value);
+              return;
+            }
+        }
+      // This line is only reachable if value is not a subset and doesn't
+      // subsume any element currently in our set
+      current_set.insert(value);
     }
-    // This line is only reachable if value is not a subset and doesn't
-    // subsume any element currently in our set
-    current_set.insert(value);
-  }
 
-  static std::array<bdd, 4> create_possible_intersections(
-      bdd valid_symbol_set,
-      std::pair<bdd, bdd> const& first,
-      std::pair<bdd, bdd> const& second)
-  {
-    auto intermediate = second.first & valid_symbol_set;
-    auto intermediate2 = second.second & valid_symbol_set;
-    return {
-      first.first & intermediate,
-      first.second & intermediate,
-      first.first & intermediate2,
-      first.second & intermediate2,
-    };
-  }
+    using bdd_set = std::unordered_set<bdd>;
+    using bdd_pair_set = std::unordered_set<std::pair<bdd, bdd>>;
 
-  using bdd_set = std::unordered_set<bdd>;
-  using bdd_pair_set = std::unordered_set<std::pair<bdd, bdd>>;
+    // Transforms each element of the basis into a complement pair,
+    // with a valid symbol set specified
+    static bdd_pair_set create_complement_pairs(std::vector<bdd> const& basis,
+                                                bdd valid_symbol_set)
+    {
+      bdd_pair_set intersections;
+      for (bdd sym: basis)
+        {
+          bdd intersection = sym & valid_symbol_set;
+          if (intersection != bddfalse)
+            {
+              bdd negation = valid_symbol_set - intersection;
+              intersections.insert(std::make_pair(intersection, negation));
+            }
+        }
+      return intersections;
+    }
 
-  // Transforms each element of the basis into a complement pair,
-  // with a valid symbol set specified
-  static bdd_pair_set create_complement_pairs(std::vector<bdd> const& basis,
-                                              bdd valid_symbol_set)
-  {
-    bdd_pair_set intersections;
-    for (auto& sym : basis)
-      {
-        auto intersection = sym & valid_symbol_set;
-        if (intersection != bddfalse)
-          {
-            auto negation = valid_symbol_set - intersection;
-            intersections.insert(std::make_pair(intersection, negation));
-          }
-      }
-    return intersections;
-  }
-
-  template<typename Callable>
-  void iterate_possible_intersections(bdd_pair_set const& complement_pairs,
-                                      bdd valid_symbol_set,
-                                      Callable callable)
-  {
-    for (auto it = complement_pairs.begin(); it != complement_pairs.end(); ++it)
-      {
+    template<typename Callable>
+    void iterate_possible_intersections(bdd_pair_set const& complement_pairs,
+                                        bdd valid_symbol_set,
+                                        Callable callable)
+    {
+      for (auto it = complement_pairs.begin();
+           it != complement_pairs.end(); ++it)
         for (auto it2 = std::next(it); it2 != complement_pairs.end(); ++it2)
           {
-            auto intersections = create_possible_intersections(
-              valid_symbol_set, *it, *it2);
-            for (auto& intersection : intersections)
-              {
-                callable(intersection);
-              }
+            auto intermediate = it2->first & valid_symbol_set;
+            auto intermediate2 = it2->second & valid_symbol_set;
+            callable(it->first & intermediate);
+            callable(it->second & intermediate);
+            callable(it->first & intermediate2);
+            callable(it->second & intermediate2);
           }
-      }
-  }
-
-  // Compute the lower set bound of a set. A valid symbol set is also
-  // provided to make sure that no symbol exists in the output if it is
-  // not also included in the valid symbol set
-  static bdd_set lower_set_bound(std::vector<bdd> const& basis,
-                                 bdd valid_symbol_set)
-  {
-    auto complement_pairs = create_complement_pairs(basis, valid_symbol_set);
-    if (complement_pairs.size() == 1)
-      {
-        bdd_set lower_bound;
-        auto& pair = *complement_pairs.begin();
-        if (pair.first != bddfalse
-           && bdd_implies(pair.first, valid_symbol_set))
-          {
-            lower_bound.insert(pair.first);
-          }
-        if (pair.second != bddfalse
-           && bdd_implies(pair.second, valid_symbol_set))
-          {
-            lower_bound.insert(pair.second);
-          }
-        return lower_bound;
-      }
-    else
-      {
-        bdd_set lower_bound;
-        iterate_possible_intersections(complement_pairs, valid_symbol_set,
-        [&](auto intersection)
-        {
-          add_to_lower_bound_set_helper(lower_bound,
-                                        valid_symbol_set,
-                                        intersection);
-        });
-
-        return lower_bound;
-      }
-  }
-
-  // Partitions a symbol based on a list of other bdds called the basis.
-  // The resulting partition will have the property that for any paritioned
-  // element and any element element in the basis, the partitioned element will
-  // either by completely contained by that element of the basis, or completely
-  // disjoint.
-  static bdd_set generate_contained_or_disjoint_symbols(bdd sym,
-                                                std::vector<bdd> const& basis)
-  {
-    auto lower_bound = lower_set_bound(basis, sym);
-    // If the sym was disjoint from everything in the basis, we'll be left with
-    // an empty lower_bound. To fix this, we will simply return a singleton,
-    // with sym as the only element. Notice, this singleton will satisfy the
-    // requirements of a return value from this function. Additionally, if the
-    // sym is false, that means nothing can traverse it, so we simply are left
-    // with no edges.
-    if (lower_bound.empty() && sym != bddfalse)
-    {
-      lower_bound.insert(sym);
     }
-    return lower_bound;
+
+    // Compute the lower set bound of a set. A valid symbol set is also
+    // provided to make sure that no symbol exists in the output if it is
+    // not also included in the valid symbol set
+    static bdd_set lower_set_bound(std::vector<bdd> const& basis,
+                                   bdd valid_symbol_set)
+    {
+      auto complement_pairs = create_complement_pairs(basis, valid_symbol_set);
+      if (complement_pairs.size() == 1)
+        {
+          bdd_set lower_bound;
+          auto& pair = *complement_pairs.begin();
+          if (pair.first != bddfalse
+              && bdd_implies(pair.first, valid_symbol_set))
+            lower_bound.insert(pair.first);
+          if (pair.second != bddfalse
+              && bdd_implies(pair.second, valid_symbol_set))
+            lower_bound.insert(pair.second);
+          return lower_bound;
+        }
+      else
+        {
+          bdd_set lower_bound;
+          iterate_possible_intersections(complement_pairs, valid_symbol_set,
+             [&](auto intersection)
+             {
+               add_to_lower_bound_set_helper(lower_bound,
+                                             valid_symbol_set,
+                                             intersection);
+             });
+          return lower_bound;
+        }
+    }
+
+    // Partitions a symbol based on a list of other bdds called the
+    // basis.  The resulting partition will have the property that for
+    // any partitioned element and any element element in the basis,
+    // the partitioned element will either by completely contained by
+    // that element of the basis, or completely disjoint.
+    static bdd_set
+    generate_contained_or_disjoint_symbols(bdd sym,
+                                           std::vector<bdd> const& basis)
+    {
+      auto lower_bound = lower_set_bound(basis, sym);
+      // If the sym was disjoint from everything in the basis, we'll
+      // be left with an empty lower_bound. To fix this, we will
+      // simply return a singleton, with sym as the only
+      // element. Notice, this singleton will satisfy the requirements
+      // of a return value from this function. Additionally, if the
+      // sym is false, that means nothing can traverse it, so we
+      // simply are left with no edges.
+      if (lower_bound.empty() && sym != bddfalse)
+        lower_bound.insert(sym);
+      return lower_bound;
+    }
+
+    template<typename genlabels>
+    twa_graph_ptr split_edges_aux(const const_twa_graph_ptr& aut,
+                                  genlabels gen)
+    {
+      twa_graph_ptr out = make_twa_graph(aut->get_dict());
+      out->copy_acceptance_of(aut);
+      out->copy_ap_of(aut);
+      out->prop_copy(aut, twa::prop_set::all());
+      out->new_states(aut->num_states());
+      out->set_init_state(aut->get_init_state_number());
+
+      // We use a cache to avoid the costly loop around minterms_of().
+      // Cache entries have the form (id, [begin, end]) where id is the
+      // number of a BDD that as been (or will be) split, and begin/end
+      // denotes a range of existing transition numbers that cover the
+      // split.
+      //
+      // std::pair causes some noexcept warnings when used in
+      // robin_hood::unordered_map with GCC 9.4.  Use robin_hood::pair
+      // instead.
+      typedef robin_hood::pair<unsigned, unsigned> cached_t;
+      robin_hood::unordered_map<unsigned, cached_t> split_cond;
+
+      internal::univ_dest_mapper<twa_graph::graph_t> uniq(out->get_graph());
+
+      for (auto& e: aut->edges())
+        {
+          bdd cond = e.cond;
+          if (cond == bddfalse)
+            continue;
+          unsigned dst = e.dst;
+          if (aut->is_univ_dest(dst))
+            {
+              auto d = aut->univ_dests(dst);
+              dst = uniq.new_univ_dests(d.begin(), d.end());
+            }
+
+          auto& [begin, end] = split_cond[cond.id()];
+          if (begin == end)
+            {
+              begin = out->num_edges() + 1;
+              for (bdd minterm: gen(cond))
+                out->new_edge(e.src, dst, minterm, e.acc);
+              end = out->num_edges() + 1;
+            }
+          else
+            {
+              auto& g = out->get_graph();
+              for (unsigned i = begin; i < end; ++i)
+                out->new_edge(e.src, dst, g.edge_storage(i).cond, e.acc);
+            }
+        }
+      return out;
+    }
   }
 
   twa_graph_ptr split_edges(const const_twa_graph_ptr& aut)
   {
-    twa_graph_ptr out = make_twa_graph(aut->get_dict());
-    out->copy_acceptance_of(aut);
-    out->copy_ap_of(aut);
-    out->prop_copy(aut, twa::prop_set::all());
-    out->new_states(aut->num_states());
-    out->set_init_state(aut->get_init_state_number());
-
-    // We use a cache to avoid the costly loop around minterms_of().
-    // Cache entries have the form (id, [begin, end]) where id is the
-    // number of a BDD that as been (or will be) split, and begin/end
-    // denotes a range of existing transition numbers that cover the
-    // split.
-    //
-    // std::pair causes some noexcept warnings when used in
-    // robin_hood::unordered_map with GCC 9.4.  Use robin_hood::pair
-    // instead.
-    typedef robin_hood::pair<unsigned, unsigned> cached_t;
-    robin_hood::unordered_map<unsigned, cached_t> split_cond;
-
     bdd all = aut->ap_vars();
-    internal::univ_dest_mapper<twa_graph::graph_t> uniq(out->get_graph());
-
-    for (auto& e: aut->edges())
-      {
-        bdd cond = e.cond;
-        if (cond == bddfalse)
-          continue;
-        unsigned dst = e.dst;
-        if (aut->is_univ_dest(dst))
-          {
-            auto d = aut->univ_dests(dst);
-            dst = uniq.new_univ_dests(d.begin(), d.end());
-          }
-
-        auto& [begin, end] = split_cond[cond.id()];
-        if (begin == end)
-          {
-            begin = out->num_edges() + 1;
-            for (bdd minterm: minterms_of(cond, all))
-              out->new_edge(e.src, dst, minterm, e.acc);
-            end = out->num_edges() + 1;
-          }
-        else
-          {
-            auto& g = out->get_graph();
-            for (unsigned i = begin; i < end; ++i)
-              out->new_edge(e.src, dst, g.edge_storage(i).cond, e.acc);
-          }
-      }
-    return out;
+    return split_edges_aux(aut, [&](bdd cond) {
+      return minterms_of(cond, all);
+    });
   }
 
   twa_graph_ptr split_edges(const const_twa_graph_ptr& aut,
                             std::vector<bdd> const& basis)
   {
-    twa_graph_ptr out = make_twa_graph(aut->get_dict());
-    out->copy_acceptance_of(aut);
-    out->copy_ap_of(aut);
-    out->prop_copy(aut, twa::prop_set::all());
-    out->new_states(aut->num_states());
-    out->set_init_state(aut->get_init_state_number());
-
-    // We use a cache to avoid the costly loop around minterms_of().
-    // Cache entries have the form (id, [begin, end]) where id is the
-    // number of a BDD that as been (or will be) split, and begin/end
-    // denotes a range of existing transition numbers that cover the
-    // split.
-    using cached_t = std::pair<unsigned, unsigned>;
-    std::unordered_map<unsigned, cached_t> split_cond;
-    internal::univ_dest_mapper<twa_graph::graph_t> uniq(out->get_graph());
-
-    for (auto& e: aut->edges())
-      {
-        bdd const& cond = e.cond;
-        unsigned dst = e.dst;
-
-        if (cond == bddfalse)
-          continue;
-        if (aut->is_univ_dest(dst))
-          {
-            auto d = aut->univ_dests(dst);
-            dst = uniq.new_univ_dests(d.begin(), d.end());
-          }
-
-        auto& [begin, end] = split_cond[cond.id()];
-        if (begin == end)
-          {
-              begin = out->num_edges() + 1;
-              auto split = generate_contained_or_disjoint_symbols(cond,
-                                                                  basis);
-              for (bdd minterm : split)
-              {
-                out->new_edge(e.src, dst, minterm, e.acc);
-              }
-              end = out->num_edges() + 1;
-          }
-        else
-          {
-              auto& g = out->get_graph();
-              for (unsigned i = begin; i < end; ++i)
-              {
-                out->new_edge(e.src, dst, g.edge_storage(i).cond, e.acc);
-              }
-          }
-      }
-    return out;
+    bdd all = aut->ap_vars();
+    return split_edges_aux(aut, [&](bdd cond) {
+      return generate_contained_or_disjoint_symbols(cond, basis);
+    });
   }
 }
