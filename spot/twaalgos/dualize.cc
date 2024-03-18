@@ -200,13 +200,12 @@ namespace spot
                 labels.push_back(bddtrue);
                 for (auto& e: aut_->out(i))
                   {
-                    // make sure we don't realloc during the loop
-                    labels.reserve(labels.size() * 2);
                     // Do not use a range-based or iterator-based for
                     // loop here, as push_back invalidates the end
                     // iterator.
                     for (unsigned cur = 0, sz = labels.size(); cur < sz; ++cur)
-                      if (bdd common = labels[cur] & e.cond; common != bddfalse)
+                      if (bdd common = labels[cur] & e.cond;
+                          common != bddfalse && common != labels[cur])
                         {
                           labels[cur] -= e.cond;
                           labels.push_back(common);

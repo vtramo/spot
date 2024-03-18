@@ -408,14 +408,12 @@ namespace spot
                 separated_labels.push_back(bddtrue);
                 for (auto& lab: all_labels)
                   {
-                    // make sure don't realloc during the loop
-                    separated_labels.reserve(separated_labels.size() * 2);
                     // Do not use a range-based or iterator-based for loop
                     // here, as push_back invalidates the end iterator.
                     for (unsigned cur = 0, sz = separated_labels.size();
                          cur < sz; ++cur)
                       if (bdd common = separated_labels[cur] & lab;
-                          common != bddfalse)
+                          common != bddfalse && common != separated_labels[cur])
                         {
                           separated_labels[cur] -= lab;
                           separated_labels.push_back(common);
