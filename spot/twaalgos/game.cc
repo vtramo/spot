@@ -1364,7 +1364,6 @@ namespace spot
   bool solve_buchi_game(const twa_graph_ptr& game)
   {
     auto owners = get_state_players(game);
-    // std::ofstream stream("/home/poustouflan/tmp/spot.log");
 
     unsigned ns = game->num_states();
     auto winners = new region_t(ns, false);
@@ -1372,126 +1371,135 @@ namespace spot
     auto strategy = new strategy_t(ns, 0);
     game->set_named_prop("strategy", strategy);
 
+    // TODO: local copy for faster access. I want to avoid recomputing a vector
+    // every time, though I'm not sure that is what is happening.
+    // Need to investigate.
+    auto edges = game->edges();
+    unsigned es = game->edge_vector().size();
+
     // T0 = set of colored transitions
-    // S0 = CPre0(T0) (set of states from which player0 can force to take
+    // S0 = CPre0(T0) (set of states from which player1 can force to take
     //                 immediately a transition in T0)
-    // W0 = Attr(T0) (set of states from which player0 can force to eventually
+    // W0 = Attr(T0) (set of states from which player1 can force to eventually
     //                take a transition in T0)
     //
     // We represent a state in W0 as a dead-end (out_degree = 0)
+    std::vector<bool> t0(es, false);
+    for (auto& edge: edges)
+      if (edge.acc.has(0))
+        t0[game->edge_number(edge)] = true; // probably a counter?
 
-    std::vector<bool> t0(game->edge_vector().size(), false);
-    for (auto& edge: game->edge_vector())
-    {
-        if (edge.acc.has(0))
-        {
-            t0[game->edge_number(edge)] = true;
-        }
-    }
+    // transposed is a reversed copy of game to compute predecessors
+    // more easily.  It also keep track of the original edge iindex.
+    struct edge_data {
+      unsigned edgeidx;
+    };
+    digraph<void, edge_data> transposed;
+    // Reverse the automaton.
 
+    // S0 = { states of player1 w/ transitition in T0 }
+    //    U { states of player0 w/ no transition not in T0 }
+    // We store for each state of player0 the # of transition not in T0
+    // and for each state of player1 the # of outgoing transition in T0
+    std::vector<unsigned> out_degree(ns);
+    transposed.new_states(ns);
+    // TODO: further analysis on edge_vector might improve accessing idx
+    // is it a counter?
+    for (auto& edge: edges)
+      {
+        unsigned idx = game->edge_number(edge);
+        if (owners[edge.src] == t0[idx])
+          out_degree[edge.src]++;
+
+        transposed.new_edge(edge.dst, edge.src, idx);
+      }
+
+    std::vector<unsigned> w0;
     bool fixed = false;
     while (!fixed)
     {
-        fixed = true;
-        // transposed is a reversed copy of game to compute predecessors
-        // more easily.  It also keep track of the original edge iindex.
-        struct edge_data {
-          unsigned edgeidx;
-        };
-        digraph<void, edge_data> transposed;
-        // Reverse the automaton, compute the out degree of
-        // each state, and save dead-states in queue.
-        transposed.new_states(ns);
-        std::vector<unsigned> out_degree;
-        out_degree.reserve(ns);
-        std::vector<unsigned> w0;
-        for (unsigned src = 0; src < ns; ++src)
-          {
-            (*winners)[src] = false;
-            unsigned deg = 0;
-            for (auto& edge: game->out(src))
-              {
-                if (t0[game->edge_number(edge)])
-                {
-                    if (owners[src] == true)
-                    {
-                        // src is in W0
-                        deg = 0;
-                        (*strategy)[src] = game->edge_number(edge);
-                        break;
-                    }
-                    else
-                    {
-                        // player2 cannot take this edge
-                        continue;
-                    }
-                }
-                transposed.new_edge(edge.dst, edge.src, game->edge_number(edge));
-                ++deg;
-              }
-            out_degree.push_back(deg);
-            if (deg == 0)
-              {
-                // stream << src << std::endl;
-                (*winners)[src] = true;
-                w0.push_back(src);
-              }
-          }
+      out_degree.reserve(ns);
+      fixed = true;
 
-        // stream << "W0" << std::endl;
-        // compute w0
+      w0.clear();
+      // Start by computing S0 and adding it directly to W0
+      for (unsigned src = 0; src < ns; src++)
+        {
+          if ((owners[src] == true) ^ (out_degree[src] == 0))
+            {
+              w0.push_back(src);
+              (*winners)[src] = true;
+            }
+          else
+            (*winners)[src] = false;
+        }
+
+        // a state goes into the attractor if
+        //   { state belong to player1 and any transition goes into w0 or t0 }
+        // U { state belong to player0 and no transition does not go into w0 or t0 }
+
+        // We maintain for each state of player0 the count of
+        // transitions that does not go into w0/t0
+        // Initially for player0, it is equal to out_degree.
+        std::vector<unsigned> degree_copy(out_degree);
+
         while (!w0.empty())
           {
-            unsigned src = w0.back();
+            unsigned dst = w0.back();
             w0.pop_back();
-            // stream << "analyzing " << src << std::endl;
-            for (auto& edge: transposed.out(src))
+            for (auto& edge: transposed.out(dst))
               {
-                unsigned pred = edge.dst;
-                if ((*winners)[pred] == true)
+                unsigned src = edge.dst;
+                if ((*winners)[src] == true)
                   continue;
 
-                // check 1 || check 2
-                // Player0 own pred, he can make it win
-                bool check1 = owners[pred] == true;
-                // Player1 own pred but he cannot escape
-                if (check1 || --out_degree[pred] == 0)
+                if (owners[src] == true)
                   {
-                    (*winners)[pred] = true;
-                    // stream << "new elt in W0: " << pred << std::endl;
-                    w0.push_back(pred);
-                    if (check1)
-                      (*strategy)[pred] = edge.edgeidx;
+                    (*winners)[src] = true;
+                    w0.push_back(src);
+                    (*strategy)[src] = edge.edgeidx;
                   }
+                else if (--degree_copy[src] == 0)
+                  {
+                    // TODO: factorize?
+                    (*winners)[src] = true;
+                    w0.push_back(src);
+                  }
+
               }
           }
 
-        // Let's fill in the strategy for Player 1.
+        // Let's fill in the strategy for Player 0.
+        // TODO clean that up, it can probably be improved, might even be wrong atm
+        // The strategy for Player 0 is to stay in !W0 when it can,
+        // then go from !W1 to !W0 and so on
         for (unsigned src = 0; src < ns; ++src)
-        {
           if (owners[src] == false && (*winners)[src] == false && (*strategy)[src] == 0)
-          {
             for (auto& edge: game->out(src))
               if ((*winners)[edge.dst] == false && !t0[game->edge_number(edge)])
                 {
                   (*strategy)[src] = game->edge_number(edge);
                   break;
                 }
-          }
-        }
 
-        for (unsigned idx = 0; idx < game->edge_vector().size(); idx++)
-        {
+        // Compute T1. We remove all transitions that does not result in W0,
+        // and update out_degree accordingly
+        for (unsigned idx = 0; idx < es; idx++)
+          {
             if (!t0[idx])
-                continue;
+              continue;
 
             auto edge = game->edge_storage(idx);
             if ((*winners)[edge.dst] != true)
-            {
+             {
                 t0[idx] = false;
                 fixed = false;
-            }
-        }
+                if (owners[edge.src] == false)
+                  out_degree[edge.src]++;
+                else
+                  out_degree[edge.src]--;
+              }
+          }
     }
 
     return (*winners)[game->get_init_state_number()];
