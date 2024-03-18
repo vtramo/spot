@@ -695,19 +695,6 @@ namespace spot::forq::util
     return all_states;
   }
 
-  // Create a list of bdds, where each corresponds to an edge in B
-  static std::vector<bdd> create_edge_splitting_basis(const_graph const& B)
-  {
-    auto edges = B->edges();
-    std::unordered_set<bdd, ::spot::bdd_hash> out;
-    std::transform(edges.begin(), edges.end(), std::inserter(out, out.begin()),
-      [](auto& edge)
-        {
-          return edge.cond;
-        });
-    return std::vector<bdd>(out.begin(), out.end());
-  }
-
   forq_context create_forq_context(const_graph const& A, const_graph const& B)
   {
     forq_context retval;
@@ -715,7 +702,9 @@ namespace spot::forq::util
     retval.B.outgoing = util::generate_outgoing_states(B);
     retval.B.final_edges = get_final_edges(B);
 
-    retval.A.aut = split_edges(A, create_edge_splitting_basis(B));
+    edge_separator es;
+    es.add_to_basis(B);
+    retval.A.aut = es.separate_compat(A);
     retval.A.outgoing = util::generate_outgoing_states(retval.A.aut);
     retval.A.final_edges = get_final_edges(retval.A.aut);
     retval.cache.precomputed_ipost.resize(B->num_states());

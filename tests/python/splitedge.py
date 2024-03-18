@@ -27,8 +27,11 @@ def create_aps(aut):
 
 def do_edge_test(aut, aps, edges_before, edges_after):
     tc.assertEqual(aut.num_edges(), edges_before)
-    aut = spot.split_edges(aut, aps)
-    tc.assertEqual(aut.num_edges(), edges_after)
+    es = spot.edge_separator()
+    for ap in aps:
+        es.add_to_basis(ap)
+    res = es.separate_compat(aut)
+    tc.assertEqual(res.num_edges(), edges_after)
 
 aut = spot.automaton("""
 HOA: v1

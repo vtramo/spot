@@ -135,6 +135,9 @@ New in spot 2.11.6.dev  (not yet released)
     Büchi automaton will always return a Büchi automaton.  For those,
     a "keep_one_color" option has been added to scc_filter.
 
+  - spot::separate_edges() and spot::edge_separator offers more ways
+    to split labels.  See https://spot.lrde.epita.fr/ipynb/split.html
+
   - ltsmin's interface will now point to README.ltsmin in case an
     error is found while running divine or spins.
 

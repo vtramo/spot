@@ -71,6 +71,7 @@ real notebooks instead.
   conditions
 - [[https://spot.lrde.epita.fr/ipynb/contains.html][=contains.ipynb=]] demonstrates containment checks between formulas or
   automata
+- [[https://spot.lrde.epita.fr/ipynb/split.html][=split.ipynb=]] illustrates various ways to split labels
 - [[https://spot.lrde.epita.fr/ipynb/parity.html][=parity.ipynb=]] documents algorithms for manipulating parity automata
   in Python
 - [[https://spot.lrde.epita.fr/ipynb/games.html][=games.ipynb=]] illustrates support for games

@@ -378,6 +378,7 @@ TESTS_ipython = \
   python/randaut.ipynb \
   python/randltl.ipynb \
   python/satmin.ipynb \
+  python/split.ipynb \
   python/stutter-inv.ipynb \
   python/synthesis.ipynb \
   python/testingaut.ipynb \
