@@ -27,6 +27,7 @@
 #include <spot/twaalgos/sccfilter.hh>
 #include <spot/twaalgos/ltl2tgba_fm.hh>
 #include <spot/twaalgos/dualize.hh>
+#include <spot/twaalgos/split.hh>
 #include <spot/misc/bitvect.hh>
 #include <spot/misc/bddlt.hh>
 
@@ -83,20 +84,44 @@ namespace spot
     if ((-1UL / ns) >> nap == 0)
       throw std::runtime_error("too many atomic propositions (or states)");
 
+    // we have two ways of "spliting" the labels when determinizing.
+    // One is to iterate over 2^AP, the second is to partition the set
+    // of edges labels.  We don't have a very clean rule to chose. The
+    // former is expansive when we have a lot of AP.  The latter is
+    // good when we have few distinct labels.  With too many different
+    // labels that may have nonempty intersections, the
+    // partition-based approach can consume a lot of memory.
+    bool will_use_labels = nap > 5;
+    edge_separator es;
+    if (will_use_labels)
+      {
+        // Gather all labels, but stop if we see too many.  The
+        // threshold below is arbitrary: adjust if you know better.
+        will_use_labels = es.add_to_basis(aut, 256 * nap);
+      }
+
     // Build a correspondence between conjunctions of APs and unsigned
     // indexes.
     std::vector<bdd> num2bdd;
     num2bdd.reserve(1UL << nap);
     std::map<bdd, unsigned, bdd_less_than> bdd2num;
     bdd allap = aut->ap_vars();
-    for (bdd one: minterms_of(bddtrue, allap))
-      {
-        bdd2num.emplace(one, num2bdd.size());
-        num2bdd.emplace_back(one);
-      }
+
+    if (!will_use_labels)
+      for (bdd one: minterms_of(bddtrue, allap))
+        {
+          bdd2num.emplace(one, num2bdd.size());
+          num2bdd.emplace_back(one);
+        }
+    else
+      for (bdd one: es.basis())
+        {
+          bdd2num.emplace(one, num2bdd.size());
+          num2bdd.emplace_back(one);
+        }
 
     size_t nc = num2bdd.size();        // number of conditions
-    assert(nc == (1UL << nap));
+    assert(will_use_labels || nc == (1UL << nap));
 
     // Conceptually, we represent the automaton as an array 'bv' of
     // ns*nc bit vectors of size 'ns'.  Each original state is
@@ -172,12 +197,18 @@ namespace spot
         for (unsigned i = 0; i < nc; ++i)
           bv->at(base + i).clear_all();
       for (auto& t: aut->out(src))
-        for (bdd one: minterms_of(t.cond, allap))
-          {
-            unsigned num = bdd2num[one];
-            bv->at(base + num).set(t.dst);
-          }
-
+        if (!will_use_labels)
+          for (bdd one: minterms_of(t.cond, allap))
+            {
+              unsigned num = bdd2num[one];
+              bv->at(base + num).set(t.dst);
+            }
+        else
+          for (bdd one: es.separate_implying(t.cond))
+            {
+              unsigned num = bdd2num[one];
+              bv->at(base + num).set(t.dst);
+            }
       assert(idx == lru.begin()->first);
       return idx;
     };

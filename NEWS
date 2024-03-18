@@ -153,10 +153,12 @@ New in spot 2.11.6.dev  (not yet released)
 
   - spot::dualize() learned a trick to be faster on states that have
     less outgoing edges than atomic proposition declared on the
-    automaton.  spot::remove_alternation() learned a similar trick,
-    except it isn't applied at the state level but of the entire
-    alternating use few distinct labels.  These two changes speed up
-    the complementation of very weak automata. (Issue #566.)
+    automaton.  spot::remove_alternation() and
+    spot::tgba_determinize() learned a similar trick, except it isn't
+    applied at the state level but of the entire alternating use few
+    distinct labels.  These changes may speed up the complementation
+    of some very weak automata, and the minimization of some
+    WDBA. (Issue #566.)
 
   - [Potential backward incompatibility] spot::dualize() does not call
     cleanup_acceptance() anymore.  This change ensures that the dual
