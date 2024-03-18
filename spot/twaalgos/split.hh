@@ -156,9 +156,15 @@ namespace spot
     /// add_to_basis() and add a new atomic proposition, you should
     /// remember to register it in the result of separate_implying()
     /// or separate_compat() yourself.
+    ///
+    /// If \a max_label is given, at most \a max_label unique labels
+    /// are added to the basis.  False is returned iff the automaton
+    /// used more labels.
     /// @{
     void add_to_basis(bdd label);
     void add_to_basis(const const_twa_graph_ptr& aut);
+    bool add_to_basis(const const_twa_graph_ptr& aut,
+                      unsigned long max_label);
     /// @}
     /// \brief Separate an automaton
     ///
@@ -200,10 +206,17 @@ namespace spot
       return {basis_, label};
     }
 #endif
+
     unsigned basis_size() const
     {
       return basis_.size();
     }
+
+    const std::vector<bdd>& basis() const
+    {
+      return basis_;
+    }
+
   private:
     std::vector<bdd> basis_{bddtrue};
     std::set<formula> aps_;

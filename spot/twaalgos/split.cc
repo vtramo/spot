@@ -118,6 +118,23 @@ namespace spot
         add_to_basis(lab);
   }
 
+  bool edge_separator::add_to_basis(const const_twa_graph_ptr& aut,
+                                    unsigned long max_label)
+  {
+    std::set<bdd, bdd_less_than> all_labels;
+    for (auto& e: aut->edges())
+      {
+        if (all_labels.insert(e.cond).second)
+          if (max_label-- == 0)
+            return false;
+      }
+    for (bdd lab: all_labels)
+      add_to_basis(lab);
+    for (formula f: aut->ap())
+      aps_.insert(f);
+    return true;
+  }
+
   twa_graph_ptr
   edge_separator::separate_implying(const const_twa_graph_ptr& aut)
   {

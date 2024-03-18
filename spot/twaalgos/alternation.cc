@@ -21,6 +21,8 @@
 #include <sstream>
 #include <spot/twaalgos/alternation.hh>
 #include <spot/twaalgos/sccinfo.hh>
+#include <spot/twaalgos/split.hh>
+#include <spot/priv/robin_hood.hh>
 #include <spot/misc/minato.hh>
 #include <spot/misc/bddlt.hh>
 
@@ -389,37 +391,12 @@ namespace spot
         bool will_use_labels = n_ap > 5;
         if (will_use_labels)
           {
-            std::set<bdd, bdd_less_than> all_labels;
+            edge_separator es;
             // Gather all labels, but stop if we see too many.
             // The threshold below is arbitrary.
-            unsigned max_labels = 100 * n_ap;
-            for (auto& e: aut_->edges())
-              {
-                if (all_labels.insert(e.cond).second)
-                  if (all_labels.size() > max_labels)
-                    {
-                      will_use_labels = false;
-                      break;
-                    }
-              }
+            will_use_labels = es.add_to_basis(aut_, 256 * n_ap);
             if (will_use_labels)
-              {
-                separated_labels.reserve(all_labels.size());
-                separated_labels.push_back(bddtrue);
-                for (auto& lab: all_labels)
-                  {
-                    // Do not use a range-based or iterator-based for loop
-                    // here, as push_back invalidates the end iterator.
-                    for (unsigned cur = 0, sz = separated_labels.size();
-                         cur < sz; ++cur)
-                      if (bdd common = separated_labels[cur] & lab;
-                          common != bddfalse && common != separated_labels[cur])
-                        {
-                          separated_labels[cur] -= lab;
-                          separated_labels.push_back(common);
-                        }
-                  }
-              }
+              separated_labels = es.basis();
           }
 
         // We for easier computation of outgoing sets, we will
@@ -490,6 +467,19 @@ namespace spot
 
         acc_cond::mark_t all_marks = res->acc().all_sets();
 
+        // We use a cache to avoid the costly loop around
+        // separated_labels.
+        //
+        // Cache entries have the form (bdd, [begin, end]) where bdd
+        // what should be split, and begin/end denotes a range of
+        // existing transition numbers that cover the split.
+        //
+        // std::pair causes some noexcept warnings when used in
+        // robin_hood::unordered_map with GCC 9.4.  Use robin_hood::pair
+        // instead.
+        typedef robin_hood::pair<unsigned, unsigned> cached_t;
+        robin_hood::unordered_map<bdd, cached_t, bdd_hash> split_cond;
+
         state_set v;
         while (!todo.empty())
           {
@@ -547,12 +537,41 @@ namespace spot
             };
 
             if (!will_use_labels)
-              // Loop over all possible valuations atomic properties.
-              for (bdd oneletter: minterms_of(all_letters, ap))
-                create_edges(oneletter, bdd_restrict(bs, oneletter));
+              {
+                // Loop over all possible valuations of atomic properties.
+                for (bdd oneletter: minterms_of(all_letters, ap))
+                  create_edges(oneletter, bdd_restrict(bs, oneletter));
+              }
             else
-              for (bdd label: separated_labels)
-                create_edges(label, bdd_relprod(label, bs, res->ap_vars()));
+              {
+                auto& [begin, end] = split_cond[all_letters];
+                if (begin == end)
+                  {
+                    begin = res->num_edges() + 1;
+                    for (bdd label: separated_labels)
+                      create_edges(label, bdd_relprod(label, bs,
+                                                      res->ap_vars()));
+                    end = res->num_edges() + 1;
+                  }
+                else
+                  {
+                    // We have already split all_letters once, so we
+                    // can simply reuse the set of labels we used
+                    // then, avoiding the iteration on
+                    // separated_labels.
+                    auto& g = res->get_graph();
+                    bdd last = bddfalse;
+                    for (unsigned i = begin; i < end; ++i)
+                      {
+                        bdd label = g.edge_storage(i).cond;
+                        if (label == last)
+                          continue;
+                        last = label;
+                        create_edges(label, bdd_relprod(label, bs,
+                                                        res->ap_vars()));
+                      }
+                  }
+              }
           }
         res->merge_edges();
         return res;
