@@ -105,7 +105,7 @@ namespace spot
   ///
   /// The transitions may only contain color 0
   ///
-  /// Player 0 tries to reach this color an infinite number of times
+  /// Player 1 tries to reach this color an infinite number of times
   /// while player 0 tries to prevent that.
   ///
   /// Returns the player winning in the initial state, and sets

@@ -18,7 +18,6 @@
 
 #include "config.h"
 
-#include <fstream>
 #include <utility>
 
 #include <spot/twaalgos/game.hh>
