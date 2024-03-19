@@ -123,6 +123,7 @@ ORG_FILES = \
   org/tut22.org \
   org/tut23.org \
   org/tut24.org \
+  org/tut25.org \
   org/tut30.org \
   org/tut31.org \
   org/tut40.org \

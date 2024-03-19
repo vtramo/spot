@@ -179,7 +179,7 @@ up.html points to index.html, then the result is:
 	:auto-preamble t)
        ("spot-static"
 	:base-directory "@abs_top_srcdir@/doc/org/"
-	:base-extension "css\\|js\\|png\\|svg\\|jpg\\|gif\\|pdf"
+	:base-extension "css\\|js\\|png\\|svg\\|jpg\\|gif\\|pdf\\|py"
 	:publishing-directory "@abs_top_srcdir@/doc/userdoc/"
 	:recursive t
 	:publishing-function org-publish-attachment)

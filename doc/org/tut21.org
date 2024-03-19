@@ -21,9 +21,9 @@ destination states, $\mathit{cond}$ is a BDD representing the label
 The interface available for those graph-based automata allows random
 access to any state of the graph, hence the code given bellow can do a
 simple loop over all states of the automaton.  Spot also supports a
-different kind of interface (not demonstrated here) to
-[[file:tut50.org][iterate over automata that are constructed
-on-the-fly]] and where such a loop would be impossible.
+different kind of interface (not demonstrated here) to [[file:tut50.org][iterate over
+automata that are constructed on-the-fly]] and where such a loop would
+be impossible.
 
 First let's create an example automaton in HOA format.  We use =-U= to
 request unambiguous automata, as this allows us to demonstrate how
@@ -47,98 +47,98 @@ properties: stutter-invariant
 State: 0
 [0] 1
 [!0] 2
-[!0&1&2] 3
-[!0&!1&2] 4
-[!0&!2] 5
-[!0&!2] 6
+[!0&!2] 3
+[!0&!2] 4
+[!0&!1&2] 5
+[!0&1&2] 6
 State: 1
 [t] 1 {0 1}
 State: 2
 [!1&!2] 2
-[!1&2] 2 {1}
 [1&!2] 2 {0}
+[!1&2] 2 {1}
 [1&2] 2 {0 1}
 State: 3
-[!0&1&2] 3
-[!0&!1&2] 4
-[!0&!2] 5
-[!0&!2] 6
-[0&!2] 7
-[0&!1&2] 8
-[0&1&2] 9
-[0&!1&2] 10
-[0&1&!2] 11
-[0&!1&!2] 12
+[!0&!2] 3
+[!0&!1&2] 5
+[!0&1&2] 6
+[0&1&2] 7
+[0&!1&!2] 8
+[0&!1&2] 9
+[0&1&!2] 10
+[0&!1&2] 12
 [0&!1&!2] 13
 State: 4
-[!0&1&2] 3
-[!0&!1&2] 4
-[!0&!2] 5
-[!0&1&!2] 6
-[0&1&!2] 7
-[0&!1] 8
-[0&1&2] 9
-[0&!1&2] 10
-[0&1&!2] 11
-[0&!1&!2] 12
-[0&!1&!2] 14
-[!0&!1&!2] 15
+[!0&!2] 4
+[0&!2] 11
 State: 5
-[!0&1&2] 3
-[!0&!1&2] 4
-[!0&!2] 5
-[0&!1&2] 8
-[0&1&2] 9
-[0&!1&2] 10
+[!0&!2] 3
+[!0&1&!2] 4
+[!0&!1&2] 5
+[!0&1&2] 6
+[0&1&2] 7
+[0&!1&!2] 8
+[0&!1&2] 9
+[0&1&!2] 10
 [0&1&!2] 11
-[0&!1&!2] 12
-[0&!1&!2] 13
+[0&!1] 12
+[!0&!1&!2] 14
+[0&!1&!2] 15
 State: 6
-[!0&!2] 6
-[0&!2] 7
+[!0&!2] 3
+[!0&!2] 4
+[!0&!1&2] 5
+[!0&1&2] 6
+[0&1&2] 7
+[0&!1&!2] 8
+[0&!1&2] 9
+[0&1&!2] 10
+[0&!2] 11
+[0&!1&2] 12
+[0&!1&!2] 13
 State: 7
-[!2] 7 {0 1}
+[1&2] 7
+[!1&!2] 8
+[!1&2] 9
+[1&!2] 10
+[!2] 11
+[!1&2] 12
+[!1&!2] 13
 State: 8
-[!1] 8 {0 1}
+[1&2] 7
+[!1&!2] 8
+[!1&2] 9
+[1&!2] 10
 State: 9
-[!2] 7
-[!1&2] 8
-[1&2] 9
-[!1&2] 10
+[1&2] 7
+[!1&!2] 8
+[!1&2] 9
+[1&!2] 10
 [1&!2] 11
-[!1&!2] 12
-[!1&!2] 13
+[!1&!2] 15
 State: 10
-[1&!2] 7
-[1&2] 9
-[!1&2] 10
-[1&!2] 11
-[!1&!2] 12
-[!1&!2] 14
-State: 11
-[!1&2] 8
-[1&2] 9
-[!1&2] 10
-[1&!2] 11
-[!1&!2] 12
+[1&2] 7
+[!1&!2] 8
+[!1&2] 9
+[1&!2] 10
+[!1&2] 12
 [!1&!2] 13
+State: 11
+[!2] 11 {0 1}
 State: 12
-[1&2] 9
-[!1&2] 10
-[1&!2] 11
-[!1&!2] 12
+[!1] 12 {0 1}
 State: 13
-[!1&2] 8
+[!1&2] 12
 [!1&!2] 13
 State: 14
-[1&!2] 7
-[!1&!2] 14
-State: 15
-[!0&1&!2] 6
-[0&1&!2] 7
-[0&!1&!2] 14
-[!0&!1&!2] 15
+[!0&1&!2] 4
+[0&1&!2] 11
+[!0&!1&!2] 14
+[0&!1&!2] 15
 [0&!1&!2] 16
+State: 15
+[1&!2] 11
+[!1&!2] 15
 State: 16
 [!1&!2] 16 {0 1}
 --END--
@@ -166,7 +166,6 @@ corresponding BDD variable number, and then use for instance
   #include <string>
   #include <iostream>
   #include <spot/parseaut/public.hh>
-  #include <spot/twaalgos/hoa.hh>
   #include <spot/twa/bddprint.hh>
 
   void custom_print(std::ostream& out, spot::twa_graph_ptr& aut);
@@ -273,16 +272,16 @@ State 0:
     label = !a
     acc sets = {}
   edge(0 -> 3)
-    label = !a & b & c
+    label = !a & !c
     acc sets = {}
   edge(0 -> 4)
-    label = !a & !b & c
+    label = !a & !c
     acc sets = {}
   edge(0 -> 5)
-    label = !a & !c
+    label = !a & !b & c
     acc sets = {}
   edge(0 -> 6)
-    label = !a & !c
+    label = !a & b & c
     acc sets = {}
 State 1:
   edge(1 -> 1)
@@ -293,230 +292,230 @@ State 2:
     label = !b & !c
     acc sets = {}
   edge(2 -> 2)
-    label = !b & c
-    acc sets = {1}
-  edge(2 -> 2)
     label = b & !c
     acc sets = {0}
+  edge(2 -> 2)
+    label = !b & c
+    acc sets = {1}
   edge(2 -> 2)
     label = b & c
     acc sets = {0,1}
 State 3:
   edge(3 -> 3)
-    label = !a & b & c
-    acc sets = {}
-  edge(3 -> 4)
-    label = !a & !b & c
+    label = !a & !c
     acc sets = {}
   edge(3 -> 5)
-    label = !a & !c
+    label = !a & !b & c
     acc sets = {}
   edge(3 -> 6)
-    label = !a & !c
+    label = !a & b & c
     acc sets = {}
   edge(3 -> 7)
-    label = a & !c
-    acc sets = {}
-  edge(3 -> 8)
-    label = a & !b & c
-    acc sets = {}
-  edge(3 -> 9)
     label = a & b & c
     acc sets = {}
-  edge(3 -> 10)
+  edge(3 -> 8)
+    label = a & !b & !c
+    acc sets = {}
+  edge(3 -> 9)
     label = a & !b & c
     acc sets = {}
-  edge(3 -> 11)
+  edge(3 -> 10)
     label = a & b & !c
     acc sets = {}
   edge(3 -> 12)
-    label = a & !b & !c
+    label = a & !b & c
     acc sets = {}
   edge(3 -> 13)
     label = a & !b & !c
     acc sets = {}
 State 4:
-  edge(4 -> 3)
-    label = !a & b & c
-    acc sets = {}
   edge(4 -> 4)
-    label = !a & !b & c
-    acc sets = {}
-  edge(4 -> 5)
     label = !a & !c
     acc sets = {}
-  edge(4 -> 6)
-    label = !a & b & !c
-    acc sets = {}
-  edge(4 -> 7)
-    label = a & b & !c
-    acc sets = {}
-  edge(4 -> 8)
-    label = a & !b
-    acc sets = {}
-  edge(4 -> 9)
-    label = a & b & c
-    acc sets = {}
-  edge(4 -> 10)
-    label = a & !b & c
-    acc sets = {}
   edge(4 -> 11)
-    label = a & b & !c
-    acc sets = {}
-  edge(4 -> 12)
-    label = a & !b & !c
-    acc sets = {}
-  edge(4 -> 14)
-    label = a & !b & !c
-    acc sets = {}
-  edge(4 -> 15)
-    label = !a & !b & !c
+    label = a & !c
     acc sets = {}
 State 5:
   edge(5 -> 3)
-    label = !a & b & c
-    acc sets = {}
-  edge(5 -> 4)
-    label = !a & !b & c
-    acc sets = {}
-  edge(5 -> 5)
     label = !a & !c
     acc sets = {}
-  edge(5 -> 8)
-    label = a & !b & c
+  edge(5 -> 4)
+    label = !a & b & !c
     acc sets = {}
-  edge(5 -> 9)
+  edge(5 -> 5)
+    label = !a & !b & c
+    acc sets = {}
+  edge(5 -> 6)
+    label = !a & b & c
+    acc sets = {}
+  edge(5 -> 7)
     label = a & b & c
     acc sets = {}
-  edge(5 -> 10)
+  edge(5 -> 8)
+    label = a & !b & !c
+    acc sets = {}
+  edge(5 -> 9)
     label = a & !b & c
+    acc sets = {}
+  edge(5 -> 10)
+    label = a & b & !c
     acc sets = {}
   edge(5 -> 11)
     label = a & b & !c
     acc sets = {}
   edge(5 -> 12)
-    label = a & !b & !c
+    label = a & !b
     acc sets = {}
-  edge(5 -> 13)
+  edge(5 -> 14)
+    label = !a & !b & !c
+    acc sets = {}
+  edge(5 -> 15)
     label = a & !b & !c
     acc sets = {}
 State 6:
-  edge(6 -> 6)
+  edge(6 -> 3)
     label = !a & !c
     acc sets = {}
+  edge(6 -> 4)
+    label = !a & !c
+    acc sets = {}
+  edge(6 -> 5)
+    label = !a & !b & c
+    acc sets = {}
+  edge(6 -> 6)
+    label = !a & b & c
+    acc sets = {}
   edge(6 -> 7)
+    label = a & b & c
+    acc sets = {}
+  edge(6 -> 8)
+    label = a & !b & !c
+    acc sets = {}
+  edge(6 -> 9)
+    label = a & !b & c
+    acc sets = {}
+  edge(6 -> 10)
+    label = a & b & !c
+    acc sets = {}
+  edge(6 -> 11)
     label = a & !c
+    acc sets = {}
+  edge(6 -> 12)
+    label = a & !b & c
+    acc sets = {}
+  edge(6 -> 13)
+    label = a & !b & !c
     acc sets = {}
 State 7:
   edge(7 -> 7)
-    label = !c
-    acc sets = {0,1}
-State 8:
-  edge(8 -> 8)
-    label = !b
-    acc sets = {0,1}
-State 9:
-  edge(9 -> 7)
-    label = !c
-    acc sets = {}
-  edge(9 -> 8)
-    label = !b & c
-    acc sets = {}
-  edge(9 -> 9)
     label = b & c
     acc sets = {}
-  edge(9 -> 10)
+  edge(7 -> 8)
+    label = !b & !c
+    acc sets = {}
+  edge(7 -> 9)
     label = !b & c
+    acc sets = {}
+  edge(7 -> 10)
+    label = b & !c
+    acc sets = {}
+  edge(7 -> 11)
+    label = !c
+    acc sets = {}
+  edge(7 -> 12)
+    label = !b & c
+    acc sets = {}
+  edge(7 -> 13)
+    label = !b & !c
+    acc sets = {}
+State 8:
+  edge(8 -> 7)
+    label = b & c
+    acc sets = {}
+  edge(8 -> 8)
+    label = !b & !c
+    acc sets = {}
+  edge(8 -> 9)
+    label = !b & c
+    acc sets = {}
+  edge(8 -> 10)
+    label = b & !c
+    acc sets = {}
+State 9:
+  edge(9 -> 7)
+    label = b & c
+    acc sets = {}
+  edge(9 -> 8)
+    label = !b & !c
+    acc sets = {}
+  edge(9 -> 9)
+    label = !b & c
+    acc sets = {}
+  edge(9 -> 10)
+    label = b & !c
     acc sets = {}
   edge(9 -> 11)
     label = b & !c
     acc sets = {}
-  edge(9 -> 12)
-    label = !b & !c
-    acc sets = {}
-  edge(9 -> 13)
+  edge(9 -> 15)
     label = !b & !c
     acc sets = {}
 State 10:
   edge(10 -> 7)
-    label = b & !c
-    acc sets = {}
-  edge(10 -> 9)
     label = b & c
     acc sets = {}
-  edge(10 -> 10)
+  edge(10 -> 8)
+    label = !b & !c
+    acc sets = {}
+  edge(10 -> 9)
     label = !b & c
     acc sets = {}
-  edge(10 -> 11)
+  edge(10 -> 10)
     label = b & !c
     acc sets = {}
   edge(10 -> 12)
-    label = !b & !c
+    label = !b & c
     acc sets = {}
-  edge(10 -> 14)
+  edge(10 -> 13)
     label = !b & !c
     acc sets = {}
 State 11:
-  edge(11 -> 8)
-    label = !b & c
-    acc sets = {}
-  edge(11 -> 9)
-    label = b & c
-    acc sets = {}
-  edge(11 -> 10)
-    label = !b & c
-    acc sets = {}
   edge(11 -> 11)
-    label = b & !c
-    acc sets = {}
-  edge(11 -> 12)
-    label = !b & !c
-    acc sets = {}
-  edge(11 -> 13)
-    label = !b & !c
-    acc sets = {}
+    label = !c
+    acc sets = {0,1}
 State 12:
-  edge(12 -> 9)
-    label = b & c
-    acc sets = {}
-  edge(12 -> 10)
-    label = !b & c
-    acc sets = {}
-  edge(12 -> 11)
-    label = b & !c
-    acc sets = {}
   edge(12 -> 12)
-    label = !b & !c
-    acc sets = {}
+    label = !b
+    acc sets = {0,1}
 State 13:
-  edge(13 -> 8)
+  edge(13 -> 12)
     label = !b & c
     acc sets = {}
   edge(13 -> 13)
     label = !b & !c
     acc sets = {}
 State 14:
-  edge(14 -> 7)
-    label = b & !c
-    acc sets = {}
-  edge(14 -> 14)
-    label = !b & !c
-    acc sets = {}
-State 15:
-  edge(15 -> 6)
+  edge(14 -> 4)
     label = !a & b & !c
     acc sets = {}
-  edge(15 -> 7)
+  edge(14 -> 11)
     label = a & b & !c
     acc sets = {}
-  edge(15 -> 14)
-    label = a & !b & !c
-    acc sets = {}
-  edge(15 -> 15)
+  edge(14 -> 14)
     label = !a & !b & !c
     acc sets = {}
-  edge(15 -> 16)
+  edge(14 -> 15)
     label = a & !b & !c
+    acc sets = {}
+  edge(14 -> 16)
+    label = a & !b & !c
+    acc sets = {}
+State 15:
+  edge(15 -> 11)
+    label = b & !c
+    acc sets = {}
+  edge(15 -> 15)
+    label = !b & !c
     acc sets = {}
 State 16:
   edge(16 -> 16)
@@ -594,16 +593,16 @@ State 0:
     label = !a
     acc sets = {}
   edge(0 -> 3)
-    label = !a & b & c
+    label = !a & !c
     acc sets = {}
   edge(0 -> 4)
-    label = !a & !b & c
+    label = !a & !c
     acc sets = {}
   edge(0 -> 5)
-    label = !a & !c
+    label = !a & !b & c
     acc sets = {}
   edge(0 -> 6)
-    label = !a & !c
+    label = !a & b & c
     acc sets = {}
 State 1:
   edge(1 -> 1)
@@ -614,230 +613,230 @@ State 2:
     label = !b & !c
     acc sets = {}
   edge(2 -> 2)
-    label = !b & c
-    acc sets = {1}
-  edge(2 -> 2)
     label = b & !c
     acc sets = {0}
+  edge(2 -> 2)
+    label = !b & c
+    acc sets = {1}
   edge(2 -> 2)
     label = b & c
     acc sets = {0,1}
 State 3:
   edge(3 -> 3)
-    label = !a & b & c
-    acc sets = {}
-  edge(3 -> 4)
-    label = !a & !b & c
+    label = !a & !c
     acc sets = {}
   edge(3 -> 5)
-    label = !a & !c
+    label = !a & !b & c
     acc sets = {}
   edge(3 -> 6)
-    label = !a & !c
+    label = !a & b & c
     acc sets = {}
   edge(3 -> 7)
-    label = a & !c
-    acc sets = {}
-  edge(3 -> 8)
-    label = a & !b & c
-    acc sets = {}
-  edge(3 -> 9)
     label = a & b & c
     acc sets = {}
-  edge(3 -> 10)
+  edge(3 -> 8)
+    label = a & !b & !c
+    acc sets = {}
+  edge(3 -> 9)
     label = a & !b & c
     acc sets = {}
-  edge(3 -> 11)
+  edge(3 -> 10)
     label = a & b & !c
     acc sets = {}
   edge(3 -> 12)
-    label = a & !b & !c
+    label = a & !b & c
     acc sets = {}
   edge(3 -> 13)
     label = a & !b & !c
     acc sets = {}
 State 4:
-  edge(4 -> 3)
-    label = !a & b & c
-    acc sets = {}
   edge(4 -> 4)
-    label = !a & !b & c
-    acc sets = {}
-  edge(4 -> 5)
     label = !a & !c
     acc sets = {}
-  edge(4 -> 6)
-    label = !a & b & !c
-    acc sets = {}
-  edge(4 -> 7)
-    label = a & b & !c
-    acc sets = {}
-  edge(4 -> 8)
-    label = a & !b
-    acc sets = {}
-  edge(4 -> 9)
-    label = a & b & c
-    acc sets = {}
-  edge(4 -> 10)
-    label = a & !b & c
-    acc sets = {}
   edge(4 -> 11)
-    label = a & b & !c
-    acc sets = {}
-  edge(4 -> 12)
-    label = a & !b & !c
-    acc sets = {}
-  edge(4 -> 14)
-    label = a & !b & !c
-    acc sets = {}
-  edge(4 -> 15)
-    label = !a & !b & !c
+    label = a & !c
     acc sets = {}
 State 5:
   edge(5 -> 3)
-    label = !a & b & c
-    acc sets = {}
-  edge(5 -> 4)
-    label = !a & !b & c
-    acc sets = {}
-  edge(5 -> 5)
     label = !a & !c
     acc sets = {}
-  edge(5 -> 8)
-    label = a & !b & c
+  edge(5 -> 4)
+    label = !a & b & !c
     acc sets = {}
-  edge(5 -> 9)
+  edge(5 -> 5)
+    label = !a & !b & c
+    acc sets = {}
+  edge(5 -> 6)
+    label = !a & b & c
+    acc sets = {}
+  edge(5 -> 7)
     label = a & b & c
     acc sets = {}
-  edge(5 -> 10)
+  edge(5 -> 8)
+    label = a & !b & !c
+    acc sets = {}
+  edge(5 -> 9)
     label = a & !b & c
+    acc sets = {}
+  edge(5 -> 10)
+    label = a & b & !c
     acc sets = {}
   edge(5 -> 11)
     label = a & b & !c
     acc sets = {}
   edge(5 -> 12)
-    label = a & !b & !c
+    label = a & !b
     acc sets = {}
-  edge(5 -> 13)
+  edge(5 -> 14)
+    label = !a & !b & !c
+    acc sets = {}
+  edge(5 -> 15)
     label = a & !b & !c
     acc sets = {}
 State 6:
-  edge(6 -> 6)
+  edge(6 -> 3)
     label = !a & !c
     acc sets = {}
+  edge(6 -> 4)
+    label = !a & !c
+    acc sets = {}
+  edge(6 -> 5)
+    label = !a & !b & c
+    acc sets = {}
+  edge(6 -> 6)
+    label = !a & b & c
+    acc sets = {}
   edge(6 -> 7)
+    label = a & b & c
+    acc sets = {}
+  edge(6 -> 8)
+    label = a & !b & !c
+    acc sets = {}
+  edge(6 -> 9)
+    label = a & !b & c
+    acc sets = {}
+  edge(6 -> 10)
+    label = a & b & !c
+    acc sets = {}
+  edge(6 -> 11)
     label = a & !c
+    acc sets = {}
+  edge(6 -> 12)
+    label = a & !b & c
+    acc sets = {}
+  edge(6 -> 13)
+    label = a & !b & !c
     acc sets = {}
 State 7:
   edge(7 -> 7)
-    label = !c
-    acc sets = {0,1}
-State 8:
-  edge(8 -> 8)
-    label = !b
-    acc sets = {0,1}
-State 9:
-  edge(9 -> 7)
-    label = !c
-    acc sets = {}
-  edge(9 -> 8)
-    label = !b & c
-    acc sets = {}
-  edge(9 -> 9)
     label = b & c
     acc sets = {}
-  edge(9 -> 10)
+  edge(7 -> 8)
+    label = !b & !c
+    acc sets = {}
+  edge(7 -> 9)
     label = !b & c
+    acc sets = {}
+  edge(7 -> 10)
+    label = b & !c
+    acc sets = {}
+  edge(7 -> 11)
+    label = !c
+    acc sets = {}
+  edge(7 -> 12)
+    label = !b & c
+    acc sets = {}
+  edge(7 -> 13)
+    label = !b & !c
+    acc sets = {}
+State 8:
+  edge(8 -> 7)
+    label = b & c
+    acc sets = {}
+  edge(8 -> 8)
+    label = !b & !c
+    acc sets = {}
+  edge(8 -> 9)
+    label = !b & c
+    acc sets = {}
+  edge(8 -> 10)
+    label = b & !c
+    acc sets = {}
+State 9:
+  edge(9 -> 7)
+    label = b & c
+    acc sets = {}
+  edge(9 -> 8)
+    label = !b & !c
+    acc sets = {}
+  edge(9 -> 9)
+    label = !b & c
+    acc sets = {}
+  edge(9 -> 10)
+    label = b & !c
     acc sets = {}
   edge(9 -> 11)
     label = b & !c
     acc sets = {}
-  edge(9 -> 12)
-    label = !b & !c
-    acc sets = {}
-  edge(9 -> 13)
+  edge(9 -> 15)
     label = !b & !c
     acc sets = {}
 State 10:
   edge(10 -> 7)
-    label = b & !c
-    acc sets = {}
-  edge(10 -> 9)
     label = b & c
     acc sets = {}
-  edge(10 -> 10)
+  edge(10 -> 8)
+    label = !b & !c
+    acc sets = {}
+  edge(10 -> 9)
     label = !b & c
     acc sets = {}
-  edge(10 -> 11)
+  edge(10 -> 10)
     label = b & !c
     acc sets = {}
   edge(10 -> 12)
-    label = !b & !c
+    label = !b & c
     acc sets = {}
-  edge(10 -> 14)
+  edge(10 -> 13)
     label = !b & !c
     acc sets = {}
 State 11:
-  edge(11 -> 8)
-    label = !b & c
-    acc sets = {}
-  edge(11 -> 9)
-    label = b & c
-    acc sets = {}
-  edge(11 -> 10)
-    label = !b & c
-    acc sets = {}
   edge(11 -> 11)
-    label = b & !c
-    acc sets = {}
-  edge(11 -> 12)
-    label = !b & !c
-    acc sets = {}
-  edge(11 -> 13)
-    label = !b & !c
-    acc sets = {}
+    label = !c
+    acc sets = {0,1}
 State 12:
-  edge(12 -> 9)
-    label = b & c
-    acc sets = {}
-  edge(12 -> 10)
-    label = !b & c
-    acc sets = {}
-  edge(12 -> 11)
-    label = b & !c
-    acc sets = {}
   edge(12 -> 12)
-    label = !b & !c
-    acc sets = {}
+    label = !b
+    acc sets = {0,1}
 State 13:
-  edge(13 -> 8)
+  edge(13 -> 12)
     label = !b & c
     acc sets = {}
   edge(13 -> 13)
     label = !b & !c
     acc sets = {}
 State 14:
-  edge(14 -> 7)
-    label = b & !c
-    acc sets = {}
-  edge(14 -> 14)
-    label = !b & !c
-    acc sets = {}
-State 15:
-  edge(15 -> 6)
+  edge(14 -> 4)
     label = !a & b & !c
     acc sets = {}
-  edge(15 -> 7)
+  edge(14 -> 11)
     label = a & b & !c
     acc sets = {}
-  edge(15 -> 14)
-    label = a & !b & !c
-    acc sets = {}
-  edge(15 -> 15)
+  edge(14 -> 14)
     label = !a & !b & !c
     acc sets = {}
-  edge(15 -> 16)
+  edge(14 -> 15)
     label = a & !b & !c
+    acc sets = {}
+  edge(14 -> 16)
+    label = a & !b & !c
+    acc sets = {}
+State 15:
+  edge(15 -> 11)
+    label = b & !c
+    acc sets = {}
+  edge(15 -> 15)
+    label = !b & !c
     acc sets = {}
 State 16:
   edge(16 -> 16)
@@ -848,6 +847,11 @@ State 16:
 #+BEGIN_SRC sh :results silent :exports results
 rm -f tut21.hoa
 #+END_SRC
+
+* Going further
+
+As another example of printing an autoamton, see our page about
+[[file:tut25.org][printing a Büchi automaton in "BA format"]].
 
 #  LocalWords:  utf html args mathit src dst cond accsets tgba Fb Fc
 #  LocalWords:  acc Buchi BDDs bdd ap ithvar aut const num init bdict

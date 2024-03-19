@@ -192,6 +192,11 @@ New in spot 2.11.6.dev  (not yet released)
     This version of Spot now declares its svg outputs as HTML to
     prevent Jypyter from wrapping them is images.
 
+  Documentation:
+
+  - https://spot.lre.epita.fr/tut25.html is a new example showing
+    how to print an automaton in the "BA format" (used by Rabbit).
+
   Bugs fixed:
 
   - tgba_determinize()'s use_simulation option would cause it to
