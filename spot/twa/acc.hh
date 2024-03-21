@@ -430,15 +430,7 @@ namespace spot
       /// Returns some iterable object that contains the used sets.
       spot::internal::mark_container sets() const;
 
-      SPOT_API
-      friend std::ostream& operator<<(std::ostream& os, mark_t m);
-
-      std::string as_string() const
-      {
-        std::ostringstream os;
-        os << *this;
-        return os.str();
-      }
+      std::string as_string() const;
     };
 
     /// \brief Operators for acceptance formulas.
@@ -1491,9 +1483,6 @@ namespace spot
       {
       }
 
-      /// \brief prints the acceptance formula as text
-      SPOT_API
-      friend std::ostream& operator<<(std::ostream& os, const acc_code& code);
     };
 
     /// \brief Build an acceptance condition
@@ -2036,22 +2025,11 @@ namespace spot
 
     // Deprecated since Spot 2.8
     SPOT_DEPRECATED("Use operator<< instead.")
-    std::ostream& format(std::ostream& os, mark_t m) const
-    {
-      if (!m)
-        return os;
-      return os << m;
-    }
+    std::ostream& format(std::ostream& os, mark_t m) const;
 
     // Deprecated since Spot 2.8
     SPOT_DEPRECATED("Use operator<< or mark_t::as_string() instead.")
-    std::string format(mark_t m) const
-    {
-      std::ostringstream os;
-      if (m)
-        os << m;
-      return os.str();
-    }
+    std::string format(mark_t m) const;
 
     /// \brief The number of sets used in the acceptance condition.
     unsigned num_sets() const
@@ -2379,6 +2357,19 @@ namespace spot
 
   SPOT_API
   std::ostream& operator<<(std::ostream& os, const acc_cond& acc);
+
+  // The next two operators used to be declared as friend inside the
+  // acc_cond::mark_t and acc_cond::acc_code, but Swig 4.2.1
+  // introduced a bug with friend operators.  See
+  // https://github.com/swig/swig/issues/2845
+
+  SPOT_API
+  std::ostream& operator<<(std::ostream& os, acc_cond::mark_t m);
+
+  /// \brief prints the acceptance formula as text
+  SPOT_API
+  std::ostream& operator<<(std::ostream& os,
+                           const acc_cond::acc_code& code);
 
   /// @}
 

@@ -48,7 +48,7 @@ namespace spot
                              " <spot@lrde.epita.fr>.");
   }
 
-  std::ostream& operator<<(std::ostream& os, spot::acc_cond::mark_t m)
+  std::ostream& operator<<(std::ostream& os, acc_cond::mark_t m)
   {
     auto a = m;
     os << '{';
@@ -66,6 +66,31 @@ namespace spot
       }
     os << '}';
     return os;
+  }
+
+  std::string acc_cond::mark_t::as_string() const
+  {
+    std::ostringstream os;
+    os << *this;
+    return os.str();
+  }
+
+  // Deprecated since Spot 2.8
+  std::ostream& acc_cond::format(std::ostream& os,
+                                 acc_cond::mark_t m) const
+  {
+    if (!m)
+      return os;
+    return os << m;
+  }
+
+  // Deprecated since Spot 2.8
+  std::string acc_cond::format(acc_cond::mark_t m) const
+  {
+    std::ostringstream os;
+    if (m)
+      os << m;
+    return os.str();
   }
 
   std::ostream& operator<<(std::ostream& os, const acc_cond& acc)
@@ -1922,7 +1947,7 @@ namespace spot
 
 
   std::ostream& operator<<(std::ostream& os,
-                           const spot::acc_cond::acc_code& code)
+                           const acc_cond::acc_code& code)
   {
     return code.to_text(os);
   }
