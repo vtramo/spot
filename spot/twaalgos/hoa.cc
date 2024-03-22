@@ -20,6 +20,7 @@
 #include <ostream>
 #include <sstream>
 #include <cstring>
+#include <algorithm>
 #include <map>
 #include <spot/twa/twa.hh>
 #include <spot/twa/twagraph.hh>
@@ -30,6 +31,7 @@
 #include <spot/tl/formula.hh>
 #include <spot/kripke/fairkripke.hh>
 #include <spot/kripke/kripkegraph.hh>
+#include <spot/twaalgos/split.hh>
 
 using namespace std::string_literals;
 
@@ -70,7 +72,8 @@ namespace spot
         if (bdd_is_cube(a))
           alias_cubes_.emplace_back(a, i);
         bdd neg = !a;
-        aliases_map_[neg.id()] = i;
+        // do not overwrite an existing alias with a negation
+        aliases_map_.emplace(neg.id(), i);
         if (bdd_is_cube(neg))
           alias_cubes_.emplace_back(neg, i);
       }
@@ -464,6 +467,7 @@ namespace spot
     bool verbose = false;
     bool state_labels = false;
     bool v1_1 = false;
+    bool alias_basis = false;
 
     if (opt)
       while (*opt)
@@ -485,6 +489,9 @@ namespace spot
                 {
                   v1_1 = false;
                 }
+              break;
+            case 'b':
+              alias_basis = true;
               break;
             case 'i':
               implicit_labels = true;
@@ -519,6 +526,27 @@ namespace spot
                       && (aut->acc().is_t() || aut->acc().is_f())))
       throw std::runtime_error("print_hoa(): automaton is declared not weak, "
                                "but the acceptance makes this impossible");
+
+    // If we were asked to create an alias basis, make sure we save
+    // existing aliases, so we can restore it before we exit this
+    // function.
+    std::vector<std::pair<std::string, bdd>> old_aliases;
+    if (aut->ap().size() <= 1)
+      alias_basis = false;
+    if (alias_basis)
+      {
+        if (auto* aliases = get_aliases(aut))
+          old_aliases = *aliases;
+        create_alias_basis(std::const_pointer_cast<twa_graph>(aut));
+      }
+    // restore the old aliases using a unique_ptr-based scope guard,
+    // because there are too many ways to exit this function.
+    auto restore_aliases = [&old_aliases, alias_basis, aut](void*) {
+      if (alias_basis)
+        set_aliases(std::const_pointer_cast<twa_graph>(aut), old_aliases);
+    };
+    std::unique_ptr<void, decltype(restore_aliases)>
+      restore_aliases_guard((void*)1, restore_aliases);
 
     metadata md(aut, implicit_labels, state_labels);
 
@@ -1013,7 +1041,8 @@ namespace spot
   }
 
   void
-  set_aliases(twa_ptr g, std::vector<std::pair<std::string, bdd>> aliases)
+  set_aliases(twa_ptr g,
+              const std::vector<std::pair<std::string, bdd>>& aliases)
   {
     if (aliases.empty())
       {
@@ -1025,6 +1054,19 @@ namespace spot
           <std::vector<std::pair<std::string, bdd>>>("aliases");
         *a = aliases;
       }
+  }
+
+  void
+  create_alias_basis(const twa_graph_ptr& aut)
+  {
+    edge_separator es;
+    es.add_to_basis(aut);
+    std::vector<std::pair<std::string, bdd>> aliases;
+    unsigned n = 0;
+    for (bdd b: es.basis())
+      aliases.emplace_back(std::to_string(n++), b);
+    std::reverse(aliases.begin(), aliases.end());
+    set_aliases(aut, aliases);
   }
 
 }

@@ -35,7 +35,8 @@ namespace spot
   /// \param os The output stream to print on.
   /// \param g The automaton to output.
   /// \param opt a set of characters each corresponding to a possible
-  ///        option: (i) implicit labels for complete and
+  ///        option: (b) create an alias basis if more >=2 AP
+  ///        are used, (i) implicit labels for complete and
   ///        deterministic automata, (k) state labels when possible,
   ///        (s) state-based acceptance when possible, (t)
   ///        transition-based acceptance, (m) mixed acceptance, (l)
@@ -62,7 +63,8 @@ namespace spot
   ///
   /// Pass an empty vector to remove existing aliases.
   SPOT_API void
-  set_aliases(twa_ptr g, std::vector<std::pair<std::string, bdd>> aliases);
+  set_aliases(twa_ptr g,
+              const std::vector<std::pair<std::string, bdd>>& aliases);
 
   /// \ingroup twa_io
   /// \brief Help printing BDDs as text, using aliases.
@@ -163,5 +165,19 @@ namespace spot
       return aliases_;
     }
   };
+
+  /// \ingroup twa_io
+  /// \brief Create an alias basis
+  ///
+  /// This use spot::edge_separator to build a set of alias that can
+  /// be used as a basis for all labels of the automaton.
+  ///
+  /// Such a basis can be used to shorten the size of an output file
+  /// when printing in HOA format (actually, calling print_hoa() with
+  /// option 'b' will call this function).  Such a basis may also be
+  /// useful to help visualize an automaton (using spot::print_dot's
+  /// `@` option) when its labels are too large.
+  SPOT_API void
+  create_alias_basis(const twa_graph_ptr& aut);
 
 }

@@ -108,6 +108,51 @@ State: 0
 [@p0&2 | @p1&2] 0
 --END--""")
 
+s2b = aut.to_str('hoa', 'b')
+tc.assertTrue(spot.are_equivalent(aut, spot.automaton(s2b)))
+tc.assertEqual(s2b, """HOA: v1
+States: 1
+Start: 0
+AP: 3 "x" "y" "z"
+acc-name: all
+Acceptance: 0 t
+properties: trans-labels explicit-labels state-acc complete very-weak
+Alias: @0 !0&!1&!2
+Alias: @1 0&!1&!2
+Alias: @2 !0&1&!2
+Alias: @3 0&1&!2
+Alias: @4 !0&!1&2
+Alias: @5 0&1&2
+Alias: @6 0&!1&2
+Alias: @7 !@6&!@5&!@4&!@3&!@2&!@1&!@0
+--BODY--
+State: 0
+[@6 | @5 | @3 | @1] 0
+[@7 | @4 | @2 | @0] 0
+[@7 | @5 | @3 | @2] 0
+[@6 | @4 | @1 | @0] 0
+[@4 | @0] 0
+[@7 | @6 | @5 | @3 | @2 | @1] 0
+[@7 | @2] 0
+[@6 | @5 | @4 | @3 | @1 | @0] 0
+[@6 | @1] 0
+[@7 | @5 | @4 | @3 | @2 | @0] 0
+[@7 | @4 | @2 | @0] 0
+[@6 | @4 | @1 | @0] 0
+[@7 | @6 | @2 | @1] 0
+[@7 | @6 | @4 | @2 | @1 | @0] 0
+[t] 0
+[t] 0
+[t] 0
+[@5 | @3] 0
+[@6 | @5 | @3 | @1] 0
+[@7 | @5 | @3 | @2] 0
+[@5 | @4 | @3 | @0] 0
+[@5 | @4] 0
+[@4] 0
+[@7 | @6 | @5] 0
+--END--""")
+
 # Check what happens to aliases when an AP has been removed, but
 # the aliases have been preserved...
 rem = spot.remove_ap()

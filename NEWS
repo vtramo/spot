@@ -12,6 +12,13 @@ New in spot 2.11.6.dev  (not yet released)
 
         autfilt input.hoa -o output-%l.hoa
 
+  - For tools that produce automata, using -Hb or --hoa=b will produce
+    an HOA file in which aliases are used to form a basis for the
+    whole set of labels.  Those aliases are only used when more than
+    one atomic proposition is used (otherwise, the atomic proposition
+    and its negation is already a basis).  This can help reducing the
+    size of large HOA files.
+
   - ltlfilt has a new option --relabel-overlapping-bool=abc|pnn that
     will replace boolean subformulas by fresh atomic propositions even
     if those subformulas share atomic propositions.

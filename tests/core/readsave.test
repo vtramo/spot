@@ -685,7 +685,7 @@ EOF
 
 diff output2 expect2
 
-SPOT_DEFAULT_FORMAT=hoa=k autfilt expect2 >output2b
+SPOT_DEFAULT_FORMAT=hoa=kb autfilt expect2 >output2b
 
 cat >expect2b <<EOF
 HOA: v1
@@ -695,12 +695,15 @@ AP: 2 "p0" "p1"
 acc-name: all
 Acceptance: 0 t
 properties: state-labels explicit-labels state-acc deterministic weak
+Alias: @0 !0&1 | 0&!1
+Alias: @1 !0&!1
+Alias: @2 !@1&!@0
 --BODY--
-State: [!0&!1] 0
+State: [@1] 0
 1
-State: [0&1] 1
+State: [@2] 1
 2
-State: [!0&!1] 2
+State: [@1] 2
 0
 --END--
 EOF
@@ -732,7 +735,7 @@ State: 5
 EOF
 
 autfilt -H --remove-unreach input >output3
-autfilt -H --remove-dead input >>output3
+autfilt -Hb --remove-dead input >>output3
 
 cat >expect3 <<EOF
 HOA: v1
@@ -759,13 +762,16 @@ AP: 2 "p0" "p1"
 acc-name: all
 Acceptance: 0 t
 properties: trans-labels explicit-labels state-acc deterministic weak
+Alias: @0 !0&1 | 0&!1
+Alias: @1 !0&!1
+Alias: @2 !@1&!@0
 --BODY--
 State: 0
-[!0&!1] 1
+[@1] 1
 State: 1
-[0&1] 2
+[@2] 2
 State: 2
-[!0&!1] 0
+[@1] 0
 --END--
 EOF
 
