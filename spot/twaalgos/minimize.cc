@@ -611,11 +611,25 @@ namespace spot
                                              formula f)
   {
     // WDBA-minimization necessarily work for obligations
-    return ((f && f.is_syntactic_obligation())
-            // Weak deterministic automata are obligations
-            || (aut_f->prop_weak().is_true() && is_deterministic(aut_f))
-            // Guarantee automata are obligations as well.
-            || is_terminal_automaton(aut_f));
+    if (f && f.is_syntactic_obligation())
+      return true;
+    // we can minimize automata with t acceptance
+    if (aut_f->acc().is_t())
+      return true;
+    if (aut_f->prop_weak().is_false())
+      return false;
+    // Weak deterministic automata are obligations
+    if (aut_f->prop_weak().is_true() && is_deterministic(aut_f))
+      return true;
+    scc_info si(aut_f);
+    check_strength(std::const_pointer_cast<twa_graph>(aut_f), &si);
+    // Check again, now that the strength is known
+    if (aut_f->prop_weak().is_true() && is_deterministic(aut_f))
+      return true;
+    // Guarantee automata are obligations as well.
+    if (is_terminal_automaton(aut_f, &si))
+      return true;
+    return false;
   }
 
   twa_graph_ptr
