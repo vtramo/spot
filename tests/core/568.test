@@ -1,0 +1,77 @@
+#!/bin/sh
+# -*- coding: utf-8 -*-
+# Copyright (C) by the Spot authors, see the AUTHORS file for details.
+#
+# This file is part of Spot, a model checking library.
+#
+# Spot is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# Spot is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+# License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+. ./defs
+
+set -e
+
+# For issue #568.  Before the patch implemented for #568, running
+# simulation-based reduction on automata with many APs was getting
+# exponentially slow even if few different labels were used.
+#
+# For instance we had this:
+#
+# % genaut --cycle-onehot=10..20 --name='size %L' |
+#   autfilt --small --stats='%M: %S->%s in %r seconds'
+# size 10: 100->10 in 0.0395407 seconds
+# size 11: 121->11 in 0.0950484 seconds
+# size 12: 144->12 in 0.227828 seconds
+# size 13: 169->13 in 0.391545 seconds
+# size 14: 196->14 in 0.954784 seconds
+# size 15: 225->15 in 2.34656 seconds
+# size 16: 256->16 in 5.80549 seconds
+# size 17: 289->17 in 14.3545 seconds
+# size 18: 324->18 in 47.1589 seconds
+# size 19: 361->19 in 138.023 seconds
+#
+# The test below shows that even with --cycle-onehot-nba=80 we don't
+# have any problem now.
+
+genaut --cycle-onehot-nba=20 \
+       --cycle-onehot-nba=40 \
+       --cycle-onehot-nba=60 \
+       --cycle-onehot-nba=80 \
+       --cycle-log-nba=20 \
+       --cycle-log-nba=40 \
+       --cycle-log-nba=60 \
+       --cycle-log-nba=80 \
+  | autfilt --small --stats='%S -> %s' > out
+cat >expected <<EOF
+400 -> 20
+1600 -> 40
+3600 -> 60
+6400 -> 6400
+400 -> 20
+1600 -> 40
+3600 -> 60
+6400 -> 6400
+EOF
+diff expected out
+
+# the reason for the 6400 states above is that simulation-based
+# reductions are disabled above 4096 states by default.  This can be
+# changed with -x simul-max=N.
+
+genaut --cycle-onehot-nba=80 --cycle-log-nba=80 \
+  | autfilt -x simul-max=6400 --small --stats='%S -> %s' > out
+cat >expected <<EOF
+6400 -> 80
+6400 -> 80
+EOF
+diff expected out

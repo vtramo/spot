@@ -29,6 +29,8 @@
 #include <spot/twaalgos/isdet.hh>
 #include <spot/misc/bddlt.hh>
 #include <spot/twaalgos/cleanacc.hh>
+#include <spot/twaalgos/split.hh>
+#include <spot/priv/robin_hood.hh>
 
 // Work around GCC bug 80947 (dominates_edge is causing spurious
 // visibility warnings)
@@ -507,6 +509,35 @@ namespace spot
         res->copy_ap_of(a_);
         res->copy_acceptance_of(a_);
 
+        // We have two ways of "spliting" a signature to create the
+        // outgoing edges.  One is to iterate over 2^AP, then collect
+        // the destinations.  The second is to first create a coarser
+        // basis for the original set of labels, and then iterate on
+        // this basis.  The latter is good when we have few distinct
+        // labels.  With too many different labels that may have
+        // nonempty intersections, the basis approach can consume a
+        // lot of memory.  We have to heuristically select between
+        // those two.
+        unsigned nap = res->ap().size();
+        bool will_use_basis = nap > 5;
+        edge_separator es;
+        if (will_use_basis)
+          // Gather all labels, but stop if we see too many.  The
+          // threshold below is arbitrary: adjust if you know better.
+          will_use_basis = es.add_to_basis(a_, 256 * nap);
+        // We use a cache to avoid the costly loop over the basis.
+        //
+        // Cache entries have the form (bdd, [begin, end]) where bdd
+        // what should be split using the basis, and begin/end denotes
+        // a range of existing transition numbers that cover the
+        // split.
+        //
+        // std::pair causes some noexcept warnings when used in
+        // robin_hood::unordered_map with GCC 9.4.  Use robin_hood::pair
+        // instead.
+        typedef robin_hood::pair<unsigned, unsigned> cached_t;
+        robin_hood::unordered_map<bdd, cached_t, bdd_hash> split_cond;
+
         auto state_mapping = new std::vector<unsigned>();
         state_mapping->resize(a_->num_states());
         res->set_named_prop("simulated-states", state_mapping);
@@ -549,6 +580,58 @@ namespace spot
 
         auto all_inf = all_inf_;
         unsigned srcst = 0;
+
+        auto create_edges = [&](int srcid, bdd one, bdd dest) {
+          // Iterate over all possible destination classes.  We
+          // use minato_isop here, because if the same valuation
+          // of atomic properties can go to two different
+          // classes C1 and C2, iterating on C1 + C2 with other
+          // means would see C1 then (!C1)C2, instead of C1 then
+          // C2.  With minatop_isop, we ensure that no negative
+          // class variable will be seen (likewise for
+          // promises).
+          minato_isop isop(dest);
+
+          ++nb_minterms;
+          bdd cond_acc_dest;
+          while ((cond_acc_dest = isop.next()) != bddfalse)
+            {
+              ++stat.edges;
+              ++nb_minato;
+
+              // Take the edge, and keep only the variable which
+              // are used to represent the class.
+              bdd dst = bdd_existcomp(cond_acc_dest, all_class_var_);
+
+              // Keep only ones who are acceptance condition.
+              auto acc = bdd_to_mark(bdd_existcomp(cond_acc_dest,
+                                                   all_proms_));
+
+              // Because we have complemented all the Inf
+              // acceptance conditions on the input automaton,
+              // we must revert them to create a new edge.
+              acc ^= all_inf;
+              if (Cosimulation)
+                {
+                  if (Sba)
+                    {
+                      // acc should be attached to src, or rather,
+                      // in our edge-based representation)
+                      // to all edges leaving src.  As we
+                      // can't do this here, store this in a table
+                      // so we can fix it later.
+                      accst[srcst] = acc;
+                      acc = {};
+                    }
+                  gb->new_edge(dst.id(), srcid, one, acc);
+                }
+              else
+                {
+                  gb->new_edge(srcid, dst.id(), one, acc);
+                }
+            }
+        };
+
         // For each class, we will create
         // all the edges between the states.
         for (auto& p: sorted_classes_)
@@ -566,11 +649,10 @@ namespace spot
             if (Cosimulation)
               sig = bdd_compose(sig, bddfalse, bdd_var(bdd_initial));
 
-
             // Get all the variables in the signature.
             bdd sup_sig = bdd_support(sig);
 
-            // Get the variable in the signature which represents the
+            // Get the variables in the signature which represent the
             // conditions.
             bdd sup_all_atomic_prop = bdd_exist(sup_sig, nonapvars);
 
@@ -578,60 +660,44 @@ namespace spot
             // proposition.
             bdd all_atomic_prop = bdd_exist(sig, nonapvars);
 
-            // First loop over all possible valuations atomic properties.
-            for (bdd one: minterms_of(all_atomic_prop, sup_all_atomic_prop))
+            if (!will_use_basis)
               {
-                // For each possible valuation, iterate over all possible
-                // destination classes.   We use minato_isop here, because
-                // if the same valuation of atomic properties can go
-                // to two different classes C1 and C2, iterating on
-                // C1 + C2 with the above minters_of loop will see
-                // C1 then (!C1)C2, instead of C1 then C2.
-                // With minatop_isop, we ensure that the no negative
-                // class variable will be seen (likewise for promises).
-                minato_isop isop(bdd_restrict(sig, one));
 
-                ++nb_minterms;
-
-                bdd cond_acc_dest;
-                while ((cond_acc_dest = isop.next()) != bddfalse)
+                for (bdd one: minterms_of(all_atomic_prop, sup_all_atomic_prop))
+                  create_edges(src.id(), one, bdd_restrict(sig, one));
+              }
+            else
+              {
+                auto& [begin, end] = split_cond[all_atomic_prop];
+                if (begin == end)
                   {
-                    ++stat.edges;
-
-                    ++nb_minato;
-
-                    // Take the edge, and keep only the variable which
-                    // are used to represent the class.
-                    bdd dst = bdd_existcomp(cond_acc_dest, all_class_var_);
-
-                    // Keep only ones who are acceptance condition.
-                    auto acc = bdd_to_mark(bdd_existcomp(cond_acc_dest,
-                                                         all_proms_));
-
-                    // Because we have complemented all the Inf
-                    // acceptance conditions on the input automaton,
-                    // we must revert them to create a new edge.
-                    acc ^= all_inf;
-                    if (Cosimulation)
+                    begin = res->num_edges() + 1;
+                    for (bdd label: es.basis())
+                      create_edges(src.id(), label,
+                                   bdd_relprod(label, sig,
+                                               res->ap_vars()));
+                    end = res->num_edges() + 1;
+                  }
+                else
+                  {
+                    // We have already split all_atomic_prop once, so
+                    // we can simply reuse the set of labels we used
+                    // then, avoiding the iteration on es.basis().
+                    auto& g = res->get_graph();
+                    bdd last = bddfalse;
+                    for (unsigned i = begin; i < end; ++i)
                       {
-                        if (Sba)
-                          {
-                            // acc should be attached to src, or rather,
-                            // in our edge-based representation)
-                            // to all edges leaving src.  As we
-                            // can't do this here, store this in a table
-                            // so we can fix it later.
-                            accst[srcst] = acc;
-                            acc = {};
-                          }
-                        gb->new_edge(dst.id(), src.id(), one, acc);
-                      }
-                    else
-                      {
-                        gb->new_edge(src.id(), dst.id(), one, acc);
+                        bdd label = g.edge_storage(i).cond;
+                        if (label == last)
+                          continue;
+                        last = label;
+                        create_edges(src.id(), label,
+                                     bdd_relprod(label, sig,
+                                                 res->ap_vars()));
                       }
                   }
               }
+
             ++srcst;
           }
 
