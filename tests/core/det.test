@@ -149,7 +149,7 @@ AP: 1 "a"
 acc-name: Buchi
 Acceptance: 1 Inf(0)
 properties: trans-labels explicit-labels state-acc !complete
-properties: !deterministic exist-branch
+properties: !deterministic exist-branch very-weak
 spot.highlight.states: 0 1
 spot.highlight.edges: 1 2 2 2
 --BODY--
@@ -174,7 +174,7 @@ AP: 1 "a"
 acc-name: Buchi
 Acceptance: 1 Inf(0)
 properties: trans-labels explicit-labels state-acc !complete
-properties: !deterministic exist-branch
+properties: !deterministic exist-branch very-weak
 spot.highlight.states: 1 1
 --BODY--
 State: 0 {0}
@@ -198,7 +198,7 @@ AP: 1 "a"
 acc-name: Buchi
 Acceptance: 1 Inf(0)
 properties: trans-labels explicit-labels state-acc !complete
-properties: !deterministic exist-branch
+properties: !deterministic exist-branch very-weak
 spot.highlight.states: 1 5
 spot.highlight.edges: 2 5 3 5
 --BODY--
