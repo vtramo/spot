@@ -221,6 +221,7 @@ TESTS_twa = \
   core/521.test \
   core/522.test \
   core/566.test \
+  core/568.test \
   core/acc.test \
   core/acc2.test \
   core/bdddict.test \
