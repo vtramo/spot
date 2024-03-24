@@ -172,9 +172,10 @@ namespace spot
       }
     }
 
+    // Return the smallest integer k such that 2^k ≥ n > 1.
     static unsigned ulog2(unsigned n)
     {
-      assert(n>0);
+      assert(n>1); // clz() is undefined for n==0
       --n;
       return CHAR_BIT*sizeof(unsigned) - clz(n);
     }
@@ -229,7 +230,7 @@ namespace spot
           m = {};
       aut->prop_state_acc(true);
 
-      // How many AP to we need to represent n letters
+      // How many AP to we need to represent n+1 letters
       unsigned nap = ulog2(n + 1);
       std::vector<int> apvars(nap);
       for (unsigned a = 0; a < nap; ++a)
@@ -249,6 +250,76 @@ namespace spot
           aut->new_edge(letter + 1, 1, zero, m);
         }
 
+      return aut;
+    }
+
+    static twa_graph_ptr
+    cycle_nba(unsigned n, bool onehot, bdd_dict_ptr dict)
+    {
+      if (n == 0)
+        throw std::runtime_error
+          (onehot
+           ? "cycle-onehot-nba expects a positive argument"
+           : "cycle-log-nba expects a positive argument");
+
+      auto aut = make_twa_graph(dict);
+      acc_cond::mark_t isacc = aut->set_buchi();
+      aut->new_states(n * n);
+      aut->set_init_state(0);
+      aut->prop_state_acc(true);
+      aut->prop_weak(n == 1);
+      aut->prop_universal(n == 1);
+      aut->prop_complete(false);
+
+      std::vector<bdd> letters;
+      letters.reserve(n);
+
+      if (!onehot)
+        {
+          // How many AP to we need to represent n letters
+          unsigned nap = n == 1 ? 1 : ulog2(n);
+          std::vector<int> apvars(nap);
+          for (unsigned a = 0; a < nap; ++a)
+            apvars[a] = aut->register_ap("p" + std::to_string(a));
+
+          for (unsigned letter = 0; letter < n; ++letter)
+            {
+              bdd cond = bdd_ibuildcube(letter, nap, apvars.data());
+              letters.push_back(cond);
+            }
+        }
+      else
+        {
+          std::vector<bdd> apvars(n);
+          bdd allneg = bddtrue;
+          for (unsigned a = 0; a < n; ++a)
+            {
+              int v = aut->register_ap("p" + std::to_string(a));
+              apvars[a] = bdd_ithvar(v);
+              allneg &= bdd_nithvar(v);
+            }
+          for (unsigned a = 0; a < n; ++a)
+            letters.push_back(bdd_exist(allneg, apvars[a]) & apvars[a]);
+        }
+
+      unsigned n2 = n * n;
+      for (unsigned s = 0; s < n; ++s)
+        {
+          bdd label = letters[s];
+          for (unsigned copy = 0; copy < n; ++copy)
+            {
+              unsigned q = s + copy * n;
+              if (s != 0)
+                {
+                  aut->new_edge(q, q, bddtrue);
+                  aut->new_edge(q, (q + 1) % n2, label);
+                }
+              else
+                {
+                  aut->new_edge(q, (q + 1) % n2, label, isacc);
+                }
+            }
+        }
       return aut;
     }
 
@@ -278,6 +349,10 @@ namespace spot
           return cyclist_trace_or_proof(n, true, dict);
         case AUT_CYCLIST_PROOF_DBA:
           return cyclist_trace_or_proof(n, false, dict);
+        case AUT_CYCLE_LOG_NBA:
+          return cycle_nba(n, false, dict);
+        case AUT_CYCLE_ONEHOT_NBA:
+          return cycle_nba(n, true, dict);
         case AUT_END:
           break;
         }
@@ -294,6 +369,8 @@ namespace spot
           "m-nba",
           "cyclist-trace-nba",
           "cyclist-proof-dba",
+          "cycle-log-nba",
+          "cycle-onehot-nba",
         };
       // Make sure we do not forget to update the above table every
       // time a new pattern is added.

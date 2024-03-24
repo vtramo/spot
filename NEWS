@@ -55,6 +55,11 @@ New in spot 2.11.6.dev  (not yet released)
     patching the game a posteriori is cumbersome if the equivalence
     concerns different players).
 
+  - genaut learned two new familes of automata, --cycle-log-nba and
+    --cycle-onehot-nba.  They both create a cycle of n^2 states that
+    can be reduced to a cycle of n states using reduction based on
+    direct simulation.
+
   Library:
 
   - The following new trivial simplifications have been implemented for SEREs:
