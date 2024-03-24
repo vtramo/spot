@@ -96,6 +96,27 @@ namespace spot
       /// for a given n contain the automaton generated with
       /// AUT_CYCLIST_PROOF_DBA for the same n.
       AUT_CYCLIST_PROOF_DBA,
+      /// \brief cycles of n letters repeated n times
+      ///
+      /// This is a Büchi automaton with n^2 states, in which each
+      /// state i has a true self-loop and a successor labeled by the
+      /// (i%n)th letter.  Only the states that are multiple of n have
+      /// no self-loop and are accepting.
+      ///
+      /// This version uses log(n) atomic propositions to
+      /// encore the n letters as minterms.
+      AUT_CYCLE_LOG_NBA,
+      /// \brief cycles of n letters repeated n times
+      ///
+      /// This is a Büchi automaton with n^2 states, in which each
+      /// state i has a true self-loop and a successor labeled by the
+      /// (i%n)th letter.  Only the states that are multiple of n have
+      /// no self-loop and are accepting.
+      ///
+      /// This version uses one-hot encoding of letters, i.e, n atomic
+      /// propositions are used, but only one is positive (except on
+      /// true self-loops).
+      AUT_CYCLE_ONEHOT_NBA,
       AUT_END
     };
 

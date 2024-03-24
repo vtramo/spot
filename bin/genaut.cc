@@ -67,6 +67,12 @@ static const argp_option options[] =
     { "cyclist-proof-dba", gen::AUT_CYCLIST_PROOF_DBA, "RANGE", 0,
       "A DBA with N+2 states that should be included "
       "in cyclist-trace-nba=B.", 0},
+    { "cycle-log-nba", gen::AUT_CYCLE_LOG_NBA, "RANGE", 0,
+      "A cyclic NBA with N*N states and log(N) atomic propositions, that "
+      "should be simplifiable to a cyclic NBA with N states.", 0 },
+    { "cycle-onehot-nba", gen::AUT_CYCLE_ONEHOT_NBA, "RANGE", 0,
+      "A cyclic NBA with N*N states and N atomic propositions, that "
+      "should be simplifiable to a cyclic NBA with N states.", 0 },
     RANGE_DOC,
   /**************************************************/
     { nullptr, 0, nullptr, 0, "Miscellaneous options:", -1 },

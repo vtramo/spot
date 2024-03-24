@@ -29,6 +29,7 @@ res=`genaut $opts --stats="--%F=%L"`
 test "$opts" = "$res"
 
 genaut --ks-nca=..3 --l-nba=..3 --l-dsa=..3 --m-nba=..3 \
+       --cycle-log-nba=..3 --cycle-onehot-nba=..3 \
        --stats=%s,%e,%t,%c,%g >out
 cat >expected <<EOF
 3,7,16,1,Fin(0)
@@ -43,6 +44,12 @@ cat >expected <<EOF
 2,3,4,1,Inf(0)
 3,6,10,1,Inf(0)
 4,9,18,1,Inf(0)
+1,1,1,1,Inf(0)
+4,6,8,1,Inf(0)
+9,15,33,1,Inf(0)
+1,1,1,1,Inf(0)
+4,6,12,1,Inf(0)
+9,15,57,1,Inf(0)
 EOF
 diff out expected
 
