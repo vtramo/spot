@@ -8,8 +8,8 @@
 #+PROPERTY: header-args:C+++ :results verbatim
 
 The [[https://languageinclusion.org/doku.php?id=tools#the_ba_format][BA format]] is a textual representation of a Büchi automaton with
-letter-based alphabet, and supported by tools like [[https://languageinclusion.org/doku.php?id=tools][RABIT]] or [[http://goal.im.ntu.edu.tw/wiki/doku.php][Goal]].  It
-looks as follows:
+letter-based alphabet, and supported by tools like [[https://github.com/Mazzocchi/FORKLIFT][FORKLIFT]], [[https://languageinclusion.org/doku.php?id=tools][RABIT]],
+[[http://goal.im.ntu.edu.tw/wiki/doku.php][Goal,]] or [[https://iscasmc.ios.ac.cn/roll/doku.php?id=start][ROLL]].  It looks as follows:
 
 #+BEGIN_SRC dot :file tut25-aut.svg :exports results
 digraph "" {
@@ -49,17 +49,17 @@ s₂
 
 The first line, ~s₁~ represents the initial state, the next block of
 lines of the form ~letters,src->dst~ represent the transitions of the
-automaton.  End the last block of lines (containing ~s₁~ and ~s₂~ in
-the above example), lists the accepting states of the automaton.
+automaton, and the last block of lines (containing ~s₁~ and ~s₂~ in
+the above example) lists the accepting states of the automaton.
 
-In this format, the letters and the state can be arbitrary strings
+In this format, the letters and the states are arbitrary strings
 that do not include the characters ~,~ or ~-~, or ~>~.  The initial
 state can be omitted (the source of the first transition is then
 assumed to be initial), and the list of accepting states may be empty.
 
 Spot has no support for letter-based alphabet (instead it uses boolean
-formulas over a set of atomtic propositions), so this format does not
-really make any sense.
+formulas over a set of atomic propositions), hence Spot has no support
+for this format as input.
 
 As an example of [[file:tut21.org][how to custom print an automaton]], let us write a
 small tool that will convert any Büchi automaton that Spot can read
@@ -95,7 +95,7 @@ $txt
 
 Then each label can now be considered as a letter.
 
-* Convertion in Python
+* Conversion in Python
 
 
 #+NAME: toba.py
@@ -177,9 +177,9 @@ ltl2tgba -B "a W G(b->c)" | ./toba.py
 1
 #+end_example
 
-The BDD ~e.cond~ that encodes the Boolean formula labels each edge ~e~
-have been printed using ~e.cond.id()~: this is the integer identifier
-that uniquely denote each formula.  This identifier is good enough to
+The BDD ~e.cond~ that encodes the Boolean formula labelling edge ~e~
+is printed using ~e.cond.id()~ which is the integer identifier
+that uniquely denotes each formula.  This identifier is good enough to
 make letters unique and keep the file short.  However, if you prefer to
 print the formula instead, replace =e.cond.id()= by
 =spot.bdd_format_formula(aut.get_dict(), e.cond)=.
@@ -227,7 +227,7 @@ the same logic as in the previous section.
 ltl2tgba -B "a W G(b->c)" >tut25.hoa
 #+end_src
 
-Now what remains to be done is to read some input automaton, so we
+Now, what remains to be done is to read some input automaton, so we
 can print it:
 
 #+NAME: maincpp
@@ -257,7 +257,7 @@ can print it:
   }
 #+END_SRC
 
-Unsurprisingly running the above code on our example automaton
+Unsurprisingly, running the above code on our example automaton
 produces the same output.
 
 #+RESULTS: maincpp
