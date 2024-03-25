@@ -75,3 +75,29 @@ cat >expected <<EOF
 6400 -> 80
 EOF
 diff expected out
+
+genaut --cycle-onehot=7..12 |
+  autfilt --parity -D --stats="%S -> %s" > out
+cat >expected <<EOF
+49 -> 13
+64 -> 15
+81 -> 17
+100 -> 19
+121 -> 4360
+144 -> 9481
+EOF
+
+genaut --cycle-onehot=7..12 |
+  autfilt -x simul-max=10000 --parity -D --stats="%S -> %s" > out
+cat >expected <<EOF
+49 -> 13
+64 -> 15
+81 -> 17
+100 -> 19
+121 -> 21
+144 -> 23
+EOF
+
+# Using autcross will also test tgba_determinize
+genaut --cycle-onehot-nba=11..12 --cycle-log-nba=11..12 |
+  autcross --language-preserved 'autfilt --small' --verbose

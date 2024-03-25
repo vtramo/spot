@@ -23,6 +23,8 @@
 #include <utility>
 #include <set>
 #include <map>
+#include <cmath>
+#include <spot/misc/clz.hh>
 #include <spot/misc/bddlt.hh>
 #include <spot/twaalgos/sccinfo.hh>
 #include <spot/twaalgos/determinize.hh>
@@ -31,6 +33,7 @@
 #include <spot/twaalgos/simulation.hh>
 #include <spot/twaalgos/isdet.hh>
 #include <spot/twaalgos/parity.hh>
+#include <spot/twaalgos/split.hh>
 #include <spot/priv/robin_hood.hh>
 
 namespace spot
@@ -586,9 +589,27 @@ namespace spot
     {
       const std::vector<bdd>& state_supports;
       robin_hood::unordered_flat_map<bdd, std::vector<bdd>, bdd_hash> cache;
-
+      std::vector<bdd> basis;
+      unsigned log_basis_size = 0;
     public:
-      safra_support(const std::vector<bdd>& s): state_supports(s) {}
+      safra_support(const std::vector<bdd>& s,
+                    const const_twa_graph_ptr& orig_aut)
+        : state_supports(s)
+      {
+        unsigned nap = orig_aut->ap().size();
+        if (nap > 5)
+          {
+            edge_separator es;
+            // Gather all labels, but stop if we see too many.  The
+            // threshold below is arbitrary: adjust if you know better.
+            if (es.add_to_basis(orig_aut, 256 * nap))
+              {
+                basis = es.basis();
+                auto sz = basis.size();
+                log_basis_size = CHAR_BIT*sizeof(sz) - clz(sz);
+              }
+          }
+      }
 
       const std::vector<bdd>&
       get(const safra_state& s)
@@ -600,6 +621,21 @@ namespace spot
         if (i.second) // insertion took place
           {
             std::vector<bdd>& res = i.first->second;
+            // If we have a basis, we probably want to use it.
+            // But we should do that only if 2^|supp| is larger.
+            if (log_basis_size)
+              {
+                // Compute the size of the support
+                bdd s = supp;
+                unsigned sz = log_basis_size;
+                while (sz && s != bddtrue)
+                  {
+                    --sz;
+                    s = bdd_high(s);
+                  }
+                if (s != bddtrue)
+                  return res = basis;
+              }
             for (bdd one: minterms_of(bddtrue, supp))
               res.emplace_back(one);
           }
@@ -971,7 +1007,7 @@ namespace spot
           }
       }
 
-    safra_support safra2letters(support);
+    safra_support safra2letters(support, aut);
 
     auto res = make_twa_graph(aut->get_dict());
     res->copy_ap_of(aut);

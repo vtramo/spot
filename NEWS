@@ -165,12 +165,12 @@ New in spot 2.11.6.dev  (not yet released)
 
   - spot::dualize() learned a trick to be faster on states that have
     less outgoing edges than atomic proposition declared on the
-    automaton.  spot::remove_alternation(), spot::tgba_powerset(), and
-    simulation-based reductions learned a similar trick, except it
-    isn't applied at the state level but if the entire automaton use
-    few distinct labels.  These changes may speed up the processing of
-    automata with many atomic propositions but few distinct labels.
-    (Issue #566 and issue #568.)
+    automaton.  spot::remove_alternation(), spot::tgba_powerset(),
+    simulation-based reductions, and spot::tgba_determinize() learned
+    a similar trick, except it isn't applied at the state level but if
+    the entire automaton use few distinct labels.  These changes may
+    speed up the processing of automata with many atomic propositions
+    but few distinct labels.  (Issue #566 and issue #568.)
 
   - [Potential backward incompatibility] spot::dualize() does not call
     cleanup_acceptance() anymore.  This change ensures that the dual
