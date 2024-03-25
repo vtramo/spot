@@ -23,6 +23,10 @@ set -e
 
 test 3,7 = `ltl2tgba 'a U b' --stats=%e,%t`
 test 7,7 = `ltl2tgba 'a U b' | autfilt --split --stats=%e,%t`
+test 5,7 = `ltl2tgba 'a U b' | autfilt --separate-edges --stats=%e,%t`
 test 12,12 = `ltl2tgba 'a U b' | autfilt -C --split --stats=%e,%t`
+test 9,12 = `ltl2tgba 'a U b' | autfilt -C --separate-edges --stats=%e,%t`
 test 0,0 = `ltl2tgba 0 | autfilt --split --stats=%e,%t`
+test 0,0 = `ltl2tgba 0 | autfilt --separate-edges --stats=%e,%t`
 test 1,1 = `ltl2tgba 0 | autfilt -C --split --stats=%e,%t`
+test 1,1 = `ltl2tgba 0 | autfilt -C --separate-edges --stats=%e,%t`

@@ -1,5 +1,11 @@
 New in spot 2.11.6.dev  (not yet released)
 
+  Documentation:
+
+  - https://spot.lre.epita.fr/tut25.html is a new example showing
+    how to print an automaton in the "BA format" (used by Rabbit
+    and other tools).
+
   Command-line tools:
 
   - In places that accept format strings with '%' sequences, like
@@ -18,6 +24,10 @@ New in spot 2.11.6.dev  (not yet released)
     one atomic proposition is used (otherwise, the atomic proposition
     and its negation is already a basis).  This can help reducing the
     size of large HOA files.
+
+  - autfilt learned --separate-edges, to split the labels of
+    the automaton using a basis of disjoint labels.  See
+    https://spot.lre.epita.fr/tut25.html for some motivation.
 
   - ltlfilt has a new option --relabel-overlapping-bool=abc|pnn that
     will replace boolean subformulas by fresh atomic propositions even
@@ -203,11 +213,6 @@ New in spot 2.11.6.dev  (not yet released)
 
     This version of Spot now declares its svg outputs as HTML to
     prevent Jypyter from wrapping them is images.
-
-  Documentation:
-
-  - https://spot.lre.epita.fr/tut25.html is a new example showing
-    how to print an automaton in the "BA format" (used by Rabbit).
 
   Bugs fixed:
 

@@ -283,3 +283,52 @@ produces the same output.
 #+begin_src sh :results silent :exports results
 rm -f tut25.hoa
 #+end_src
+
+* Improving the split
+
+=split_edges()= is not the only way to split the edge labels.  Another
+option, introduced in Spot 2.12, is =separate_edges()=: this looks at
+the labels used in the automaton and intersects them to construct a
+new set of disjoint labels that can be used as a basis for all labels.
+In the worst case, the basis will be equal to $2^{\{a,b,c\}}$ and this
+reduces to =split_edges()=.  However in many cases, as in our running
+example, it will require fewer labels.
+
+#+NAME: tut25ex3
+#+BEGIN_SRC sh :exports code
+ltl2tgba -B "a W G(b->c)" | autfilt --separate-edges -d
+#+END_SRC
+
+#+BEGIN_SRC dot :file tut25ex3.svg :var txt=tut25ex3 :exports results
+$txt
+#+END_SRC
+
+#+RESULTS:
+[[file:tut25ex3.svg]]
+
+Fixing the above Python/C++ code to use =separate_edges()= instead of
+=split_edges()= allows to convert this example using only 3 letters:
+
+#+NAME: toba.py
+#+begin_src python :exports results
+  import spot
+  aut = spot.translate("a W G(b->c)", "BA")
+  aut = spot.separate_edges(aut)
+  acc = aut.acc()
+  print(aut.get_init_state_number())
+  for e in aut.edges():
+     print(f"{e.cond.id()},{e.src}->{e.dst}")
+  for s in range(aut.num_states()):
+      if acc.accepting(aut.state_acc_sets(s)):
+         print(s)
+#+end_src
+
+#+RESULTS: toba.py
+: 1
+: 83,0->0
+: 85,0->0
+: 85,1->0
+: 83,1->1
+: 76,1->1
+: 0
+: 1

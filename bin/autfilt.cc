@@ -149,6 +149,7 @@ enum {
   OPT_SAT_MINIMIZE,
   OPT_SCCS,
   OPT_SEED,
+  OPT_SEPARATE_EDGES,
   OPT_SEP_SETS,
   OPT_SIMPL_ACC,
   OPT_SIMPLIFY_EXCLUSIVE_AP,
@@ -370,6 +371,9 @@ static const argp_option options[] =
     { "split-edges", OPT_SPLIT_EDGES, nullptr, 0,
       "split edges into transitions labeled by conjunctions of all atomic "
       "propositions, so they can be read as letters", 0 },
+    { "separate-edges", OPT_SEPARATE_EDGES, nullptr, 0,
+      "split edges into transitions labeled by a disjoint set of labels that"
+      " form a basis for the original automaton", 0 },
     { "sum", OPT_SUM_OR, "FILENAME", 0,
       "build the sum with the automaton in FILENAME "
       "to sum languages", 0 },
@@ -692,6 +696,7 @@ static bool opt_rem_unreach = false;
 static bool opt_rem_unused_ap = false;
 static bool opt_sep_sets = false;
 static bool opt_split_edges = false;
+static bool opt_separate_edges = false;
 static const char* opt_sat_minimize = nullptr;
 static const char* opt_to_finite = nullptr;
 static int opt_highlight_nondet_states = -1;
@@ -1204,6 +1209,9 @@ parse_opt(int key, char* arg, struct argp_state*)
     case OPT_SPLIT_EDGES:
       opt_split_edges = true;
       break;
+    case OPT_SEPARATE_EDGES:
+      opt_separate_edges = true;
+      break;
     case OPT_STATES:
       opt_states = parse_range(arg, 0, std::numeric_limits<int>::max());
       break;
@@ -1664,6 +1672,8 @@ namespace
 
       if (opt_split_edges)
         aut = spot::split_edges(aut);
+      else if (opt_separate_edges)
+        aut = spot::separate_edges(aut);
 
       if (opt_to_finite)
         aut = spot::to_finite(aut, opt_to_finite);
