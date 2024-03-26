@@ -19,14 +19,14 @@
 
 import sys
 
-if sys.hexversion < 0x03030000:
-    sys.exit("This module requires Python 3.3 or newer")
+if sys.hexversion < 0x03070000:
+    sys.exit("This module requires Python 3.7 or newer")
 
 import subprocess
 import os
 import signal
 import tempfile
-from contextlib import suppress as _supress
+from contextlib import nullcontext
 
 if 'SPOT_UNINSTALLED' in os.environ:
     # When Spot is installed, _impl.so will be in the same directory as
@@ -707,11 +707,8 @@ def automata(*sources, timeout=None, ignore_abort=True,
             # closed on exit, and the process will be properly waited for.
             # This is important when running tools that produce an infinite
             # stream of automata and that must be killed once the generator
-            # returned by spot.automata() is destroyed.  Otherwise, _supress()
-            # is just a dummy context manager that does nothing (Python 3.7
-            # introduces nullcontext() for this purpose, but at the time of
-            # writing we support Python 3.4).
-            mgr = proc if proc else _supress()
+            # returned by spot.automata() is destroyed.
+            mgr = proc if proc else nullcontext()
             with mgr:
                 while a:
                     # the automaton is None when we reach the end of the file.
@@ -730,7 +727,7 @@ def automata(*sources, timeout=None, ignore_abort=True,
                 # an exception.
                 if ret and sys.exc_info()[0] is None:
                     raise subprocess.CalledProcessError(ret, filename[:-1])
-    # deleting o explicitly now prevents Python 3.5 from
+    # deleting o explicitly used to prevent Python 3.5 from
     # reporting the following error: "<built-in function
     # delete_automaton_parser_options> returned a result with
     # an error set".  It's not clear to me if the bug is in Python
