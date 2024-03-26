@@ -22,7 +22,7 @@ successful development build]].
 Spot requires a C++17-compliant compiler.  =g++= 7.0 or later, as well
 as =clang++= 5.0 or later should work.
 
-Spot expects a complete installation of Python (version 3.5 or later).
+Spot expects a complete installation of Python (version 3.6 or later).
 Especially, Python's headers files should be installed (the package to
 install has a name like =python-dev= or =libpython3-dev= in most
 distributions).  If you don't have Python installed, and do NOT want

@@ -19,8 +19,8 @@
 
 import sys
 
-if sys.hexversion < 0x03030000:
-    sys.exit("This module requires Python 3.3 or newer")
+if sys.hexversion < 0x03060000:
+    sys.exit("This module requires Python 3.6 or newer")
 
 import subprocess
 import os
@@ -710,7 +710,7 @@ def automata(*sources, timeout=None, ignore_abort=True,
             # returned by spot.automata() is destroyed.  Otherwise, _supress()
             # is just a dummy context manager that does nothing (Python 3.7
             # introduces nullcontext() for this purpose, but at the time of
-            # writing we support Python 3.4).
+            # writing we still have to support Python 3.6).
             mgr = proc if proc else _supress()
             with mgr:
                 while a:
@@ -730,7 +730,7 @@ def automata(*sources, timeout=None, ignore_abort=True,
                 # an exception.
                 if ret and sys.exc_info()[0] is None:
                     raise subprocess.CalledProcessError(ret, filename[:-1])
-    # deleting o explicitly now prevents Python 3.5 from
+    # deleting o explicitly used to prevent Python 3.5 from
     # reporting the following error: "<built-in function
     # delete_automaton_parser_options> returned a result with
     # an error set".  It's not clear to me if the bug is in Python

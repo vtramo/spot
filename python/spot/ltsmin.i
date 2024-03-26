@@ -173,7 +173,8 @@ try:
                    try:
                        p = subprocess.run(['divine', 'compile',
                                              '--ltsmin', t.name],
-                                            capture_output=True,
+                                            stdout=subprocess.PIPE,
+                                            stderr=subprocess.PIPE,
                                             universal_newlines=True)
                        if p.stdout: print(p.stdout)
                        if p.stderr: print(p.stderr, file=sys.stderr)

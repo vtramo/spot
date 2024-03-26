@@ -1,5 +1,11 @@
 New in spot 2.11.6.dev  (not yet released)
 
+  Build:
+
+  - When Python bindings are enabled, Spot now requires Python 3.6 or
+    later.  Python 3.6 has reached end-of-life in 2021, but is still
+    used on CentOS 7 (which will reach end-of-support later in 2024).
+
   Documentation:
 
   - https://spot.lre.epita.fr/tut25.html is a new example showing

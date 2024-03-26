@@ -42,7 +42,7 @@ since the generated files they produce are distributed.)
   A complete LaTeX distribution, including latexmk and extra fonts
     like dsfont.sty.
   ImageMagick
-  Python >= 3.5, IPython >= 2.3
+  Python >= 3.6, IPython >= 2.3
   Jupyter >= 4, with nbconvert
   GraphViz
   Java >= 1.7 (needed to run PlantUML while generating the doc)
