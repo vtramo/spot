@@ -25,7 +25,7 @@ m = spot.relabeling_map()
 g = spot.relabel_bse(f, spot.Pnn, m)
 res = ""
 for old, new in m.items():
-    res += "#define {} {}\n".format(old, new)
+    res += f"#define {old} {new}\n"
 res += str(g)
 tc.assertEqual(res, """#define p0 a & b
 #define p1 c

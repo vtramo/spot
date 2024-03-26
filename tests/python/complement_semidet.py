@@ -31,8 +31,7 @@ n = 10000
 for aut in spot.automata(
         "randltl -n-1 a b "
         "| ltl2tgba "
-        "| autfilt --is-semi-deterministic --acceptance-is=Buchi -n{} |"
-        .format(n)):
+        f"| autfilt --is-semi-deterministic --acceptance-is=Buchi -n{n} |"):
 
     comp = complement(aut)
     semidet_comp = spot.complement_semidet(aut, True)

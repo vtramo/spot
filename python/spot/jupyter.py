@@ -51,11 +51,11 @@ def display_inline(*args, per_row=None, show=None):
     If the `per_row` argument is given, at most `per_row` arguments are
     displayed on each row, each one taking 1/per_row of the line width.
     """
-    width = res = ''
+    w = res = ''
     if per_row:
-        width = 'width:{}%;'.format(100//per_row)
+        w = f'width:{100//per_row}%;'
     for arg in args:
-        dpy = 'inline-block'
+        dpy = 'display:inline-block'
         if show is not None and hasattr(arg, 'show'):
             arg = arg.show(show)
         if hasattr(arg, '_repr_html_'):
@@ -65,9 +65,8 @@ def display_inline(*args, per_row=None, show=None):
         elif hasattr(arg, '_repr_latex_'):
             rep = arg._repr_latex_()
             if not per_row:
-                dpy = 'inline'
+                dpy = 'display:inline'
         else:
             rep = str(arg)
-        res += ("<div style='vertical-align:text-top;display:{};{}'>{}</div>"
-                .format(dpy, width, rep))
+        res += f"<div style='vertical-align:text-top;{dpy};{w}'>{rep}</div>"
     display(HTML(res))

@@ -159,9 +159,9 @@ The Python equivalent is similar:
 
   # kindstr() prints the name of the operator
   # size() return the number of operands of the operators
-  print("{}, {} children".format(f.kindstr(), f.size()))
+  print(f"{f.kindstr()}, {f.size()} children")
   # [] accesses each operand
-  print("left: {f[0]}, right: {f[1]}".format(f=f))
+  print(f"left: {f[0]}, right: {f[1]}")
   # you can also iterate over all operands using a for loop
   for child in f:
      print("  *", child)

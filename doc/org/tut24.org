@@ -190,26 +190,26 @@ decide whether to enclose the destinations in braces.
 Here is the Python version of this code:
 
 #+BEGIN_SRC python
-   import spot
+  import spot
 
-   aut = spot.automaton("tut24.hoa")
 
-   bdict = aut.get_dict()
-   init = aut.get_init_state_number()
-   ui = aut.is_univ_dest(init)
-   print("Initial states: {}{}{}".format("{ " if ui else "",
-                                         " ".join(map(str, aut.univ_dests(init))),
-                                         " }" if ui else ""))
-   for s in range(0, aut.num_states()):
-       print("State {}:".format(s))
-       for t in aut.out(s):
-           ud = aut.is_univ_dest(t)
-           print("  edge({} -> {}{}{})".format(t.src,
-                                               "{ " if ud else "",
-                                               " ".join(map(str, aut.univ_dests(t))),
-                                               " }" if ud else ""))
-           print("    label =", spot.bdd_format_formula(bdict, t.cond))
-           print("    acc sets =", t.acc)
+  aut = spot.automaton("tut24.hoa")
+
+  def format_dest(s):
+      if not aut.is_univ_dest(s):
+          return s
+      else:
+          return f'{{ {" ".join(map(str, aut.univ_dests(s)))} }}'
+
+  bdict = aut.get_dict()
+  init = aut.get_init_state_number()
+  print(f"Initial states: {format_dest(init)}")
+  for s in range(0, aut.num_states()):
+      print("State {}:".format(s))
+      for t in aut.out(s):
+          print(f"  edge({t.src} -> {format_dest(t.dst)})")
+          print("    label =", spot.bdd_format_formula(bdict, t.cond))
+          print("    acc sets =", t.acc)
 #+END_SRC
 
 #+RESULTS:

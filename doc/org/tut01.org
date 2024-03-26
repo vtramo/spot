@@ -389,7 +389,8 @@ In C++ you can enable lenient using one of the Boolean arguments of
 
 Formulas have a custom format specification language that allows you
 to easily change the way a formula should be output when using the
-=format()= method of strings.
+=format()= method of strings, or using [[https://docs.python.org/3/tutorial/inputoutput.html#formatted-string-literals][formatted string litterals]].
+
 
 #+BEGIN_SRC python
 import spot
