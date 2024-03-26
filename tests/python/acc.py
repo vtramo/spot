@@ -22,7 +22,7 @@ tc = TestCase()
 
 a = spot.acc_cond('parity min odd 5')
 tc.assertEqual(str(a.fin_unit_one_split()),
-               '(0, {}, spot.acc_cond(5, "f"))'.format(repr(a)))
+               f'(0, {a!r}, spot.acc_cond(5, "f"))')
 
 a.set_acceptance('Rabin 3')
 tc.assertEqual(str(a.fin_unit_one_split()),

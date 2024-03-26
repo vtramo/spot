@@ -108,12 +108,12 @@ import spot
 aut1 = spot.make_twa_graph()
 ap1a = aut1.register_ap("a")
 ap1b = aut1.register_ap("b")
-print("aut1: a={} b={}".format(ap1a, ap1b))
+print(f"aut1: a={ap1a} b={ap1b}")
 aut2 = spot.make_twa_graph()
 ap2c = aut2.register_ap("c")
 ap2b = aut2.register_ap("b")
 ap2a = aut2.register_ap("a")
-print("aut1: a={} b={} c={}".format(ap2a, ap2b, ap2c))
+print(f"aut1: a={ap2a} b={ap2b} c={ap2c}")
 #+END_SRC
 
 #+RESULTS:
@@ -271,7 +271,7 @@ all transition that belong to a certain acceptance set.
           self.set.add((src, guard, dst))
       def str_trans(self, src, guard, dst):
           f = spot.bdd_format_formula(self.dict, guard)
-          return "({},{},{})".format(src, f, dst)
+          return f"({src},{f},{dst})"
       def __str__(self):
           return '{' + ",".join([ self.str_trans(*t) for t in self.set ]) + '}'
 
@@ -353,7 +353,7 @@ automaton registers its variables.
           self.set.add((src, guard, dest))
       def str_trans(self, src, guard, dest):
           f = spot.bdd_format_formula(self.dict, guard)
-          return "({},{},{})".format(src, f, dest)
+          return f"({src},{f},{dest})"
       def __str__(self):
           return '{' + ",".join([ self.str_trans(*t) for t in self.set ]) + '}'
 

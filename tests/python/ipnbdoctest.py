@@ -154,7 +154,7 @@ def canonicalize(s, type, ignores):
                s, flags=re.DOTALL)
 
     for n, p in enumerate(ignores):
-        s = re.sub(p, 'IGN{}'.format(n), s)
+        s = re.sub(p, f'IGN{n}', s)
     return s
 
 
@@ -219,8 +219,7 @@ def compare_outputs(ref, test, ignores=[]):
     ok = True
 
     if len(cref) != len(ctest):
-        print("output length mismatch (expected {}, got {})".format(
-            len(cref), len(ctest)))
+        print(f"output length mismatch: expected {len(cref)}, got {len(ctest)}")
         ok = False
     # There can be several outputs.  For instance wnen the cell both
     # prints a result (goes to "stdout") and displays an automaton

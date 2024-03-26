@@ -557,9 +557,9 @@ Here is the very same example, but written in Python:
       print("Stutter Invariant:", aut.prop_stutter_invariant())
 
       for s in range(0, aut.num_states()):
-          print("State {}:".format(s))
+          print(f"State {s}:")
           for t in aut.out(s):
-              print("  edge({} -> {})".format(t.src, t.dst))
+              print(f"  edge({t.src} -> {t.dst})")
               # bdd_print_formula() is designed to print on a std::ostream, and
               # is inconvenient to use in Python.  Instead we use
               # bdd_format_formula() as this simply returns a string.

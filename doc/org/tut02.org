@@ -68,8 +68,8 @@ import spot
 m = spot.relabeling_map()
 g = spot.relabel('"Proc@Here" U ("var > 10" | "var < 4")', spot.Pnn, m)
 for newname, oldname in m.items():
-    print("#define {} ({})".format(newname.to_str(), oldname.to_str('spin', True)))
-    print(g.to_str('spin', True))
+    print(f"#define {newname.to_str()} ({oldname.to_str('spin', True)})")
+print(g.to_str('spin', True))
 #+END_SRC
 
 #+RESULTS:

@@ -512,7 +512,7 @@ class acd:
 .acdrej polygon{fill:red;}
 .acdacc polygon{fill:green;}
 '''
-        js = '''
+        js = f'''
 function acdremclasses(sel, classes) {{
 document.querySelectorAll(sel).forEach(n=>{{n.classList.remove(...classes)}});}}
 function acdaddclasses(sel, classes) {{
@@ -545,30 +545,26 @@ function acd{num}_node(node, acc){{
         acdaddclasses("#acdaut{num} .acdN" + node,
                       [acc ? "acdacc" : "acdrej", "acdbold"]);
         acdaddclasses("#acd{num} #N" + node, ["acdbold", "acdhigh"]);
-}};'''.format(num=num)
+}};'''
         me = 0
         for n in range(self.node_count()):
             for e in self.edges_of_node(n):
                 me = max(e, me)
-                js += 'acdaddclasses("#acdaut{num} #E{e}", ["acdN{n}"]);\n'\
-                      .format(num=num, e=e, n=n)
+                js += f'acdaddclasses("#acdaut{num} #E{e}", ["acdN{n}"]);\n'
         for e in range(1, me + 1):
-            js += 'acdonclick("#acdaut{num} #E{e}",'\
-                  'function(){{acd{num}_edge({e});}});\n'\
-                  .format(num=num, e=e)
+            js += f'acdonclick("#acdaut{num} #E{e}",'\
+                f'function(){{acd{num}_edge({e});}});\n'
         for s in range(self.get_aut().num_states()):
-            js += 'acdonclick("#acdaut{num} #S{s}",'\
-                  'function(){{acd{num}_state({s});}});\n'\
-                  .format(num=num, s=s)
+            js += f'acdonclick("#acdaut{num} #S{s}",'\
+                f'function(){{acd{num}_state({s});}});\n'
         for n in range(self.node_count()):
             v = int(self.node_acceptance(n))
-            js += 'acdonclick("#acd{num} #N{n}",'\
-                  'function(){{acd{num}_node({n}, {v});}});\n'\
-                  .format(num=num, n=n, v=v)
+            js += f'acdonclick("#acd{num} #N{n}",'\
+                f'function(){{acd{num}_node({n}, {v});}});\n'
         html = '<style>{}</style><div>{}</div><div>{}</div><script>{}</script>'\
                .format(style,
-                       self.get_aut().show('.i(acdaut{})'.format(num)).data,
-                       self._repr_svg_("acd{}".format(num)),
+                       self.get_aut().show(f'.i(acdaut{num})').data,
+                       self._repr_svg_(f"acd{num}"),
                        js);
         return html
 
@@ -746,7 +742,7 @@ def automaton(filename, **kwargs):
     try:
         return next(automata(filename, **kwargs))
     except StopIteration:
-        raise RuntimeError("Failed to read automaton from {}".format(filename))
+        raise RuntimeError(f"Failed to read automaton from {filename}")
 
 def aiger_circuits(*sources, bdd_dict = None):
     """Read aiger circuits from a list of sources.
@@ -777,7 +773,7 @@ def aiger_circuit(source, bdd_dict = None):
         return next(aiger_circuits(source, bdd_dict = bdd_dict))
     except StopIteration:
         raise RuntimeError("Failed to read an aiger circuit "
-                           "from {}".format(source))
+                           f"from {source}")
 
 
 def _postproc_translate_options(obj, default_type, *args):
@@ -795,8 +791,7 @@ def _postproc_translate_options(obj, default_type, *args):
     def type_set(val):
         nonlocal type_, type_name_
         if type_ is not None and type_name_ != val:
-            raise ValueError("type cannot be both {} and {}"
-                             .format(type_name_, val))
+            raise ValueError(f"type cannot be both {type_name_} and {val}")
         elif val == 'generic' or val == 'gen' or val == 'g':
             type_ = postprocessor.Generic
         elif val == 'tgba': # historical
@@ -839,8 +834,8 @@ def _postproc_translate_options(obj, default_type, *args):
     def pref_set(val):
         nonlocal pref_, pref_name_
         if pref_ is not None and pref_name_ != val:
-            raise ValueError("preference cannot be both {} and {}"
-                             .format(pref_name_, val))
+            raise ValueError("preference cannot be both "\
+                             f"{pref_name_} and {val}")
         elif val == 'small':
             pref_ = postprocessor.Small
         elif val == 'deterministic':
@@ -853,8 +848,8 @@ def _postproc_translate_options(obj, default_type, *args):
     def optm_set(val):
         nonlocal optm_, optm_name_
         if optm_ is not None and optm_name_ != val:
-            raise ValueError("optimization level cannot be both {} and {}"
-                             .format(optm_name_, val))
+            raise ValueError("optimization level cannot be both "\
+                             f"{optm_name_} and {val}")
         if val == 'high':
             optm_ = postprocessor.High
         elif val.startswith('med'):
@@ -930,10 +925,10 @@ def _postproc_translate_options(obj, default_type, *args):
             if lc == 1:
                 f(compat[0])
             elif lc < 1:
-                raise ValueError("unknown option '{}'".format(arg))
+                raise ValueError(f"unknown option '{arg}'")
             else:
-                raise ValueError("ambiguous option '{}' is prefix of {}"
-                                 .format(arg, str(compat)))
+                raise ValueError(f"ambiguous option '{arg}' "\
+                                 f"is prefix of {str(compat)}")
 
     if type_ is None:
         type_ = default_type
@@ -1307,7 +1302,7 @@ def sat_minimize(aut, acc=None, colored=False,
     if display_log or return_log:
         import pandas as pd
         with tempfile.NamedTemporaryFile(dir='.', suffix='.satlog') as t:
-            args += ',log="{}"'.format(t.name)
+            args += f',log="{t.name}"'
             aut = sm(aut, args, state_based)
             dfrm = pd.read_csv(t.name, dtype=object)
             if display_log:
@@ -1397,10 +1392,10 @@ def mp_hierarchy_svg(cl=None):
         'B': '110,198',
     }
     if cl in coords:
-        highlight = '''<g transform="translate({})">
+        highlight = f'''<g transform="translate({coords[cl]})">
     <line x1="-10" y1="-10" x2="10" y2="10" stroke="red" stroke-width="5" />
     <line x1="-10" y1="10" x2="10" y2="-10" stroke="red" stroke-width="5" />
-    </g>'''.format(coords[cl])
+    </g>'''
     else:
         highlight = ''
     return '''
