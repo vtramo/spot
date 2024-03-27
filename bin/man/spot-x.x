@@ -19,7 +19,7 @@ how the smallest possible M should be searched.
 .TP
 \fB1\fR
 The default, \fB1\fR, performs a binary search between 1 and N.  The
-lower bound can sometimes be improved when the \fBsat-langmap\fR
+lower bound can sometimes be improved when the \fBsat\-langmap\fR
 option is used.
 
 .TP
@@ -55,7 +55,7 @@ collection and resizing will be output on standard error.
 Specifies which inclusion algorithm Spot should use.  If the variable
 is unset, or set to \fB"default"\fR, containment checks are done
 using a complementation-based procedure.  If the variable is set to
-\fB"forq"\fR, and FORQ-based containment check is used for Büchi automata
+\fB"forq"\fR, then the FORQ-based containment check is used for Büchi automata
 (the default procedure is still used for non-Büchi automata).  See
 [6] in the bibliography below.
 
@@ -90,13 +90,13 @@ executed in debug mode, showing how the input is processed.
 
 .TP
 \fBSPOT_DOTDEFAULT\fR
-Whenever the \f(CW--dot\fR option is used without argument (even
+Whenever the \fB\-\-dot\fR option is used without argument (even
 implicitely via \fBSPOT_DEFAULT_FORMAT\fR), the contents of this
 variable is used as default argument.  If you have some default
 settings in \fBSPOT_DOTDEFAULT\fR and want to append to options
-\f(CWxyz\fR temporarily for one call, use \f(CW--dot=.xyz\fR:
+\f(CWxyz\fR temporarily for one call, use \fB\-\-dot=.xyz\fR:
 the dot character will be replaced by the contents of the
-\f(CWSPOT_DOTDEFAULT\fR environment variable.
+\fBSPOT_DOTDEFAULT\fR environment variable.
 
 .TP
 \fBSPOT_DOTEXTRA\fR
@@ -105,7 +105,7 @@ before the first state is output.  This makes it easy to override
 global attributes of the graph.
 
 .TP
-\fSPOT_EXCLUSIVE_WORD\fR
+\fBSPOT_EXCLUSIVE_WORD\fR
 Specifies which algorithm spot should use for exclusive_word. This can
 currently take on 1 of 2 values: 0 for the legacy implementation, and 1
 for the forq implementation [6] (See bibliography below). Forq assumes buchi
@@ -252,10 +252,11 @@ sl(a) x sl(!a), performed on-the-fly
 .IP 8
 cl(a) x cl(!a)
 .RE
+
+This variable is used by the \fB\-\-check=stutter-invariance\fR and
+\fB\-\-stutter-invariant\fR options, but it is ignored by
+\fB\-\-check=stutter-sensitive-example\fR.
 .RE
-This variable is used by the \fB--check=stutter-invariance\fR and
-\fB--stutter-invariant\fR options, but it is ignored by
-\fB--check=stutter-sensitive-example\fR.
 
 .TP
 \fBSPOT_SIMULATION_REDUCTION\fR
@@ -289,6 +290,9 @@ autfilt (see sat\-minimize options described above or autfilt man page).
 The XCNF format is the one used by the SAT incremental competition.
 
 [BIBLIOGRAPHY]
+
+The following papers are related to some of the options and environment variables.
+
 .TP
 1.
 Christian Dax, Jochen Eisinger, Felix Klaedtke: Mechanizing the
@@ -328,7 +332,7 @@ Describes the stutter-invariance checks that can be selected through
 5.
 Javier Esparza, Jan Křetínský and Salomon Sickert: One Theorem to Rule
 Them All: A Unified Translation of LTL into ω-Automata.  Proceedings
-of LICS'18.  To appear.
+of LICS'18.
 
 Describes (among other things) the constructions used for translating
 formulas of the form GF(guarantee) or FG(safety), that can be

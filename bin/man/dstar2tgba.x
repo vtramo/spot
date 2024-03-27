@@ -70,7 +70,7 @@ Documents the output format of
 
 .TP
 2.
-Chistof Löding: Mehods for the Transformation of ω-Automata:
+Christof Löding: Mehods for the Transformation of ω-Automata:
 Complexity and Connection to Second Order Logic.  Diploma Thesis.
 University of Kiel. 1998.
 
