@@ -13,7 +13,7 @@ condition, meanings that a run of the automaton is accepted iff it
 visits ininitely often multiple acceptance sets, and it also uses
 transition-based acceptance, i.e., those acceptance sets are sets of
 transitions.  TGBA are often more consise than traditional Büchi
-automata.  For instance the LTL formula \f(CWGFa & GFb\fR can be
+automata.  For instance the LTL formula \fCGFa & GFb\fR can be
 translated into a single-state TGBA while a traditional Büchi
 automaton would need 3 states.  Compare
 .PP
@@ -158,11 +158,11 @@ are not recognized, i.e., infinite words that start with a bad prefix.
 .PP
 Because of this limited expressiveness, a monitor for some given LTL
 or PSL formula may accept a larger language than the one specified by
-the formula.  For instance a monitor for the LTL formula \f(CWa U b\fR
-will reject (for instance) any word starting with \f(CW!a&!b\fR as
+the formula.  For instance a monitor for the LTL formula \fCa U b\fR
+will reject (for instance) any word starting with \fC!a&!b\fR as
 there is no way such a word can validate the formula, but it will not
-reject a finite prefix repeating only \f(CWa&!b\fR as such a prefix
-could be extented in a way that is comptible with \f(CWa U b\fR.
+reject a finite prefix repeating only \fCa&!b\fR as such a prefix
+could be extented in a way that is comptible with \fCa U b\fR.
 .PP
 For more information about monitors, we refer the readers to the
 following two papers (the first paper describes the construction of

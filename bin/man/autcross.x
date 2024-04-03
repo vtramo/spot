@@ -59,29 +59,29 @@ Information about how the execution of the tool went.
 values:
 .RS
 .TP
-\f(CW"ok"\fR
+\fC"ok"\fR
 The tool ran succesfully (this does not imply that the produced
 automaton is correct) and autcross could parse the resulting
 automaton.  In this case \fBexit_code\fR is always 0.
 .TP
-\f(CW"timeout"\fR
+\fC"timeout"\fR
 The tool ran for more than the number of seconds
 specified with the \fB\-\-timeout\fR option.  In this
 case \fBexit_code\fR is always -1.
 .TP
-\f(CW"exit code"\fR
+\fC"exit code"\fR
 The tool terminated with a non-zero exit code.
 \fBexit_code\fR contains that value.
 .TP
-\f(CW"signal"\fR
+\fC"signal"\fR
 The tool terminated with a signal.
 \fBexit_code\fR contains that signal's number.
 .TP
-\f(CW"parse error"\fR
+\fC"parse error"\fR
 The tool terminated normally, but autcross could not
 parse its output.  In this case \fBexit_code\fR is always -1.
 .TP
-\f(CW"no output"\fR
+\fC"no output"\fR
 The tool terminated normally, but without creating the specified
 output file.  In this case \fBexit_code\fR is always -1.
 .RE

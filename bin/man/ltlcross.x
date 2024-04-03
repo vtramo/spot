@@ -12,7 +12,7 @@ for 100 random formulas, using a timeout of 2 minutes.  Because
 knows those tools, there is no need to specify their input and
 output. A trace of the execution of the two tools, including any
 potential issue detected, is reported on standard error, while
-statistics are written to \f(CWresults.json\fR.
+statistics are written to \fCresults.json\fR.
 .PP
 .in +4n
 .nf
@@ -26,14 +26,14 @@ The next command compares
 .BR ltl3ba ,
 and
 .BR ltl2tgba (1)
-on a set of formulas saved in file \f(CWinput.ltl\fR.
+on a set of formulas saved in file \fCinput.ltl\fR.
 Statistics are again writen
-as CSV into \f(CWresults.csv\fR.  This examples specify the
+as CSV into \fCresults.csv\fR.  This examples specify the
 input and output for each tool, to show how this can be done.
-Note the use of \f(CW%L\fR to indicate that the formula passed t
+Note the use of \fC%L\fR to indicate that the formula passed t
 for the formula in
 .BR spin (1)'s
-format, and \f(CW%f\fR for the
+format, and \fC%f\fR for the
 formula in Spot's format.  Each of these tool produces an
 automaton in a different format (respectively, LBTT's format,
 Spin's never claims, and HOA format), but Spot's parser can
@@ -51,7 +51,7 @@ distinguish and understand these three formats.
 Rabin or Streett automata output by
 .B ltl2dstar
 in its historical format can be read from a
-file specified with \f(CW%D\fR instead of \f(CW%O\fR.  For instance:
+file specified with \fC%D\fR instead of \fC%O\fR.  For instance:
 .PP
 .in +4n
 .nf
@@ -99,7 +99,7 @@ The formula translated.
 \fBtool\fR
 The tool used to translate this formula.  This is either the value of the
 full \fICOMMANDFMT\fR string specified on the command-line, or,
-if \fICOMMANDFMT\fR has the form \f(CW{\fISHORTNAME\fR\f(CW}\fR\fICMD\fR,
+if \fICOMMANDFMT\fR has the form \fC{\fISHORTNAME\fR\fC}\fR\fICMD\fR,
 the value of \fISHORTNAME\fR.
 .TP
 \fBexit_status\fR, \fBexit_code\fR
@@ -110,29 +110,29 @@ Otherwise, \fBexit_status\fR is a string that can take the following
 values:
 .RS
 .TP
-\f(CW"ok"\fR
+\fC"ok"\fR
 The translator ran succesfully (this does not imply that the produced
 automaton is correct) and ltlcross could parse the resulting
 automaton.  In this case \fBexit_code\fR is always 0.
 .TP
-\f(CW"timeout"\fR
+\fC"timeout"\fR
 The translator ran for more than the number of seconds
 specified with the \fB\-\-timeout\fR option.  In this
 case \fBexit_code\fR is always -1.
 .TP
-\f(CW"exit code"\fR
+\fC"exit code"\fR
 The translator terminated with a non-zero exit code.
 \fBexit_code\fR contains that value.
 .TP
-\f(CW"signal"\fR
+\fC"signal"\fR
 The translator terminated with a signal.
 \fBexit_code\fR contains that signal's number.
 .TP
-\f(CW"parse error"\fR
+\fC"parse error"\fR
 The translator terminated normally, but ltlcross could not
 parse its output.  In this case \fBexit_code\fR is always -1.
 .TP
-\f(CW"no output"\fR
+\fC"no output"\fR
 The translator terminated normally, but without creating the specified
 output file.  In this case \fBexit_code\fR is always -1.
 .RE
@@ -150,7 +150,7 @@ translated automaton.  Column \fBedges\fR counts the number of edges
 (labeled by Boolean formulas) in the automaton seen as a graph, while
 \fBtransitions\fR counts the number of assignment-labeled transitions
 that might have been merged into a formula-labeled edge.  For instance
-an edge labeled by \f(CWtrue\fR will be counted as 2^3=8 transitions if
+an edge labeled by \fCtrue\fR will be counted as 2^3=8 transitions if
 the automaton uses 3 atomic propositions.
 .TP
 \fBscc\fR, \fBnonacc_scc\fR, \fBterminal_scc\fR, \fBweak_scc\fR, \fBstrong_scc\fR

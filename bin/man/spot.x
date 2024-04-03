@@ -27,6 +27,6 @@ that are listed below.
 .BR randltl (1)
 .BR spot-x (7)
 
-.UR https://spot.lrde.epita.fr/
+.UR https://spot.lre.epita.fr/
 The Spot web page.
 .UE

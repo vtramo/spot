@@ -10,7 +10,7 @@ spot-x \- Common fine-tuning options and environment variables.
 .\" Add any additional description here
 
 [SAT\-MINIMIZE VALUES]
-When the sat-minimize=K option is used to enable SAT-based
+When the \fBsat-minimize=K\fR option is used to enable SAT-based
 minimization of deterministic automata, a SAT solver is
 used to minimize an input automaton with N states into an
 output automaton with 1≤M≤N states.  The parameter K specifies
@@ -72,12 +72,12 @@ passed to the printer by suffixing the output format with
 .in +4n
 .EX
 % SPOT_DEFAULT_FORMAT=dot=bar autfilt ...
-.EN
+.EE
 .in -4n
 is the same as running
 .in +4n
 .EX
-% autfilt --dot=bar ...
+% autfilt \-\-dot=bar ...
 .EE
 .in -4n
 but the use of the environment variable makes more sense if you set
@@ -92,9 +92,9 @@ executed in debug mode, showing how the input is processed.
 \fBSPOT_DOTDEFAULT\fR
 Whenever the \fB\-\-dot\fR option is used without argument (even
 implicitely via \fBSPOT_DEFAULT_FORMAT\fR), the contents of this
-variable is used as default argument.  If you have some default
+variable are used as default argument.  If you have some default
 settings in \fBSPOT_DOTDEFAULT\fR and want to append to options
-\f(CWxyz\fR temporarily for one call, use \fB\-\-dot=.xyz\fR:
+\fCxyz\fR temporarily for one call, use \fB\-\-dot=.xyz\fR:
 the dot character will be replaced by the contents of the
 \fBSPOT_DOTDEFAULT\fR environment variable.
 
@@ -123,7 +123,7 @@ is actually used)
 .TP
 \fBSPOT_O_CHECK\fR
 Specifies the default algorithm that should be used
-by the \f(CWis_obligation()\fR function.  The value should
+by the \fCis_obligation()\fR function.  The value should
 be one of the following:
 .RS
 .RS
@@ -141,24 +141,24 @@ by a weak and deterministic Büchi automata.
 
 .TP
 \fBSPOT_OOM_ABORT\fR
-If this variable is set, Out-Of-Memory errors will \f(CWabort()\fR the
+If this variable is set, Out-Of-Memory errors will \fCabort()\fR the
 program (potentially generating a coredump) instead of raising an
 exception.  This is useful to debug a program and to obtain a stack
 trace pointing to the function doing the allocation.  When this
-variable is unset (the default), \f(CWstd::bad_alloc\fR are thrown on
+variable is unset (the default), \fCstd::bad_alloc\fR are thrown on
 memory allocation failures, and the stack is usually unwinded up to
 top-level, losing the original context of the error.  Note that at
-least \f(CWltlcross\fR has some custom handling of
-\f(CWstd::bad_alloc\fR to recover from products that are too large (by
+least \fCltlcross\fR has some custom handling of
+\fCstd::bad_alloc\fR to recover from products that are too large (by
 ignoring them), and setting this variable will interfer with that.
 
 .TP
 \fBSPOT_PR_CHECK\fR
 Select the default algorithm that must be used to check the persistence
 or recurrence property of a formula f. The values it can take are between
-1 and 3. All  methods work either on f or !f thanks to the duality of
+1 and 3. All methods work either on f or !f thanks to the duality of
 persistence and recurrence classes.  See
-.UR https://spot.lrde.epita.fr/hierarchy.html
+.UR https://spot.lre.epita.fr/hierarchy.html
 this page
 .UE
 for more details. If it is set to:
@@ -196,8 +196,8 @@ format.
 If set, this variable should indicate how to call an external
 SAT\-solver \- by default, Spot uses PicoSAT, which is distributed
 with. This is used by the sat\-minimize option described above.
-The format to follow is the following: \f(CW"<sat_solver> [options] %I >%O"\fR.
-The escape sequences \f(CW%I\fR and \f(CW%O\fR respectively
+The format to follow is the following: \fC"<sat_solver> [options] %I >%O"\fR.
+The escape sequences \fC%I\fR and \fC%O\fR respectively
 denote the names of the input and output files.  These temporary files
 are created in the directory specified by \fBSPOT_TMPDIR\fR or
 \fBTMPDIR\fR (see below). The SAT\-solver should follow the convention
@@ -281,7 +281,7 @@ This is mostly useful for debugging.
 .TP
 \fBSPOT_XCNF\fR
 Assign a folder path to this variable to generate XCNF files whenever
-SAT\-based minimization is used \- the file is outputed as "incr.xcnf"
+SAT\-based minimization is used \- the file is output as "incr.xcnf"
 in the specified directory. This feature works only with an external
 SAT\-solver. See \fBSPOT_SATSOLVER\fR to know how to provide one. Also note
 that this needs an incremental approach without restarting the encoding i.e
@@ -290,8 +290,8 @@ autfilt (see sat\-minimize options described above or autfilt man page).
 The XCNF format is the one used by the SAT incremental competition.
 
 [BIBLIOGRAPHY]
-
-The following papers are related to some of the options and environment variables.
+The following papers are related to some of the options and
+environment variables.
 
 .TP
 1.
@@ -344,7 +344,7 @@ Kyveli Doveri and Pierre Ganty and Nicolas Mazzocchi:
 FORQ-Based Language Inclusion Formal Testing.
 Proceedings of CAV'22. LNCS 13372.
 
-The containment check implemented as spot::contains_forq(), and
+The containment check implemented as \fCspot::contains_forq()\fR, and
 used for Büchi automata when \fBSPOT_CONTAINMENT_CHECK=forq\fR.
 
 [SEE ALSO]
