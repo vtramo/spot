@@ -33,23 +33,23 @@
 
 namespace spot
 {
+  // FWD
+  class implying_container;
 
   /// \brief Class to represent the partitioning of a
   /// set of bdds
   class SPOT_API bdd_partition
   {
   public:
-    struct S
+    struct impl_state
     {
       bdd orig_label = bddfalse; /// Condition over original
       bdd new_label = bddfalse; /// Condition over new label
       unsigned n_parents = 0; /// Number of parent nodes; 1 is added
       /// if original condition
     };
-    struct T
-    {
-    };
-    using implication_graph = digraph<S, T>;
+    using impl_edge = void;
+    using implication_graph = digraph<impl_state, impl_edge>;
 
   private:
     std::unique_ptr<implication_graph> ig_;
@@ -63,16 +63,13 @@ namespace spot
 
     bdd_dict_ptr dict_orig_;
     /// The bdd_dict used for original APs
-    // This may not change, except with operator=
     std::vector<formula> orig_ap_;
     /// The set of original APs; must exist in dict_orig_
-    /// This may not change, except with operator=
     bdd orig_support_;
     /// The original APs as bdd support
-    /// This may not change, except with operator=
+    /// bdd_dict, orig_ap_ and orig_support_
+    /// are fixed after creation
 
-    bdd_dict_ptr dict_new_;
-    /// The bdd_dict used for new APs
     std::vector<formula> new_ap_;
     /// The set of new APs; Created in dict_new_
     /// May not change when locked
@@ -102,7 +99,7 @@ namespace spot
     /// \brief Returns a "new" state in the implication graph;
     /// New here means, either a reused or actually new
     /// \return The associated number
-    unsigned
+    inline unsigned
     new_state_(const bdd& orig_label,
                bool is_orig_cond, bool is_leaf)
     {
@@ -130,7 +127,7 @@ namespace spot
 
     /// \brief Add a new edge between \a src and \a dst
     /// Keep track of parent counting
-    void
+    inline void
     new_edge_(unsigned src, unsigned dst) {
       auto& ig = *ig_;
       SPOT_ASSERT(src != dst && "No loop in implication graph");
@@ -183,16 +180,23 @@ namespace spot
     /// \param orig_support Same as orig_ap but as bdd support
     ///                     Can be set to false in which case
     ///                     it is computed
-    bdd_partition(bdd_dict_ptr dict,
+    bdd_partition(const bdd_dict_ptr& dict,
                   const std::vector<formula>& orig_ap,
                   const bdd& orig_support,
                   unsigned n_reserve = 10)
       : ig_(std::make_unique<implication_graph>(n_reserve, n_reserve*10))
-      , dict_orig_{std::move(dict)}
+      , dict_orig_{dict}
       , orig_ap_{orig_ap}
       , orig_support_{orig_support}
       , locked_{false}
     {
+      if (!dict_orig_)
+        throw std::runtime_error("bdd_partition::bdd_partition(): "
+                                 "Needs dictionary!");
+      if (orig_ap_.empty())
+        throw std::runtime_error("bdd_partition::bdd_partition(): "
+                                 "Original aps can not be empty!");
+
       // Copy the original ap
       bdd check_support = bddtrue;
       for (const auto& ap : orig_ap_)
@@ -203,7 +207,7 @@ namespace spot
       if (orig_support_ == bddfalse)
         orig_support_ = check_support;
       else if (check_support != orig_support_)
-        throw std::runtime_error("bdd_partition(): "
+        throw std::runtime_error("bdd_partition::bdd_partition(): "
             " Conflicting support!");
     }
 
@@ -221,7 +225,6 @@ namespace spot
       , dict_orig_(other.dict_orig_)
       , orig_ap_{other.orig_ap_}
       , orig_support_{other.orig_support_}
-      , dict_new_{other.dict_new_}
       , new_ap_{other.new_ap_}
       , new_support_{other.new_support_}
       , locked_{other.locked_}
@@ -229,8 +232,6 @@ namespace spot
       , all_inter_{other.all_inter_}
     {
       dict_orig_->register_all_variables_of(&other, this);
-      if (dict_new_)
-        dict_new_->register_all_variables_of(&other, this);
     }
 
     bdd_partition(bdd_partition&& other)
@@ -239,7 +240,6 @@ namespace spot
       , dict_orig_(std::move(other.dict_orig_))
       , orig_ap_{std::move(other.orig_ap_)}
       , orig_support_{std::move(other.orig_support_)}
-      , dict_new_{std::move(other.dict_new_)}
       , new_ap_{std::move(other.new_ap_)}
       , new_support_{std::move(other.new_support_)}
       , locked_{other.locked_}
@@ -247,11 +247,7 @@ namespace spot
       , all_inter_{std::move(other.all_inter_)}
     {
       dict_orig_->register_all_variables_of(&other, this);
-      if (dict_new_)
-        dict_new_->register_all_variables_of(&other, this);
       dict_orig_->unregister_all_my_variables(&other);
-      if (dict_new_)
-        dict_new_->unregister_all_my_variables(&other);
     }
 
     /// \brief Assignement operator of bdd_partition;
@@ -333,6 +329,13 @@ namespace spot
       return new_ap_;
     }
 
+    /// \brief Accessor for the original ap
+    const std::vector<formula>&
+    orig_ap() const
+    {
+      return orig_ap_;
+    }
+
     /// \brief Get the new label corresponding to \a orig_label
     /// \note Throws if orig_label was not amongst
     /// the conditions to be partitioned
@@ -348,17 +351,25 @@ namespace spot
     void
     unlock();
 
-    /// \brief Locks the partition; Create the new propositions
-    /// needed to encode in \a new_dict using the names
-    /// pref_XXX with pref being \a prefix_new and which must not match
+    /// \brief Locks the partition; If \a prefix_new is given, the new
+    /// propositions needed to encode are created using
+    /// the names pref_XXX; They must not match
     /// any propositions already in use.
-    /// If \a sort is set to true, (1) the implication
-    /// graph will be compressed into 2 levels
-    /// and the implied nodes will appear in increasing order
+    /// If \a sort is set to true the implied leave nodes will appear in
+    /// increasing order with respect to the new labal (if \a prefix_new)
+    /// is not empty, other to the old-label.
+    /// Currently the gaph is flattened, but this is not guaranteed
+    /// to always be the case. If it is not flattened, the internal
+    /// nodes have a value corresponding to their largest child.
     /// \pre May not be already locked
     void
-    lock(bdd_dict_ptr new_dict, const std::string& prefix_new,
-         bool sort = false);
+    lock(const std::string& prefix_new, bool sort = false);
+
+    /// \brief Like above, but defaults to reusing the same
+    /// dictionnary, the prefix being __nv and sort
+    /// being true
+    void
+    lock();
 
     /// \brief Add a condition to the partition
     /// \pre The partition needs to be unlocked
@@ -398,28 +409,169 @@ namespace spot
     /// New labels are shown as conditions on self-loops
     /// \pre Needs to be locked
     std::string
-    to_string(const std::string& type) const;
+    to_str(const std::string& type) const;
 
 
-    /// \brief Access the underlying original bdd_dict
+    /// \brief Access the underlying bdd_dict
     const bdd_dict_ptr&
-    get_orig_dict() const
+    get_bdd_dict() const
     {
       return dict_orig_;
     }
 
-    /// \brief Access the underlying bdd_dict used for new variables
-    /// \pre partition needs to be locked
-    const bdd_dict_ptr&
-    get_new_dict() const
+    /// \brief Return a fake container containing all
+    /// implying leaves, that is over all disjoint conditions
+    /// whose union correspond to the given condition
+    /// \note The given condition \a ocond can be a original
+    /// condition, or some other condition over the original
+    /// ap contained in the implication graph (a so-called
+    /// intermediate condition)
+    /// \note The container and the iterators may not be
+    /// used if the partition was unlocked in the mean time
+    implying_container
+    get_set_of(const bdd& ocond) const;
+  }; // bdd_partition
+
+
+  /// \brief Iterator to iterate over leaves that imply a root node
+  class SPOT_API implying_iterator
+  {
+  private:
+    const bdd_partition* bdd_part_;
+    const unsigned root_;
+    std::vector<std::array<unsigned, 2>> stack_;
+
+  private:
+    /// \brief Returns the first outgoing edge of the state \a s
+    inline unsigned succ_s(unsigned s)
     {
-      if (!locked_)
-        throw std::runtime_error("bdd_partition::get_new_dict(): "
-                                 "Partition must be locked.");
-      return dict_new_;
+      auto& g = bdd_part_->get_graph();
+      return g.state_storage(s).succ == 0;
+    }
+    /// \brief Return the next edge of \a e
+    inline unsigned succ_e(unsigned e)
+    {
+      SPOT_ASSERT(e != 0);
+      auto& g = bdd_part_->get_graph();
+      return g.edge_storage(e).next_succ;
     }
 
-  }; // bdd_partition
+  public:
+    implying_iterator(const bdd_partition* bdd_part,
+                                       unsigned root,
+                                       bool end)
+      : bdd_part_{bdd_part}
+      , root_{root}
+    {
+      assert(root_ < bdd_part_->get_graph().num_states());
+      if (end)
+        stack_.clear();
+      else
+        {
+          stack_.push_back({root_, succ_s(root)});
+          if (stack_.back()[1] == 0)
+            ++(*this);
+        }
+    }
+    implying_iterator(const implying_iterator&) = default;
+    implying_iterator(implying_iterator&&) = default;
+    implying_iterator& operator=(const implying_iterator&) = default;
+    implying_iterator& operator=(implying_iterator&&) = default;
+    ~implying_iterator() = default;
+
+    /// \brief Equality operator
+    inline bool operator==(const implying_iterator& other) const noexcept
+    {
+      return bdd_part_ == other.bdd_part_
+             && root_ == other.root_
+             && stack_ == other.stack_;
+    }
+    /// \brief Inequality operator
+    inline bool operator!=(const implying_iterator& other) const noexcept
+    {
+      return !(*this == other);
+    }
+    /// \brief Increments the iterator so that it points to
+    /// the next leaves implying the root.
+    /// \post Last element of the stack is a leaf or stack is empty
+    inline implying_iterator& operator++()
+    {
+      if (stack_.empty())
+        return *this;
+
+      // If we currently point to a leaf -> pop
+      if (stack_.back()[1] == 0)
+        stack_.pop_back();
+
+      // Now iterate until we find the next leaf
+      while (!stack_.empty() && (stack_.back()[1] != 0))
+        {
+          // get the next successor
+          stack_.back()[1] = succ_e(stack_.back()[1]);
+          if (stack_.back()[1] == 0)
+            // Exhausted?
+            stack_.pop_back();
+          else
+            {
+              // Put this successor on the stack
+              const auto& e = bdd_part_->get_graph().edge_storage(stack_.back()[1]);
+              stack_.push_back({e.dst, succ_s(e.dst)});
+            }
+        }
+      return *this;
+    }
+    /// \brief Dereferencing return the state data of the node in the
+    /// implication graph, containing the original and new label
+    /// \note If locked with an empty prefix, the new label is set
+    /// to bdd_fase
+    inline const bdd_partition::impl_state&
+    operator*() const
+    {
+      return bdd_part_->get_graph().state_data(stack_.back()[0]);
+    }
+    /// \brief All leaves have been iterated over once the stack
+    /// is empty
+    inline operator bool() const noexcept
+    {
+      return !stack_.empty();
+    }
+  };
+
+  /// \brief Fake container to easily iterate over all
+  /// leaves nodes reachable.
+  class SPOT_API implying_container
+  {
+  private:
+    const bdd_partition* bdd_part_;
+    unsigned root_;
+
+  public:
+    implying_container(const bdd_partition* bdd_part, unsigned root)
+      : bdd_part_{bdd_part}
+      , root_{root}
+    {
+      SPOT_ASSERT(root_ < bdd_part_->get_graph().num_states());
+    }
+    ~implying_container() = default;
+    implying_container(const implying_container&) = default;
+    implying_container(implying_container&&) = default;
+    implying_container& operator=(const implying_container&) = default;
+    implying_container& operator=(implying_container&&) = default;
+
+    /// \brief Begin iterator over implying leaves
+    inline implying_iterator begin() const
+    {
+      return implying_iterator(bdd_part_, root_, false);
+    }
+
+    /// \brief End iterator over implying leaves
+    inline implying_iterator end() const
+    {
+      return implying_iterator(bdd_part_, root_, true);
+    }
+  };
+
+
 
   /// \brief Tries to build a bdd_partition for the given
   /// conditions but aborts once the number of new
@@ -431,7 +583,7 @@ namespace spot
   /// \param max_letter Abort criterion
   /// \return The corresponding partition, empty if aborted
   SPOT_API bdd_partition
-  try_partition_me(bdd_dict_ptr bdd_dict,
+  try_partition_me(const bdd_dict_ptr& bdd_dict,
                    const std::vector<bdd>& all_cond,
                    const std::vector<formula>& aps,
                    unsigned max_letter = -1u);

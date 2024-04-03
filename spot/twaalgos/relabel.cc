@@ -363,7 +363,7 @@ namespace spot
         return abandon();
 
       // Compute the new letters
-      this_partition.lock(aut.get_dict(), var_prefix, sort);
+      this_partition.lock(var_prefix, sort);
 
       // Unregister old aps and register new ones
       for (const auto& ap : concerned_ap_formula)

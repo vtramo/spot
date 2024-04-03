@@ -41,11 +41,11 @@ namespace spot
     const unsigned Nnv = std::ceil(std::log2(Nnl));
     std::vector<std::array<bdd, 2>> Nv_vec(Nnv);
 
-    new_ap_.reserve(Nnv);
+    new_ap_.resize(Nnv);
     for (unsigned i = 0; i < Nnv; ++i)
       {
-        new_ap_.push_back(formula::ap(prefix_new + std::to_string(i)));
-        int v = dict_new_->register_proposition(new_ap_.back(), this);
+        new_ap_[i] = formula::ap(prefix_new + std::to_string(i));
+        int v = dict_orig_->register_proposition(new_ap_[i], this);
         Nv_vec[i] = {bdd_nithvar(v), bdd_ithvar(v)};
       }
 
@@ -303,57 +303,48 @@ namespace spot
   bdd_partition&
   bdd_partition::operator=(const bdd_partition& other)
   {
-    dict_orig_->unregister_all_my_variables(this);
-    if (dict_new_)
-      dict_new_->unregister_all_my_variables(this);
-
+    if (dict_orig_)
+      dict_orig_->unregister_all_my_variables(this);
 
     ig_ = std::make_unique<implication_graph>(*other.ig_);
     orig_ = other.orig_;
     dict_orig_ = other.dict_orig_;
     orig_ap_ = other.orig_ap_;
     orig_support_ = other.orig_support_;
-    dict_new_ = other.dict_new_;
     new_ap_ = other.new_ap_;
     new_support_ = other.new_support_;
     locked_ = other.locked_;
     leaves_ = other.leaves_;
     all_inter_ = other.all_inter_;
 
-    dict_orig_->register_all_variables_of(&other, this);
-    if (dict_new_)
-      dict_new_->register_all_variables_of(&other, this);
+    if (dict_orig_)
+      dict_orig_->register_all_variables_of(&other, this);
     return *this;
   }
 
   bdd_partition&
   bdd_partition::operator=(bdd_partition&& other)
   {
-    dict_orig_->unregister_all_my_variables(this);
-    if (dict_new_)
-      dict_new_->unregister_all_my_variables(this);
-
+    if (dict_orig_)
+      dict_orig_->unregister_all_my_variables(this);
 
     ig_ = std::move(other.ig_);
     orig_ = std::move(other.orig_);
     dict_orig_ = std::move(other.dict_orig_);
     orig_ap_ = std::move(other.orig_ap_);
     orig_support_ = std::move(other.orig_support_);
-    dict_new_ = std::move(other.dict_new_);
     new_ap_ = std::move(other.new_ap_);
     new_support_ = std::move(other.new_support_);
     locked_ = std::move(other.locked_);
     leaves_ = std::move(other.leaves_);
     all_inter_ = std::move(other.all_inter_);
 
-    dict_orig_->register_all_variables_of(&other, this);
-    if (dict_new_)
-      dict_new_->register_all_variables_of(&other, this);
-
-    // Ok even after stealing since it only uses the address
-    dict_orig_->unregister_all_my_variables(&other);
-    if (dict_new_)
-      dict_new_->unregister_all_my_variables(&other);
+    if (dict_orig_)
+      {
+        dict_orig_->register_all_variables_of(&other, this);
+      // Ok even after stealing since it only uses the address
+        dict_orig_->unregister_all_my_variables(&other);
+      }
 
     return *this;
   }
@@ -374,42 +365,60 @@ namespace spot
           s.new_label = bddfalse;
       }
 
-    // Erase all new aps
+    // Erase all new aps (and only new aps)
     new_support_ = bddtrue;
+    for (const auto& ap : new_ap_)
+      dict_orig_->unregister_variable(
+        dict_orig_->register_proposition(ap, this),
+        this);
     new_ap_.clear();
-    // Might have been stolen
-    if (dict_new_)
-      {
-        dict_new_->unregister_all_my_variables(this);
-        dict_new_.reset();
-      }
+
     locked_ = false;
   }
 
   void
-  bdd_partition::lock(bdd_dict_ptr dict_new,
-                      const std::string& prefix_new,
+  bdd_partition::lock(const std::string& prefix_new,
                       bool sort)
   {
     if (locked_)
       throw std::runtime_error("Trying to reloc a second time!");
 
-    dict_new_ = std::move(dict_new);
-
     // Ensure that the prefix_new does not appear in existing APs
-    if (std::any_of(orig_ap_.cbegin(), orig_ap_.cend(),
-                    [&prefix_new](const auto& e)
-                    {return e.ap_name().find(prefix_new)
-                        != std::string::npos; }))
+    // todo this is actually not sufficient, they may also not appear
+    // in the other variables
+    if (!prefix_new.empty()
+        && std::any_of(orig_ap_.cbegin(), orig_ap_.cend(),
+                       [&prefix_new](const auto& e)
+                       {return e.ap_name().find(prefix_new)
+                          != std::string::npos; }))
       throw std::runtime_error("bdd_partition::lock(): prefix "
                                + prefix_new
                                + " is also a prefix of existing AP.");
     if (sort)
-      flatten_();
+      flatten_();  // todo check if better to sort tree
 
-    comp_new_letters_(prefix_new);
+    if (!prefix_new.empty())
+      comp_new_letters_(prefix_new);
 
-    if (sort)
+    locked_ = true;
+
+    if (!sort)
+      return;  // Done
+
+
+    if (sort && prefix_new.empty())
+      {
+        ig_->sort_edges_srcfirst_(
+          [&ig=*ig_](const auto& e1, const auto& e2){
+              assert(&e1 == &e2
+                     || ig.state_storage(e1.dst).orig_label
+                        != ig.state_storage(e2.dst).orig_label);
+              return bdd_stable_cmp(ig.state_storage(e1.dst).orig_label,
+                                    ig.state_storage(e2.dst).orig_label)
+                      < 0; });
+        ig_->chain_edges_();
+      }
+    else
       {
         ig_->sort_edges_srcfirst_(
           [&ig=*ig_](const auto& e1, const auto& e2){
@@ -422,11 +431,20 @@ namespace spot
         ig_->chain_edges_();
       }
 
-    locked_ = true;
+    return;  // Done with sorting
+  }
+
+  void
+  bdd_partition::lock()
+  {
+    if (!dict_orig_)
+      throw std::runtime_error("bdd_partition::lock() No original "
+                               "dict found!");
+    return lock("__nv", true);
   }
 
   std::string
-  bdd_partition::to_string(const std::string& type) const
+  bdd_partition::to_str(const std::string& type) const
   {
     if (!locked_)
       throw std::runtime_error("bdd_partition::to_string():"
@@ -823,28 +841,28 @@ namespace spot
     return;
   }
 
+  implying_container
+  bdd_partition::get_set_of(const bdd& ocond) const
+  {
+    if (!locked_)
+      throw std::runtime_error("bdd_partition::get_set_of(): "
+                                "Partition needs to be locked!");
+    if (auto it = all_inter_.find(ocond); it != all_inter_.end())
+      return implying_container(this, it->second);
+    else
+      throw std::runtime_error("bdd_partition::get_set_of(): "
+                                "Given condition is not ");
+  }
+
   relabeling_map
   bdd_partition::to_relabeling_map(bool inverse) const
   {
     // Change to unordered_map?
     relabeling_map res;
 
-    // We need a bdd_dict with both the original
-    // and new aps
-    // We take the original bdd_dict and
-    // register the variables for a fake address
-    int dummy_addr = 0;
-    //auto thisdict = make_bdd_dict();
-    auto& thisdict = dict_orig_;
-
-    for (const auto& ap : orig_ap_)
-      thisdict->register_proposition(ap, &dummy_addr);
-    for (const auto& ap : new_ap_)
-      thisdict->register_proposition(ap, &dummy_addr);
-
-    auto bdd2form = [&thisdict](const bdd& cond)
+    auto bdd2form = [&dict = this->dict_orig_](const bdd& cond)
       {
-        return bdd_to_formula(cond, thisdict);
+        return bdd_to_formula(cond, dict);
       };
 
     std::for_each(all_inter_.cbegin(), all_inter_.cend(),
@@ -858,19 +876,17 @@ namespace spot
 
       });
 
-    thisdict->unregister_all_my_variables(&dummy_addr);
-
     return res;
   }
 
   bdd_partition
-  try_partition_me(bdd_dict_ptr bdd_dict,
+  try_partition_me(const bdd_dict_ptr& bdd_dict,
                    const std::vector<bdd>& all_cond,
                    const std::vector<formula>& aps,
                    unsigned max_letter)
   {
 
-    auto res = bdd_partition(std::move(bdd_dict), aps, bddfalse,
+    auto res = bdd_partition(bdd_dict, aps, bddfalse,
                              std::max(20u,
                                       (unsigned) (2*all_cond.size())));
 
@@ -879,7 +895,7 @@ namespace spot
     for (const auto& c : all_cond)
       {
         if (res.size() > max_letter)
-          return bdd_partition(res.get_orig_dict(), aps, bddfalse);
+          return bdd_partition(res.get_bdd_dict(), aps, bddfalse);
 
         res.add_condition(c);
       }
