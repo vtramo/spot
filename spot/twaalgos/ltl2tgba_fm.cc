@@ -101,8 +101,8 @@ namespace spot
       typedef twa_graph::namer<formula> namer;
     public:
       ratexp_to_dfa(translate_dict& dict);
-      std::tuple<const_twa_graph_ptr, const namer*, const state*>
-      succ(formula f);
+
+      std::vector<std::pair<bdd, formula>> succ(formula f);
       ~ratexp_to_dfa();
 
     protected:
@@ -1070,11 +1070,7 @@ namespace spot
         }
     }
 
-    // FIXME: use the new twa_graph_ptr interface
-    // with unsigned instead of state*.
-    std::tuple<const_twa_graph_ptr,
-               const ratexp_to_dfa::namer*,
-               const state*>
+    std::vector<std::pair<bdd, formula>>
     ratexp_to_dfa::succ(formula f)
     {
       f2a_t::const_iterator it = f2a_.find(f);
@@ -1084,22 +1080,18 @@ namespace spot
       else
         a = translate(f);
 
-      // Using return std::make_tuple(nullptr, nullptr, nullptr) works
-      // with GCC 6.1.1, but breaks with clang++ 3.7.1 when using the
-      // same header file for <tuple>.  So let's use the output type
-      // explicitly.
-      typedef std::tuple<const_twa_graph_ptr,
-                         const ratexp_to_dfa::namer*,
-                         const state*> res_t;
-
-      // If a is null, f has an empty language.
       if (!a.first)
-        return res_t{nullptr, nullptr, nullptr};
+        return {};
 
       auto namer = a.second;
       assert(namer->has_state(f));
-      auto st = a.first->state_from_number(namer->get_state(f));
-      return res_t{a.first, namer, st};
+      twa_graph_ptr aut = a.first;
+      unsigned st = namer->get_state(f);
+
+      std::vector<std::pair<bdd, formula>> res;
+      for (auto& e: aut->out(st))
+        res.emplace_back(e.cond, namer->get_name(e.dst));
+      return res;
     }
 
     // The rewrite rules used here are adapted from Jean-Michel
@@ -1270,34 +1262,20 @@ namespace spot
           case op::Closure:
             {
               // rat_seen_ = true;
-              formula f = node[0];
-              auto p = dict_.transdfa.succ(f);
               bdd res = bddfalse;
-              auto aut = std::get<0>(p);
-              auto namer = std::get<1>(p);
-              auto st = std::get<2>(p);
-              if (!aut)
-                return res;
-              for (auto i: aut->succ(st))
-                {
-                  bdd label = i->cond();
-                  const state* s = i->dst();
-                  formula dest =
-                    namer->get_name(aut->state_number(s));
-
-                  if (dest.accepts_eword())
-                    {
-                      res |= label;
-                    }
-                  else
-                    {
-                      formula dest2 = formula::unop(o, dest);
-                      if (dest2.is_ff())
-                        continue;
-                      res |=
-                        label & bdd_ithvar(dict_.register_next_variable(dest2));
-                    }
-                }
+              for (auto [label, dest]: dict_.transdfa.succ(node[0]))
+                if (dest.accepts_eword())
+                  {
+                    res |= label;
+                  }
+                else
+                  {
+                    formula dest2 = formula::unop(o, dest);
+                    if (dest2.is_ff())
+                      continue;
+                    res |=
+                      label & bdd_ithvar(dict_.register_next_variable(dest2));
+                  }
               return res;
             }
           case op::NegClosureMarked:
@@ -1312,24 +1290,11 @@ namespace spot
                   has_marked_ = true;
                 }
 
-              formula f = node[0];
-              auto p = dict_.transdfa.succ(f);
-              auto aut = std::get<0>(p);
-
-              if (!aut)
-                return bddtrue;
-
-              auto namer = std::get<1>(p);
-              auto st = std::get<2>(p);
               bdd res = bddfalse;
               bdd missing = bddtrue;
 
-              for (auto i: aut->succ(st))
+              for (auto [label, dest]: dict_.transdfa.succ(node[0]))
                 {
-                  bdd label = i->cond();
-                  const state* s = i->dst();
-                  formula dest = namer->get_name(aut->state_number(s));
-
                   missing -= label;
 
                   if (!dest.accepts_eword())
@@ -1342,9 +1307,7 @@ namespace spot
                     }
                 }
 
-              res |= missing &
-                // stick X(1) to preserve determinism.
-                bdd_ithvar(dict_.register_next_variable(formula::tt()));
+              res |= missing;
               //trace_ltl_bdd(dict_, res_);
               return res;
             }
