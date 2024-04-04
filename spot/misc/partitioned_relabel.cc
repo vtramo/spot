@@ -88,7 +88,16 @@ namespace spot
       };
 
     // We need to call relabel_impl on every root
-    for (const auto& r : orig_)
+    // We need to sort the root in order to keep results consistent
+    auto orig_s
+      = std::vector<std::pair<bdd, unsigned>>();
+    orig_s.reserve(orig_.size());
+    std::copy(orig_.begin(), orig_.end(),
+              std::back_inserter(orig_s));
+    std::sort(orig_s.begin(), orig_s.end(),
+              [](const auto& l, const auto& r)
+                {return bdd_stable_cmp(l.first, r.first) < 0; });
+    for (const auto& r : orig_s)
       relabel_impl(r.second, relabel_impl);
 
   } // comp_new_letters

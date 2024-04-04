@@ -81,18 +81,17 @@ namespace spot
     void
     relabel_split_no_sort_(twa_graph& aut,
                            const unsigned Nt,
-                           const std::unordered_map<bdd,
-                                                   unsigned,
-                                                   bdd_hash>& orig_cond,
-                           const bdd_partition::implication_graph& ig)
+                           const bdd_partition& bdd_part)
     {
+      auto& ig = bdd_part.get_graph();
+      auto& orig_cond = bdd_part.orig_conditions();
+
       for (auto& e : aut.edges())
         {
           unsigned ne = aut.edge_number(e);
           if (ne > Nt)
             break; // New edge -> edges are traversed in order
-          if (auto itc = orig_cond.find(e.cond);
-              itc != orig_cond.end())
+          if (orig_cond.count(e.cond))
             {
               // initial call
               // We can not hold a ref to the edge

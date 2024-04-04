@@ -358,7 +358,7 @@ namespace spot
     /// If \a sort is set to true the implied leave nodes will appear in
     /// increasing order with respect to the new labal (if \a prefix_new)
     /// is not empty, other to the old-label.
-    /// Currently the gaph is flattened, but this is not guaranteed
+    /// Currently the graph is flattened, but this is not guaranteed
     /// to always be the case. If it is not flattened, the internal
     /// nodes have a value corresponding to their largest child.
     /// \pre May not be already locked
@@ -499,25 +499,28 @@ namespace spot
       if (stack_.empty())
         return *this;
 
-      // If we currently point to a leaf -> pop
-      if (stack_.back()[1] == 0)
-        stack_.pop_back();
-
       // Now iterate until we find the next leaf
-      while (!stack_.empty() && (stack_.back()[1] != 0))
+      while (!stack_.empty())
         {
-          // get the next successor
-          stack_.back()[1] = succ_e(stack_.back()[1]);
           if (stack_.back()[1] == 0)
-            // Exhausted?
+            // Exhausted or inital leaf
             stack_.pop_back();
           else
             {
-              // Put this successor on the stack
-              const auto& e = bdd_part_->get_graph().edge_storage(stack_.back()[1]);
-              stack_.push_back({e.dst, succ_s(e.dst)});
+              // Successor
+              unsigned dst = bdd_part_->get_graph().edge_storage(stack_.back()[1]).dst;
+              // Advance
+              stack_.back()[1] = succ_e(stack_.back()[1]);
+              // Put on stack
+              stack_.push_back({dst, succ_s(dst)});
+              if (stack_.back()[1] == 0)
+                break; // Leaf
             }
         }
+      SPOT_ASSERT(stack_.empty()
+                  || (bdd_part_->get_graph()
+                        .state_storage(stack_.back()[0]).succ_tail == 0));
+
       return *this;
     }
     /// \brief Dereferencing return the state data of the node in the
