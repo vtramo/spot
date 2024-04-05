@@ -33,31 +33,6 @@ namespace spot
 {
   namespace
   {
-
-    // Recursive traversal of implication graph
-    void
-    replace_label_(unsigned si,
-                   unsigned esrc, unsigned edst,
-                   const acc_cond::mark_t& m,
-                   bdd& econd,
-                   const bdd_partition::implication_graph& ig,
-                   twa_graph& aut)
-    {
-      auto& sstore = ig.state_storage(si);
-      if (sstore.succ == 0)
-        {
-          if (econd == bddfalse)
-            econd = sstore.new_label;
-          else
-            aut.new_edge(esrc, edst, sstore.new_label, m);
-        }
-      else
-        {
-          for (const auto& e_ig : ig.out(si))
-            replace_label_(e_ig.dst, esrc, edst, m, econd, ig, aut);
-        }
-    }
-
     void
     relabel_no_split_(twa_graph& aut,
                       const unsigned Nt,
@@ -83,118 +58,59 @@ namespace spot
                            const unsigned Nt,
                            const bdd_partition& bdd_part)
     {
-      auto& ig = bdd_part.get_graph();
-      auto& orig_cond = bdd_part.orig_conditions();
-
       for (auto& e : aut.edges())
         {
           unsigned ne = aut.edge_number(e);
           if (ne > Nt)
             break; // New edge -> edges are traversed in order
-          if (orig_cond.count(e.cond))
+          // Relabel this
+          // If econd does not exist, the container will be empty
+          // and the iterator corresponds to the end iterator
+          if (auto impl_it
+                = bdd_part.get_set_of(e.cond).begin();
+              impl_it)
             {
-              // initial call
-              // We can not hold a ref to the edge
-              // as the edgevector might get reallocated
-              bdd econd = bddfalse;
-              replace_label_(itc->second, e.src, e.dst, e.acc,
-                              econd, ig, aut);
-              aut.edge_storage(ne).cond = econd;
+              // Set first cond
+              e.cond = impl_it->new_label;
+              ++impl_it;
+              // Continue? If so we need a local copy as new_edge might
+              // reallocate
+              if (impl_it)
+                {
+                  auto ecopy = e;
+                  for (; impl_it; ++impl_it)
+                    aut.new_edge(ecopy.src, ecopy.dst,
+                                 impl_it->new_label, ecopy.acc);
+                }
             }
           // else: skipped condition
         }
     }
 
-    struct edge_repl_
-    {
-      using e_it = bdd_partition::implication_graph::const_iterator;
-      std::optional<e_it> it_;
-      unsigned ost_;
-
-      unsigned dst_;
-      acc_cond::mark_t acc_;
-
-      edge_repl_(const e_it& it,
-                 unsigned dst,
-                 acc_cond::mark_t acc) noexcept
-        : it_(it)
-        , ost_{-1u}
-        , dst_{dst}
-        , acc_{acc}
-      {
-      }
-      edge_repl_(unsigned ostate,
-                 unsigned dst,
-                 acc_cond::mark_t acc) noexcept
-        : it_{}
-        , ost_{ostate}
-        , dst_{dst}
-        , acc_{acc}
-      {
-      }
-
-      edge_repl_&
-      operator++() noexcept
-      {
-        if (it_)
-          ++(*it_);
-        else
-          ost_ = -1u;
-        return *this;
-      }
-
-      unsigned
-      ostate() const
-      {
-        assert(*this);
-        if (it_)
-          return (*it_)->dst;
-        else
-          return ost_;
-      }
-
-      operator bool() const noexcept
-      {
-        if (it_)
-          return (bool) (*it_);
-        else
-          return ost_ != -1u;
-      }
-
-      unsigned
-      dst() const noexcept
-      {
-        return dst_;
-      }
-
-      acc_cond::mark_t
-      acc() const noexcept
-      {
-        return acc_;
-      }
-    };
-
     void
     relabel_split_sort_(twa_graph& aut,
-                        const std::unordered_map<bdd,
-                                                unsigned,
-                                                bdd_hash>& orig_cond,
-                        const bdd_partition::implication_graph& ig)
+                        const bdd_partition& bdd_part)
     {
 
-      auto edge_it = std::vector<edge_repl_>();
+      struct split_e
+      {
+        implying_iterator it;
+        twa_graph::edge_storage_t eorig;
+        const bdd& get() const noexcept
+        {
+          SPOT_ASSERT(!!it);
+          return it->new_label;
+        }
+      };
+
+      auto edge_it = std::vector<split_e>();
 
       auto repl_edge = std::deque<unsigned>();
       auto used = std::vector<unsigned>();
 
-      auto cmp = [](const auto& cl, const auto& cr)
+      auto cmp = [](const split_e& cl, const split_e& cr)
         {
-          return bdd_stable_cmp(cl, cr);
-        };
-
-      auto gc = [&ig](unsigned s)
-        {
-          return ig.state_storage(s).new_label;
+          return bdd_stable_cmp(cl.get(), cr.get());
         };
 
       for (unsigned s = 0; s < aut.num_states(); ++s)
@@ -203,36 +119,45 @@ namespace spot
           // Get all concerned edges of this state
           for (const auto& e: aut.out(s))
             {
-              if (auto itc = orig_cond.find(e.cond);
-                  itc != orig_cond.end())
+              if (auto impl_it = bdd_part.get_set_of(e.cond).begin();
+                 impl_it)
                 {
                   repl_edge.push_back(aut.edge_number(e));
-                  unsigned ostate = itc->second;
-                  if (ig.state_storage(ostate).succ == 0)
-                    edge_it.emplace_back(ostate,
-                                         e.dst,
-                                         e.acc);
-                  else
-                    edge_it.emplace_back(ig.out(ostate).begin(),
-                                         e.dst,
-                                         e.acc);
+                  edge_it.push_back({impl_it, e});
                 }
             }
+          auto new_edge = [&](unsigned dst,
+                              const bdd& cond,
+                              acc_cond::mark_t acc)
+            {
+              if (repl_edge.empty())
+                // Create the new edge
+                aut.new_edge(s, dst, cond, acc);
+              else
+                {
+                  unsigned eidx = repl_edge.front();
+                  repl_edge.pop_front();
+                  auto& e = aut.edge_storage(eidx);
+                  e.dst = dst;
+                  e.cond = cond;
+                  e.acc = acc;
+                }
+            };
           // Now replace them
           while (!edge_it.empty())
             {
+              // Check that all still present are not empty
               assert(std::all_of(edge_it.cbegin(), edge_it.cend(),
-                  [](const auto& er) -> bool {return er; }));
+                  [](const auto& er) -> bool {return er.it; }));
               unsigned c_idx = 0;
               unsigned m_idx = edge_it.size();
-              bdd smallest = gc(edge_it[0].ostate());
+              unsigned smallest_idx = 0;
               used.clear();
               used.push_back(c_idx);
               ++c_idx;
               for (; c_idx < m_idx; ++c_idx)
                 {
-                  const bdd& dst_cond = gc(edge_it[c_idx].ostate());
-                  auto res = cmp(dst_cond, smallest);
+                  int res = cmp(edge_it[c_idx], edge_it[smallest_idx]);
                   if (res > 0)
                     continue; // Larger -> ignored
                   else if (res == 0)
@@ -240,35 +165,28 @@ namespace spot
                   else
                     {
                       // Smaller -> use this and ignore other
-                      smallest = dst_cond;
+                      smallest_idx = c_idx;
                       used.clear();
                       used.push_back(c_idx);
                     }
                 }
 
               // Replace and advance
-              for (auto u_idx : used)
-                {
-                  if (repl_edge.empty())
-                    // Create the new edge
-                    aut.new_edge(s, edge_it[u_idx].dst(),
-                                 gc(edge_it[u_idx].ostate()),
-                                 edge_it[u_idx].acc());
-                  else
-                    {
-                      unsigned eidx = repl_edge.front();
-                      repl_edge.pop_front();
-                      auto& e = aut.edge_storage(eidx);
-                      e.dst = edge_it[u_idx].dst();
-                      e.cond = gc(edge_it[u_idx].ostate());
-                      e.acc = edge_it[u_idx].acc();
-                    }
-                  ++edge_it[u_idx];
-                }
-              // Check if done with some of the edge_it
+              // All split_e that are marked as used need to get
+              // new edges and advance
+              // If an iterator becomes empty -> erase it
+              // For this we iterate in reverse order,
+              // as not to change smaller idx
               for (auto uit = used.crbegin(); uit != used.crend(); ++uit)
                 {
-                  if (!edge_it[*uit])
+                  // Use and advance
+                  {
+                    auto& se = edge_it[*uit];
+                    new_edge(se.eorig.dst, se.get(), se.eorig.acc);
+                    ++se.it;
+                  }
+                  // Delete?
+                  if (!edge_it[*uit].it)
                     {
                       if (edge_it.size() >= 2)
                         edge_it[*uit] = edge_it.back();
@@ -386,9 +304,9 @@ namespace spot
       if (split)
         {
           if (sort)
-            relabel_split_sort_(aut, orig_conditions, ig);
+            relabel_split_sort_(aut, this_partition);
           else
-            relabel_split_no_sort_(aut, Nt, orig_conditions, ig);
+            relabel_split_no_sort_(aut, Nt, this_partition);
         }
       else
         relabel_no_split_(aut, Nt, orig_conditions, ig);

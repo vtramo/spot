@@ -859,8 +859,7 @@ namespace spot
     if (auto it = all_inter_.find(ocond); it != all_inter_.end())
       return implying_container(this, it->second);
     else
-      throw std::runtime_error("bdd_partition::get_set_of(): "
-                                "Given condition is not ");
+      return implying_container(this, -1u);
   }
 
   relabeling_map

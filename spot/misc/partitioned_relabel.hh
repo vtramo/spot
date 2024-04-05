@@ -420,12 +420,14 @@ namespace spot
     }
 
     /// \brief Return a fake container containing all
-    /// implying leaves, that is over all disjoint conditions
+    /// implying leaves, that is all disjoint conditions
     /// whose union correspond to the given condition
     /// \note The given condition \a ocond can be a original
     /// condition, or some other condition over the original
     /// ap contained in the implication graph (a so-called
-    /// intermediate condition)
+    /// intermediate condition). If \a ocond does not
+    /// exist in the partition, the container will be
+    /// empty.
     /// \note The container and the iterators may not be
     /// used if the partition was unlocked in the mean time
     implying_container
@@ -438,7 +440,7 @@ namespace spot
   {
   private:
     const bdd_partition* bdd_part_;
-    const unsigned root_;
+    unsigned root_;
     std::vector<std::array<unsigned, 2>> stack_;
 
   private:
@@ -446,7 +448,8 @@ namespace spot
     inline unsigned succ_s(unsigned s)
     {
       auto& g = bdd_part_->get_graph();
-      return g.state_storage(s).succ == 0;
+      SPOT_ASSERT(s < g.num_states());
+      return g.state_storage(s).succ;
     }
     /// \brief Return the next edge of \a e
     inline unsigned succ_e(unsigned e)
@@ -463,13 +466,14 @@ namespace spot
       : bdd_part_{bdd_part}
       , root_{root}
     {
-      assert(root_ < bdd_part_->get_graph().num_states());
+      assert(root_ < bdd_part_->get_graph().num_states()
+             || root_ == -1u);
       if (end)
         stack_.clear();
       else
         {
           stack_.push_back({root_, succ_s(root)});
-          if (stack_.back()[1] == 0)
+          if (stack_.back()[1] != 0)
             ++(*this);
         }
     }
@@ -503,7 +507,7 @@ namespace spot
       while (!stack_.empty())
         {
           if (stack_.back()[1] == 0)
-            // Exhausted or inital leaf
+            // Exhausted or initial leaf
             stack_.pop_back();
           else
             {
@@ -520,18 +524,24 @@ namespace spot
       SPOT_ASSERT(stack_.empty()
                   || (bdd_part_->get_graph()
                         .state_storage(stack_.back()[0]).succ_tail == 0));
-
       return *this;
     }
-    /// \brief Dereferencing return the state data of the node in the
+    /// \brief Dereferencing returns the state data of the node in the
     /// implication graph, containing the original and new label
     /// \note If locked with an empty prefix, the new label is set
     /// to bdd_fase
     inline const bdd_partition::impl_state&
     operator*() const
     {
+      SPOT_ASSERT(!stack_.empty());
       return bdd_part_->get_graph().state_data(stack_.back()[0]);
     }
+    inline const bdd_partition::impl_state*
+    operator->() const
+    {
+      return &(this->operator*());
+    }
+
     /// \brief All leaves have been iterated over once the stack
     /// is empty
     inline operator bool() const noexcept
@@ -542,6 +552,7 @@ namespace spot
 
   /// \brief Fake container to easily iterate over all
   /// leaves nodes reachable.
+  /// \note If root is set to -1u, the container is considered empty
   class SPOT_API implying_container
   {
   private:
@@ -553,7 +564,8 @@ namespace spot
       : bdd_part_{bdd_part}
       , root_{root}
     {
-      SPOT_ASSERT(root_ < bdd_part_->get_graph().num_states());
+      SPOT_ASSERT(root_ < bdd_part_->get_graph().num_states()
+                  || root_ == -1u);
     }
     ~implying_container() = default;
     implying_container(const implying_container&) = default;
@@ -564,7 +576,7 @@ namespace spot
     /// \brief Begin iterator over implying leaves
     inline implying_iterator begin() const
     {
-      return implying_iterator(bdd_part_, root_, false);
+      return implying_iterator(bdd_part_, root_, root_ == -1u);
     }
 
     /// \brief End iterator over implying leaves
