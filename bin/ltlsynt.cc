@@ -104,12 +104,14 @@ static const argp_option options[] =
     { "decompose", OPT_DECOMPOSE, "yes|no", 0,
       "whether to decompose the specification as multiple output-disjoint "
       "problems to solve independently (enabled by default)", 0 },
-    { "polarity", OPT_POLARITY, "yes|no", 0,
+    { "polarity", OPT_POLARITY, "yes|no|before-decompose", 0,
       "whether to remove atomic propositions that always have the same "
-      "polarity in the formula to speed things up (enabled by default)", 0 },
-    { "global-equivalence", OPT_GEQUIV, "yes|no", 0,
+      "polarity in the formula to speed things up (enabled by default, "
+      "both before and after decomposition)", 0 },
+    { "global-equivalence", OPT_GEQUIV, "yes|no|before-decompose", 0,
       "whether to remove atomic propositions that are always equivalent to "
-      "another one (enabled by default)", 0 },
+      "another one (enabled by default, both before and after decomposition)",
+      0 },
     { "simplify", OPT_SIMPLIFY, "no|bisim|bwoa|sat|bisim-sat|bwoa-sat", 0,
       "simplification to apply to the controller (no) nothing, "
       "(bisim) bisimulation-based reduction, (bwoa) bisimulation-based "
@@ -252,9 +254,25 @@ static bool decompose_values[] =
     false, false, false, false,
   };
 ARGMATCH_VERIFY(decompose_args, decompose_values);
+static const char* const polarity_args[] =
+  {
+    "yes", "true", "enabled", "1",
+    "no", "false", "disabled", "0",
+    "before-decompose",
+    nullptr
+  };
+enum polarity_choice { pol_no, pol_yes, pol_before_decompose };
+static polarity_choice polarity_values[] =
+  {
+    pol_yes, pol_yes, pol_yes, pol_yes,
+    pol_no, pol_no, pol_no, pol_no,
+    pol_before_decompose
+  };
+ARGMATCH_VERIFY(polarity_args, polarity_values);
+
 bool opt_decompose_ltl = true;
-bool opt_polarity = true;
-bool opt_gequiv = true;
+polarity_choice opt_polarity = pol_yes;
+polarity_choice opt_gequiv = pol_yes;
 
 static const char* const simplify_args[] =
   {
@@ -407,12 +425,12 @@ namespace
 
     // Attempt to remove superfluous atomic propositions
     spot::realizability_simplifier* rs = nullptr;
-    if (opt_polarity || opt_gequiv)
+    if (opt_polarity != pol_no || opt_gequiv != pol_no)
       {
         unsigned opt = 0;
-        if (opt_polarity)
+        if (opt_polarity != pol_no)
           opt |= spot::realizability_simplifier::polarity;
-        if (opt_gequiv)
+        if (opt_gequiv != pol_no)
           {
             if (want_game())
               opt |= spot::realizability_simplifier::global_equiv_output_only;
@@ -420,9 +438,7 @@ namespace
               opt |= spot::realizability_simplifier::global_equiv;
           }
         rs =
-          new spot::realizability_simplifier(original_f,
-                                             input_aps,
-                                             opt,
+          new spot::realizability_simplifier(original_f, input_aps, opt,
                                              gi ? gi->verbose_stream : nullptr);
         f = rs->simplified_formula();
       }
@@ -493,6 +509,7 @@ namespace
     auto sub_f = sub_form.begin();
     auto sub_o = sub_outs_str.begin();
     std::vector<spot::mealy_like> mealy_machines;
+    unsigned numsubs = sub_form.size();
 
     for (; sub_f != sub_form.end(); ++sub_f, ++sub_o)
     {
@@ -502,6 +519,28 @@ namespace
                 nullptr,
                 bddfalse
               };
+
+      if (numsubs > 1 && (opt_polarity == pol_yes || opt_gequiv == pol_yes))
+        {
+          unsigned opt = 0;
+          if (opt_polarity == pol_yes)
+            opt |= spot::realizability_simplifier::polarity;
+          if (opt_gequiv == pol_yes)
+            {
+              if (want_game())
+                opt |= spot::realizability_simplifier::global_equiv_output_only;
+              else
+                opt |= spot::realizability_simplifier::global_equiv;
+            }
+          if (gi->verbose_stream)
+            *gi->verbose_stream << "working on subformula " << *sub_f << '\n';
+          spot::realizability_simplifier rsub(*sub_f, input_aps, opt,
+                                              gi ?
+                                              gi->verbose_stream : nullptr);
+          *sub_f = rsub.simplified_formula();
+          rs->merge_mapping(rsub);
+        }
+
       // If we want to print a game,
       // we never use the direct approach
       if (!want_game() && opt_bypass)
@@ -1049,7 +1088,7 @@ parse_opt(int key, char *arg, struct argp_state *)
       break;
     case OPT_GEQUIV:
       opt_gequiv = XARGMATCH("--global-equivalence", arg,
-                               decompose_args, decompose_values);
+                               polarity_args, polarity_values);
       break;
     case OPT_HIDE:
       show_status = false;
@@ -1068,7 +1107,7 @@ parse_opt(int key, char *arg, struct argp_state *)
       }
     case OPT_POLARITY:
       opt_polarity = XARGMATCH("--polarity", arg,
-                               decompose_args, decompose_values);
+                               polarity_args, polarity_values);
       break;
     case OPT_PRINT:
       opt_print_pg = true;

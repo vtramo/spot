@@ -429,6 +429,13 @@ namespace spot
     while (oldf != f_);
   }
 
+  void
+  realizability_simplifier::merge_mapping(const realizability_simplifier& other)
+  {
+    for (auto [from, from_is_input, to]: other.get_mapping())
+      mapping_.emplace_back(from, from_is_input, to);
+  }
+
   void realizability_simplifier::patch_mealy(twa_graph_ptr mealy) const
   {
     bdd add = bddtrue;

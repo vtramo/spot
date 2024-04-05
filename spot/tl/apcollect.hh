@@ -107,6 +107,10 @@ namespace spot
       return mapping_;
     }
 
+    /// \brief Augment the current mapping with output variable renaming from
+    /// another realizability_simplifier.
+    void merge_mapping(const realizability_simplifier& other);
+
     /// \brief Patch a Mealy machine to add the missing APs.
     void patch_mealy(twa_graph_ptr mealy) const;
 
