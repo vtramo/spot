@@ -52,41 +52,45 @@ namespace spot
     using implication_graph = digraph<impl_state, impl_edge>;
 
   private:
-    std::unique_ptr<implication_graph> ig_;
     /// The main data structure;
     /// The implication graph is such that parent nodes imply their children
     /// Leave nodes do not intersect
+    std::unique_ptr<implication_graph> ig_;
 
-    std::unordered_map<bdd, unsigned, bdd_hash> orig_;
     /// A map from conditions over the original APs
     /// to the corresponding state, might be a leaf/root/internal node
+    std::unordered_map<bdd, unsigned, bdd_hash> orig_;
 
-    bdd_dict_ptr dict_orig_;
     /// The bdd_dict used for original APs
-    std::vector<formula> orig_ap_;
+    bdd_dict_ptr dict_orig_;
     /// The set of original APs; must exist in dict_orig_
-    bdd orig_support_;
+    std::vector<formula> orig_ap_;
     /// The original APs as bdd support
     /// bdd_dict, orig_ap_ and orig_support_
     /// are fixed after creation
+    bdd orig_support_;
 
-    std::vector<formula> new_ap_;
-    /// The set of new APs; Created in dict_new_
+    /// The set of new APs
     /// May not change when locked
-    bdd new_support_;
+    std::vector<formula> new_ap_;
     /// The new APs as bdd support
     /// This may not change when locked
+    bdd new_support_;
 
-    bool locked_;
     /// Whether or not the partition may currently be modified
+    bool locked_;
+    /// Wether the implication graph is sorted
+    /// Either with respect to the original label
+    /// if locked without prefix or to the new label
+    bool sorted_;
 
-    std::vector<std::pair<bdd, unsigned>> leaves_;
-    /// Vector of all leaves; Leaves correspond to the
+
     /// current elements of the partition
+    std::vector<std::pair<bdd, unsigned>> leaves_;
 
-    std::unordered_map<bdd, unsigned, bdd_hash> all_inter_;
     /// A map from all intermediate conditions encountered so far
     /// to the corresponding node in ig_
+    std::unordered_map<bdd, unsigned, bdd_hash> all_inter_;
 
     /// \brief Computes the new letters used for relabelling
     /// based on fresh propositions
@@ -189,6 +193,7 @@ namespace spot
       , orig_ap_{orig_ap}
       , orig_support_{orig_support}
       , locked_{false}
+      , sorted_{false}
     {
       if (!dict_orig_)
         throw std::runtime_error("bdd_partition::bdd_partition(): "
@@ -228,6 +233,7 @@ namespace spot
       , new_ap_{other.new_ap_}
       , new_support_{other.new_support_}
       , locked_{other.locked_}
+      , sorted_{other.sorted_}
       , leaves_{other.leaves_}
       , all_inter_{other.all_inter_}
     {
@@ -243,6 +249,7 @@ namespace spot
       , new_ap_{std::move(other.new_ap_)}
       , new_support_{std::move(other.new_support_)}
       , locked_{other.locked_}
+      , sorted_{other.sorted_}
       , leaves_{std::move(other.leaves_)}
       , all_inter_{std::move(other.all_inter_)}
     {
@@ -432,12 +439,34 @@ namespace spot
     /// used if the partition was unlocked in the mean time
     implying_container
     get_set_of(const bdd& ocond) const;
+
+    /// \brief Relabels all the edges of the automaton \a aut
+    /// whose conditions have been added to the partition beforehand.
+    /// The bool \a split decides whether conditions are split
+    /// into disjoint unions or not.
+    /// \pre Partition needs to be locked with a given prefix
+    /// \note The outgoing edges will be sorted if the corresponding
+    /// argument was set to true when locking.
+    void relabel_edges_here(const twa_graph_ptr& aut, bool split) const;
+    /// \brief Separates all edges of the automaton \a aut
+    /// into disjoint unions if the condition has been added to the
+    /// partitions beforehand.
+    /// \pre The partition is locked
+    /// \note The outgoing edges will be sorted if the corresponding
+    /// argument was set to true when locking
+    void separate_edges_here(const twa_graph_ptr& aut) const;
   }; // bdd_partition
 
 
   /// \brief Iterator to iterate over leaves that imply a root node
   class SPOT_API implying_iterator
   {
+  public:
+    using reference = bdd_partition::impl_state&;
+    using pointer = bdd_partition::impl_state*;
+    using difference_type = std::ptrdiff_t;
+    using iterator_category = std::forward_iterator_tag;
+
   private:
     const bdd_partition* bdd_part_;
     unsigned root_;
@@ -466,7 +495,7 @@ namespace spot
       : bdd_part_{bdd_part}
       , root_{root}
     {
-      assert(root_ < bdd_part_->get_graph().num_states()
+      SPOT_ASSERT(root_ < bdd_part_->get_graph().num_states()
              || root_ == -1u);
       if (end)
         stack_.clear();
@@ -512,7 +541,8 @@ namespace spot
           else
             {
               // Successor
-              unsigned dst = bdd_part_->get_graph().edge_storage(stack_.back()[1]).dst;
+              unsigned dst
+                = bdd_part_->get_graph().edge_storage(stack_.back()[1]).dst;
               // Advance
               stack_.back()[1] = succ_e(stack_.back()[1]);
               // Put on stack

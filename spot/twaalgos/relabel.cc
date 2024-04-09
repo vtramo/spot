@@ -33,172 +33,8 @@ namespace spot
 {
   namespace
   {
-    void
-    relabel_no_split_(twa_graph& aut,
-                      const unsigned Nt,
-                      const std::unordered_map<bdd,
-                                               unsigned,
-                                              bdd_hash>& orig_cond,
-                      const bdd_partition::implication_graph& ig)
-    {
-      for (auto& e : aut.edges())
-        {
-          unsigned ne = aut.edge_number(e);
-          if (ne > Nt)
-            break; // New edge -> edges are traversed in order
-          if (auto itc = orig_cond.find(e.cond);
-              itc != orig_cond.end())
-              e.cond = ig.state_storage(itc->second).new_label;
-          // else: skipped condition
-        }
-    }
-
-    void
-    relabel_split_no_sort_(twa_graph& aut,
-                           const unsigned Nt,
-                           const bdd_partition& bdd_part)
-    {
-      for (auto& e : aut.edges())
-        {
-          unsigned ne = aut.edge_number(e);
-          if (ne > Nt)
-            break; // New edge -> edges are traversed in order
-          // Relabel this
-          // If econd does not exist, the container will be empty
-          // and the iterator corresponds to the end iterator
-          if (auto impl_it
-                = bdd_part.get_set_of(e.cond).begin();
-              impl_it)
-            {
-              // Set first cond
-              e.cond = impl_it->new_label;
-              ++impl_it;
-              // Continue? If so we need a local copy as new_edge might
-              // reallocate
-              if (impl_it)
-                {
-                  auto ecopy = e;
-                  for (; impl_it; ++impl_it)
-                    aut.new_edge(ecopy.src, ecopy.dst,
-                                 impl_it->new_label, ecopy.acc);
-                }
-            }
-          // else: skipped condition
-        }
-    }
-
-    void
-    relabel_split_sort_(twa_graph& aut,
-                        const bdd_partition& bdd_part)
-    {
-
-      struct split_e
-      {
-        implying_iterator it;
-        twa_graph::edge_storage_t eorig;
-        const bdd& get() const noexcept
-        {
-          SPOT_ASSERT(!!it);
-          return it->new_label;
-        }
-      };
-
-      auto edge_it = std::vector<split_e>();
-
-      auto repl_edge = std::deque<unsigned>();
-      auto used = std::vector<unsigned>();
-
-      auto cmp = [](const split_e& cl, const split_e& cr)
-        {
-          return bdd_stable_cmp(cl.get(), cr.get());
-        };
-
-      for (unsigned s = 0; s < aut.num_states(); ++s)
-        {
-          assert(edge_it.empty() && repl_edge.empty());
-          // Get all concerned edges of this state
-          for (const auto& e: aut.out(s))
-            {
-              if (auto impl_it = bdd_part.get_set_of(e.cond).begin();
-                 impl_it)
-                {
-                  repl_edge.push_back(aut.edge_number(e));
-                  edge_it.push_back({impl_it, e});
-                }
-            }
-          auto new_edge = [&](unsigned dst,
-                              const bdd& cond,
-                              acc_cond::mark_t acc)
-            {
-              if (repl_edge.empty())
-                // Create the new edge
-                aut.new_edge(s, dst, cond, acc);
-              else
-                {
-                  unsigned eidx = repl_edge.front();
-                  repl_edge.pop_front();
-                  auto& e = aut.edge_storage(eidx);
-                  e.dst = dst;
-                  e.cond = cond;
-                  e.acc = acc;
-                }
-            };
-          // Now replace them
-          while (!edge_it.empty())
-            {
-              // Check that all still present are not empty
-              assert(std::all_of(edge_it.cbegin(), edge_it.cend(),
-                  [](const auto& er) -> bool {return er.it; }));
-              unsigned c_idx = 0;
-              unsigned m_idx = edge_it.size();
-              unsigned smallest_idx = 0;
-              used.clear();
-              used.push_back(c_idx);
-              ++c_idx;
-              for (; c_idx < m_idx; ++c_idx)
-                {
-                  int res = cmp(edge_it[c_idx], edge_it[smallest_idx]);
-                  if (res > 0)
-                    continue; // Larger -> ignored
-                  else if (res == 0)
-                    used.push_back(c_idx); // Same -> use as well
-                  else
-                    {
-                      // Smaller -> use this and ignore other
-                      smallest_idx = c_idx;
-                      used.clear();
-                      used.push_back(c_idx);
-                    }
-                }
-
-              // Replace and advance
-              // All split_e that are marked as used need to get
-              // new edges and advance
-              // If an iterator becomes empty -> erase it
-              // For this we iterate in reverse order,
-              // as not to change smaller idx
-              for (auto uit = used.crbegin(); uit != used.crend(); ++uit)
-                {
-                  // Use and advance
-                  {
-                    auto& se = edge_it[*uit];
-                    new_edge(se.eorig.dst, se.get(), se.eorig.acc);
-                    ++se.it;
-                  }
-                  // Delete?
-                  if (!edge_it[*uit].it)
-                    {
-                      if (edge_it.size() >= 2)
-                        edge_it[*uit] = edge_it.back();
-                      edge_it.pop_back();
-                    }
-                }
-            }
-        }
-    }
-
     relabeling_map
-    partitioned_relabel_here_(twa_graph& aut, bool split,
+    partitioned_relabel_here_(const twa_graph_ptr& autp, bool split,
                               unsigned max_letter,
                               unsigned max_letter_mult,
                               const bdd& concerned_ap,
@@ -206,10 +42,15 @@ namespace spot
                               const std::string& var_prefix,
                               bool sort)
     {
+      if (!autp)
+        throw std::runtime_error("partitioned_relabel_here_(): given aut "
+                                 "is null.");
       auto abandon = []()
         {
           return relabeling_map{};
         };
+
+      auto& aut = *autp;
 
       // Get all concerned conditions present in the automaton
       std::set<bdd, bdd_less_than> all_cond_conc; // Most efficient?
@@ -282,40 +123,13 @@ namespace spot
       // Compute the new letters
       this_partition.lock(var_prefix, sort);
 
-      // Unregister old aps and register new ones
-      for (const auto& ap : concerned_ap_formula)
-        aut.unregister_ap(aut.register_ap(ap));
-      // Register new ones
-      for (const auto& ap : this_partition.new_ap())
-        aut.register_ap(ap);
-
-      // An original condition is represented by either
-      // The new label: split == false
-      // The disjunction over all leaves implying it
-      // In this case a new edge is created for each leave
-      const auto& ig = this_partition.get_graph();
-      // Edges are only appended, never reused
-      const unsigned Nt = aut.edge_vector().size();
-
-      // Loop over all edges, check if the condition appears
-      // in orig_conditions, if so it needs
-      // to be replaced, skipped otherwise
-      const auto& orig_conditions = this_partition.orig_conditions();
-      if (split)
-        {
-          if (sort)
-            relabel_split_sort_(aut, this_partition);
-          else
-            relabel_split_no_sort_(aut, Nt, this_partition);
-        }
-      else
-        relabel_no_split_(aut, Nt, orig_conditions, ig);
+      this_partition.relabel_edges_here(autp, split);
 
       return this_partition.to_relabeling_map(true);
     }
 
     void
-    relabel_here_ap_(twa_graph_ptr& aut_ptr, relabeling_map relmap)
+    relabel_here_ap_(const twa_graph_ptr& aut_ptr, relabeling_map relmap)
     {
       assert(aut_ptr);
       twa_graph& aut = *aut_ptr;
@@ -385,7 +199,7 @@ namespace spot
     }
 
   void
-  relabel_here_gen_(twa_graph_ptr& aut_ptr, relabeling_map relmap)
+  relabel_here_gen_(const twa_graph_ptr& aut_ptr, relabeling_map relmap)
     {
       assert(aut_ptr);
       twa_graph& aut = *aut_ptr;
@@ -489,7 +303,7 @@ namespace spot
   } // Namespace
 
   void
-  relabel_here(twa_graph_ptr& aut, relabeling_map* relmap)
+  relabel_here(const twa_graph_ptr& aut, relabeling_map* relmap)
   {
     if (!relmap || relmap->empty())
       return;
@@ -523,7 +337,7 @@ namespace spot
   }
 
   relabeling_map
-  partitioned_relabel_here(twa_graph_ptr& aut,
+  partitioned_relabel_here(const twa_graph_ptr& aut,
                            bool split,
                            unsigned max_letter,
                            unsigned max_letter_mult,
@@ -553,7 +367,7 @@ namespace spot
     if (!treat_all)
       aut->prop_universal(trival()); // May remain deterministic
 
-    return partitioned_relabel_here_(*aut, split,
+    return partitioned_relabel_here_(aut, split,
                                      max_letter, max_letter_mult,
                                      concerned_ap_,
                                      treat_all,

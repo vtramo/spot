@@ -1450,3 +1450,12 @@ __bool__()
 }
 
 %include <spot/misc/partitioned_relabel.hh>
+
+//%extend spot::implying_container {
+//    %newobject __iter__(PyObject **PYTHON_SELF);
+//    swig::SwigPyIterator* __iter__(PyObject **PYTHON_SELF)
+//    {
+//      return swig::make_forward_iterator(self->begin(), self->begin(),
+//                                         self->end(), *PYTHON_SELF);
+//    }
+//}

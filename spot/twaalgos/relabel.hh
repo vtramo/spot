@@ -35,7 +35,7 @@ namespace spot
   /// This function is typically used with maps produced by relabel()
   /// or relabel_bse().
   SPOT_API void
-  relabel_here(twa_graph_ptr& aut, relabeling_map* relmap);
+  relabel_here(const twa_graph_ptr& aut, relabeling_map* relmap);
 
 
   /// \brief Replace conditions in \a aut with non-overlapping conditions
@@ -62,7 +62,7 @@ namespace spot
   /// Mostly used in a game setting to distinguish between
   /// env and player transitions.
   SPOT_API relabeling_map
-  partitioned_relabel_here(twa_graph_ptr& aut, bool split = false,
+  partitioned_relabel_here(const twa_graph_ptr& aut, bool split = false,
                            unsigned max_letter = -1u,
                            unsigned max_letter_mult = -1u,
                            const bdd& concerned_ap = bddtrue,
