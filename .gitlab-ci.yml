@@ -276,7 +276,7 @@ debpkg-stable:
     - stable
   script:
     - docker pull gitlab-registry.lre.epita.fr/spot/buildenv/debian:stable
-    - vol=spot-stable-$CI_COMMIT_SHA-$CI_PIPELINE_ID
+    - vol=spot-stable-$CI_COMMIT_SHA-$CI_JOB_ID
     - docker volume create $vol
     - exitcode=0
     - docker run -v $vol:/build/result  --name helper-$vol gitlab-registry.lre.epita.fr/spot/buildenv/debian:stable ./build-spot.sh $CI_COMMIT_REF_NAME -j${NBPROC-1} || exitcode=$?
@@ -304,7 +304,7 @@ debpkg-stable-i386:
   needs: ["debpkg-stable"]
   script:
     - docker pull gitlab-registry.lre.epita.fr/spot/buildenv/debian-i386:stable
-    - vol=spot-stable-$CI_COMMIT_SHA-$CI_PIPELINE_ID
+    - vol=spot-stable-$CI_COMMIT_SHA-$CI_JOB_ID
     - docker volume create $vol
     - exitcode=0
     - docker create -v $vol:/build/result --name helper-$vol gitlab-registry.lre.epita.fr/spot/buildenv/debian-i386:stable ./bin-spot.sh -j${NBPROC-1} || exitcode=$?
@@ -331,7 +331,7 @@ debpkg-unstable:
     - next
   script:
     - docker pull gitlab-registry.lre.epita.fr/spot/buildenv/debian
-    - vol=spot-unstable-$CI_COMMIT_SHA-$CI_PIPELINE_ID
+    - vol=spot-unstable-$CI_COMMIT_SHA-$CI_JOB_ID
     - docker volume create $vol
     - exitcode=0
     - docker run -v $vol:/build/result --name helper-$vol gitlab-registry.lre.epita.fr/spot/buildenv/debian ./build-spot.sh $CI_COMMIT_REF_NAME -j${NBPROC-1} || exitcode=$?
@@ -357,7 +357,7 @@ debpkg-unstable-i386:
   needs: ["debpkg-unstable"]
   script:
     - docker pull gitlab-registry.lre.epita.fr/spot/buildenv/debian-i386
-    - vol=spot-unstable-$CI_COMMIT_SHA-$CI_PIPELINE_ID
+    - vol=spot-unstable-$CI_COMMIT_SHA-$CI_JOB_ID
     - docker volume create $vol
     - exitcode=0
     - docker create -v $vol:/build/result --name helper-$vol gitlab-registry.lre.epita.fr/spot/buildenv/debian-i386 ./bin-spot.sh -j${NBPROC-1} || exitcode=$?
