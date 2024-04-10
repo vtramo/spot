@@ -196,7 +196,8 @@ namespace spot
     /// \brief Separate a label
     ///
     /// This returns a pseudo-container that can be used to iterate
-    /// over the elements of the basis compatible with the current labal.
+    /// over the elements of the basis compatible with the current
+    /// label.
     ///
     /// For instance if the basis was created from {a,b} (i.e., the
     /// basis is actually {!a&!b,a&!b,!a&b,a&b}), and the label is
