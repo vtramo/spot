@@ -109,10 +109,10 @@ New in spot 2.11.6.dev  (not yet released)
   - spot::translate() has a new -x option "relabel-overlap=M" that
     augments the existing "relabel-bool=N".  By default, N=4, M=8.
     When the formula to translate has more than N atomic propositions,
-    relabel_bse() is first called to attempt to rename non-overlaping
+    relabel_bse() is first called to attempt to rename non-overlapping
     boolean subexpressions (i.e., no shared atomic proposition) in
     order to reduce the number of atomic proposition, a source of
-    explonential explosion in several places of the translation
+    exponential explosion in several places of the translation
     pipeline.  This relabel-bool optimization exists since Spot 2.4.
     The new feature is that if, after relabel-bool, the formula still
     has more than M atomic propositions, then spot::translate() now
@@ -159,7 +159,7 @@ New in spot 2.11.6.dev  (not yet released)
     t or co-Büchi).  In case where the input automaton had no
     rejecting cycle, the Büchi acceptance was overkill: scc_filter
     will now use "t" acceptance.  This change may have unexpected
-    conseqences in code paths that assume running scc_filter on a
+    consequences in code paths that assume running scc_filter on a
     Büchi automaton will always return a Büchi automaton.  For those,
     a "keep_one_color" option has been added to scc_filter.
 
@@ -194,6 +194,9 @@ New in spot 2.11.6.dev  (not yet released)
     Previously cleanup_acceptance(), which remove unused colors from
     the acceptance, was sometimes able to simplify co-Büchi to "t",
     causing surprizes.
+
+  - Rename minimize_obligation_garanteed_to_work to
+    minimize_obligation_guaranteed_to_work.
 
   Python:
 

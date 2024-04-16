@@ -474,7 +474,7 @@ namespace spot
           wdba_minimize = 0;
       }
     if (wdba_minimize == 2)
-      wdba_minimize = minimize_obligation_garanteed_to_work(a, f);
+      wdba_minimize = minimize_obligation_guaranteed_to_work(a, f);
     if (wdba_minimize)
       {
         bool reject_bigger = (PREF_ == Small) && (level_ <= Medium);

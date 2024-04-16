@@ -130,7 +130,7 @@ namespace spot
   /// minimize_obligation(), but as it is less likely, you might
   /// decide to save time.
   SPOT_API
-  bool minimize_obligation_garanteed_to_work(const const_twa_graph_ptr& aut_f,
+  bool minimize_obligation_guaranteed_to_work(const const_twa_graph_ptr& aut_f,
                                              formula f = nullptr);
 
   /// @}

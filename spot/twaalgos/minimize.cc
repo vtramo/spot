@@ -607,7 +607,7 @@ namespace spot
     return product(min_aut, aut_neg)->is_empty();
   }
 
-  bool minimize_obligation_garanteed_to_work(const const_twa_graph_ptr& aut_f,
+  bool minimize_obligation_guaranteed_to_work(const const_twa_graph_ptr& aut_f,
                                              formula f)
   {
     // WDBA-minimization necessarily work for obligations
@@ -644,7 +644,7 @@ namespace spot
         ("minimize_obligation() does not support alternation");
 
     bool minimization_will_be_correct = false;
-    if (minimize_obligation_garanteed_to_work(aut_f, f))
+    if (minimize_obligation_guaranteed_to_work(aut_f, f))
       {
         minimization_will_be_correct = true;
       }
