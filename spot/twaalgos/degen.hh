@@ -28,7 +28,7 @@ namespace spot
   /// \brief Degeneralize a generalized (co)Büchi automaton into an
   /// equivalent (co)Büchi automaton.
   ///
-  /// There are two variants of the function.  If the generalizd
+  /// There are two variants of the function.  If the generalized
   /// (co)Büchi acceptance uses N colors, degeneralize() algorithm
   /// will builds a state-based (co)Büchi automaton that has at most
   /// (N+1) times the number of states of the original automaton.
@@ -38,12 +38,12 @@ namespace spot
   ///
   /// Additional options control optimizations described in
   /// \cite babiak.13.spin . When \a use_z_lvl is set, the level of
-  /// the degeneralized automaton is reset everytime an SCC is exited.
+  /// the degeneralized automaton is reset every time an SCC is exited.
   /// If \a use_cust_acc_orders is set, the degeneralization will
   /// compute a custom acceptance order for each SCC (this option is
   /// disabled by default because our benchmarks show that it usually
   /// does more harm than good).  If \a use_lvl_cache is set,
-  /// everytime an SCC is entered on a state that as already been
+  /// every time an SCC is entered on a state that as already been
   /// associated to some level elsewhere, reuse that level (set it to
   /// 2 to keep the smallest number, 3 to keep the largest level, and
   /// 1 to keep the first level found). If \a ignaccsl is set, we do
@@ -75,7 +75,7 @@ namespace spot
   ///
   /// As an alternative method to degeneralization, one may also
   /// consider ACD transform.  acd_transform() will never produce
-  /// larger automata than degenaralize_tba(), and
+  /// larger automata than degeneralize_tba(), and
   /// acd_transform_sbacc() produce smaller automata than
   /// degeneralize() on the average.  See \cite casares.22.tacas for
   /// some comparisons.

@@ -980,9 +980,9 @@ static const argp_option options[] =
       "atomic proposition that compatible with Spin's syntax.  You can "
       "force this relabeling to always occur with option --relabel.\n"
       "The sequences %f,%s,%l,%w,%F,%S,%L,%W can optionally be \"infixed\""
-      " by a bracketed sequence of operators to unabbreviate before outputing"
+      " by a bracketed sequence of operators to unabbreviate before outputting"
       " the formula.  For instance %[MW]f will rewrite operators M and W"
-      " before outputing it.\n"
+      " before outputting it.\n"
       "Furthermore, if COMMANDFMT has the form \"{NAME}CMD\", then only CMD "
       "will be passed to the shell, and NAME will be used to name the tool "
       "in the output.", 4 },

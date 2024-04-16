@@ -91,7 +91,7 @@ namespace spot
   /// \brief split a separated mealy machine
   ///
   /// In a separated mealy machine, every transitions as a label of
-  /// the form `(in)&(out)`.  This function will turn each transtion
+  /// the form `(in)&(out)`.  This function will turn each transition
   /// into a pair of consecutive transitions labeled by `in` and
   /// `out`, and turn the mealy machine into a game (what we call a
   /// split mealy machine)
@@ -197,7 +197,7 @@ namespace spot
   /// \pre The machines have to be both either split or unsplit,
   /// input complete and compatible. All of this is checked by assertion.
   /// \result A mealy machine representing the shared behaviour,
-  /// with the same tyoe (mealy/separated/split) as the input machines
+  /// with the same type (mealy/separated/split) as the input machines
   SPOT_API twa_graph_ptr
   mealy_product(const const_twa_graph_ptr& left,
                 const const_twa_graph_ptr& right);

@@ -215,7 +215,7 @@ namespace spot
                     // the test 'c.get_color() != RED' is added to limit
                     // the number of runs reported by successive
                     // calls to the check method. Without this
-                    // functionnality, the test can be ommited.
+                    // functionality, the test can be omitted.
                     trace << "  It is cyan or blue and the arc is "
                           << "accepting, start a red dfs" << std::endl;
                     c.set_color(RED);
@@ -244,7 +244,7 @@ namespace spot
                     // the test 'c.get_color() != RED' is added to limit
                     // the number of runs reported by successive
                     // calls to the check method. Without this
-                    // functionnality, the test can be ommited.
+                    // functionality, the test can be omitted.
                     trace << "  The arc from "
                           << a_->format_state(st_blue.front().s)
                           << " to the current state is accepting, start a "

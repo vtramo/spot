@@ -116,7 +116,7 @@ namespace spot
   /// All successors are computed once when an iterator is recycled or
   /// created.
   ///
-  /// Note: Two threads will explore sucessors with two different orders
+  /// Note: Two threads will explore successors with two different orders
   class cspins_iterator final
   {
   public:

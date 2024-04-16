@@ -177,7 +177,7 @@ namespace spot
                 }
             };
 
-            // Iterating over all mineterms can be very slow when |AP|
+            // Iterating over all minterms can be very slow when |AP|
             // is large (see issue #566) .  The else branch implements
             // another approach that should be exponential in the
             // number of successors instead of in the number of atomic

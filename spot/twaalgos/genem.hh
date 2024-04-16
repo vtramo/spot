@@ -114,7 +114,7 @@ namespace spot
   /// Give the set of transitions contained in
   /// an accepting cycle of the SCC \a scc of \a aut.
   ///
-  /// \param si scc_info used to describle the automaton
+  /// \param si scc_info used to describe the automaton
   /// \param scc SCC to consider
   /// \param aut_acc Acceptance condition used for this SCC
   /// \param removed_colors A set of colors that can't appear on a transition

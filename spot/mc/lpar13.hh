@@ -195,7 +195,7 @@ namespace spot
     /// that a state will be popped. If the method return false, then
     /// the state will be popped. Otherwise the state \a newtop will
     /// become the new top of the DFS stack. If the state \a top is
-    /// the only one in the DFS stak, the parameter \a is_initial is set
+    /// the only one in the DFS stack, the parameter \a is_initial is set
     /// to true and both \a newtop and \a  newtop_dfsnum have inconsistency
     /// values.
     bool pop_state(product_state, unsigned top_dfsnum, bool,

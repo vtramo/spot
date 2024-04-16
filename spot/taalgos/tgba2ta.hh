@@ -37,7 +37,7 @@ namespace spot
   /// \param degeneralized When false, the returned automaton is a generalized
   /// form of TA, called GTA (Generalized Testing Automaton).
   /// Like TGBA, GTA use Generalized Büchi acceptance
-  /// conditions intead of Buchi-accepting states: there are several acceptance
+  /// conditions instead of Buchi-accepting states: there are several acceptance
   /// sets (of transitions), and a path is accepted if it traverses
   /// at least one transition of each set infinitely often or if it contains a
   /// livelock-accepting cycle (like a TA). The spot emptiness check algorithm

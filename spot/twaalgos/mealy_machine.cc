@@ -99,7 +99,7 @@ namespace
     {
       if (!f)
         throw std::runtime_error("`" + name +
-                                 "' could not be oppened for writing.");
+                                 "' could not be opened for writing.");
     }
     ~fwrapper()
     {
@@ -257,7 +257,7 @@ namespace spot
         if (!is_deterministic_(ins))
           {
             trace << "is_input_deterministic_mealy(): State number "
-                  << s << " is not input determinisc!\n";
+                  << s << " is not input determinist!\n";
             return false;
           }
       }

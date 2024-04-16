@@ -757,7 +757,7 @@ namespace
   }
 
   // Takes a set of the atomic propositions appearing in the formula,
-  // and seperate them into two vectors: input APs and output APs.
+  // and separate them into two vectors: input APs and output APs.
   static std::pair<std::vector<std::string>, std::vector<std::string>>
   filter_list_of_aps(const std::unordered_set<std::string>& aps,
                      const char* filename, int linenum)

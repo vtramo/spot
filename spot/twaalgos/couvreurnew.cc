@@ -282,7 +282,7 @@ namespace spot
                                                     const_twa_ptr>::type;
 
     // The status of the emptiness-check on success.
-    // It contains everyting needed to build a counter-example:
+    // It contains everything needed to build a counter-example:
     // the automaton, the stack of SCCs traversed by the counter-example,
     // and the heap of visited states with their indices.
     template<bool is_explicit>
@@ -579,7 +579,7 @@ namespace spot
         return check_impl<true>();
       }
 
-      // The following two methods anticipe the future interface of the
+      // The following two methods anticipate the future interface of the
       // class emptiness_check.  Following the interface of twa, the class
       // emptiness_check_result should not be exposed.
       bool

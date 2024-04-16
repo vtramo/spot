@@ -630,14 +630,14 @@ namespace spot
     /// \brief Get the initial state of the automaton.
     ///
     /// The state has been allocated with \c new.  It is the
-    /// responsability of the caller to \c destroy it when no
+    /// responsibility of the caller to \c destroy it when no
     /// longer needed.
     virtual const state* get_init_state() const = 0;
 
     /// \brief Get an iterator over the successors of \a local_state.
     ///
     /// The iterator has been allocated with \c new.  It is the
-    /// responsability of the caller to \c delete it when no
+    /// responsibility of the caller to \c delete it when no
     /// longer needed.
     ///
     /// \see succ()
@@ -785,7 +785,7 @@ namespace spot
 
     /// \brief Format the state as a string for printing.
     ///
-    /// Formating is the responsability of the automata that owns the
+    /// Formatting is the responsibility of the automata that owns the
     /// state, so that state objects could be implemented as very
     /// small objects, maybe sharing data with other state objects via
     /// data structure stored in the automaton.
@@ -795,7 +795,7 @@ namespace spot
     ///
     /// This converts \a s, into that corresponding spot::state for \a
     /// t.  This is useful when you have the state of a product, and
-    /// want to restrict this state to a specific automata occuring in
+    /// want to restrict this state to a specific automata occurring in
     /// the product.
     ///
     /// It goes without saying that \a s and \a t should be compatible

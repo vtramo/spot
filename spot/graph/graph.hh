@@ -757,7 +757,7 @@ namespace spot
     ///@}
 
     ///@{
-    /// \brief return the Edgeg_Data of an edge.
+    /// \brief return the Edge_Data of an edge.
     ///
     /// This does not use Edge_Data& as return type, because
     /// Edge_Data might be void.
@@ -818,7 +818,7 @@ namespace spot
           && (dests_.capacity() - dests_.size()) < (sz + 1))
         {
           // If dst_begin...dst_end points into dests_ and dests_ risk
-          // being reallocated, we have to savea the destination
+          // being reallocated, we have to save the destination
           // states before we lose them.
           std::vector<unsigned> tmp(dst_begin, dst_end);
           dests_.emplace_back(sz);
@@ -955,7 +955,7 @@ namespace spot
 
     /// @{
     ///
-    /// \brief Return a fake container with all edges (exluding erased
+    /// \brief Return a fake container with all edges (excluding erased
     /// edges)
     internal::all_trans<const digraph> edges() const
     {

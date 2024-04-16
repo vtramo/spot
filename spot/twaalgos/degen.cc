@@ -32,7 +32,7 @@ namespace spot
 {
   namespace
   {
-    // A state in the degenalized automaton corresponds to a state in
+    // A state in the degeneralized automaton corresponds to a state in
     // the TGBA associated to a level.  The level is just an index in
     // the list of acceptance sets.
     typedef std::pair<unsigned, unsigned> degen_state;
@@ -495,7 +495,7 @@ namespace spot
           levels->emplace_back(ds.second);
 
           // Level cache stores one encountered level for each state
-          // (the value of use_lvl_cache determinates which level
+          // (the value of use_lvl_cache determines which level
           // should be remembered).  This cache is used when
           // re-entering the SCC.
           if (use_lvl_cache)
@@ -579,7 +579,7 @@ namespace spot
                   //    where 1 is initial and => marks accepting
                   //    edges: 1=>1, 1=>2, 2->2, 2->1. This is
                   //    already an SBA, with 1 as accepting state.
-                  //    However if you try degeralize it without
+                  //    However if you try degeneralize it without
                   //    ignoring *prev, you'll get two copies of state
                   //    2, depending on whether we reach it using 1=>2
                   //    or from 2->2.  If this example was not clear,

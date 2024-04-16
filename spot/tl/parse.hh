@@ -110,7 +110,7 @@ namespace spot
   /// field parsed_formula::f in the returned object can be a non-zero
   /// value even if it encountered error during the parsing of \a
   /// ltl_string.  If you want to make sure \a ltl_string was parsed
-  /// succesfully, check \a parsed_formula::errors for emptiness.
+  /// successfully, check \a parsed_formula::errors for emptiness.
   ///
   /// \warning This function is not reentrant.
   SPOT_API
@@ -133,7 +133,7 @@ namespace spot
   /// field parsed_formula::f in the returned object can be a non-zero
   /// value even if it encountered error during the parsing of \a
   /// ltl_string.  If you want to make sure \a ltl_string was parsed
-  /// succesfully, check \a parsed_formula::errors for emptiness.
+  /// successfully, check \a parsed_formula::errors for emptiness.
   ///
   /// \warning This function is not reentrant.
   SPOT_API
@@ -154,7 +154,7 @@ namespace spot
   /// field parsed_formula::f in the returned object can be a non-zero
   /// value even if it encountered error during the parsing of \a
   /// ltl_string.  If you want to make sure \a ltl_string was parsed
-  /// succesfully, check \a parsed_formula::errors for emptiness.
+  /// successfully, check \a parsed_formula::errors for emptiness.
   ///
   /// The LBT syntax, also used by the lbtt and scheck tools, is
   /// extended to support W, and M operators (as done in lbtt), and
@@ -191,7 +191,7 @@ namespace spot
   /// field parsed_formula::f in the returned object can be a non-zero
   /// value even if it encountered error during the parsing of \a
   /// ltl_string.  If you want to make sure \a ltl_string was parsed
-  /// succesfully, check \a parsed_formula::errors for emptiness.
+  /// successfully, check \a parsed_formula::errors for emptiness.
   ///
   /// \warning This function is not reentrant.
   SPOT_API

@@ -73,7 +73,7 @@ namespace spot
                       int compress = 0) const;
 
     // \brief The same as above but returns a kripkecube, i.e. a kripke
-    // that can be use in parallel. Moreover, it support more ellaborated
+    // that can be use in parallel. Moreover, it supports more elaborated
     // atomic propositions such as "P.a == P.c"
     ltsmin_kripkecube_ptr kripkecube(std::vector<std::string> to_observe,
                                      formula dead = formula::tt(),

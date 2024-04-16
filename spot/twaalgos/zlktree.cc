@@ -816,7 +816,7 @@ namespace spot
       throw std::runtime_error("acd::first_branch(): unknown state " +
                                std::to_string(s));
     unsigned scc = si_->scc_of(s);
-    if (trees_[scc].trivial)    // the branch is irrelevant for transiant SCCs
+    if (trees_[scc].trivial)    // the branch is irrelevant for transient SCCs
       return 0;
     if (SPOT_UNLIKELY(nodes_.empty()))
       // make sure we do not complain about this if all SCCs are trivial.

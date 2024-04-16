@@ -68,7 +68,7 @@ namespace spot
     /// want_kripke.
     kripke_graph_ptr ks;
 
-    /// Whether an HOA file was termined with <code>--ABORT</code>
+    /// Whether an HOA file was terminated with <code>--ABORT</code>
     bool aborted = false;
     /// Location of the automaton in the stream.
     spot::location loc;

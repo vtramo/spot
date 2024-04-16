@@ -147,7 +147,7 @@ namespace spot
       return total_.cutime;
     }
 
-    /// \brief Return the system time of the current process (whithout children)
+    /// \brief Return the system time of the current process (without children)
     /// of all accumulated interval.
     ///
     /// Any time interval that has been start()ed but not stop()ed

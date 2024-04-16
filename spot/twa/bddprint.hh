@@ -40,7 +40,7 @@ namespace spot
   /// This assumes that \a b is a conjunction of literals.
   /// \param dict The dictionary to use, to lookup variables.
   /// \param b The BDD to print.
-  /// \return The BDD formated as a string.
+  /// \return The BDD formatted as a string.
   SPOT_API std::string
   bdd_format_sat(const bdd_dict_ptr& dict, bdd b);
 
@@ -50,7 +50,7 @@ namespace spot
   /// \param os The output stream.
   /// \param dict The dictionary to use, to lookup variables.
   /// \param b The BDD to print.
-  /// \return The BDD formated as a string.
+  /// \return The BDD formatted as a string.
   SPOT_API std::ostream&
   bdd_print_accset(std::ostream& os, const bdd_dict_ptr& dict, bdd b);
 
@@ -59,7 +59,7 @@ namespace spot
   /// This is used when saving a TGBA.
   /// \param dict The dictionary to use, to lookup variables.
   /// \param b The BDD to print.
-  /// \return The BDD formated as a string.
+  /// \return The BDD formatted as a string.
   SPOT_API std::string
   bdd_format_accset(const bdd_dict_ptr& dict, bdd b);
 
@@ -73,7 +73,7 @@ namespace spot
   /// \brief Format a BDD as a set.
   /// \param dict The dictionary to use, to lookup variables.
   /// \param b The BDD to print.
-  /// \return The BDD formated as a string.
+  /// \return The BDD formatted as a string.
   SPOT_API std::string
   bdd_format_set(const bdd_dict_ptr& dict, bdd b);
 
@@ -87,7 +87,7 @@ namespace spot
   /// \brief Format a BDD as a formula.
   /// \param dict The dictionary to use, to lookup variables.
   /// \param b The BDD to print.
-  /// \return The BDD formated as a string.
+  /// \return The BDD formatted as a string.
   SPOT_API std::string
   bdd_format_formula(const bdd_dict_ptr& dict, bdd b);
 
@@ -98,7 +98,7 @@ namespace spot
   /// \brief Format a BDD as an irredundant sum of product.
   /// \param dict The dictionary to use, to lookup variables.
   /// \param b The BDD to print.
-  /// \return The BDD formated as a string.
+  /// \return The BDD formatted as a string.
   SPOT_API std::string
   bdd_format_isop(const bdd_dict_ptr& dict, bdd b);
 

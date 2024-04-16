@@ -1186,7 +1186,7 @@ namespace spot
 
       /// \brief Convert the acceptance formula into a BDD
       ///
-      /// \a map should be a vector indiced by colors, that
+      /// \a map should be a vector indexed by colors, that
       /// maps each color to the desired BDD representation.
       bdd to_bdd(const bdd* map) const;
 
@@ -1275,7 +1275,7 @@ namespace spot
       /// Fin(i) changed to true and Inf(i) to false.
       ///
       /// If the condition is a disjunction and one of the disjunct
-      /// has the shape `...&Fin(i)&...`, then `i` will be prefered
+      /// has the shape `...&Fin(i)&...`, then `i` will be preferred
       /// over any arbitrary Fin.
       ///
       /// The second element of the pair, is the same acceptance
@@ -1307,7 +1307,7 @@ namespace spot
       /// If no disjunct has the right shape, then a random Fin(i) is
       /// searched in the formula, and the output (i, left, right).
       /// is such that left contains all disjuncts containing Fin(i)
-      /// (at any depth), and right contains the original formlula
+      /// (at any depth), and right contains the original formula
       /// where Fin(i) has been replaced by false.
       /// @{
       std::tuple<int, acc_cond::acc_code, acc_cond::acc_code>
@@ -1345,7 +1345,7 @@ namespace spot
       /// \brief Check potential acceptance of an SCC.
       ///
       /// Assuming that an SCC intersects all sets in \a
-      /// infinitely_often (i.e., for each set in \a infinetely_often,
+      /// infinitely_often (i.e., for each set in \a infinitely_often,
       /// there exist one marked transition in the SCC), and is
       /// included in all sets in \a always_present (i.e., all
       /// transitions are marked with \a always_present), this returns
@@ -1464,7 +1464,7 @@ namespace spot
       /// "Fin(!x)" and "Inf(!x)" are not supported by this parser.
       ///
       /// Or the string could be the name of an acceptance condition, as
-      /// speficied in the HOA format.  (E.g. "Rabin 2", "parity max odd 3",
+      /// specified in the HOA format.  (E.g. "Rabin 2", "parity max odd 3",
       /// "generalized-Rabin 4 2 1", etc.).
       ///
       /// A spot::parse_error is thrown on syntax error.
@@ -2190,7 +2190,7 @@ namespace spot
     /// Fin(i) changed to true and Inf(i) to false.
     ///
     /// If the condition is a disjunction and one of the disjunct
-    /// has the shape `...&Fin(i)&...`, then `i` will be prefered
+    /// has the shape `...&Fin(i)&...`, then `i` will be preferred
     /// over any arbitrary Fin.
     ///
     /// The second element of the pair, is the same acceptance
@@ -2226,7 +2226,7 @@ namespace spot
     /// If no disjunct has the right shape, then a random Fin(i) is
     /// searched in the formula, and the output (i, left, right).
     /// is such that left contains all disjuncts containing Fin(i)
-    /// (at any depth), and right contains the original formlula
+    /// (at any depth), and right contains the original formula
     /// where Fin(i) has been replaced by false.
     /// @{
     std::tuple<int, acc_cond, acc_cond>

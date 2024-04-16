@@ -600,7 +600,7 @@ namespace spot
     /// the edges
     /// \param to_merge_ptr Determines which states are candidates.
     /// If null, all states are considered
-    /// The actual implementation differd from merge_states().
+    /// The actual implementation differs from merge_states().
     /// It is more costly, but is more precise, in the sense that
     /// more states are merged.
     unsigned merge_states_of(bool stable = true,

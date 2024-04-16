@@ -153,7 +153,7 @@ namespace spot
 
     /// \brief Retrieve the list of aliases.
     ///
-    /// This points to the same list that the automaton's "aliasaes"
+    /// This points to the same list that the automaton's "aliases"
     /// named properties points to.  Will return `nullptr` if no
     /// aliases are defined.
     ///

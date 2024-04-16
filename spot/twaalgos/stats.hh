@@ -51,7 +51,7 @@ namespace spot
   /// \brief Compute sub statistics for an automaton.
   SPOT_API twa_sub_statistics sub_stats_reachable(const const_twa_ptr& g);
 
-  /// \brief Count all transtitions, even unreachable ones.
+  /// \brief Count all transitions, even unreachable ones.
   SPOT_API unsigned long long
   count_all_transitions(const const_twa_graph_ptr& g);
 

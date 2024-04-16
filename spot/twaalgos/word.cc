@@ -206,7 +206,7 @@ namespace spot
         if (word[ind] == '}')
           word_parse_error(word, ind, "Expected ';' delimiter: "
                            "'}' stands for ending a cycle");
-        // Exract formula, convert it to bdd and add it to the prefix sequence
+        // Extract formula, convert it to bdd and add it to the prefix sequence
         extract_bdd(tw->prefix);
         if (i == std::string::npos)
           word_parse_error(word, ind + 1, "Missing cycle in formula");

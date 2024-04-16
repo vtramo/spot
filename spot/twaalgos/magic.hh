@@ -33,7 +33,7 @@ namespace spot
   /// \pre The automaton \a a must have at most one acceptance condition (i.e.
   /// it is a TBA).
   ///
-  /// During the visit of \a a, the returned checker stores explicitely all
+  /// During the visit of \a a, the returned checker stores explicitly all
   /// the traversed states.
   /// The method \a check() of the checker can be called several times
   /// (until it returns a null pointer) to enumerate all the visited acceptance
@@ -88,11 +88,11 @@ namespace spot
   /// \pre The automaton \a a must have at most one acceptance condition (i.e.
   /// it is a TBA).
   ///
-  /// During the visit of \a a, the returned checker does not store explicitely
+  /// During the visit of \a a, the returned checker does not store explicitly
   /// the traversed states but uses the bit-state hashing technic presented in:
   /// \cite Holzmann.91.book.
   ///
-  /// Consequently, the detection of an acceptence cycle is not ensured.
+  /// Consequently, the detection of an acceptance cycle is not ensured.
   ///
   /// The size of the heap is limited to \n size bytes.
   ///

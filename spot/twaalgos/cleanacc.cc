@@ -549,7 +549,7 @@ namespace spot
 
       for (auto& e: aut->edges())
         {
-          // Just avoit the e.acc.sets() loops on marks that we have
+          // Just avoid the e.acc.sets() loops on marks that we have
           // just seen.
           if (e.acc == previous_a)
             continue;

@@ -69,7 +69,7 @@ namespace spot
   class SPOT_API satsolver
   {
   public:
-    /// \brief Construct the sat solver and itinialize variables.
+    /// \brief Construct the sat solver and initialize variables.
     /// If no satsolver is provided through SPOT_SATSOLVER env var, a
     /// distributed version of PicoSAT will be used.
     satsolver();
@@ -116,7 +116,7 @@ namespace spot
     template<typename T, typename... Args>
     void comment(T first, Args... args);
 
-    /// \brief Assume a litteral value.
+    /// \brief Assume a literal value.
     /// Must only be used with distributed picolib.
     void assume(int lit);
 
@@ -159,7 +159,7 @@ namespace spot
     int nassumptions_vars_; // Surplus of vars (for 'assume' algorithm).
 
     /// \brief Number of solutions to obtain from the satsolver
-    /// (without assuming litterals).
+    /// (without assuming literals).
     int nsols_;
 
     /// \brief Picosat satsolver instance.

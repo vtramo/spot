@@ -27,5 +27,5 @@ unsigned to_unsigned (const char *s, const char* where);
 float to_float(const char* s, const char* where);
 float to_probability(const char* s, const char* where);
 
-// Parse the comma or space seperate string of numbers.
+// Parse the comma or space separated string of numbers.
 std::vector<long> to_longs(const char* s);

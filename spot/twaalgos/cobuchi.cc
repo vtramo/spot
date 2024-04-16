@@ -408,7 +408,7 @@ namespace spot
         // Each state is characterized by a bitvect_array of 2 bitvects:
         // bv1 -> the set of original states that it represents
         // bv2 -> a set of marked states (~)
-        // To do so, we keep a correspondance between a state number and its
+        // To do so, we keep a correspondence between a state number and its
         // bitvect representation.
         dca_st_mapping bv_to_num_;
         std::vector<std::pair<unsigned, bitvect_array*>> num_2_bv_;

@@ -86,7 +86,7 @@ namespace spot
 
   public:
 
-    /// \brief Mark the beginning of a test tranlation
+    /// \brief Mark the beginning of a test translation
     ///
     /// Sometimes different encodings produces more or less gates.
     /// To improve performances, one can "safe" the current status
@@ -297,7 +297,7 @@ namespace spot
     /// \param method How to translate the bdd. 0: If-then-else normal form,
     ///               1: isop normal form, 2: try both and retain smaller
     /// \param use_dual Encode the negations of the given bdds and
-    ///                 retain the smalles implementation
+    ///                 retain the smallest implementation
     /// \param use_split_off 0: Use base algo
     ///                      1: Separate the different types of input signals
     ///                      (like latches, inputs) to increase gate

@@ -412,7 +412,7 @@ namespace spot
     // (We will use two hash maps in this case.)
     auto sp = get_named_prop<std::vector<bool>>("state-player");
 
-    // The hashing is a bit delicat: We may only use the dst if it has
+    // The hashing is a bit delicate: We may only use the dst if it has
     // no self-loop.  HASH_OF_STATE stores the hash associated to each
     // state (by default its own number) or some common value if the
     // state contains self-loop.
@@ -505,7 +505,7 @@ namespace spot
       }
     // All states that might possible be merged share the same hash
     // Info hash coll
-    //std::cout << "Hash collission rate pre merge: "
+    //std::cout << "Hash collision rate pre merge: "
     //          << ((map0.size()+map1.size())/((float)n_states))
     //          << '\n';
 
@@ -561,7 +561,7 @@ namespace spot
                 sl1 = e_chain[sl1];
                 sl2 = e_chain[sl2];
               }
-            // Since edges are ordered on each side, aadvance
+            // Since edges are ordered on each side, advance
             // the smallest side in case there is no match.
             else if (edge_data_comp(data1, data2))
               sl1 = e_chain[sl1];
@@ -747,7 +747,7 @@ namespace spot
     if (merged)
       defrag_states(remap, st);
     // Info hash coll 2
-    //std::cout << "Hash collission rate post merge: "
+    //std::cout << "Hash collision rate post merge: "
     //          << ((map0.size()+map1.size())/((float)num_states()))
     //          << '\n';
     return merged;

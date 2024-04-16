@@ -36,7 +36,7 @@ namespace spot
   /// automaton produced (TGBA, BA, Monitor).  The default is TGBA.
   ///
   /// Method set_pref() may be used to specify whether small automata
-  /// should be prefered over deterministic automata.
+  /// should be preferred over deterministic automata.
   ///
   /// Method set_level() may be used to specify the optimization level.
   ///

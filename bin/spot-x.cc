@@ -47,7 +47,7 @@ depends on the --low, --medium, or --high settings.") },
           "Maximum number of states of automata involved in automata-based \
 implication checks for formula simplifications.  Defaults to 64.") },
     { DOC("tls-max-ops",
-          "Maximum number of operands in n-ary opertors (or, and) on which \
+          "Maximum number of operands in n-ary operators (or, and) on which \
 implication-based simplifications are attempted.  Defaults to 16.") },
     { nullptr, 0, nullptr, 0, "Translation options:", 0 },
     { DOC("ltl-split", "Set to 0 to disable the translation of automata \
@@ -83,7 +83,7 @@ used when comp-susp=1 and default to 1 or 2 depending on whether --small \
 or --deterministic is specified.") },
     { nullptr, 0, nullptr, 0, "Postprocessing options:", 0 },
     { DOC("acd", "Set to 1 (the default) to use paritize automata using \
-the alternatinc cycle decomposition.  Set to 0 to use paritization based \
+the alternating cycle decomposition.  Set to 0 to use paritization based \
 on latest appearance record variants.") },
     { DOC("scc-filter", "Set to 1 (the default) to enable \
 SCC-pruning and acceptance simplification at the beginning of \
@@ -91,7 +91,7 @@ post-processing.  Transitions that are outside accepting SCC are \
 removed from accepting sets, except those that enter into an accepting \
 SCC.  Set to 2 to remove even these entering transition from the \
 accepting sets.  Set to 0 to disable this SCC-pruning and acceptance \
-simpification pass.") },
+simplification pass.") },
     { DOC("degen-reset", "If non-zero (the default), the \
 degeneralization algorithm will reset its level any time it exits \
 an SCC.") },
@@ -121,7 +121,7 @@ level, as it might favor finding accepting cycles earlier.  If \
 degen-lowinit is non-zero, then level L is always used without looking \
 for the presence of an accepting self-loop.") },
     { DOC("degen-remscc", "If non-zero (the default), make sure the output \
-of the degenalization has as many SCCs as the input, by removing superfluous \
+of the degeneralization has as many SCCs as the input, by removing superfluous \
 ones.") },
     { DOC("det-max-states", "When defined to a positive integer N, \
 determinizations will be aborted whenever the number of generated \
@@ -180,7 +180,7 @@ attempting simulation-based reductions.  Defaults to 128.  Set to 0 to \
 never merge states.") },
     { DOC("simul-max", "Number of states above which simulation-based \
 reductions are skipped. Defaults to 4096.  Set to 0 to disable.  This \
-applies to all simulation-based optimization, including thoses of the \
+applies to all simulation-based optimization, including those of the \
 determinization algorithm.") },
     { DOC("simul-trans-pruning", "Number of equivalence classes above which \
 simulation-based transition-pruning for non-deterministic automata is \
@@ -259,7 +259,7 @@ sets.  By default, this is only enabled when options -B or -S are used.") },
     { DOC("simul-method",
           "Chose which simulation based reduction to use: 1 force the \
 signature-based BDD implementation, 2 force matrix-based and 0, the default, \
-is a heristic wich choose which implementation to use.") },
+is a heuristic which chooses which implementation to use.") },
     { nullptr, 0, nullptr, 0, nullptr, 0 }
   };
 

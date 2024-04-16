@@ -31,7 +31,7 @@ namespace spot
   ///
   /// \pre The automaton \a a must have at least one acceptance condition.
   ///
-  /// During the visit of \a a, the returned checker stores explicitely all
+  /// During the visit of \a a, the returned checker stores explicitly all
   /// the traversed states. The implemented algorithm is the following:
   ///
   /** \verbatim
@@ -84,7 +84,7 @@ namespace spot
       end;
       \endverbatim */
   ///
-  /// This algorithm is a generalisation to TGBA of the one implemented in
+  /// This algorithm is a generalization to TGBA of the one implemented in
   /// spot::explicit_se05_search. It is based on the acceptance set labelling
   /// of states used in spot::explicit_tau03_search. Moreover, it introduce
   /// a slight optimisation based on vectors of integers counting for each

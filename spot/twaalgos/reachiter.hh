@@ -73,7 +73,7 @@ namespace spot
     /// \param in The source state number.
     /// \param out_s The destination state
     /// \param out The destination state number.
-    /// \param si The spot::twa_succ_iterator positionned on the current
+    /// \param si The spot::twa_succ_iterator positioned on the current
     ///             transition.
     ///
     /// The in_s and out_s states are owned by the
@@ -141,7 +141,7 @@ namespace spot
     /// \param in The source state number.
     /// \param out_s The destination state
     /// \param out The destination state number.
-    /// \param si The spot::twa_succ_iterator positionned on the current
+    /// \param si The spot::twa_succ_iterator positioned on the current
     ///             transition.
     ///
     /// The in_s and out_s states are owned by the

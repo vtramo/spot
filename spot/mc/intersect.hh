@@ -25,9 +25,9 @@
 namespace spot
 {
   /// \brief Find the first couple of iterator (from a given pair of
-  /// interators) that intersect. This method can be used in any
+  /// iterators) that intersect. This method can be used in any
   /// DFS/BFS-like exploration algorithm. The \a parameter indicates
-  /// wheter the state has just been visited since the underlying job
+  /// whether the state has just been visited since the underlying job
   /// is slightly different.
   template<typename SuccIterator, typename State>
   static void forward_iterators(kripkecube<State, SuccIterator>& sys,

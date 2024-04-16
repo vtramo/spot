@@ -47,7 +47,7 @@ namespace spot
   }
 
   // This is for Spin 5.  Spin 6 has a relaxed parser that can
-  // accept any parenthesized block as an atomic propoistion.
+  // accept any parenthesized block as an atomic proposition.
   bool is_spin_ap(const char* str)
   {
     if (!str || !islower(*str))

@@ -23,7 +23,7 @@
 namespace spot
 {
   /// \ingroup twa_acc_transform
-  /// \brief Check if \a aut is Rablin-like and Büchi-realizable.
+  /// \brief Check if \a aut is Rabin-like and Büchi-realizable.
   ///
   /// This is inspired from rabin_to_buchi_maybe()'s algorithm. The
   /// main difference is that here, no automaton is built.

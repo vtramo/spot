@@ -38,7 +38,7 @@ namespace spot
   /// conjunction of the acceptance conditions of the two input
   /// automata.
   ///
-  /// As an optionmization, in case one of the left or right automaton
+  /// As an optimization, in case one of the left or right automaton
   /// is weak, the acceptance condition of the result is made simpler:
   /// it usually is the acceptance condition of the other argument,
   /// therefore avoiding the need to introduce new accepting sets.
@@ -69,7 +69,7 @@ namespace spot
   /// conjunction of the acceptance conditions of the two input
   /// automata.
   ///
-  /// As an optionmization, in case one of the left or right automaton
+  /// As an optimization, in case one of the left or right automaton
   /// is weak, the acceptance condition of the result is made simpler:
   /// it usually is the acceptance condition of the other argument,
   /// therefore avoiding the need to introduce new accepting sets.
@@ -98,7 +98,7 @@ namespace spot
   /// disjunction of the acceptance conditions of the two input
   /// automata.
   ///
-  /// As an optionmization, in case one of the left or right automaton
+  /// As an optimization, in case one of the left or right automaton
   /// is weak, the acceptance condition of the result is made simpler:
   /// it usually is the acceptance condition of the other argument,
   /// therefore avoiding the need to introduce new accepting sets.
@@ -126,7 +126,7 @@ namespace spot
   /// disjunction of the acceptance conditions of the two input
   /// automata.
   ///
-  /// As an optionmization, in case one of the left or right automaton
+  /// As an optimization, in case one of the left or right automaton
   /// is weak, the acceptance condition of the result is made simpler:
   /// it usually is the acceptance condition of the other argument,
   /// therefore avoiding the need to introduce new accepting sets.

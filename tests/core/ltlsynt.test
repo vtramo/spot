@@ -206,7 +206,7 @@ diff outx exp
 cat >exp <<EOF
 there are 1 subformulas
 trying to create strategy directly for GFa <-> GFb
-tanslating formula done in X seconds
+translating formula done in X seconds
 direct strategy was found.
 direct strat has 1 states, 2 edges and 0 colors
 simplification took X seconds
@@ -642,7 +642,7 @@ the following signals can be temporarily removed:
 new formula: GFa <-> GFb
 there are 1 subformulas
 trying to create strategy directly for GFa <-> GFb
-tanslating formula done in X seconds
+translating formula done in X seconds
 direct strategy was found.
 direct strat has 1 states, 2 edges and 0 colors
 simplification took X seconds
@@ -658,7 +658,7 @@ for f in "(GFa <-> GFb) & G(c <-> d)" "(GFb <-> GFa) & G(c <-> d)" \
 do
   cat >exp <<EOF
 trying to create strategy directly for $f
-tanslating formula done in X seconds
+translating formula done in X seconds
 direct strategy was found.
 direct strat has 1 states, 2 edges and 0 colors
 simplification took X seconds
@@ -687,7 +687,7 @@ diff outx exp
 # is input-complete.
 cat >exp <<EOF
 trying to create strategy directly for (GFb <-> GFa) & G((a & c) | (!a & !c))
-tanslating formula done in X seconds
+translating formula done in X seconds
 direct strategy was found.
 direct strat has 1 states, 2 edges and 0 colors
 simplification took X seconds
@@ -701,7 +701,7 @@ diff outx exp
 
 cat >exp <<EOF
 trying to create strategy directly for Fa <-> FGb
-tanslating formula done in X seconds
+translating formula done in X seconds
 direct strategy was found.
 direct strat has 2 states, 3 edges and 0 colors
 simplification took X seconds
@@ -1043,7 +1043,7 @@ the following signals can be temporarily removed:
 new formula: GFi <-> GFo1
 there are 1 subformulas
 trying to create strategy directly for GFi <-> GFo1
-tanslating formula done in X seconds
+translating formula done in X seconds
 direct strategy was found.
 direct strat has 1 states, 2 edges and 0 colors
 simplification took X seconds

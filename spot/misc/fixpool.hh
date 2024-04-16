@@ -34,10 +34,10 @@ namespace spot
   ///   - Safe: ensure (when used with memcheck) that each allocation
   ///     is deallocated one at a time
   ///   - Unsafe: rely on the fact that deallocating the pool also release
-  ///     all elements it contains. This case is usefull in a multithreaded
+  ///     all elements it contains. This case is useful in a multithreaded
   ///     environnement with multiple fixed_sized_pool allocating the same
-  ///     ressource. In this case it's hard to detect wich pool has allocated
-  ///     some ressource.
+  ///     resource. In this case it's hard to detect which pool has allocated
+  ///     some resource.
   enum class pool_type { Safe , Unsafe };
 
   /// A fixed-size memory pool implementation.

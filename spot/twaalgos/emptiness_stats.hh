@@ -127,7 +127,7 @@ namespace spot
     }
 
   private :
-    unsigned states_;                /// number of disctint visited states
+    unsigned states_;                /// number of distinct visited states
     unsigned transitions_;        /// number of visited transitions
     unsigned depth_;                /// maximal depth of the stack(s)
     unsigned max_depth_;        /// maximal depth of the stack(s)

@@ -67,7 +67,7 @@ namespace spot
   /// for the type of reduction you want, see spot::tl_simplifier.
   /// This idea is taken from \cite thirioux.02.fmics .
   ///
-  /// \param unambiguous When true, unambigous TGBA will be produced
+  /// \param unambiguous When true, unambiguous TGBA will be produced
   /// using the trick described in \cite benedikt.13.tacas .
   ///
   /// \param aborter When given, aborts the construction whenever the

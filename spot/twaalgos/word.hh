@@ -39,7 +39,7 @@ namespace spot
       dict_->unregister_all_my_variables(this);
     }
 
-    /// \brief Simplify a lasso-shapped word.
+    /// \brief Simplify a lasso-shaped word.
     ///
     /// The simplified twa_word may represent a subset of the actual
     /// words represented by the original twa_word.  The typical
@@ -79,7 +79,7 @@ namespace spot
 
     /// \brief Convert the twa_word as an automaton.
     ///
-    /// Convert the twa_word into a lasso-shapred automaton
+    /// Convert the twa_word into a lasso-shaped automaton
     /// with "true" acceptance condition.
     ///
     /// This is useful to evaluate a word on an automaton.

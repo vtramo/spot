@@ -33,14 +33,14 @@ namespace spot
   class SPOT_API minato_isop
   {
   public:
-    /// \brief Conctructor.
+    /// \brief Constructor.
     /// \arg input The BDD function to translate in ISOP.
     minato_isop(bdd input);
-    /// \brief Conctructor.
+    /// \brief Constructor.
     /// \arg input The BDD function to translate in ISOP.
     /// \arg vars  The set of BDD variables to factorize in \a input.
     minato_isop(bdd input, bdd vars);
-    /// \brief Conctructor.
+    /// \brief Constructor.
     ///
     /// This version allow some flexibility in computing the ISOP.
     /// the result must be within \a input_min and \a input_max.

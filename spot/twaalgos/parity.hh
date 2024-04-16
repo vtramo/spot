@@ -166,7 +166,7 @@ namespace spot
   /// When \a layered is true all transition that belong to the same
   /// layer receive the same color.  When layer is `false`, only the
   /// transition that where used initially to define the layers (i.e,
-  /// the transition with the maximal color in the previous exemple),
+  /// the transition with the maximal color in the previous example),
   /// get their color adjusted.  The other will receive either no
   /// color (if \a colored is false), or a useless color (if \a colored
   /// is true).  Here "useless color" means the smallest color

@@ -133,7 +133,7 @@ namespace spot
     current_odd = current_odd != toggle_style;
     bool change_style = false;
     auto num_sets = old_num_sets;
-    // If the parity neeeds to be changed, then a new acceptance set is created.
+    // If the parity needs to be changed, then a new acceptance set is created.
     // The old acceptance sets are shifted
     if (output_odd != current_odd)
       {

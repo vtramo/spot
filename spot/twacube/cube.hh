@@ -41,18 +41,18 @@ namespace spot
   /// Warning : a variable cannot be set in both bitset at the
   ///           same time (consistency! cannot be true and false)
   ///
-  /// The cube for (a & !b) will be repensented by :
+  /// The cube for (a & !b) will be represented by:
   ///     - true_var  = 1 0
   ///     - false_var = 0 1
   ///
   /// To represent free variables such as in (a & !b) | (a & b)
-  /// (wich is equivalent to (a) with b free)
+  /// (which is equivalent to (a) with b free)
   ///     - true_var  : 1 0
   ///     - false_var : 0 0
-  /// This exemple shows that the representation of free variables
+  /// This example shows that the representation of free variables
   /// is done by unsetting variable in both vector
   ///
-  /// To be memory efficient, these two bitsets are contigous in memory
+  /// To be memory efficient, these two bitsets are contigious in memory
   /// i.e. if we want to represent 35 variables, a cube will be
   /// represented by 4 unsigned int contiguous in memory. The 35
   /// first bits represent truth values. The 29 bits following are

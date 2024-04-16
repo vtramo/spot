@@ -236,7 +236,7 @@ static bool is_right_parity(spot::const_twa_graph_ptr aut,
     target_odd = origin_odd;
   if (!(is_max == target_max && is_odd == target_odd))
     {
-      std::cerr << "======Wrong accceptance======\n";
+      std::cerr << "======Wrong acceptance======\n";
       std::string kind[] = { "max", "min", "same", "any" };
       std::string style[] = { "odd", "even", "same", "any" };
       std::cerr << "target: " << kind[target_kind] << ' '

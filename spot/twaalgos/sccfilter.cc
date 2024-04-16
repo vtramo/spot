@@ -231,7 +231,7 @@ namespace spot
             //   all acceptance sets, as this edge cannot be part
             //   of any loop.
             // - If an edge is in an non-accepting SCC, we can only
-            //   remove the Inf sets, as removinf the Fin sets
+            //   remove the Inf sets, as removing the Fin sets
             //   might make the SCC accepting.
             //
             // The above rules are made more complex with two flags:

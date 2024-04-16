@@ -69,7 +69,7 @@ namespace spot
   {
     atomic_prop_set res;
 
-    // polirity: 0 = negative, 1 = positive, 2 or more = both.
+    // polarity: 0 = negative, 1 = positive, 2 or more = both.
     auto rec = [&res](formula f, unsigned polarity, auto self)
     {
       switch (f.kind())

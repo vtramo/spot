@@ -459,8 +459,8 @@ namespace spot
       // refhist, it is necessary to associate to each path constructed,
       // an ID number.
       //
-      // Given this ID, src_cand, dst_cand, the corresponding litteral can be
-      // retrived thanks to get_prc(...) a vars_helper's method.
+      // Given this ID, src_cand, dst_cand, the corresponding literal can be
+      // retrieved thanks to get_prc(...) a vars_helper's method.
       unsigned path_size = 0;
       for (unsigned i = 0; i < d.ref_size; ++i)
         {
@@ -493,8 +493,8 @@ namespace spot
             }
         }
 
-      // Fill dict's bdd vetor (alpha_vect) and save each bdd and it's
-      // corresponding index in alpha_map. This is necessary beacause
+      // Fill dict's bdd vector (alpha_vect) and save each bdd and it's
+      // corresponding index in alpha_map. This is necessary because
       // some loops start from a precise bdd. Therefore, it's useful
       // to know its corresponding index to deal with vars_helper.
       unsigned j = 0;
@@ -510,7 +510,7 @@ namespace spot
       d.helper.init(d.cand_size, d.alpha_vect.size(), d.cand_size,
           d.cand_nacc, path_size, state_based, false);
 
-      // Based on all previous informations, helper knows all litterals.
+      // Based on all previous informations, helper knows all literals.
       d.helper.declare_all_vars(++d.nvars);
     }
 
@@ -909,7 +909,7 @@ namespace spot
       dout << "--- transition_acc variables ---\n";
       if (state_based)
       {
-        dout << "In state_based mode, there is only 1 litteral for each "
+        dout << "In state_based mode, there is only 1 literal for each "
           "combination of src and nacc, regardless of dst or cond!\n";
         for (unsigned i = 0; i < satdict.cand_size; ++i)
           for (unsigned j = 0; j < satdict.cand_nacc; ++j)

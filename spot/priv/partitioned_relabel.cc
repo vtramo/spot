@@ -88,7 +88,7 @@ bdd_partition::to_relabeling_map(twa_graph& for_me) const
 bdd_partition
 try_partition_me(const std::vector<bdd>& all_cond, unsigned max_letter)
 {
-  // We create vector that will be succesively filled.
+  // We create vector that will be successively filled.
   // Each entry corresponds to a "letter", of the partition
   const size_t Norig = all_cond.size();
 

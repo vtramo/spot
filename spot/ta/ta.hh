@@ -111,7 +111,7 @@ namespace spot
     /// \brief Get an iterator over the successors of \a state.
     ///
     /// The iterator has been allocated with \c new.  It is the
-    /// responsability of the caller to \c delete it when no
+    /// responsibility of the caller to \c delete it when no
     /// longer needed.
     ///
     virtual ta_succ_iterator*
@@ -121,7 +121,7 @@ namespace spot
     /// filtred by the changeset on transitions
     ///
     /// The iterator has been allocated with \c new.  It is the
-    /// responsability of the caller to \c delete it when no
+    /// responsibility of the caller to \c delete it when no
     /// longer needed.
     ///
     virtual ta_succ_iterator*
@@ -142,7 +142,7 @@ namespace spot
 
     /// \brief Format the state as a string for printing.
     ///
-    /// This formating is the responsability of the automata
+    /// This formatting is the responsibility of the automata
     /// that owns the state.
     virtual std::string
     format_state(const spot::state* s) const = 0;
@@ -190,7 +190,7 @@ namespace spot
   ///
   /// This class provides the basic functionalities required to
   /// iterate over the successors of a state, as well as querying
-  /// transition labels.  Because transitions are never explicitely
+  /// transition labels.  Because transitions are never explicitly
   /// encoded, labels (conditions and acceptance conditions) can only
   /// be queried while iterating over the successors.
   class ta_succ_iterator : public twa_succ_iterator

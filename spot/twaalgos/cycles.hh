@@ -43,7 +43,7 @@ namespace spot
   ///
   /// We represent a cycle by a sequence of succ_iterator objects
   /// positioned on the transition contributing to the cycle.  These
-  /// succ_itertor are stored, along with their source state, in the
+  /// succ_iterator are stored, along with their source state, in the
   /// dfs_ stack.  Only the last portion of this stack may form a
   /// cycle.
   ///

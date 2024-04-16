@@ -176,7 +176,7 @@ namespace spot
     // Specialized conversion from transition based Rabin acceptance to
     // transition based Büchi acceptance.
     // Is able to detect SCCs that are TBA-type (i.e., they can be
-    // converted to Büchi acceptance without chaning their structure).
+    // converted to Büchi acceptance without changing their structure).
     //
     // See "Deterministic ω-automata vis-a-vis Deterministic Büchi
     // Automata", S. Krishnan, A. Puri, and R. Brayton (ISAAC'94) for
@@ -381,7 +381,7 @@ namespace spot
                                 {
                                   true, // state based
                                   true, // inherently weak
-                                  true, true, // determinisitic
+                                  true, true, // deterministic
                                   true,       // complete
                                   true,  // stutter inv.
                                 });
@@ -667,7 +667,7 @@ namespace spot
                 << main_add << '\n';
 
           // If the SCC is rejecting, there is no need for clone.
-          // Pretend we don't interesect any Fin.
+          // Pretend we don't intersect any Fin.
           if (si.is_rejecting_scc(n))
             intersects_fin = false;
 

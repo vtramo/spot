@@ -111,12 +111,12 @@ public:
         unsigned size_nacc, unsigned size_path, bool state_based,
         bool dtbasat);
 
-    /// \brief Compute min_t litteral as well as min_ta, min_p and max_p.
-    /// After this step, all litterals are known.
+    /// \brief Compute min_t literal as well as min_ta, min_p and max_p.
+    /// After this step, all literals are known.
     void
     declare_all_vars(int& min_t);
 
-    /// \brief Return the transition's litteral corresponding to parameters.
+    /// \brief Return the transition's literal corresponding to parameters.
     inline int
     get_t(unsigned src, unsigned cond, unsigned dst) const
     {
@@ -134,12 +134,12 @@ public:
       return min_t_ + src * cd_mult_ + cond * size_dst_ + dst;
     }
 
-    /// \brief Return the transition_acc's litteral corresponding to parameters.
+    /// \brief Return the transition_acc's literal corresponding to parameters.
     /// If (state_based), all outgoing transitions use the same acceptance
     /// variable. Therefore, for each combination (src, nacc) there is only one
-    /// litteral.
+    /// literal.
     /// Note that with Büchi automata, there is only one nacc, thus, only one
-    /// litteral for each src.
+    /// literal for each src.
     inline int
     get_ta(unsigned src, unsigned cond, unsigned dst, unsigned nacc = 0) const
     {
@@ -162,7 +162,7 @@ public:
         : min_ta_ + src * cdn_mult_ + cond * dn_mult_ + dst * size_nacc_ + nacc;
     }
 
-    /// \brief Return the path's litteral corresponding to parameters.
+    /// \brief Return the path's literal corresponding to parameters.
     inline int
     get_p(unsigned path, unsigned src, unsigned dst) const
     {
@@ -181,9 +181,9 @@ public:
       return min_p_ + path * sd_mult_ + src * size_dst_ + dst;
     }
 
-    /// \brief Return the path's litteral corresponding to parameters.
+    /// \brief Return the path's literal corresponding to parameters.
     /// Argument ref serves to say whether it is a candidate or a reference
-    /// litteral. false -> ref | true -> cand
+    /// literal. false -> ref | true -> cand
     inline int
     get_prc(unsigned path, unsigned src, unsigned dst, bool cand) const
     {
@@ -238,7 +238,7 @@ public:
                  int target_state_number, const twa_graph_ptr& res,
                  const satsolver& solver);
 
-  /// \brief Returns the number of distinct values containted in a vector.
+  /// \brief Returns the number of distinct values contained in a vector.
   int
   get_number_of_distinct_vals(std::vector<unsigned> v);
 }

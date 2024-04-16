@@ -38,7 +38,7 @@ namespace spot
 
   /// \brief Implementation of the PINS interface. This class
   /// is a wrapper that, given a file, will compile it w.r.t
-  /// the PINS interface. The class can then be menipulated
+  /// the PINS interface. The class can then be manipulated
   /// transparently whatever the input format considered.
   class SPOT_API spins_interface
   {

@@ -365,7 +365,7 @@ namespace spot
     // However (1) degeneralization is faster if the input is
     // GBA, and (2) if we want a deterministic parity automaton and the
     // input is not deterministic, that is useless here.  We need
-    // to determinize it first, and our deterministization
+    // to determinize it first, and our determinization
     // function only deal with TGBA as input.
     if ((via_gba || (want_parity && !a->acc().is_parity()))
         && !a->acc().is_generalized_buchi())

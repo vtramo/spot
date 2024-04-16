@@ -38,8 +38,8 @@ namespace spot
 {
 
   /// \brief This class allows to ensure (at compile time) if
-  /// a given parameter can be compsidered as a modelchecking algorithm
-  /// (i.e., usable by instanciate)
+  /// a given parameter can be considered as a modelchecking algorithm
+  /// (i.e., usable by instantiate)
   template <typename T>
   class SPOT_API is_a_mc_algorithm
   {
@@ -123,7 +123,7 @@ namespace spot
             }
 #endif
 
-            // Wait all threads to be instanciated.
+            // Wait all threads to be instantiated.
             while (barrier)
               continue;
             swarmed[i]->run();
@@ -169,8 +169,8 @@ namespace spot
         bool go_on = true;
         for (unsigned i = 0; i < nbth && go_on; ++i)
           {
-            // Enumerate cases where a trace can be extraced
-            // Here we use a switch so that adding new algortihm
+            // Enumerate cases where a trace can be extracted
+            // Here we use a switch so that adding new algorithm
             // with new return status will trigger an error that
             // should the be fixed here.
             switch (result.value[i])

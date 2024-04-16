@@ -112,7 +112,7 @@ namespace spot
       return a_;
     }
 
-    /// Return the options parametrizing how the accepting run is computed.
+    // / Return the options parameterizing how the accepting run is computed.
     const option_map&
     options() const
     {
@@ -153,7 +153,7 @@ namespace spot
       return a_;
     }
 
-    /// Return the options parametrizing how the emptiness check is realized.
+    /// Return the options parameterizing how the emptiness check is realized.
     const option_map&
     options() const
     {

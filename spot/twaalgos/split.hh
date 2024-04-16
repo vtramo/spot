@@ -234,6 +234,6 @@ namespace spot
   ///
   /// Using split_edges() also creates an automaton with separated labels,
   /// but the separation will be much finer since it will result in a much
-  /// involves all atomtic proposition.
+  /// involves all atomic proposition.
   SPOT_API twa_graph_ptr separate_edges(const const_twa_graph_ptr& aut);
 }

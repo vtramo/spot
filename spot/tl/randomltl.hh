@@ -200,7 +200,7 @@ namespace spot
   class SPOT_API random_sere final: public random_formula
   {
   public:
-    /// Create a random SERE genere using atomic propositions from \a ap.
+    /// Create a random SERE generator using atomic propositions from \a ap.
     ///
     /// The default priorities are defined as follows:
     ///

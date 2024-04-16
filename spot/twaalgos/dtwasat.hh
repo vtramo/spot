@@ -85,7 +85,7 @@ namespace spot
 
   /// \brief Attempt to minimize a deterministic TωA with a SAT solver.
   ///
-  /// It acts like dtwa_sat_synthetisze() and obtains a first minimized
+  /// It acts like dtwa_sat_synthetize() and obtains a first minimized
   /// automaton. Then, incrementally, it encodes and solves the deletion of one
   /// state as many time as param value.
   /// If param >= 0, this process is fully repeated until the minimal automaton

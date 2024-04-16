@@ -491,7 +491,7 @@ namespace spot
            bool acc_par, par_t min_win_par, bool respect_sg=true)
       {
         // In fix_scc, the attr computation is
-        // abused so we can not check ertain things
+        // abused so we can not check certain things
         // Computes the attractor of the winning set of player p within a
         // subgame given as rd.
         // If acc_par is true, max_par transitions are also accepting and
@@ -860,7 +860,7 @@ namespace spot
       // during construction
       std::vector<strat_t> s_;
 
-      // Informations about sccs andthe current scc
+      // Informations about sccs and the current scc
       std::unique_ptr<scc_info> info_;
       par_t max_abs_par_; // Max parity occurring in the current scc
       // Minimal and maximal parity occurring in the entire graph
@@ -1112,7 +1112,7 @@ namespace spot
     if (owners->size() != arena->num_states())
       throw std::runtime_error("set_state_player(): The \"state-player\" "
                                "vector has a different "
-                               "size comparerd to the automaton! "
+                               "size compared to the automaton! "
                                "Called new_state in between?");
 
     (*owners)[state] = owner;
@@ -1286,7 +1286,7 @@ namespace spot
     game->set_named_prop("strategy", strategy);
 
     // transposed is a reversed copy of game to compute predecessors
-    // more easily.  It also keep track of the original edge iindex.
+    // more easily.  It also keep track of the original edge index.
     struct edge_data {
       unsigned edgeidx;
     };

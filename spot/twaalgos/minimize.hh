@@ -95,7 +95,7 @@ namespace spot
   /// returned.  Otherwise, if \a aut_neg_f was not supplied but \a f
   /// was, \a aut_neg_f is built from the negation of \a f.  Then we
   /// check that <code>product(aut,!minimize(aut_f))</code> and <code>
-  /// product(aut_neg_f,minize(aut))</code> are both empty.  If they
+  /// product(aut_neg_f,minimize(aut))</code> are both empty.  If they
   /// are, the the minimization was sound.  (See the paper for full
   /// details.)
   ///

@@ -948,7 +948,7 @@ namespace spot
         {
         }
 
-      // if !neg build c&X(c&X(...&X(tail))) with n occurences of c
+      // if !neg build c&X(c&X(...&X(tail))) with n occurrences of c
       // if neg build !c|X(!c|X(...|X(tail))).
       formula
         dup_b_x_tail(bool neg, formula c, formula tail, unsigned n)
@@ -1027,7 +1027,7 @@ namespace spot
               //
               // The above usually make more sense when reversed (see
               // them in the And and Or rewritings), except when we
-              // try to maximaze the size of subformula that do not
+              // try to maximize the size of subformula that do not
               // have EventUniv formulae.
               if (opt_.favor_event_univ)
                 if (c.is(op::Or, op::And))
@@ -1585,7 +1585,7 @@ namespace spot
                           }
                       }
                 }
-              // {b[*i..j]} = b&X(b&X(... b))  with i occurences of b
+              // {b[*i..j]} = b&X(b&X(... b))  with i occurrences of b
               // !{b[*i..j]} = !b&X(!b&X(... !b))
               if (!opt_.reduce_size_strictly)
                 if (c.is(op::Star))

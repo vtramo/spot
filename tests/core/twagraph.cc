@@ -218,7 +218,7 @@ static void f6()
 // when faced with a more involved problem
 static void f7()
 {
-  // The current mege_states implementation of "next"
+  // The current merge_states implementation of "next"
   // needs two successive calls to obtain an automaton with only 3 states
   // This is especially annoying as this depends on the numbering.
   // By renumbering 2->1 3->2 1->3 the current version only needs one call too

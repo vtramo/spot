@@ -31,7 +31,7 @@ namespace spot
   ///
   /// \pre The automaton \a a must have at least one acceptance condition.
   ///
-  /// During the visit of \a a, the returned checker stores explicitely all
+  /// During the visit of \a a, the returned checker stores explicitly all
   /// the traversed states. The implemented algorithm is the following:
   ///
   /** \verbatim

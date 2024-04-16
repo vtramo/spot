@@ -1418,7 +1418,7 @@ namespace spot
         auto delta = sw.stop();
         bv->trans_time += delta;
         if (vs)
-          *vs << "tanslating formula done in " << delta << " seconds\n";
+          *vs << "translating formula done in " << delta << " seconds\n";
       }
       res->prop_complete(trival::maybe());
 

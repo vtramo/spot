@@ -480,13 +480,13 @@ namespace spot
   ///
   /// If \a colored is set, each output transition will have exactly
   /// one color, and the output automaton will use at most n+1 colors
-  /// if the input has n colors. If \a colored is unsed (the default),
+  /// if the input has n colors. If \a colored is unset (the default),
   /// output transitions will use at most one color, and output
   /// automaton will use at most n colors.
   ///
-  /// The acd_tranform() is the original function producing
+  /// The acd_transform() is the original function producing
   /// optimal transition-based output (optimal in the sense of least
-  /// number of duplicated states), while the acd_tansform_sbacc() variant
+  /// number of duplicated states), while the acd_transform_sbacc() variant
   /// produces state-based output from transition-based input and without
   /// any optimality claim.  The \a order_heuristics argument, enabled
   /// by default activates the ORDER_HEURISTICS option of the ACD.

@@ -70,7 +70,7 @@ namespace spot
       std::atomic<list_status> list_status_;
     };
 
-    /// \brief The haser for the previous uf_element.
+    /// \brief The hasher for the previous uf_element.
     struct uf_element_hasher
     {
       uf_element_hasher(const uf_element*)

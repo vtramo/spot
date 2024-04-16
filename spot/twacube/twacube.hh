@@ -93,7 +93,7 @@ namespace spot
     }
 
     /// \brief Returns the current transition according to a specific
-    /// \a seed. The \a  seed is traditionnally the thread identifier.
+    /// \a seed. The \a  seed is traditionally the thread identifier.
     inline unsigned current(unsigned seed = 0) const
     {
       // no-swarming : since twacube are dedicated for parallelism, i.e.
@@ -204,7 +204,7 @@ namespace spot
                                              const twacube& twa);
   private:
     unsigned init_;                  ///< The Id of the initial state
-    acc_cond acc_;                       ///< The acceptance contidion
+    acc_cond acc_;                       ///< The acceptance condition
     const std::vector<std::string> aps_; ///< The name of atomic propositions
     graph_t theg_;                       ///< The underlying graph
     cubeset cubeset_;                    ///< Ease the cube manipulation

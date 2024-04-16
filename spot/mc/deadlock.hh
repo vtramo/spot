@@ -37,7 +37,7 @@ namespace spot
   /// \brief This class aims to explore a model to detect wether it
   /// contains a deadlock. This deadlock detection performs a DFS traversal
   /// sharing information shared among multiple threads.
-  /// If Deadlock equals std::true_type performs dealock algorithm,
+  /// If Deadlock equals std::true_type performs deadlock algorithm,
   /// otherwise perform a simple reachability.
   template<typename State, typename SuccIterator,
            typename StateHash, typename StateEqual,
@@ -59,7 +59,7 @@ namespace spot
       int* colors;              ///< \brief the colors (one per thread)
     };
 
-    /// \brief The haser for the previous state.
+    /// \brief The hasher for the previous state.
     struct pair_hasher
     {
       pair_hasher(const deadlock_pair*)
@@ -298,7 +298,7 @@ namespace spot
     bool deadlock_ = false;                ///< \brief Deadlock detected?
     std::atomic<bool>& stop_;              ///< \brief Stop-the-world boolean
     /// \brief Stack that grows according to the todo stack. It avoid multiple
-    /// concurent access to the shared map.
+    /// concurrent access to the shared map.
     std::vector<int*> refs_;
     bool finisher_ = false;
   };

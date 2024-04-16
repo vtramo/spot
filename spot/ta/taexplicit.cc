@@ -106,7 +106,7 @@ namespace spot
     return transitions_;
   }
 
-  // return transitions filtred by condition
+  // return transitions filtered by condition
   state_ta_explicit::transitions*
   state_ta_explicit::get_transitions(bdd condition) const
   {
@@ -279,7 +279,7 @@ namespace spot
           bool dest_is_livelock_accepting =
             dest->is_livelock_accepting_state();
 
-          //Before deleting stuttering transitions, propaged back livelock
+          //Before deleting stuttering transitions, propagated back livelock
           //and initial state's properties
           if (is_stuttering_transition)
             {

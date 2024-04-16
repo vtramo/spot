@@ -57,7 +57,7 @@ namespace spot
   atomic_prop_collect_as_bdd(formula f, const twa_ptr& a);
 
 
-  /// \brief Collect the literals occuring in f
+  /// \brief Collect the literals occurring in f
   ///
   /// This function records each atomic proposition occurring in f
   /// along with the polarity of its occurrence.  For instance if the

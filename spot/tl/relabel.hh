@@ -35,7 +35,7 @@ namespace spot
   /// between the new names (keys) and the old names (values).
   ///
   /// \see relabel_bse
-  /// \see relabel_overlaping_bse
+  /// \see relabel_overlapping_bse
   SPOT_API
   formula relabel(formula f, relabeling_style style,
                   relabeling_map* m = nullptr);

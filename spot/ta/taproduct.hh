@@ -158,7 +158,7 @@ namespace spot
     virtual bool
     is_initial_state(const spot::state* s) const override;
 
-    /// \brief Return true if the state \a s has no succeseurs
+    /// \brief Return true if the state \a s has no successor
     /// in the TA automaton (the TA component of the product automaton)
     bool
     is_hole_state_in_ta_component(const spot::state* s) const;

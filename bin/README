@@ -12,7 +12,7 @@ whose purpose is just to generate a man-page with the same format as
 the other man pages (this includes keeping the version number
 up-to-date).
 
-There is also a script called 'options.py' that summerizes how the
+There is also a script called 'options.py' that summarizes how the
 different short options are used among the tools.
 
 Routines that are shared by multiple command-line tools are stored in

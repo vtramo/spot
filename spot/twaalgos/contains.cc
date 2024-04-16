@@ -80,14 +80,14 @@ namespace spot
 
   bool are_equivalent(const_twa_graph_ptr left, formula right)
   {
-    // The first containement check does not involve a
+    // The first containment check does not involve a
     // complementation, the second might.
     return contains(left, right) && contains(right, left);
   }
 
   bool are_equivalent(formula left, const_twa_graph_ptr right)
   {
-    // The first containement check does not involve a
+    // The first containment check does not involve a
     // complementation, the second might.
     return contains(right, left) && contains(left, right);
   }

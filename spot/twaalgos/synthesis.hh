@@ -209,7 +209,7 @@ namespace spot
   };
 
   /// \ingroup synthesis
-  /// \brief Seeks to decompose a formula into independently synthesizable
+  /// \brief Seeks to decompose a formula into independently synthetizable
   /// sub-parts. The conjunction of all sub-parts then
   /// satisfies the specification
   ///

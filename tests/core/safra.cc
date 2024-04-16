@@ -44,7 +44,7 @@ static void help()
     "\t-b\treduce result using bisimulation\n"
     "\t--scc_opt\tUse an SCC-based Safra\n"
     "\t--bisim_opt\tUse Simulation info to reduce macro-states size\n"
-    "\t--stutter\tStutter-invarience optimisation\n";
+    "\t--stutter\tStutter-invariance optimisation\n";
   exit(1);
 }
 

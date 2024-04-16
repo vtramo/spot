@@ -81,7 +81,7 @@ namespace spot
       /// \brief An NBA with (n+2) states derived from a Cyclic test
       /// case.
       ///
-      /// This familly of automata is derived from a couple of
+      /// This family of automata is derived from a couple of
       /// examples supplied by Reuben Rowe.  The task is to
       /// check that the automaton generated with AUT_CYCLIST_TRACE_NBA
       /// for a given n contain the automaton generated with
@@ -90,7 +90,7 @@ namespace spot
       /// \brief A DBA with (n+2) states derived from a Cyclic test
       /// case.
       ///
-      /// This familly of automata is derived from a couple of
+      /// This family of automata is derived from a couple of
       /// examples supplied by Reuben Rowe.  The task is to
       /// check that the automaton generated with AUT_CYCLIST_TRACE_NBA
       /// for a given n contain the automaton generated with

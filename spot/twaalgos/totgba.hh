@@ -71,7 +71,7 @@ namespace spot
   /// \brief Take an automaton with any acceptance condition and return
   /// an equivalent Generalized Streett automaton.
   ///
-  /// This works by putting the acceptance condition in cunjunctive
+  /// This works by putting the acceptance condition in conjunctive
   /// normal form, and then merging all the
   /// Inf(x1)|Inf(x2)|...|Inf(xn) that may occur in clauses into a
   /// single Inf(X).

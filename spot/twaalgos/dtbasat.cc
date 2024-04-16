@@ -243,7 +243,7 @@ namespace spot
       // it is necessary to associate to each path constructed, an ID number.
       //
       // Given this ID, src_cand, dst_cand and a boolean that tells we want
-      // ref or cand var, the corresponding litteral can be retrieved thanks
+      // ref or cand var, the corresponding literal can be retrieved thanks
       // to get_prc(...), a vars_helper's method.
       unsigned path_size = 0;
       for (unsigned i = 0; i < d.ref_size; ++i)
@@ -264,8 +264,8 @@ namespace spot
             }
         }
 
-      // Fill dict's bdd vetor (alpha_vect) and save each bdd and it's
-      // corresponding index in alpha_map. This is necessary beacause
+      // Fill dict's bdd vector (alpha_vect) and save each bdd and it's
+      // corresponding index in alpha_map. This is necessary because
       // some loops start from a precise bdd. Therefore, it's useful
       // to know its corresponding index to deal with vars_helper.
       unsigned j = 0;
@@ -281,7 +281,7 @@ namespace spot
       d.helper.init(d.cand_size, d.alpha_vect.size(), d.cand_size,
         1, path_size, state_based, true);
 
-      // Based on all previous informations, helper knows all litterals.
+      // Based on all previous informations, helper knows all literals.
       d.helper.declare_all_vars(++d.nvars);
     }
 
@@ -399,7 +399,7 @@ namespace spot
 
       const acc_cond& ra = ref->acc();
 
-      // construction of contraints (4,5) : all loops in the product
+      // construction of constraints (4,5) : all loops in the product
       // where no accepting run is detected in the ref. automaton,
       // must also be marked as not accepting in the cand. automaton
       for (unsigned q1p = 0; q1p < d.ref_size; ++q1p)
@@ -473,7 +473,7 @@ namespace spot
                   }
             }
         }
-      // construction of contraints (6,7): all loops in the product
+      // construction of constraints (6,7): all loops in the product
       // where accepting run is detected in the ref. automaton, must
       // also be marked as accepting in the candidate.
       for (unsigned q1p = 0; q1p < d.ref_size; ++q1p)

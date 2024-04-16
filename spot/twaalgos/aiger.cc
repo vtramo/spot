@@ -1031,7 +1031,7 @@ namespace spot
                                                     it2.first.first.id(),
                                                     it2.first.second.id()); });
         if (itm == occur_map.cend())
-          throw std::runtime_error("Empty occurence map");
+          throw std::runtime_error("Empty occurrence map");
         return *itm;
       };
 
@@ -1180,7 +1180,7 @@ namespace spot
 
     // Create all the bdds/vars
     // true/false/latches/inputs already exist
-    // Get the gatenumber corresponding to an output
+    // Get the gate number corresponding to an output
     auto v2g = [&](unsigned v)->unsigned
       {
         v = circ.aig_pos(v);

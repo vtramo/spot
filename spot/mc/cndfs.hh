@@ -361,7 +361,7 @@ namespace spot
                                   todo_blue_.back().it_prop, true, tid_);
               else if (acc)
                 {
-                  // The state cyan and we can reach it throught an
+                  // The state cyan and we can reach it through an
                   // accepting transition, a accepting cycle has been
                   // found without launching a red dfs
                   if (tmp.second.colors->l[tid_].cyan)
@@ -499,7 +499,7 @@ namespace spot
     }
 
     kripkecube<State, SuccIterator>& sys_; ///< \brief The system to check
-    twacube_ptr twa_;                      ///< \brief The propertu to check
+    twacube_ptr twa_;                      ///< \brief The property to check
     std::vector<todo_element> todo_blue_;  ///< \brief Blue Stack
     std::vector<todo_element> todo_red_;   ///< \ brief Red Stack
     unsigned transitions_ = 0;             ///< \brief Number of transitions
@@ -514,7 +514,7 @@ namespace spot
     std::atomic<bool>& stop_;              ///< \brief Stop-the-world boolean
     std::vector<product_state> Rp_;        ///< \brief Rp stack
     std::vector<product_state> Rp_acc_;    ///< \brief Rp acc stack
-    product_state cycle_start_;            ///< \brief Begining of a cycle
+    product_state cycle_start_;            ///< \brief Beginning of a cycle
     bool finisher_ = false;
   };
 }

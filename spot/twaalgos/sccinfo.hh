@@ -319,7 +319,7 @@ namespace spot
     /// \brief True if we know that the SCC has an accepting cycle
     ///
     /// Note that both is_accepting() and is_rejecting() may return
-    /// false if an SCC interesects a mix of Fin and Inf sets.
+    /// false if an SCC intersects a mix of Fin and Inf sets.
     /// Call determine_unknown_acceptance() to decide.
     bool is_accepting() const
     {
@@ -329,7 +329,7 @@ namespace spot
     /// \brief True if we know that all cycles in the SCC are rejecting
     ///
     /// Note that both is_accepting() and is_rejecting() may return
-    /// false if an SCC interesects a mix of Fin and Inf sets.
+    /// false if an SCC intersects a mix of Fin and Inf sets.
     /// Call determine_unknown_acceptance() to decide.
     bool is_rejecting() const
     {
@@ -509,7 +509,7 @@ namespace spot
     scc_info(const scc_and_mark_filter& filt, scc_info_options options);
     // we separate the two functions so that we can rename
     // scc_info(x,options) into scc_info_with_options(x,options) in Python.
-    // Otherwrise calling scc_info(aut,options) can be confused with
+    // Otherwise calling scc_info(aut,options) can be confused with
     // scc_info(aut,initial_state).
     scc_info(const scc_and_mark_filter& filt)
     : scc_info(filt, scc_info_options::ALL)

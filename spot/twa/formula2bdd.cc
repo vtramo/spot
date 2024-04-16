@@ -25,7 +25,7 @@ namespace spot
 {
   namespace
   {
-    // Convert a BDD which is known to be a conjonction into a formula.
+    // Convert a BDD which is known to be a conjunction into a formula.
     // If dual is true, dualize the result, i.e., negate literals, and
     // exchange ∧ and ∨.
     template<bool dual>

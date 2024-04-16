@@ -40,7 +40,7 @@ namespace spot
   ///
   /// operator() can be called on states with universal branching
   /// (that's actually the point), and can be called on state number
-  /// that designate groupes of destination states (in that case the
+  /// that designate groups of destination states (in that case the
   /// conjunction of all those states are taken).
   class SPOT_API outedge_combiner
   {

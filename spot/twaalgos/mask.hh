@@ -136,7 +136,7 @@ namespace spot
   /// </code>
   /// It can modify either the condition or the acceptance sets of
   /// the edges.  Set the condition to bddfalse to remove it.  Note that
-  /// all transtions will be processed.
+  /// all transitions will be processed.
   /// \param init The optional new initial state.
   template<typename Trans>
   void transform_copy(const const_twa_graph_ptr& old,
@@ -157,7 +157,7 @@ namespace spot
         acc_cond::mark_t acc = t.acc;
         trans(t.src, cond, acc, t.dst);
         // Having the same number of states should assure that state ids are
-        // equivilent in old and cpy.
+        // equivalent in old and cpy.
         SPOT_ASSERT(t.src < cpy->num_states() && t.dst < cpy->num_states());
         if (cond != bddfalse)
           cpy->new_edge(t.src, t.dst, cond, acc);

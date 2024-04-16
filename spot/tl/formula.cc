@@ -276,7 +276,7 @@ namespace spot
     // pointers we should remove.  We can do it in the same loop.
     //
     // It is simpler to construct a separate vector to do that, but that's
-    // only needed if we have nested multops or null poiners.
+    // only needed if we have nested multops or null pointers.
     if (std::find_if(v.begin(), v.end(),
                      [o](const fnode* f) { return f == nullptr || f->is(o); })
         != v.end())

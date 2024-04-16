@@ -137,7 +137,7 @@ namespace spot
         };
 
 
-      // When split we need to distiguish effectively new and old edges
+      // When split we need to distinguish effectively new and old edges
       if (split)
         {
           aut.get_graph().remove_dead_edges_();
@@ -381,12 +381,12 @@ namespace spot
         }
 
 
-      // Save the composed letters? With a special seperator like T/F?
+      // Save the composed letters? With a special separator like T/F?
       // Is swapping between formula <-> bdd expensive
       for (auto& e : aut.edges())
         translate(e.cond);
 
-      // Remove the new auxilliary variables from the aut
+      // Remove the new auxiliary variables from the aut
       bdd c_supp = new_var_supp;
       while (c_supp != bddtrue)
         {

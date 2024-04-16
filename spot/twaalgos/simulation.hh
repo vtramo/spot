@@ -51,7 +51,7 @@ namespace spot
   /// The resulting automaton has a named property "simulated-states",
   /// that is a vector mapping each state of the input to a state of
   /// the output. Note that some input states may be mapped to -1, as
-  /// a by-product of transition prunning.
+  /// a by-product of transition pruning.
   ///
   /// \param automaton the automaton to simulate.
   ///
@@ -153,7 +153,7 @@ namespace spot
   /// then reduce the automaton.
   ///
   /// There is no need to call scc_filter() before as it is always applied to
-  /// remove dead and unreacheable states.
+  /// remove dead and unreachable states.
   ///
   /// \param aut the automaton to simulate.
   /// \return a new automaton which is at worst a copy of the received
@@ -171,7 +171,7 @@ namespace spot
   /// way as reduce_direct_sim().
   ///
   /// There is no need to call scc_filter() before as it is always applied to
-  /// remove dead and unreacheable states.
+  /// remove dead and unreachable states.
   ///
   /// \param aut the automaton to simulate.
   /// \return a new automaton which is at worst a copy of the received
@@ -190,7 +190,7 @@ namespace spot
   /// transitions).
   ///
   /// There is no need to call scc_filter() before as it is always applied to
-  /// remove dead and unreacheable states.
+  /// remove dead and unreachable states.
   ///
   /// \param aut the automaton to simulate.
   /// \return a new automaton which is at worst a copy of the received

@@ -135,7 +135,7 @@ namespace spot
   /// This procedure combines many strategies in an attempt to produce
   /// the smallest possible parity automaton.  Some of the strategies
   /// include CAR (color acceptance record), IAR (index appearance
-  /// record), partial degenerazation, conversion from Rabin to Büchi
+  /// record), partial degeneralization, conversion from Rabin to Büchi
   /// when possible, etc.
   ///
   /// The \a options argument can be used to selectively disable some of the
@@ -152,7 +152,7 @@ namespace spot
   ///
   /// This implements a straightforward adaptation of the LAR (latest
   /// appearance record) to automata with transition-based marks.  We
-  /// call this adaptation the CAR (color apperance record), as it
+  /// call this adaptation the CAR (color appearance record), as it
   /// tracks colors (i.e., acceptance sets) instead of states.
   ///
   /// It is better to use to_parity() instead, as it will use better
@@ -186,7 +186,7 @@ namespace spot
 
   /// \ingroup twa_acc_transform
   /// \brief Turn a Rabin-like or Streett-like automaton into a parity automaton
-  /// based on the index appearence record (IAR)
+  /// based on the index appearance record (IAR)
   ///
   /// Returns nullptr if the input automaton is neither Rabin-like nor
   /// Streett-like, and calls spot::iar() otherwise.

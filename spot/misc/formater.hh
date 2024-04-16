@@ -124,7 +124,7 @@ namespace spot
     {
     }
 
-    /// \brief Scan the %-sequences occuring in \a fmt.
+    /// \brief Scan the %-sequences occurring in \a fmt.
     ///
     /// Set has['c'] for each %c in \a fmt.   \a has must
     /// be 256 wide.
