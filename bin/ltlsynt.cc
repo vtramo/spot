@@ -447,7 +447,7 @@ namespace
     std::vector<std::set<spot::formula>> sub_outs;
     if (opt_decompose_ltl)
     {
-      auto subs = split_independant_formulas(f, output_aps);
+      auto subs = split_independent_formulas(f, output_aps);
       if (gi->verbose_stream)
         {
           *gi->verbose_stream << "there are "

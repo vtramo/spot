@@ -222,10 +222,10 @@ namespace spot
   ///  propositions each.
   /// @{
   SPOT_API std::pair<std::vector<formula>, std::vector<std::set<formula>>>
-  split_independant_formulas(formula f, const std::vector<std::string>& outs);
+  split_independent_formulas(formula f, const std::vector<std::string>& outs);
 
   SPOT_API std::pair<std::vector<formula>, std::vector<std::set<formula>>>
-  split_independant_formulas(const std::string& f,
+  split_independent_formulas(const std::string& f,
                              const std::vector<std::string>& outs);
   /// @}
 

@@ -1847,7 +1847,7 @@ namespace // anonymous for subsformula
 namespace spot
 {
   std::pair<std::vector<formula>, std::vector<std::set<formula>>>
-  split_independant_formulas(formula f, const std::vector<std::string>& outs)
+  split_independent_formulas(formula f, const std::vector<std::string>& outs)
   {
     formula_2_inout_props form2props(outs);
     std::set<std::string> outs_set(outs.begin(), outs.end());
@@ -1905,10 +1905,10 @@ namespace spot
   }
 
   std::pair<std::vector<formula>, std::vector<std::set<formula>>>
-  split_independant_formulas(const std::string& f,
+  split_independent_formulas(const std::string& f,
                              const std::vector<std::string>& outs)
   {
-    return split_independant_formulas(parse_formula(f), outs);
+    return split_independent_formulas(parse_formula(f), outs);
   }
 
   bool

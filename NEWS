@@ -198,6 +198,9 @@ New in spot 2.11.6.dev  (not yet released)
   - Rename minimize_obligation_garanteed_to_work to
     minimize_obligation_guaranteed_to_work.
 
+  - Rename split_independant_formulas to
+    split_independent_formulas.
+
   Python:
 
   - The spot.automata() and spot.automaton() functions now accept a
