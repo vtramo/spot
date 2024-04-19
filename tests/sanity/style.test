@@ -226,7 +226,7 @@ for dir in "$TOP/spot" "$TOP/bin" "$TOP/tests"; do
       $GREP 'operator[^a-zA-Z0-9_(]*[	 ][^a-zA-Z0-9_(]*(' $tmp &&
         diag 'Write operatorXX(...) without spaces around XX.'
 
-      $GREP 'operator[^(]* (' $tmp &&
+      $GREP 'operator[^(s]* (' $tmp &&
         diag 'No space before ('
 
       $GREP '[	 ]default:[^:].*;' $tmp &&
