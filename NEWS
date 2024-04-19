@@ -28,7 +28,7 @@ New in spot 2.11.6.dev  (not yet released)
     an HOA file in which aliases are used to form a basis for the
     whole set of labels.  Those aliases are only used when more than
     one atomic proposition is used (otherwise, the atomic proposition
-    and its negation is already a basis).  This can help reducing the
+    and its negation is already a basis).  This can help reduce the
     size of large HOA files.
 
   - autfilt learned --separate-edges, to split the labels of
@@ -40,12 +40,12 @@ New in spot 2.11.6.dev  (not yet released)
     if those subformulas share atomic propositions.
 
   - ltlsynt's --ins and --outs options will iterpret any atomic
-    proposition surrounded by '/' as a regular expressions.
+    proposition surrounded by '/' as a regular expression.
     For intance with
 
       ltlsynt --ins='/^in/,/env/' --outs=/^out/,/control/' ...
 
-    any atomic proposition that start with 'in' or contains 'env'
+    any atomic proposition that starts with 'in' or contains 'env'
     will be considered as inputs, and those that start with 'out'
     or contain 'control' will be considered output.
 
@@ -129,7 +129,7 @@ New in spot 2.11.6.dev  (not yet released)
     36 seconds; it now produces an AIG circuit with 53 nodes in only
     0.1 second.
 
-  - spot::contains_forq() is a implementation of the paper "FORQ-Based
+  - spot::contains_forq() is an implementation of the paper "FORQ-Based
     Language Inclusion Formal Testing" (Doveri, Ganty, Mazzocchi;
     CAV'22) contributed by Jonah Romero.
 
@@ -176,7 +176,7 @@ New in spot 2.11.6.dev  (not yet released)
     this.
 
   - spot::remove_alternation() has a new argument to decide whether it
-    should raise an exception of return nullptr if it requires more
+    should raise an exception or return nullptr if it requires more
     acceptance sets than supported.
 
   - spot::dualize() learned a trick to be faster on states that have
@@ -184,22 +184,25 @@ New in spot 2.11.6.dev  (not yet released)
     automaton.  spot::remove_alternation(), spot::tgba_powerset(),
     simulation-based reductions, and spot::tgba_determinize() learned
     a similar trick, except it isn't applied at the state level but if
-    the entire automaton use few distinct labels.  These changes may
+    the entire automaton uses few distinct labels.  These changes may
     speed up the processing of automata with many atomic propositions
     but few distinct labels.  (Issue #566 and issue #568.)
 
-  - [Potential backward incompatibility] spot::dualize() does not call
-    cleanup_acceptance() anymore.  This change ensures that the dual
-    of a Büchi automaton will always be a co-Büchi automaton.
-    Previously cleanup_acceptance(), which remove unused colors from
-    the acceptance, was sometimes able to simplify co-Büchi to "t",
-    causing surprizes.
+  Backward incompatibilities:
 
-  - Rename minimize_obligation_garanteed_to_work to
-    minimize_obligation_guaranteed_to_work.
+  - spot::dualize() does not call cleanup_acceptance() anymore.  This
+    change ensures that the dual of a Büchi automaton will always be a
+    co-Büchi automaton.  Previously cleanup_acceptance(), which remove
+    unused colors from the acceptance, was sometimes able to simplify
+    co-Büchi to "t", causing surprizes.
 
-  - Rename split_independant_formulas to
-    split_independent_formulas.
+  - Function minimize_obligation_garanteed_to_work() was renamed to
+    minimize_obligation_guaranteed_to_work().  We believe this
+    function is only used by Spot currently.
+
+  - Function split_independant_formulas() was renamed to
+    split_independent_formulas().  We believe this function is only
+    used by Spot currently.
 
   Python:
 
@@ -217,7 +220,7 @@ New in spot 2.11.6.dev  (not yet released)
 
   - Recent version Jupyter Notebook and Jupyter Lab started to render
     SVG elements using <img...> tag to make it easier to copy/paste
-    those image.  This breaks several usages, including the
+    those images.  This breaks several usages, including the
     possibility to have informative tooltips on states and edges (used
     in Spot).  See the following issues for more details.
       https://github.com/jupyter/notebook/issues/7114
@@ -258,7 +261,7 @@ New in spot 2.11.6.dev  (not yet released)
 
   - Functions complement() and change_parity() could incorrectly read
     or write the unused edge #0.  In the case of complement(), writing
-    that edge was usually harmless.  However in some scenario,
+    that edge was usually harmless.  However, in some scenario,
     complement could need to stick a ⓪ acceptance mark on edge #0,
     then the acceptance condition could be simplified to "t", and
     finally change_parity could be confused to find such an accepting
