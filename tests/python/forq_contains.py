@@ -360,3 +360,28 @@ tc.assertFalse(spot.contains(tba2, tba))
 a = spot.translate("(p0 & p2) -> G!p1", "buchi")
 b = spot.translate("p0 -> G!p1", "buchi")
 do_symmetric_test(b, a)
+
+# issue #575
+aut1 = spot.automaton("""HOA: v1.1 States: 12 Start: 0 AP: 6 "p13"
+"p12" "p15" "p16" "p14" "p11" acc-name: Buchi Acceptance: 1 Inf(0)
+properties: trans-labels explicit-labels trans-acc !complete
+properties: !deterministic exist-branch --BODY-- State: 0 [!0&!1&!3 |
+!2 | !3&!4] 1 [!0&!1&3 | !2 | 3&!4] 2 [0&!3&4 | 1&!3&4 | !2] 3 [0&3&4
+| 1&3&4 | !2] 4 [0&!1&3&4 | !2] 6 State: 1 [t] 7 State: 2 [!0&!1&3&!5
+| !2 | 3&!4&!5] 2 {0} [0&3&4&!5 | 1&3&4&!5 | !2] 4 [0&!1&3&4&!5 | !2]
+6 State: 3 [t] 5 State: 4 [!2 | 3&!4&!5] 2 {0} [!2 | 3&4&!5] 4 State:
+5 [t] 9 State: 6 [!0&!1&3&!5 | !0&3&!4&!5 | !2] 2 {0} [!0&1&3&4&!5 |
+!2] 4 [0&!1&3&!5 | 0&3&!4&!5 | !2] 6 [0&1&3&4&!5 | !2] 10 State: 7 [t]
+11 State: 8 [t] 8 {0} State: 9 [t] 8 {0} State: 10 [!0&3&!4&!5 | !2] 2
+{0} [!0&3&4&!5 | !2] 4 [0&3&!4&!5 | !2] 6 [0&3&4&!5 | !2] 10 State: 11
+[t] 8 {0} --END--""")
+aut2 = spot.automaton("""HOA: v1 States: 5 Start: 0 AP: 6 "p13" "p12"
+"p15" "p16" "p14" "p11" acc-name: Buchi Acceptance: 1 Inf(0)
+properties: trans-labels explicit-labels trans-acc --BODY-- State: 0
+[!0&!1&2&3 | 2&3&!4] 1 [0&2&3&4 | 1&2&3&4] 2 [0&!1&2&3&4] 3 State: 1
+[!0&!1&2&3&!5 | 2&3&!4&!5] 1 {0} [0&2&3&4&!5 | 1&2&3&4&!5] 2
+[0&!1&2&3&4&!5] 3 State: 2 [2&3&!4&!5] 1 {0} [2&3&4&!5] 2 State: 3
+[!0&!1&2&3&!5 | !0&2&3&!4&!5] 1 {0} [!0&1&2&3&4&!5] 2 [0&!1&2&3&!5 |
+0&2&3&!4&!5] 3 [0&1&2&3&4&!5] 4 State: 4 [!0&2&3&!4&!5] 1 {0}
+[!0&2&3&4&!5] 2 [0&2&3&!4&!5] 3 [0&2&3&4&!5] 4 --END--""")
+do_symmetric_test(aut2, aut1)

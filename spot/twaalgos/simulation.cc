@@ -582,6 +582,8 @@ namespace spot
         unsigned srcst = 0;
 
         auto create_edges = [&](int srcid, bdd one, bdd dest) {
+          if (dest == bddfalse)
+            return;
           // Iterate over all possible destination classes.  We
           // use minato_isop here, because if the same valuation
           // of atomic properties can go to two different
