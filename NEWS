@@ -35,6 +35,10 @@ New in spot 2.11.6.dev  (not yet released)
     the automaton using a basis of disjoint labels.  See
     https://spot.lre.epita.fr/tut25.html for some motivation.
 
+  - autfilt learned --reduce-acceptance-set/--enlarge-acceptance-set
+    to heurisitcally remove/add to unnecessary acceptance marks in
+    Büchi automata.  (Issue #570)
+
   - ltlfilt has a new option --relabel-overlapping-bool=abc|pnn that
     will replace boolean subformulas by fresh atomic propositions even
     if those subformulas share atomic propositions.
@@ -141,6 +145,11 @@ New in spot 2.11.6.dev  (not yet released)
     applicable (inclusion between Büchi automata).
 
     The above also impacts autfilt --included-in option.
+
+  - spot::reduce_buchi_acceptance_set_here() and
+    spot::enlarge_buchi_acceptance_set_here() will heuristically
+    remove/add unnecessary acceptance marks in Büchi automata.
+    (Issue #570.)
 
   - Given a twa_word_ptr W and a twa_ptr A both sharing the same
     alphabet, one can now write W->intersects(A) or A->intersects(W)

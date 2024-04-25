@@ -102,6 +102,7 @@ enum {
   OPT_DUALIZE,
   OPT_DNF_ACC,
   OPT_EDGES,
+  OPT_ENLARGE_ACCEPTANCE_SET,
   OPT_EQUIVALENT_TO,
   OPT_EXCLUSIVE_AP,
   OPT_GENERALIZED_RABIN,
@@ -139,6 +140,7 @@ enum {
   OPT_PRODUCT_AND,
   OPT_PRODUCT_OR,
   OPT_RANDOMIZE,
+  OPT_REDUCE_ACCEPTANCE_SET,
   OPT_REJ_SCCS,
   OPT_REJECT_WORD,
   OPT_REM_AP,
@@ -278,6 +280,12 @@ static const argp_option options[] =
     { "nth", 'N', "RANGE", 0,
       "assuming input automata are numbered from 1, keep only those in RANGE",
       0 },
+    { "enlarge-acceptance-set", OPT_ENLARGE_ACCEPTANCE_SET, nullptr, 0,
+      "enlarge the number of accepting transitions (or states if -S) in a "
+      "Büchi automaton", 0 },
+    { "reduce-acceptance-set", OPT_REDUCE_ACCEPTANCE_SET, nullptr, 0,
+      "reduce the number of accepting transitions (or states if -S) in a "
+      "Büchi automaton", 0 },
     /**************************************************/
     RANGE_DOC_FULL,
     WORD_DOC,
@@ -705,6 +713,8 @@ static int opt_highlight_accepting_run = -1;
 static bool opt_highlight_languages = false;
 static bool opt_dca = false;
 static bool opt_streett_like = false;
+static bool opt_enlarge_acceptance_set = false;
+static bool opt_reduce_acceptance_set = false;
 
 static spot::twa_graph_ptr
 ensure_deterministic(const spot::twa_graph_ptr& aut, bool nonalt = false)
@@ -899,11 +909,11 @@ parse_opt(int key, char* arg, struct argp_state*)
       opt_dnf_acc = true;
       opt_cnf_acc = false;
       break;
-    case OPT_STREETT_LIKE:
-      opt_streett_like = true;
-      break;
     case OPT_EDGES:
       opt_edges = parse_range(arg, 0, std::numeric_limits<int>::max());
+      break;
+    case OPT_ENLARGE_ACCEPTANCE_SET:
+      opt_enlarge_acceptance_set = true;
       break;
     case OPT_EXCLUSIVE_AP:
       opt->excl_ap.add_group(arg);
@@ -1164,6 +1174,9 @@ parse_opt(int key, char* arg, struct argp_state*)
           randomize_st = true;
         }
       break;
+    case OPT_REDUCE_ACCEPTANCE_SET:
+      opt_reduce_acceptance_set = true;
+      break;
     case OPT_REJ_SCCS:
       opt_rej_sccs = parse_range(arg, 0, std::numeric_limits<int>::max());
       opt_art_sccs_set = true;
@@ -1214,6 +1227,9 @@ parse_opt(int key, char* arg, struct argp_state*)
       break;
     case OPT_STATES:
       opt_states = parse_range(arg, 0, std::numeric_limits<int>::max());
+      break;
+    case OPT_STREETT_LIKE:
+      opt_streett_like = true;
       break;
     case OPT_STRIPACC:
       opt_stripacc = true;
@@ -1669,6 +1685,11 @@ namespace
         aut = opt->excl_ap.constrain(aut, true);
       else if (opt_rem_unused_ap) // constrain(aut, true) already does that
         aut->remove_unused_ap();
+
+      if (opt_enlarge_acceptance_set)
+        spot::enlarge_buchi_acceptance_set_here(aut, sbacc);
+      if (opt_reduce_acceptance_set)
+        spot::reduce_buchi_acceptance_set_here(aut, sbacc);
 
       if (opt_split_edges)
         aut = spot::split_edges(aut);

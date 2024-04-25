@@ -70,4 +70,32 @@ namespace spot
   SPOT_API twa_graph_ptr
   simplify_acceptance(const_twa_graph_ptr aut);
   /// @}
+
+  /// \ingroup twa_acc_transform
+  /// \brief Reduce the acceptance set of a Büchi automaton
+  ///
+  /// Iterate over all accepting transitions, and remove them from the
+  /// acceptance set if this does not change the language.
+  ///
+  /// This modifies the automaton in place.
+  ///
+  /// If the input has state-based acceptance, it might lose it,
+  /// unless \a preserve_sbacc is set.
+  SPOT_API twa_graph_ptr
+  reduce_buchi_acceptance_set_here(twa_graph_ptr& aut,
+                                   bool preserve_sbacc = false);
+
+  /// \ingroup twa_acc_transform
+  /// \brief Enlarge the acceptance set of a Büchi automaton
+  ///
+  /// Iterate over all accepting transitions, and add them to the
+  /// acceptance set if this cannot change the language.
+  ///
+  /// This modifies the automaton in place.
+  ///
+  /// If the input has state-based acceptance, it might lose it,
+  /// unless \a preserve_sbacc is set.
+  SPOT_API twa_graph_ptr
+  enlarge_buchi_acceptance_set_here(twa_graph_ptr& aut,
+                                    bool preserve_sbacc = false);
 }

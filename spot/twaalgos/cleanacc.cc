@@ -18,6 +18,8 @@
 
 #include "config.h"
 #include <spot/twaalgos/cleanacc.hh>
+#include <spot/twaalgos/sccinfo.hh>
+#include <spot/twaalgos/genem.hh>
 
 namespace spot
 {
@@ -667,5 +669,136 @@ namespace spot
   twa_graph_ptr simplify_acceptance(const_twa_graph_ptr aut)
   {
     return simplify_acceptance_here(make_twa_graph(aut, twa::prop_set::all()));
+  }
+
+  twa_graph_ptr
+  reduce_buchi_acceptance_set_here(twa_graph_ptr& aut, bool preserve_sbacc)
+  {
+    if (!aut->acc().is_buchi())
+      throw std::invalid_argument
+        ("reduce_buchi_acceptance_set_here() expects a Büchi automaton");
+
+    if (!preserve_sbacc)
+      aut->prop_state_acc(trival::maybe());
+    aut->prop_weak(trival::maybe()); // issue #562
+
+    // For each accepting edge in the automaton, we will test if the
+    // acceptance mark can be removed.  To test this, we have to make
+    // sure that no accepting cycle depends exclusively on this mark.
+    // We do so by temporary changing the mark of the current edge to
+    // {1}, and then using the following acceptance condition to
+    // ensure that there is no cycle that pass through {1} when we
+    // ignore all other edges with {0}.
+    acc_cond testacc = acc_cond(2, (acc_cond::acc_code::fin({0}) &
+                                    acc_cond::acc_code::inf({1})));
+
+    acc_cond::mark_t one{1};
+    acc_cond::mark_t zero{0};
+    acc_cond::mark_t none{};
+    scc_info si(aut, scc_info_options::TRACK_STATES);
+
+    if (!preserve_sbacc || !aut->prop_state_acc())
+      // transition-based version
+      for (auto& e: aut->edges())
+        {
+          if (e.acc == none)      // nothing to remove
+            continue;
+          unsigned srcscc = si.scc_of(e.src);
+          if (srcscc != si.scc_of(e.dst)) // transient edge
+            {
+              e.acc = none;
+            }
+          else
+            {
+              e.acc = one;
+              if (generic_emptiness_check_for_scc(si, srcscc, testacc))
+                e.acc = none;
+              else
+                e.acc = zero;
+            }
+        }
+    else
+      // state-based version
+      for (unsigned s = 0, ns = aut->num_states(); s < ns; ++s)
+        {
+          acc_cond::mark_t acc = aut->state_acc_sets(s);
+          if (acc == none)      // nothing to remove
+            continue;
+          for (auto& e: aut->out(s))
+            e.acc = one;
+          if (generic_emptiness_check_for_scc(si, si.scc_of(s), testacc))
+            acc = none;
+          for (auto& e: aut->out(s))
+            e.acc = acc;
+        }
+    return aut;
+  }
+
+  twa_graph_ptr
+  enlarge_buchi_acceptance_set_here(twa_graph_ptr& aut, bool preserve_sbacc)
+  {
+    if (!aut->acc().is_buchi())
+      throw std::invalid_argument
+        ("enlarge_buchi_acceptance_set_here() expects a Büchi automaton");
+
+    if (!preserve_sbacc)
+      aut->prop_state_acc(trival::maybe());
+    aut->prop_weak(trival::maybe()); // issue #562
+
+    // For each edge not marked as accepting will test if an
+    // acceptance mark can be added.  To test this, we have to make
+    // sure that no rejecting cycle goes through this edge.
+    // We do so my temporary changing the mark of the current edge to
+    // {1}, and then using the following acceptance condition to
+    // ensure that there is no accepting cycle that pass through {1}
+    // when we ignore all other edges with {0}.
+    acc_cond testacc =
+      acc_cond(2, acc_cond::acc_code::fin({0}) & acc_cond::acc_code::inf({1}));
+
+    acc_cond::mark_t one{1};
+    acc_cond::mark_t zero{0};
+    acc_cond::mark_t none{};
+    scc_info si(aut, scc_info_options::TRACK_STATES);
+
+    if (!preserve_sbacc || !aut->prop_state_acc())
+      // transition-based version
+      for (auto& e: aut->edges())
+        {
+          if (e.acc == zero)      // nothing to add
+            continue;
+          unsigned srcscc = si.scc_of(e.src);
+          if (si.is_rejecting_scc(srcscc)) // nothing to add
+            continue;
+          if (srcscc != si.scc_of(e.dst)) // transient edge
+            {
+              e.acc = zero;
+            }
+          else
+            {
+              e.acc = one;
+              if (generic_emptiness_check_for_scc(si, srcscc, testacc))
+                e.acc = zero;
+              else
+                e.acc = none;
+            }
+        }
+    else
+      // state-based version
+      for (unsigned s = 0, ns = aut->num_states(); s < ns; ++s)
+        {
+          acc_cond::mark_t acc = aut->state_acc_sets(s);
+          if (acc == zero)      // nothing to add
+            continue;
+          unsigned srcscc = si.scc_of(s);
+          if (si.is_rejecting_scc(srcscc)) // nothing to add
+            continue;
+          for (auto& e: aut->out(s))
+            e.acc = one;
+          if (generic_emptiness_check_for_scc(si, srcscc, testacc))
+            acc = zero;
+          for (auto& e: aut->out(s))
+            e.acc = acc;
+        }
+    return aut;
   }
 }
