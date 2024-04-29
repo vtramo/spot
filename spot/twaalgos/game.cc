@@ -1008,9 +1008,13 @@ namespace spot
                     e.dst = inter;
                     arena->new_edge(inter, src, bddtrue, e.acc);
                   }
-                else
+                else if (e.cond != bddfalse)
                   throw std::runtime_error("alternate_players(): "
                                             "Nontrivial selfloop");
+                // If the condition is false, it is a selfloop solely
+                // used to indicate that the state is accepting
+                // So there is nothing to do as it can not be
+                // actually taken
               }
             else if ((*owner)[e.dst] == osrc)
               {

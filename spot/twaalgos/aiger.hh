@@ -383,8 +383,19 @@ namespace spot
     /// \brief Transform the circuit onto an equivalent monitor
     /// \param keepsplit If as_automaton(true) is the same as
     ///                  split_2step(as_automaton(false), outputs)
+    /// \param termsig If termsig is not the empty string it will be
+    /// interpreted as a special terminating signal.
+    /// This is used in the context of LTLf synthesis.
+    /// The semantics is that once such a signal is sent, the sequence
+    /// is terminated, output generated from that point on must
+    /// be considered as undefined behaviour.
+    /// If termsig is given, the automaton will be a terminal
+    /// SBA (representing a deterministic transducer with finite
+    /// traces), termsig, as it is an artificial prop, will be removed
+    /// from the machine
     /// \note The complexity is exponential in the number of inputs!
-    twa_graph_ptr as_automaton(bool keepsplit = false) const;
+    twa_graph_ptr as_automaton(bool keepsplit = false,
+                               const std::string& termsig = "") const;
 
     /// \brief Gives access to the current state of the circuit.
     ///
@@ -422,6 +433,11 @@ namespace spot
     /// \param inputs : Vector of booleans with size num_inputs()
     void circ_step(const std::vector<bool>& inputs);
 
+    /// \brief Accessor to the used bdd_dict
+    const bdd_dict_ptr& get_dict() const
+    {
+      return dict_;
+    }
   };
 
   /// \ingroup synthesis

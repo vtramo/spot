@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from typing import List
 import spot, buddy
 from unittest import TestCase
 tc = TestCase()
@@ -3869,3 +3870,115 @@ c
 this is not a bug
 """).to_str()
 tc.assertEqual(x, spot.aiger_circuit(x).to_str())
+
+
+# Check aiger and mealy machines over finite traces
+
+# LTLf snythesis for 2cents
+ALIVE = "__alive__"
+SEQDONE = "__seqdone__"
+
+def ltlf2negnfa(f:str):
+    """
+    The given formula is the specification.
+    Here we want to create the nfa of its negation
+    """
+    # Extra alive prop
+    neg_ffin = spot.from_ltlf(spot.formula_Not(spot.formula(f)), ALIVE)
+    # Get the corresponding terminal SBA, can be non-det
+    neg_aut = spot.translate(neg_ffin, "sba")
+    # Transform it into an nfa (this removes alive)
+    neg_nfa = spot.to_finite(neg_aut, ALIVE)
+    return neg_nfa
+
+def ltlf2mms(f:str, outs:List[str]):
+    """
+    Construct the (finite trace) controller respecting f,
+    represented as a split mealy machine
+    """
+    ffin = spot.from_ltlf(f, ALIVE)
+    # Get the corresponding terminal SBA
+    aut = spot.translate(ffin, "deterministic", "sba")
+    # Transform it into an dfa (this removes alive)
+    dfa = spot.to_finite(aut, ALIVE)
+
+    # sd = sequence_done; True on the last letter
+    done = buddy.bdd_ithvar(dfa.register_ap(SEQDONE))
+    ndone = buddy.bdd_not(done)
+    sink = dfa.new_state()
+
+    # List all currently active edges
+    ee = [dfa.edge_number(e) for e in dfa.edges()]
+
+    for eidx in ee:
+        if (dfa.state_is_accepting(dfa.edge_storage(eidx).dst)):
+            e = dfa.edge_storage(eidx)
+            s = e.src
+            c = e.cond & done
+            dfa.new_edge(s, sink, c)
+
+        dfa.edge_storage(eidx).cond &= ndone
+
+    # Mark all as non-accepting
+    for e in dfa.edges():
+        e.acc = spot.mark_t([])
+
+    # Mark sink as accepting
+    dfa.new_edge(sink, sink, done, [0])
+
+    # Split it
+    outsbdd = buddy.bddtrue
+    for aout in outs:
+        outsbdd &= buddy.bdd_ithvar(dfa.register_ap(aout))
+    outsbdd &= buddy.bdd_ithvar(dfa.register_ap(SEQDONE))
+
+    dfas = spot.split_2step(dfa, outsbdd, True)
+
+    is_real = spot.solve_game(dfas)
+
+    if not is_real:
+        print(f)
+        raise RuntimeError("Game should be solvable")
+
+    # The corresponding mealy machine
+    mms = spot.solved_game_to_mealy(dfas)
+    return mms
+
+
+# Short testcases inspired from syntcomp
+tests = [
+("p28, p63, p69","p165, p156, p141","(((G ((p165) -> (X[!] (! (p165)))))"
+ "&& (G ((p156) -> (X[!] (! (p156)))))) && (G ((p141) "
+ "-> (X[!] (! (p141))))))"),
+("p1","","(G (p1)) -> X[!](1)"),
+("p1","p2","((G (p1)) -> (F (p2)))"),
+("p3, p1","p2","(((G (p1)) -> (F (p2))) || (F (p3)))"),
+("p3, p1","p4, p2","((((G (p1)) -> (F (p2))) && (F (p3))) -> (F (p4)))"),
+]
+
+for ins, outs, formula in tests:
+    # Preprocess ins and outs
+    ins = ins.split(", ")
+    outs = outs.split(", ")
+
+    # Get the nfa for neg spec
+    neg_spec_nfa = ltlf2negnfa(formula)
+    # Get the mealy machine
+    ctrl_mm = ltlf2mms(formula, outs)
+
+    # Try different encoding
+    for mode in ["ite", "isop", "both+dc"]:
+        aig = spot.mealy_machine_to_aig(ctrl_mm, mode)
+        ctrl_term_us = aig.as_automaton(False, SEQDONE)
+
+        # Model check
+        prod = spot.product(neg_spec_nfa, ctrl_term_us)
+        allok = True
+        accset = prod.acc().all_sets()
+        for s in range(prod.num_states()):
+            if prod.state_acc_sets(s) == accset:
+                allok = False
+                break
+        tc.assertTrue(allok)
+
+

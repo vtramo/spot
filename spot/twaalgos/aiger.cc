@@ -1245,17 +1245,31 @@ namespace spot
     return res_ptr;
   }
 
-  twa_graph_ptr aig::as_automaton(bool keepsplit) const
+  twa_graph_ptr aig::as_automaton(bool keepsplit,
+                                  const std::string& termsig) const
   {
     auto aut = make_twa_graph(dict_);
 
     assert(num_latches_ < sizeof(unsigned)*CHAR_BIT);
 
-    const unsigned n_max_states = 1 << num_latches_;
+    bool is_term = !termsig.empty();
+
+    if (is_term)
+      {
+        aut->set_buchi();
+        aut->prop_state_acc(true);
+      }
+
+    // We have terminating behaviour we might need to
+    // duplicate some states into halting and non-halting ones
+    const unsigned n_max_states = 1 << (num_latches_ + is_term);
     aut->new_states(n_max_states);
+
+    const unsigned term_bit = is_term ? (n_max_states >> 1) : 0u;
 
     auto s2bdd = [&](unsigned s)
       {
+        assert(!(s & term_bit) && "No need to explore terminal states");
         bdd b = bddtrue;
         for (unsigned j = 0; j < num_latches_; ++j)
           {
@@ -1274,6 +1288,18 @@ namespace spot
     // Also register the ins
     for (auto& ai : input_names_)
       aut->register_ap(ai);
+    // For terminating semantics
+    bdd termbdd = bddfalse;
+    if (is_term)
+      {
+        auto it = std::find(output_names_.cbegin(), output_names_.cend(),
+                            termsig);
+        if (it == output_names_.cend())
+          throw std::runtime_error("aig::as_automaton(): termsig \""
+                                   + termsig
+                                   + "\" not found in output variables!");
+        termbdd = outbddvec[std::distance(output_names_.cbegin(), it)];
+      }
 
     // Set the named prop
     set_synthesis_outputs(aut,
@@ -1294,7 +1320,7 @@ namespace spot
             if ((outcondbddvec[i] & sbdd & insbdd) != bddfalse)
               out &= outbddvec[i];
             else
-              out -= outbddvec[i];
+              out &= bdd_not(outbddvec[i]);
           }
         return out;
       };
@@ -1305,6 +1331,7 @@ namespace spot
     for (unsigned i = 0; i < num_latches_; ++i)
       nxtlbddvec[i] = aigvar2bdd(next_latches_[i]);
 
+    // Terminating will be accounted for at the end
     auto get_dst = [&](const bdd& sbdd, const bdd& insbdd)
       {
         // the first latch corresponds to the most significant digit
@@ -1335,21 +1362,26 @@ namespace spot
     std::vector<bool> seen(n_max_states, false);
     seen[0] = true;
 
-    std::unordered_map<unsigned long long, unsigned> splayer_map;
-    //dst + cond -> state
-    auto get_id = [](const bdd& ocond, unsigned dst)
+    auto phash = [](const auto& p) noexcept
       {
-        constexpr unsigned shift = (sizeof(size_t) / 2) * 8;
-        size_t u = dst;
-        u <<= shift;
-        u += (unsigned) ocond.id();
-        return u;
+        return wang32_hash(bdd_hash()(p.first) ^
+                           static_cast<size_t>(p.second));
       };
+    // outcond x dst env state -> src ply state
+    std::unordered_map<std::pair<bdd, unsigned>,
+                       unsigned, decltype(phash)> splayer_map(10, phash);
+
+    // For current source state:
+    // dst state -> edge idx to it
+    std::unordered_map<unsigned, unsigned> s_dst_map;
 
     while (!todo.empty())
       {
         unsigned s = todo.front();
         todo.pop_front();
+
+        // Destination are state by state
+        s_dst_map.clear();
 
         // bdd of source state
         bdd srcbdd = s2bdd(s);
@@ -1364,23 +1396,48 @@ namespace spot
             unsigned sprime = get_dst(srcbdd, inbdd);
             // Get the associated cout cond
             bdd outbdd = get_out(srcbdd, inbdd);
+            // Adjust for terminating
+            if (is_term && bdd_have_common_assignment(outbdd, termbdd))
+              {
+                sprime |= term_bit;
+                if (!seen[sprime | term_bit])
+                  {
+                    // Also, since it is terminating
+                    // We do not need to continue
+                    seen[sprime] = true;
+                    // But we need to mark it as terminal
+                    aut->new_edge(sprime, sprime, termbdd, {0});
+                  }
+              }
 
             if (keepsplit)
               {
-                auto id = get_id(outbdd, sprime);
-                auto it = splayer_map.find(id);
-                if (it == splayer_map.end())
+                auto id = std::make_pair(outbdd, sprime);
+                // Check if this player state already exists
+                auto [it_s, ins_s] = splayer_map.try_emplace(id, -1u);
+                if (ins_s)
                   {
+                    // Create a new player state
                     unsigned ntarg = aut->new_state();
-                    splayer_map[id] = ntarg;
-                    aut->new_edge(s, ntarg, inbdd);
+                    it_s->second = ntarg;
                     aut->new_edge(ntarg, sprime, outbdd);
                   }
-                else
-                  aut->new_edge(s, it->second, inbdd);
+                // Check if we already have an edge to it
+                auto [it_e, ins_e] = s_dst_map.try_emplace(it_s->second, 0);
+                if (ins_e)
+                  // We need to create a new edge
+                  it_e->second = aut->new_edge(s, it_s->second, bddfalse);
+                // Add the current in
+                aut->edge_storage(it_e->second).cond |= inbdd;
               }
             else
-              aut->new_edge(s, sprime, inbdd & outbdd);
+              {
+                auto [it, ins] = s_dst_map.try_emplace(sprime, 0);
+                if (ins)
+                  it->second = aut->new_edge(s, sprime, bddfalse);
+                aut->edge_storage(it->second).cond |= inbdd & outbdd;
+              }
+
             if (!seen[sprime])
               {
                 seen[sprime] = true;
@@ -1390,9 +1447,28 @@ namespace spot
       }
     aut->purge_unreachable_states();
     aut->merge_edges();
+    // Fix accepting self-loops
+    // and remove the "artificial" sequence done
+    // property
+    if (is_term)
+      {
+        for (auto& e : aut->edges())
+          {
+            if ((e.src == e.dst)
+                && (e.cond == termbdd)
+                && (e.acc == acc_cond::mark_t({0})))
+                e.cond = bddfalse;
+            else
+              e.cond = bdd_exist(e.cond, termbdd);
+          }
+        // Also remove from output
+        set_synthesis_outputs(aut,
+          bdd_exist(get_synthesis_outputs(aut), termbdd));
+      }
     if (keepsplit)
       // Mealy machines by definition start with env trans
       alternate_players(aut, false, false);
+
     return aut;
   }
 
