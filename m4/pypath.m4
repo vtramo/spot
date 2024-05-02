@@ -6,8 +6,8 @@ AC_DEFUN([adl_CHECK_PYTHON],
   esac
   AC_CACHE_CHECK([for $am_display_PYTHON includes directory],
     [adl_cv_python_inc],
-    [adl_cv_python_inc=`$PYTHON -c "import sys; from distutils import sysconfig;]
-[sys.stdout.write(sysconfig.get_python_inc())" 2>/dev/null`])
+    [adl_cv_python_inc=`$PYTHON -c "import sys, sysconfig;]
+[sys.stdout.write(sysconfig.get_path('include'))" 2>/dev/null`])
   AC_CACHE_CHECK([for $am_display_PYTHON extension suffix],
     [adl_cv_python_ext],
     [adl_cv_python_ext=`$PYTHON -c "import importlib.machinery as i; print(i.EXTENSION_SUFFIXES[[0]])"`])

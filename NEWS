@@ -317,6 +317,9 @@ New in spot 2.11.6.dev  (not yet released)
     by "a[->]".  The latter should only replace "(!a)[*];a".
     (Issue #559.)
 
+  - The configure script failed to detect the include path for Python 3.12.
+    (Issue #577.)
+
 New in spot 2.11.6  (2023-08-01)
 
   Bug fixes:
