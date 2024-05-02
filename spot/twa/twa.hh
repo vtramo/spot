@@ -738,6 +738,46 @@ namespace spot
     }
     ///@}
 
+    /// \brief Register a set of atomic propositions as contiguous block.
+    ///
+    /// Registers all the propositions in a contiguous block with the dict.
+    /// So we have
+    /// auto fv = std::vector<std::string>{"a", "b"};
+    /// int v = register_aps_as_block(fv, me)
+    /// v+1 == register_proposition("b"", me)
+    /// holds
+    /// \pre None of the propositions in \a fv may already be registered
+    /// \note Calling register_ap on aps present in \a fv
+    /// causes no problems.
+    /// \return The variable number of the first bdd.
+    ///   Use bdd_ithvar() or bdd_nithvar()
+    ///   to convert this to a BDD.
+    /// @{
+    int register_aps_as_block(const std::vector<std::string>& fv)
+    {
+      auto fvap = std::vector<formula>();
+      fvap.reserve(fv.size());
+      for (const auto& s : fv)
+        fvap.emplace_back(formula::ap(s));
+      return register_aps_as_block(fvap);
+    }
+    int register_aps_as_block(const std::vector<formula>& fv)
+    {
+      // If any of the aps exist, this will throw
+      int num = dict_->register_propositions_as_block(fv, this);
+      // We have a successful allocation
+      // Add them
+      const unsigned naps = fv.size();
+      aps_.reserve((aps_.size()+naps));
+      for (unsigned idx = 0; idx < naps; ++idx)
+        {
+          bddaps_ &= bdd_ithvar((num + idx));
+          aps_.emplace_back(fv[idx]);
+        }
+      return num;
+    }
+    /// @}
+
     /// \brief Unregister an atomic proposition.
     ///
     /// \param num the BDD variable number returned by register_ap().

@@ -17,6 +17,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "config.h"
+#include <algorithm>
 #include <ostream>
 #include <cassert>
 #include <spot/tl/print.hh>
@@ -102,6 +103,16 @@ namespace spot
     delete priv_;
   }
 
+  void
+  bdd_dict::register_me_(int num, const formula& p)
+  {
+    assert(var_map.find(p) == var_map.end());
+
+    var_map[p] = num;
+    bdd_map.resize(bdd_varnum());
+    bdd_map[num].type = var;
+    bdd_map[num].f = p;
+  }
   int
   bdd_dict::register_proposition(formula f, const void* for_me)
   {
@@ -115,14 +126,50 @@ namespace spot
     else
       {
         num = priv_->allocate_variables(1);
-        var_map[f] = num;
-        bdd_map.resize(bdd_varnum());
-        bdd_map[num].type = var;
-        bdd_map[num].f = f;
+        register_me_(num, f);
       }
     bdd_map[num].refs.insert(for_me);
     return num;
   }
+
+  int
+  bdd_dict::register_propositions_as_block(const std::vector<formula>& fv,
+                                           const void* for_me)
+  {
+    if (!for_me)
+      throw std::invalid_argument("register_propositions_as_block(): "
+                                  "for_me can not be null.");
+    if (fv.empty())
+      throw std::invalid_argument("register_propositions_as_block(): "
+                                  "fv can not be empty, nothing to register!");
+    {
+    auto fvmap = std::set<formula>(fv.cbegin(), fv.cend());
+    if (fvmap.size() < fv.size())
+      throw std::invalid_argument("register_propositions_as_block(): "
+                                  "fv contains duplicates!");
+    }
+
+    // Check that the formulas have not been registered
+    if (std::any_of(fv.cbegin(), fv.cend(),
+                    [&vm = this->var_map](const formula& f)->bool
+                    {return vm.count(f); }))
+      throw std::invalid_argument("register_propositions_as_block(): "
+                                  "fv contains formula already registered!");
+
+    const int N = fv.size();
+    int num = priv_->allocate_variables(N);
+    bdd_map.resize(bdd_varnum());
+    int numi = num;
+    for (auto it = fv.cbegin(); it != fv.cend();
+         ++it, ++numi)
+    {
+      register_me_(numi, *it);
+      assert((int)bdd_map.size() > numi);
+      bdd_map[numi].refs.insert(for_me);
+    }
+    return num;
+  }
+
 
   int
   bdd_dict::has_registered_proposition(formula f,

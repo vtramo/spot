@@ -29,6 +29,27 @@
 
 namespace spot
 {
+  namespace internal
+  {
+    /// \brief Transform a base name and an index into a propoer name
+    /// \param base The prefix
+    /// \param idx The index
+    /// \return The constructed name
+    inline std::string base2str(const std::string& base, int idx)
+    {
+      return base + '_' + std::to_string(idx) + 'b';
+    }
+
+    /// \brief Transform a base name and an index into an AP
+    /// \param base The prefix
+    /// \param idx The index
+    /// \return The corresponding AP
+    inline formula base2ap(const std::string& base, int idx)
+    {
+      return formula::ap(base2str(base, idx));
+    }
+  }
+
   /// \brief Private data for bdd_dict.
   class bdd_dict_priv;
 
@@ -51,6 +72,9 @@ namespace spot
   class SPOT_API bdd_dict
   {
     bdd_dict_priv* priv_;
+
+    /// \brief Helper to associate a variable to a proposition
+    void register_me_(int num, const formula& p);
   public:
 
     bdd_dict();
@@ -100,6 +124,32 @@ namespace spot
     int register_proposition(formula f, std::shared_ptr<T> for_me)
     {
       return register_proposition(f, for_me.get());
+    }
+    /// @}
+
+    /// \brief Register a set of atomic proposition as contiguous block.
+    ///
+    /// Registers all the propositions in a contiguous block with the dict.
+    /// So we have
+    /// auto fv = std::vector{fa, fb};
+    /// int v = register_propositions_as_block(fv, me)
+    /// v+1 == register_proposition(fb, me)
+    /// holds
+    /// \pre None of the formula in \a fv may already present in the dict.
+    /// \note Calling register_proposition on formulae present in \a fv
+    /// causes no problems.
+    /// \return The variable number of the first bdd.
+    ///   Use bdd_ithvar() or bdd_nithvar()
+    ///   to convert this to a BDD.
+    /// @{
+    int register_propositions_as_block(const std::vector<formula>& fv,
+                                       const void* for_me);
+
+    template <typename T>
+    int register_propositions_as_block(const std::vector<formula>& fv,
+                                       const std::shared_ptr<T>& for_me)
+    {
+      return register_n_propositions(fv, for_me.get());
     }
     /// @}
 
@@ -208,6 +258,26 @@ namespace spot
     void unregister_variable(int var, std::shared_ptr<T> me)
     {
       unregister_variable(var, me.get());
+    }
+    /// @}
+
+
+    /// \brief Release \a n consecutive variables starting from
+    /// \a var used by \a me.
+    /// \note This can be used to release blocks obtained
+    /// by register_n_propostions. Releasing partial blocks
+    /// is strongly discouraged
+    /// @{
+    void unregister_n_variables(int var, int n, const void* me)
+    {
+      for (int var2 = var; var2 < var + n; ++var2)
+        unregister_variable(var2, me);
+    }
+
+    template <typename T>
+    void unregister_n_variables(int var, int n, std::shared_ptr<T> me)
+    {
+      unregister_n_variables(var, n, me.get());
     }
     /// @}
 

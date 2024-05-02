@@ -78,6 +78,11 @@ New in spot 2.11.6.dev  (not yet released)
 
   Library:
 
+  - bdd_dict can now register a set of propositions as a block of
+    contiguous bdd variables, this also holds for twa.
+    The functions register_aps_as_block and register_propositions_as_block
+    have been added to twa and bdd_dict.
+
   - The member function as_automaton of the aiger class now
     supports terminating semantics and was internally improved.
 

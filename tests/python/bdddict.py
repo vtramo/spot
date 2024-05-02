@@ -23,6 +23,9 @@
 # when we expect them to be.   However other implementations like
 # PyPy may call destructors latter, causing different output.
 from platform import python_implementation
+
+import buddy
+
 if python_implementation() == 'CPython':
     def gcollect():
         pass
@@ -141,3 +144,100 @@ bdict.unregister_variable(bdict.varnum("a"), h2)
 debug("-b,-a")
 gcollect()
 check_nok()
+
+# Test allocation of a variable block
+def test_ok():
+    N = 10
+    aut = spot.make_twa_graph()
+
+    # Check that registering empty vector fails
+    try:
+        dummy = aut.register_aps_as_block([])
+    except ValueError as e:
+        tc.assertIn("fv can not be empty", str(e))
+        tc.assertEqual(len(aut.ap()), 0)
+    else:
+        raise RuntimeError("missing exception")
+
+    tc.assertEqual(len(aut.ap()), 0)
+
+    aps = [f"ap_{i}" for i in range(N)]
+
+    # Check that registering duplicates fails
+    try:
+        dummy = aut.register_aps_as_block(aps + [aps[-1]])
+    except ValueError as e:
+        tc.assertIn("fv contains duplicates", str(e))
+        tc.assertEqual(len(aut.ap()), 0)
+
+    else:
+        raise RuntimeError("missing exception")
+
+    ap0 = aut.register_aps_as_block(aps)
+    tc.assertEqual(len(aut.ap()), N)
+    tc.assertEqual(buddy.bdd_nodecount(aut.ap_vars()), N)
+
+    # Check that all of them exist
+    # and have the correct number
+    for ii, ap in enumerate(aps):
+        tc.assertEqual(aut.register_ap(ap), ii+ap0)
+
+    # Check BDD block
+    apsbdd = aut.ap_vars()
+    apX = ap0
+    while (apsbdd != buddy.bddtrue):
+        var = buddy.bdd_var(apsbdd)
+        tc.assertEqual(apX, var)
+        apX += 1
+        apsbdd = buddy.bdd_high(apsbdd)
+
+    # The failed operation has no influence on aps and ap_vars
+    try:
+        dummy = aut.register_aps_as_block(aps[2:-2])
+    except ValueError as e:
+        tc.assertIn("fv contains formula", str(e))
+    else:
+        raise RuntimeError("missing exception")
+
+    tc.assertEqual(len(aut.ap()), N)
+    tc.assertEqual(buddy.bdd_nodecount(aut.ap_vars()), N)
+    # Release them
+    for i in range(ap0, ap0+N):
+        aut.unregister_ap(i)
+    tc.assertEqual(len(aut.ap()), 0)
+    tc.assertEqual(buddy.bdd_nodecount(aut.ap_vars()), 0)
+    return
+
+test_ok()
+gcollect()
+
+def test_nok():
+    N = 10
+    aut = spot.make_twa_graph()
+
+    aps = [f"ap_{i}" for i in range(N)]
+
+    ap = aut.register_ap(aps[2])
+    try:
+        ap0 = aut.register_aps_as_block(aps)
+    except ValueError as e:
+        tc.assertIn("fv contains formula", str(e))
+    else:
+        raise RuntimeError("missing exception")
+
+    # The failed operation has no influence on aps and ap_vars
+    tc.assertEqual(len(aut.ap()), 1)
+    tc.assertEqual(buddy.bdd_nodecount(aut.ap_vars()), 1)
+    # Release tit
+    aut.unregister_ap(ap)
+    tc.assertEqual(len(aut.ap()), 0)
+    tc.assertEqual(buddy.bdd_nodecount(aut.ap_vars()), 0)
+    return
+
+test_nok()
+gcollect()
+
+
+
+
+
