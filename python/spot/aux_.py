@@ -51,7 +51,7 @@ def extend(*classes):
 # parameter is inverted.  https://gitlab.com/graphviz/graphviz/issues/1605
 # In our case, the scale parameters should both be <= 1, so we can
 # detect when that is not the case.
-svgscale_regex = re.compile('transform="scale\(([\d.]+) ([\d.]+)\) rotate')
+svgscale_regex = re.compile(r'transform="scale\(([\d.]+) ([\d.]+)\) rotate')
 
 def _gvfix(matchobj):
         xs = float(matchobj.group(1))

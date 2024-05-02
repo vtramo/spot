@@ -29,10 +29,10 @@ import subprocess
 with open('Makefile.am', 'r') as mf:
     lines = mf.read()
 
-lines = re.sub('\s*\\\\\s*', ' ', lines)
-bin_programs = re.search('bin_PROGRAMS\s*=([\w \t]*)', lines).group(1).split()
+lines = re.sub(r'\s*\\\s*', ' ', lines)
+bin_programs = re.search(r'bin_PROGRAMS\s*=([\w \t]*)', lines).group(1).split()
 
-optre = re.compile('(-\w), (--[\w=-]+)')
+optre = re.compile(r'(-\w), (--[\w=-]+)')
 
 d = {}
 

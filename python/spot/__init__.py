@@ -344,8 +344,8 @@ class formula:
             return str_sclatex_psl(self, parenth)
         elif format == 'mathjax' or format == 'j':
             return (str_sclatex_psl(self, parenth).
-                    replace("``", "\\unicode{x201C}").
-                    replace("\\textrm{''}", "\\unicode{x201D}"))
+                    replace("``", r"\unicode{x201C}").
+                    replace(r"\textrm{''}", r"\unicode{x201D}"))
         elif format == 'dot' or format == 'd':
             ostr = ostringstream()
             print_dot_psl(ostr, self)
@@ -466,16 +466,16 @@ class formula:
 @_extend(atomic_prop_set)
 class atomic_prop_set:
     def _repr_latex_(self):
-        res = '$\{'
+        res = r'$\{'
         comma = ''
         for ap in self:
             apname = ap.to_str('j')
-            if not '\\unicode{' in apname:
-                apname = "\\unicode{x201C}" + apname + "\\unicode{x201D}"
+            if not r'\unicode{' in apname:
+                apname = r"\unicode{x201C}" + apname + r"\unicode{x201D}"
             res += comma
             comma = ', '
             res += apname
-        res += '\}$'
+        res += r'\}$'
         return res
 
 
@@ -1445,12 +1445,12 @@ class twa_word:
             res += bdd_to_formula(letter, bd).to_str('j')
         if len(res) > 1:
             res += '; '
-        res += '\\mathsf{cycle}\\{'
+        res += r'\mathsf{cycle}\{'
         for idx, letter in enumerate(self.cycle):
             if idx:
                 res += '; '
             res += bdd_to_formula(letter, bd).to_str('j')
-        return res + '\\}$'
+        return res + r'\}$'
 
     def as_svg(self):
         """

@@ -74,7 +74,7 @@ def load(filename):
       p = subprocess.run(['spins', filename], stdout=subprocess.PIPE,
                          stderr=subprocess.STDOUT,
                          universal_newlines=True)
-      if p.stdout: print(re.sub('^\s*\[\.*\s*\]\n', '', p.stdout,
+      if p.stdout: print(re.sub(r'^\s*\[\.*\s*\]\n', '', p.stdout,
                                 flags=re.MULTILINE), file=sys.stderr)
       if p.stderr: print(p.stderr, file=sys.stderr)
       p.check_returncode()

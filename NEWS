@@ -320,6 +320,9 @@ New in spot 2.11.6.dev  (not yet released)
   - The configure script failed to detect the include path for Python 3.12.
     (Issue #577.)
 
+  - Some incorrectly escaped strings in Python code were causing
+    warnings with Python 3.12.
+
 New in spot 2.11.6  (2023-08-01)
 
   Bug fixes:
