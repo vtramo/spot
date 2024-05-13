@@ -1163,6 +1163,7 @@ namespace spot
         //   - 1 <>-> Exp = Exp
         //   - [*0] <>-> Exp = 0
         //   - Exp <>-> 0 = 0
+        //   - [*] <>-> 1 = 1
         //   - boolExp <>-> Exp = boolExp & Exp
         if (first->is_tt())
           return second;
@@ -1172,7 +1173,7 @@ namespace spot
             second->destroy();
             return ff();
           }
-        if (second->is_ff())
+        if (second->is_ff() || (second->is_tt() && first == one_star()))
           {
             first->destroy();
             return second;
@@ -1185,6 +1186,7 @@ namespace spot
         //   - 1 []-> Exp = Exp
         //   - [*0] []-> Exp = 1
         //   - Exp []-> 1 = 1
+        //   - [*] []-> 0 = 0
         //   - boolExp []-> Exp = !boolExp | Exp
         if (first->is_tt())
           return second;
@@ -1194,7 +1196,7 @@ namespace spot
             second->destroy();
             return tt();
           }
-        if (second->is_tt())
+        if (second->is_tt() || (second->is_ff() && first == one_star()))
           {
             first->destroy();
             return second;

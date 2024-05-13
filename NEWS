@@ -89,6 +89,11 @@ New in spot 2.11.6.dev  (not yet released)
     - b:b[*i..j] = b[*max(i,1)..j]
     - b[*i..j]:b[*k..l] = b[*max(i,1)+max(k,1)-1, j+l-1]
 
+  - The following new trivial simplifications have been implemented
+    for PSL operators:
+    - {[*]}[]->0 = 0
+    - {[*]}<>->1 = 1
+
   - The HOA parser is a bit smarter when merging multiple initial
     states into a single initial state (Spot's automaton class
     supports only one): it now reuses the edges leaving initial states
