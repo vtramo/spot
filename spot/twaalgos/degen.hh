@@ -158,11 +158,14 @@ namespace spot
   ///
   /// The optional arguments \a allow_inf and \a allow_fin, can be set
   /// to false to disallow one type of match.
+  ///
+  /// If you need to disallow certain marks from being returned, pass
+  /// them in the \a forbid vector.
   SPOT_API acc_cond::mark_t
   is_partially_degeneralizable(const const_twa_graph_ptr& aut,
-                               bool allow_inf = true,
-                               bool allow_fin = true,
-                               std::vector<acc_cond::mark_t> forbid = {});
+                               bool allow_inf = true, bool allow_fin = true,
+                               const std::vector<acc_cond::mark_t>&
+                               forbid = {});
 
   /// \ingroup twa_algorithms
   /// \brief Propagate marks around the automaton

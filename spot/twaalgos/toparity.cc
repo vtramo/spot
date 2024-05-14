@@ -2198,17 +2198,17 @@ namespace spot
         return true;
       std::vector<acc_cond::rs_pair> pairs;
       if (deg->acc().is_rabin_like(pairs))
-      {
-        remove_duplicates(pairs);
-        if (pairs.size() < nb_col_orig)
-          return true;
-      }
+        {
+          remove_duplicates(pairs);
+          if (pairs.size() < nb_col_orig)
+            return true;
+        }
       if (deg->acc().is_streett_like(pairs))
-      {
-        remove_duplicates(pairs);
-        if (pairs.size() < nb_col_orig)
-          return true;
-      }
+        {
+          remove_duplicates(pairs);
+          if (pairs.size() < nb_col_orig)
+            return true;
+        }
       return false;
     }
 
@@ -2223,118 +2223,118 @@ namespace spot
       max_color_scc_ = 0;
       // If the sub_automaton is "empty", we don't need to apply an algorithm.
       if (sub_aut->num_edges() == 0)
-      {
-        apply_copy(sub_aut, {}, none_algo);
-        return;
-      }
+        {
+          apply_copy(sub_aut, {}, none_algo);
+          return;
+        }
 
       bool tried_emptiness = false;
       bool changed_structure = true;
       while (true)
-      {
-        auto cond_before_simpl = sub_aut->acc();
-        if (opt_.acc_clean)
-          simplify_acceptance_here(sub_aut);
-        if (opt_.propagate_col)
         {
-          propagate_marks_here(sub_aut);
+          auto cond_before_simpl = sub_aut->acc();
           if (opt_.acc_clean)
             simplify_acceptance_here(sub_aut);
-        }
-        if (opt_.datas && sub_aut->acc() != cond_before_simpl)
-          algo_used_ |= algorithm::ACC_CLEAN;
-
-        if (opt_.parity_equiv || opt_.parity_prefix)
-        {
-          // If we don't try to find a parity prefix, we can stop
-          // to construct the tree when it has not parity shape.
-          zielonka_tree_options zopt = zielonka_tree_options::MERGE_SUBTREES
-                                    |  zielonka_tree_options::CHECK_PARITY;
-          if (!opt_.parity_prefix)
-            zopt = zopt | zielonka_tree_options::ABORT_WRONG_SHAPE;
-          auto tree = zielonka_tree(sub_aut->acc(), zopt);
-          // If it is not parity shape, tree.nodes_ will be empty
-          if (tree.num_branches() != 0 && opt_.parity_equiv
-                                   && try_parity_equivalence(tree, sub_aut))
-            return;
-          if (opt_.parity_prefix && try_parity_prefix(tree, sub_aut))
-            return;
-        }
-
-        if (changed_structure && opt_.parity_prefix_general
-                              && try_parity_prefix_general(sub_aut))
-          return;
-
-        if (opt_.generic_emptiness && !tried_emptiness
-                                   && try_emptiness(sub_aut, tried_emptiness))
-          return;
-
-        // Buchi_type_to_buchi is more general that Rabin_to_buchi so
-        // we just call rabin_to_buchi if buchi_type_to_buchi is false.
-        if (!opt_.buchi_type_to_buchi && !opt_.parity_type_to_parity
-                                      && opt_.rabin_to_buchi
-                                      && try_rabin_to_buchi(sub_aut))
-          return;
-
-        // As parity_type_to_parity is stronger, we don't
-        // try if this option is used.
-        if (opt_.buchi_type_to_buchi && !opt_.parity_type_to_parity
-                                     && try_buchi_type(sub_aut))
-          return;
-
-        // We don't do it if parity_prefix_general is true as on a parity-type
-        // automaton parity_prefix_general removes all the transitions and
-        // we also get a parity-type automaton.
-        if (!opt_.parity_prefix_general && opt_.parity_type_to_parity
-                                        && try_parity_type(sub_aut))
-          return;
-
-        if (opt_.partial_degen
-          && is_partially_degeneralizable(sub_aut, true, true))
-        {
-          auto deg = sub_aut;
-          std::vector<acc_cond::mark_t> forbid;
-          auto m = is_partially_degeneralizable(sub_aut, true, true, forbid);
-          bool changed = false;
-          while (m)
-          {
-            auto tmp = partial_degeneralize(deg, m);
-            simplify_acceptance_here(tmp);
-            if (keep_deg(deg, tmp))
+          if (opt_.propagate_col)
             {
-              algo_used_ |= algorithm::PARTIAL_DEGEN;
-              deg = tmp;
-              changed = true;
-              changed_structure = true;
+              propagate_marks_here(sub_aut);
+              if (opt_.acc_clean)
+                simplify_acceptance_here(sub_aut);
             }
-            else
-              forbid.emplace_back(m);
-            m = is_partially_degeneralizable(deg, true, true, forbid);
-          }
+          if (opt_.datas && sub_aut->acc() != cond_before_simpl)
+            algo_used_ |= algorithm::ACC_CLEAN;
 
-          if (changed)
-          {
-            sub_aut = deg;
-            continue;
-          }
+          if (opt_.parity_equiv || opt_.parity_prefix)
+            {
+              // If we don't try to find a parity prefix, we can stop
+              // to construct the tree when it has not parity shape.
+              zielonka_tree_options zopt =
+                zielonka_tree_options::MERGE_SUBTREES
+                | zielonka_tree_options::CHECK_PARITY;
+              if (!opt_.parity_prefix)
+                zopt = zopt | zielonka_tree_options::ABORT_WRONG_SHAPE;
+              auto tree = zielonka_tree(sub_aut->acc(), zopt);
+              // If it is not parity shape, tree.nodes_ will be empty
+              if (tree.num_branches() != 0 && opt_.parity_equiv
+                  && try_parity_equivalence(tree, sub_aut))
+                return;
+              if (opt_.parity_prefix && try_parity_prefix(tree, sub_aut))
+                return;
+            }
+
+          if (changed_structure && opt_.parity_prefix_general
+              && try_parity_prefix_general(sub_aut))
+            return;
+
+          if (opt_.generic_emptiness
+              && !tried_emptiness && try_emptiness(sub_aut, tried_emptiness))
+            return;
+
+          // Buchi_type_to_buchi is more general that Rabin_to_buchi so
+          // we just call rabin_to_buchi if buchi_type_to_buchi is false.
+          if (!opt_.buchi_type_to_buchi
+              && !opt_.parity_type_to_parity && opt_.rabin_to_buchi
+              && try_rabin_to_buchi(sub_aut))
+            return;
+
+          // As parity_type_to_parity is stronger, we don't
+          // try if this option is used.
+          if (opt_.buchi_type_to_buchi
+              && !opt_.parity_type_to_parity && try_buchi_type(sub_aut))
+            return;
+
+          // We don't do it if parity_prefix_general is true as on a parity-type
+          // automaton parity_prefix_general removes all the transitions and
+          // we also get a parity-type automaton.
+          if (!opt_.parity_prefix_general && opt_.parity_type_to_parity
+              && try_parity_type(sub_aut))
+            return;
+
+          if (opt_.partial_degen)
+            {
+              twa_graph_ptr deg = sub_aut;
+              std::vector<acc_cond::mark_t> forbid;
+              bool changed = false;
+              while (acc_cond::mark_t m =
+                     is_partially_degeneralizable(deg, true, true, forbid))
+                {
+                  twa_graph_ptr tmp = partial_degeneralize(deg, m);
+                  simplify_acceptance_here(tmp);
+                  if (keep_deg(deg, tmp))
+                    {
+                      algo_used_ |= algorithm::PARTIAL_DEGEN;
+                      deg = tmp;
+                      changed = true;
+                      changed_structure = true;
+                    }
+                  else
+                    {
+                      forbid.emplace_back(m);
+                    }
+                }
+              if (changed)
+                {
+                  sub_aut = deg;
+                  continue;
+                }
+            }
+          break;
         }
-        break;
-      }
       if (opt_.use_generalized_rabin)
-      {
-        auto gen_rab = to_generalized_rabin(sub_aut);
-        // to_generalized_rabin does not propagate original-states.
-        auto sub_aut_orig =
+        {
+          auto gen_rab = to_generalized_rabin(sub_aut);
+          // to_generalized_rabin does not propagate original-states.
+          auto sub_aut_orig =
             sub_aut->get_named_prop<std::vector<unsigned>>("original-states");
-        assert(sub_aut_orig);
-        auto orig = new std::vector<unsigned>();
-        const auto sub_aut_num_states = sub_aut->num_states();
-        orig->reserve(sub_aut_num_states);
-        gen_rab->set_named_prop("original-states", orig);
-        for (unsigned i = 0; i < sub_aut_num_states; ++i)
-          orig->push_back((*sub_aut_orig)[i]);
-        sub_aut = partial_degeneralize(gen_rab);
-      }
+          assert(sub_aut_orig);
+          auto orig = new std::vector<unsigned>();
+          const auto sub_aut_num_states = sub_aut->num_states();
+          orig->reserve(sub_aut_num_states);
+          gen_rab->set_named_prop("original-states", orig);
+          for (unsigned i = 0; i < sub_aut_num_states; ++i)
+            orig->push_back((*sub_aut_orig)[i]);
+          sub_aut = partial_degeneralize(gen_rab);
+        }
       std::vector<acc_cond::rs_pair> pairs;
       algorithm algo = choose_lar(sub_aut->acc(), pairs, sub_aut->num_edges());
       if (opt_.datas)

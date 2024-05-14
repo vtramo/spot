@@ -872,7 +872,7 @@ namespace spot
   acc_cond::mark_t
   is_partially_degeneralizable(const const_twa_graph_ptr& aut,
                                bool allow_inf, bool allow_fin,
-                               std::vector<acc_cond::mark_t> forbid)
+                               const std::vector<acc_cond::mark_t>& forbid)
   {
     auto& code = aut->get_acceptance();
 
@@ -881,16 +881,19 @@ namespace spot
 
     acc_cond::mark_t res = {};
     unsigned res_sz = -1U;
-    auto update = [&](const acc_cond::mark_t& m)
+
+    auto keep_smallest_mark = [&](const acc_cond::mark_t& m)
     {
+      if (std::find(forbid.begin(), forbid.end(), m) != forbid.end())
+        return false;
       unsigned sz = m.count();
       if (sz > 1 && sz < res_sz)
         {
           res_sz = sz;
           res = m;
         }
-      // If we have found a pair to degeneralize, we
-      // won't find
+      // If we have found a pair to degeneralize, we won't find a
+      // smaller one.
       return res_sz == 2;
     };
 
@@ -906,22 +909,14 @@ namespace spot
           case acc_cond::acc_op::Fin:
           case acc_cond::acc_op::FinNeg:
             pos -= 2;
-            if (allow_fin)
-            {
-              auto m = code[pos].mark;
-              if (!std::count(forbid.begin(), forbid.end(), m) && update(m))
-                return res;
-            }
+            if (allow_fin && keep_smallest_mark(code[pos].mark))
+              return res;
             break;
           case acc_cond::acc_op::Inf:
           case acc_cond::acc_op::InfNeg:
             pos -= 2;
-            if (allow_inf)
-            {
-              auto m = code[pos].mark;
-              if (!std::count(forbid.begin(), forbid.end(), m) && update(m))
-                return res;
-            }
+            if (allow_inf && keep_smallest_mark(code[pos].mark))
+              return res;
             break;
           }
       }
