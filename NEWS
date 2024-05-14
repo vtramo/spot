@@ -1,4 +1,4 @@
-New in spot 2.11.6.dev  (not yet released)
+New in spot 2.12  (2024-05-16)
 
   Build:
 
@@ -19,8 +19,8 @@ New in spot 2.11.6.dev  (not yet released)
     to produce the 0-based serial number of the produced object.  This
     differs from the existing '%L' that is usually related to the line
     number of the input (when that makes sense).  For instance to
-    split a file that contains many automata into several files, one
-    per automaton, do
+    split a file that contains many automata into one file per
+    automaton, do
 
         autfilt input.hoa -o output-%l.hoa
 
@@ -50,7 +50,7 @@ New in spot 2.11.6.dev  (not yet released)
       ltlsynt --ins='/^in/,/env/' --outs=/^out/,/control/' ...
 
     any atomic proposition that starts with 'in' or contains 'env'
-    will be considered as inputs, and those that start with 'out'
+    will be considered as input, and one that starts with 'out'
     or contain 'control' will be considered output.
 
     By default, if neither --ins nor --outs is given, ltlsynt will
@@ -149,7 +149,7 @@ New in spot 2.11.6.dev  (not yet released)
     spot::contains_forq() implementation will be used instead when
     applicable (inclusion between Büchi automata).
 
-    The above also impacts autfilt --included-in option.
+    The above also impacts autfilt's --included-in option.
 
   - spot::reduce_buchi_acceptance_set_here() and
     spot::enlarge_buchi_acceptance_set_here() will heuristically
@@ -170,7 +170,7 @@ New in spot 2.11.6.dev  (not yet released)
 
   - scc_filter used to reduce automata tagged with the inherently-weak
     property to weak Büchi automata (unless the acceptance was already
-    t or co-Büchi).  In case where the input automaton had no
+    t or co-Büchi).  In cases where the input automaton had no
     rejecting cycle, the Büchi acceptance was overkill: scc_filter
     will now use "t" acceptance.  This change may have unexpected
     consequences in code paths that assume running scc_filter on a
