@@ -35,7 +35,10 @@ namespace spot
     unsigned long long tr = 0;
     bdd v = g->ap_vars();
     for (auto& e: g->edges())
-      tr += bdd_satcountset(e.cond, v);
+      // We add 0.5 to work around rounding errors in the computation
+      // of bdd_satcountset(), as the conversion is done by
+      // truncation.  See issue #582.
+      tr += 0.5 + bdd_satcountset(e.cond, v);
     return tr;
   }
 
@@ -79,7 +82,10 @@ namespace spot
                    const twa_succ_iterator* it) override
       {
         ++s_.edges;
-        s_.transitions += bdd_satcountset(it->cond(), apvars_);
+        // We add 0.5 to work around rounding errors in the
+        // computation of bdd_satcountset(), as the conversion is done
+        // by truncation.  See issue #582.
+        s_.transitions += 0.5 + bdd_satcountset(it->cond(), apvars_);
       }
 
     private:
@@ -182,7 +188,10 @@ namespace spot
             [&s, &ge](bdd cond)
             {
               ++s.edges;
-              s.transitions += bdd_satcountset(cond, ge->ap_vars());
+              // We add 0.5 to work around rounding errors in the
+              // computation of bdd_satcountset(), as the conversion
+              // is done by truncation.  See issue #582.
+              s.transitions += 0.5 + bdd_satcountset(cond, ge->ap_vars());
             });
       }
     return s;

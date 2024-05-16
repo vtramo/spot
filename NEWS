@@ -325,6 +325,9 @@ New in spot 2.11.6.dev  (not yet released)
   - The configure script failed to detect the include path for Python 3.12.
     (Issue #577.)
 
+  - Work around many failures caused by incorrect rounding of floating
+    point values in the counting of transitions.  (Issue #582)
+
   - Some incorrectly escaped strings in Python code were causing
     warnings with Python 3.12.
 
