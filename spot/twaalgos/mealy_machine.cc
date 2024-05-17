@@ -800,6 +800,9 @@ namespace spot
   {
     ensure_mealy("reduce_mealy_here", mm);
 
+    if (mm->num_states() == 1)
+      return;
+
     // Only consider infinite runs
     mm->purge_dead_states();
 
