@@ -60,7 +60,7 @@ G(i1 <-> Xo1),lar,1,3
 F(i1 xor i2) <-> Fo1,lar,1,2
 i1 <-> F(o1 xor o2),lar,1,3
 Fi1 <-> Go2,lar,0,0
-o1 & F(i1 <-> o2),lar,1,2
+o1 & F(i1 <-> o2),lar,0,0
 EOF
 
 diff filtered.csv expected

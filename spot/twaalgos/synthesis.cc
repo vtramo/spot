@@ -1273,31 +1273,72 @@ namespace spot
       };
     formula_2_inout_props form2props(output_aps);
 
-    formula f_g, f_other;
-    // If it is G(α) ∧ G(β) ∧ …
-    if (f.is(op::And))
+    // The idea is that when there is an F, you can choose the moment.
+    // So we decide it takes place now.
+    // When there is an X, you can apply the formula to its content and then
+    // add a state at the end of the construction.
+    unsigned nb_x_f = 0;
+    unsigned nb_x_other = 0;
+    while (true)
     {
-      std::vector<formula> gs;
-      std::vector<formula> others;
-      for (auto child : f)
-        if (child.is(op::G) && child[0].is_boolean())
-          gs.push_back(child[0]);
-        else
-          others.push_back(child);
-
-      f_g = formula::And(gs);
-      f_other = formula::And(others);
+      op f_kind = f.kind();
+      if (f_kind == op::F)
+      {
+        f = f[0];
+        continue;
+      } else if (f_kind == op::X)
+      {
+        f = f[0];
+        ++nb_x_f;
+        continue;
+      }
+      break;
     }
-    else if (f.is(op::G) && f[0].is_boolean())
+
+    formula f_g, f_other;
+
+    if (f.is_boolean())
     {
-      f_g = f[0];
+      f_g = f;
       f_other = formula::tt();
     }
     else
     {
-      f_g = formula::tt();
-      f_other = f;
+      // If it is G(α) ∧ G(β) ∧ …
+      if (f.is(op::And))
+      {
+        std::vector<formula> gs;
+        std::vector<formula> others;
+        for (auto child : f)
+          if (child.is(op::G) && child[0].is_boolean())
+            gs.push_back(child[0]);
+          else
+            others.push_back(child);
+
+        f_g = formula::And(gs);
+        f_other = formula::And(others);
+      }
+      else if (f.is(op::G) && f[0].is_boolean())
+      {
+        f_g = f[0];
+        f_other = formula::tt();
+      }
+      else
+      {
+        f_g = formula::tt();
+        f_other = f;
+      }
+
+      // The same as before, but for f_other
+      while (f_other.kind() == op::X)
+      {
+        f_other = f_other[0];
+        ++nb_x_other;
+      }
     }
+
+    if (f_g.is_ff() || f_other.is_ff())
+      return ret_sol_none();
 
     // We have to check if the content of G is realizable (input-complete)
     bdd output_bdd_tmp = bddtrue;
@@ -1469,7 +1510,18 @@ namespace spot
       if (res->prop_terminal().is_false())
         res->prop_terminal(trival::maybe());
       res->set_named_prop<bdd>("synthesis-outputs", new bdd(output_bdd));
-
+      for (unsigned i = 0; i < nb_x_other; ++i)
+      {
+        unsigned st = res->new_state();
+        res->new_edge(st, res->get_init_state_number(), g_bdd);
+        res->set_init_state(st);
+      }
+      for (unsigned i = 0; i < nb_x_f; ++i)
+      {
+        unsigned st = res->new_state();
+        res->new_edge(st, res->get_init_state_number(), bddtrue);
+        res->set_init_state(st);
+      }
       return ret_sol_exists(res);
     }
     else if (f_other.is_tt())
@@ -1491,6 +1543,12 @@ namespace spot
       bdd g_bdd = formula_to_bdd(f_g, dict, res);
       res->new_state();
       res->new_edge(0, 0, g_bdd);
+      for (unsigned i = 0; i < nb_x_f; ++i)
+      {
+        unsigned st = res->new_state();
+        res->new_edge(st, res->get_init_state_number(), bddtrue);
+        res->set_init_state(st);
+      }
       return ret_sol_exists(res);
     }
     return ret_sol_maybe();

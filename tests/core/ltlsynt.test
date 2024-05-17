@@ -734,27 +734,13 @@ cat >exp <<EOF
 there are 2 subformulas
 working on subformula (b & (b | y)) -> y
 trying to create strategy directly for (b & (b | y)) -> y
-direct strategy might exist but was not found.
-translating formula done in X seconds
-automaton has 2 states and 0 colors
-LAR construction done in X seconds
-DPA has 2 states, 0 colors
-split inputs and outputs done in X seconds
-automaton has 4 states
-solving game with acceptance: all
-game solved in X seconds
+direct strategy was found.
+direct strat has 1 states, 1 edges and 0 colors
 simplification took X seconds
 working on subformula (a | x) -> x
 trying to create strategy directly for (a | x) -> x
-direct strategy might exist but was not found.
-translating formula done in X seconds
-automaton has 2 states and 0 colors
-LAR construction done in X seconds
-DPA has 2 states, 0 colors
-split inputs and outputs done in X seconds
-automaton has 4 states
-solving game with acceptance: all
-game solved in X seconds
+direct strategy was found.
+direct strat has 1 states, 1 edges and 0 colors
 simplification took X seconds
 AIG circuit was created in X seconds and has 0 latches and 0 gates
 EOF
@@ -854,39 +840,18 @@ cat >exp <<EOF
 there are 3 subformulas
 working on subformula a -> b
 trying to create strategy directly for a -> b
-direct strategy might exist but was not found.
-translating formula done in X seconds
-automaton has 2 states and 0 colors
-LAR construction done in X seconds
-DPA has 2 states, 0 colors
-split inputs and outputs done in X seconds
-automaton has 4 states
-solving game with acceptance: all
-game solved in X seconds
+direct strategy was found.
+direct strat has 1 states, 1 edges and 0 colors
 simplification took X seconds
 working on subformula a -> c
 trying to create strategy directly for a -> c
-direct strategy might exist but was not found.
-translating formula done in X seconds
-automaton has 2 states and 0 colors
-LAR construction done in X seconds
-DPA has 2 states, 0 colors
-split inputs and outputs done in X seconds
-automaton has 4 states
-solving game with acceptance: all
-game solved in X seconds
+direct strategy was found.
+direct strat has 1 states, 1 edges and 0 colors
 simplification took X seconds
 working on subformula a -> d
 trying to create strategy directly for a -> d
-direct strategy might exist but was not found.
-translating formula done in X seconds
-automaton has 2 states and 0 colors
-LAR construction done in X seconds
-DPA has 2 states, 0 colors
-split inputs and outputs done in X seconds
-automaton has 4 states
-solving game with acceptance: all
-game solved in X seconds
+direct strategy was found.
+direct strat has 1 states, 1 edges and 0 colors
 simplification took X seconds
 AIG circuit was created in X seconds and has 0 latches and 0 gates
 EOF
@@ -1298,5 +1263,31 @@ State: 0
 EOF
 f2='G(i1->(o1|!o2)) & G(!i1->(o3|!o4)) & G(i2->(!o1|o2)) & G(!i2->(!o3|o4))&Go5'
 ltlsynt -f "$f2" --polarity=before-decom --verbose 2>out 1>&2
+sed 's/ [0-9.e-]* seconds/ X seconds/g;s/ -> /->/g;' out > outx
+diff outx exp
+
+cat >exp <<EOF
+trying to create strategy directly for FXFGa
+direct strategy was found.
+direct strat has 2 states, 2 edges and 0 colors
+simplification took X seconds
+REALIZABLE
+HOA: v1
+States: 2
+Start: 1
+AP: 1 "a"
+acc-name: all
+Acceptance: 0 t
+properties: trans-labels explicit-labels state-acc deterministic weak
+controllable-AP: 0
+--BODY--
+State: 0
+[0] 0
+State: 1
+[t] 0
+--END--
+EOF
+ltlsynt -f "FXFGa" --outs="a" --verbose --polarity=no --decompose=no\
+  --simplify=0 2>out 1>&2
 sed 's/ [0-9.e-]* seconds/ X seconds/g;s/ -> /->/g;' out > outx
 diff outx exp
