@@ -1,10 +1,10 @@
 Name:           spot
 Version:        @VERSION@
 Release:        @GITPATCH@%{?dist}
-Summary:        Model checking and omega-automata manipulation library
+Summary:        C++17 library for LTL, omega-automata manipulation, model checking
 
 License:        GPLv3
-URL:            https://spot.lrde.epita.fr
+URL:            https://spot.lre.epita.fr
 
 Source0:        http://www.lrde.epita.fr/dload/spot/%{name}-%{version}.tar.gz
 
