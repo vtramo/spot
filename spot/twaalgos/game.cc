@@ -1360,6 +1360,150 @@ namespace spot
     return (*winners)[game->get_init_state_number()];
   }
 
+
+  namespace
+  {
+    template<class EDATA>
+    class pop_set
+    {
+    private:
+      struct entry
+      {
+        EDATA data;
+        unsigned prev;
+        unsigned next;
+        bool exists;
+      };
+
+      std::vector<entry> entries_;
+      unsigned head_;
+
+      struct entry_iterator {
+        const std::vector<entry>& entries_;
+        unsigned index_;
+
+        entry_iterator(const std::vector<entry>& entries, unsigned index)
+            : entries_{entries}
+            , index_{index}
+        {}
+
+        bool operator!=(const entry_iterator& rhs) const
+        {
+            // This is not checking we are iterating through the same set
+            return index_ != rhs.index_;
+        }
+
+        bool operator==(const entry_iterator& rhs) const
+        {
+            return index_ == rhs.index_;
+        }
+
+        EDATA& operator*()
+        {
+            return entries_[index_].data;
+        }
+
+        const EDATA& operator*() const
+        {
+            return entries_[index_].data;
+        }
+
+        entry_iterator& operator++() {
+            index_ = entries_[index_].next;
+            return *this;
+        }
+
+        entry_iterator operator++(int) {
+            entry_iterator tmp = *this;
+            ++(*this);
+            return tmp;
+        }
+
+        entry_iterator& operator--() {
+            index_ = entries_[index_].prev;
+            return *this;
+        };
+
+        entry_iterator operator--(int) {
+            entry_iterator tmp = *this;
+            --(*this);
+            return tmp;
+        }
+
+        bool operator<(const entry_iterator& rhs) const
+        {
+            return index_ < rhs.index_;
+        }
+
+        bool operator<=(const entry_iterator& rhs) const
+        {
+            return index_ <= rhs.index_;
+        }
+      };
+
+      unsigned size_; // redundant from entries_.size() ?
+
+      void initialize_entries()
+      {
+          entries_[0].prev = -1u;
+          for (unsigned i = 1; i < size_; ++i)
+              entries_[i].prev = i - 1;
+
+          entries_[size_ - 1].next = -1u;
+          for (unsigned i = 0; i < size_; ++i)
+              entries_[i].next = i + 1;
+
+          // precond: size > 0
+          head_ = 0;
+      }
+
+    public:
+      pop_set(unsigned size)
+        : entries_(size)
+        , size_(size)
+      {
+          initialize_entries();
+      }
+
+      pop_set(unsigned size, EDATA data)
+        : entries_(size, {data, -1u, -1u, true})
+        , size_(size)
+      {
+          initialize_entries();
+      }
+
+      bool contains(unsigned index)
+      {
+        // precond: index is in range. not checked
+        return entries_[index].exists;
+      }
+
+      void remove(int index)
+      {
+        // precond: index is in range. not checked
+        entry& entry = entries_[index];
+        if (entry.next != -1u)
+            entries_[entry.next].prev = entry.prev;
+        if (entry.prev != -1u)
+            entries_[entry.prev].next = entry->next;
+        else
+            head_ = entry->next;
+
+        entry.deleted = true;
+      }
+      
+      entry_iterator begin()
+      {
+          return entry_iterator(entries_, head_);
+      }
+
+      entry_iterator end()
+      {
+          return entry_iterator(entries_, -1u);
+      }
+    };
+  }
+
   bool solve_buchi_game(const twa_graph_ptr& game)
   {
     auto owners = get_state_players(game);
@@ -1370,10 +1514,6 @@ namespace spot
     auto strategy = new strategy_t(ns, 0);
     game->set_named_prop("strategy", strategy);
 
-    // TODO: local copy for faster access. I want to avoid recomputing a vector
-    // every time, though I'm not sure that is what is happening.
-    // Need to investigate.
-    auto edges = game->edges();
     unsigned es = game->edge_vector().size();
 
     // T0 = set of colored transitions
@@ -1384,9 +1524,9 @@ namespace spot
     //
     // We represent a state in W0 as a dead-end (out_degree = 0)
     std::vector<bool> t0(es, false);
-    for (auto& edge: edges)
+    for (auto& edge: game->edges())
       if (edge.acc.has(0))
-        t0[game->edge_number(edge)] = true; // probably a counter?
+        t0[game->edge_number(edge)] = true;
 
     // transposed is a reversed copy of game to compute predecessors
     // more easily.  It also keep track of the original edge iindex.
@@ -1402,9 +1542,7 @@ namespace spot
     // and for each state of player1 the # of outgoing transition in T0
     std::vector<unsigned> out_degree(ns);
     transposed.new_states(ns);
-    // TODO: further analysis on edge_vector might improve accessing idx
-    // is it a counter?
-    for (auto& edge: edges)
+    for (auto& edge: game->edges())
       {
         unsigned idx = game->edge_number(edge);
         if (owners[edge.src] == t0[idx])
@@ -1460,7 +1598,6 @@ namespace spot
                   }
                 else if (--degree_copy[src] == 0)
                   {
-                    // TODO: factorize?
                     (*winners)[src] = true;
                     w0.push_back(src);
                   }
@@ -1472,14 +1609,16 @@ namespace spot
         // TODO clean that up, it can probably be improved, might even be wrong atm
         // The strategy for Player 0 is to stay in !W0 when it can,
         // then go from !W1 to !W0 and so on
-        for (unsigned src = 0; src < ns; ++src)
-          if (owners[src] == false && (*winners)[src] == false && (*strategy)[src] == 0)
-            for (auto& edge: game->out(src))
-              if ((*winners)[edge.dst] == false && !t0[game->edge_number(edge)])
-                {
-                  (*strategy)[src] = game->edge_number(edge);
-                  break;
-                }
+        // EDIT: in fact we don't actually care that much about the strategy for
+        // player 0.
+        // for (unsigned src = 0; src < ns; ++src)
+        //   if (owners[src] == false && (*winners)[src] == false && (*strategy)[src] == 0)
+        //     for (auto& edge: game->out(src))
+        //       if ((*winners)[edge.dst] == false && !t0[game->edge_number(edge)])
+        //         {
+        //           (*strategy)[src] = game->edge_number(edge);
+        //           break;
+        //         }
 
         // Compute T1. We remove all transitions that does not result in W0,
         // and update out_degree accordingly
