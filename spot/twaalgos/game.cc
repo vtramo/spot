@@ -18,6 +18,7 @@
 
 #include "config.h"
 
+#include <fstream>
 #include <utility>
 
 #include <spot/twaalgos/game.hh>
@@ -1363,13 +1364,13 @@ namespace spot
 
   namespace
   {
-    template<class EDATA>
+    template<class EDATA = char> // char = unused TODO alias "unused" for clarity ?
     class pop_set
     {
     private:
       struct entry
       {
-        EDATA data;
+        EDATA data; // Is it actually useful?
         unsigned prev;
         unsigned next;
         bool exists;
@@ -1445,15 +1446,16 @@ namespace spot
 
       void initialize_entries()
       {
+          assert(size_ > 0);
+
           entries_[0].prev = -1u;
           for (unsigned i = 1; i < size_; ++i)
               entries_[i].prev = i - 1;
 
           entries_[size_ - 1].next = -1u;
-          for (unsigned i = 0; i < size_; ++i)
+          for (unsigned i = 0; i < size_ - 1; ++i)
               entries_[i].next = i + 1;
 
-          // precond: size > 0
           head_ = 0;
       }
 
@@ -1478,18 +1480,18 @@ namespace spot
         return entries_[index].exists;
       }
 
-      void remove(int index)
+      void remove(unsigned index)
       {
         // precond: index is in range. not checked
         entry& entry = entries_[index];
         if (entry.next != -1u)
             entries_[entry.next].prev = entry.prev;
         if (entry.prev != -1u)
-            entries_[entry.prev].next = entry->next;
+            entries_[entry.prev].next = entry.next;
         else
-            head_ = entry->next;
+            head_ = entry.next;
 
-        entry.deleted = true;
+        entry.exists = false;
       }
       
       entry_iterator begin()
@@ -1523,10 +1525,17 @@ namespace spot
     //                take a transition in T0)
     //
     // We represent a state in W0 as a dead-end (out_degree = 0)
-    std::vector<bool> t0(es, false);
-    for (auto& edge: game->edges())
-      if (edge.acc.has(0))
-        t0[game->edge_number(edge)] = true;
+
+    // TODO: this is not removing edges that are *not* in the game->edges!
+
+    pop_set t0(es);
+    for (unsigned i = 0; i < es; i++)
+    {
+        if (game->is_dead_edge(i))
+            t0.remove(i);
+        else if (!game->edge_data(i).acc.has(0))
+            t0.remove(i);
+    }
 
     // transposed is a reversed copy of game to compute predecessors
     // more easily.  It also keep track of the original edge iindex.
@@ -1545,7 +1554,7 @@ namespace spot
     for (auto& edge: game->edges())
       {
         unsigned idx = game->edge_number(edge);
-        if (owners[edge.src] == t0[idx])
+        if (owners[edge.src] == t0.contains(idx))
           out_degree[edge.src]++;
 
         transposed.new_edge(edge.dst, edge.src, idx);
@@ -1622,22 +1631,20 @@ namespace spot
 
         // Compute T1. We remove all transitions that does not result in W0,
         // and update out_degree accordingly
-        for (unsigned idx = 0; idx < es; idx++)
-          {
-            if (!t0[idx])
-              continue;
-
+        for (auto it = t0.begin(); it != t0.end(); it++)
+        {
+            unsigned idx = it.index_;
             auto edge = game->edge_storage(idx);
             if ((*winners)[edge.dst] != true)
              {
-                t0[idx] = false;
+                t0.remove(idx); // this is safe i swear :D
                 fixed = false;
                 if (owners[edge.src] == false)
                   out_degree[edge.src]++;
                 else
                   out_degree[edge.src]--;
               }
-          }
+        }
     }
 
     return (*winners)[game->get_init_state_number()];
