@@ -21,6 +21,7 @@ AC_DEFUN([CF_GXX_WARNINGS],
   cat > conftest.$ac_ext <<EOF
 #line __oline__ "configure"
 #include <string>
+#include <vector>
 #include <regex>
 
 // From GCC bug 106159
@@ -28,6 +29,13 @@ AC_DEFUN([CF_GXX_WARNINGS],
 struct left {  virtual ~left() {} };
 struct right { virtual ~right() {} };
 struct both: public left, public right {};
+
+// For GCC bug 108860
+// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=108860
+void test(std::vector<int>& v)
+{
+   v.insert(v.begin(), 12);
+}
 
 int main(int argc, char *argv[[]])
 {
