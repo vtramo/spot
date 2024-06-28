@@ -1364,6 +1364,24 @@ namespace spot
 
   namespace
   {
+    /**
+     * @brief A pop_set is a kind of set structure which supports
+     *        fast deletion, lookup and traversal.
+     *
+     * @details A pop_set represent a set of integers from 0 to capacity-1,
+     *          which starts initially full, and from which we can delete
+     *          elements and traverse it quickly.
+     *
+     *          The structure ressemble a doubly linked list, stored statically
+     *          in a vector of fixed capacity.
+     *
+     *          Data of type EDATA can be attached to all elements of the
+     *          vector.
+     *
+     *          This is handy to represent an arena from which
+     *          we can extract a sub-arena by deleting states, and be
+     *          able to process the sub-arena efficiently.
+     */
     struct unused {};
     template<class EDATA = unused>
     class pop_set
@@ -1371,28 +1389,60 @@ namespace spot
     private:
       struct entry
       {
-        EDATA data; // Is it actually useful?
-        unsigned prev;
-        unsigned next;
-        bool exists;
+        EDATA data;          /// Data attached to the element
+        unsigned prev = -1u; /// Index of the previous element, -1u if first
+        unsigned next = -1u; /// Index of the next element, -1u if last
+        bool exists = 1;     /// true if element is still present in the set
       };
 
-      std::vector<entry> entries_;
-      unsigned head_;
+      std::vector<entry> entries_; /// Static array of all entries
+      unsigned head_ = 0; /// Index of the first element
+
       // TODO: support for multiple heads -> efficient partition handling
+      //       for SCC for instance
 
-      struct const_iterator;
 
+      unsigned capacity_; // redundant from entries_.size() ?
+      unsigned size_; // number of effective element
+
+      void initialize_entries()
+      {
+          if (capacity_ == 0)
+          {
+              head_ = -1u;
+              return;
+          }
+
+          for (unsigned i = 1; i < capacity_; ++i)
+              entries_[i].prev = i - 1;
+
+          for (unsigned i = 0; i < capacity_ - 1; ++i)
+              entries_[i].next = i + 1;
+
+      }
+
+    public:
+      struct const_iterator; // forward declaration
+
+      /// non-const iterator over the existing elements
       struct iterator {
+      private:
         std::vector<entry>& entries_;
-        unsigned index_; // TODO private + getter?
+        unsigned index_;
 
+      public:
         iterator(std::vector<entry>& entries, unsigned index)
             : entries_{entries}
             , index_{index}
         {}
 
-        /// TODO: A lot of code duplication!
+        unsigned index() const
+        {
+            return index_;
+        }
+
+        // TODO: A lot of code duplication between const iterator and non-const
+        // iterator
         bool operator!=(const iterator& rhs) const
         {
             // This is not checking we are iterating through the same set
@@ -1416,6 +1466,8 @@ namespace spot
 
         EDATA& operator*()
         {
+            // Note that we can still access the data of a "deleted" element.
+            // This is on purpose.
             return entries_[index_].data;
         }
 
@@ -1458,13 +1510,20 @@ namespace spot
       };
       
       struct const_iterator {
+      private:
         const std::vector<entry>& entries_;
-        unsigned index_; // TODO private + getter?
+        unsigned index_;
 
+      public:
         const_iterator(const std::vector<entry>& entries, unsigned index)
             : entries_{entries}
             , index_{index}
         {}
+
+        unsigned index() const
+        {
+            return index_;
+        }
 
         bool operator!=(const const_iterator& rhs) const
         {
@@ -1530,35 +1589,6 @@ namespace spot
         }
       };
 
-      unsigned capacity_; // redundant from entries_.size() ?
-      unsigned size_; // number of effective element
-
-      void initialize_entries()
-      {
-          if (capacity_ == 0)
-          {
-              head_ = -1u;
-              return;
-          }
-
-          for (unsigned i = 0; i < capacity_; i++)
-               entries_[i].exists = true;
-          head_ = 0;
-
-          entries_[0].prev = -1u;
-          for (unsigned i = 1; i < capacity_; ++i)
-              entries_[i].prev = i - 1;
-
-          entries_[capacity_ - 1].next = -1u;
-          for (unsigned i = 0; i < capacity_ - 1; ++i)
-              entries_[i].next = i + 1;
-
-      }
-
-    public:
-      using iterator = iterator; // ????????????
-      using const_iterator = const_iterator;
-
       pop_set() = default;
 
       pop_set(unsigned size)
@@ -1569,6 +1599,7 @@ namespace spot
           initialize_entries();
       }
 
+      /// Constructor to initialize all entries with specific data
       pop_set(unsigned size, EDATA data)
         : entries_(size, {data, -1u, -1u, true})
         , capacity_(size)
@@ -1584,13 +1615,13 @@ namespace spot
 
       bool contains(unsigned index)
       {
-        // precond: index is in range. not checked
-        return entries_[index].exists;
+          // precond: index < capacity. not checked
+          return entries_[index].exists;
       }
 
       void remove(unsigned index)
       {
-        // precond: index is in range. not checked
+        // precond: index < capacity. not checked
         entry& entry = entries_[index];
         if (!entry.exists)
             return;
@@ -1642,50 +1673,50 @@ namespace spot
   {
     struct edge
     {
-        unsigned idx;
-        unsigned src;
-        unsigned dst;
-        bool is_buchi;
-    }; // never actually stored, it's just a named tuple for return values
-
-    struct in_edge
-    {
-        unsigned idx;
-        unsigned src;
-        bool is_buchi;
-        // dst is inferred from position in edge vector
+        unsigned idx;  // Original idx
+        unsigned src;  // Those three are stored for quicker access
+        unsigned dst;  // but can be recovered from idx, not sure if
+        bool is_buchi; // that is actually worth (time vs memory)
     };
 
-    struct buchi_edge
-    {
-        unsigned src;
-        unsigned dst;
-    }; // TODO: s/buchi_edge/edge?
-
     struct state {
-        // idx = index in pop_set
         unsigned cpre_index;
         unsigned strategy; // idx
         bool owner;
         bool controlled;
-        std::span<in_edge> in_edges; // C++20 ? uwu
-
+        std::span<edge> in_edges; // required: C++20
     };
 
+    /**
+     * @brief This structure is specially crafted for efficient manipulation
+     *        of arenas in the Buchi solver.
+     *
+     * @details The structure holds a pop_set of states, so we can remove
+     *          a state in constant time.
+     *          The edges are stored in a edge vector, where edges with the
+     *          same *destination* are stored contiguously.
+     *          (This is because we need to iterate over in-edges quite often)
+     *          The set of edges that are colored is also stored in a pop_set
+     *          to allow an efficient traversal of them.
+     */
     struct arena
     {
-        pop_set<state> states;
-        std::vector<in_edge> edge_vector;  // only src is stored
-        pop_set<buchi_edge> buchi_edges;   // for fast buchi edges traversal
-                                           
-        /// TODO: const iterator?
+        pop_set<state> states; // pop_set of all states
+        std::vector<edge> edge_vector; // only src is stored
+        pop_set<edge> buchi_edges; // for fast buchi edges traversal
+                                   // maybe replace with index to avoid duplication?
+                                   // pop_set<unsigned> buchi_edges ?
+
+        /// TODO: add const iterator?
+        /// This iterator allows traversal of all active *edges* of the arena.
+        /// The iterator first iterate over all states, then over all in-edges
+        /// of the states.
         struct edge_iterator
         {
         private:
-            arena& arena_;
-            pop_set<state>::iterator state_iterator_;
-            unsigned edge_index_;
-            edge current_edge_;
+            arena& arena_; // reference to the arena
+            pop_set<state>::iterator state_iterator_; // currently traversed state
+            unsigned edge_index_; // index of the in-edge being traversed for the state
 
         public:
             edge_iterator(
@@ -1694,19 +1725,7 @@ namespace spot
                 : arena_(arena)
                 , state_iterator_(state_iterator) // TODO: maybe initialize with state index instead?
                 , edge_index_(edge_index)
-            {
-                update_current_edge();
-            }
-
-            void update_current_edge()
-            {
-                if (state_iterator_ == arena_.states.end())
-                    return;
-                current_edge_.idx = state_iterator_->in_edges[edge_index_].idx;
-                current_edge_.dst = state_iterator_.index_;
-                current_edge_.src = state_iterator_->in_edges[edge_index_].src;
-                current_edge_.is_buchi = state_iterator_->in_edges[edge_index_].is_buchi;
-            }
+            {}
 
             bool operator==(const edge_iterator& rhs) const
             {
@@ -1720,12 +1739,12 @@ namespace spot
 
             edge operator*()
             {
-                return current_edge_;
+                return state_iterator_->in_edges[edge_index_];
             }
 
             edge* operator->()
             {
-                return &current_edge_;
+                return &(state_iterator_->in_edges[edge_index_]);
             }
 
             edge_iterator& operator++()
@@ -1740,7 +1759,6 @@ namespace spot
                     );
                     edge_index_ = 0;
                 }
-                update_current_edge();
                 return *this;
             }
 
@@ -1749,13 +1767,12 @@ namespace spot
 
         arena(const twa_graph_ptr& game)
             : states(game->num_states())
-            , edge_vector(game->edge_vector().size()) // Exact count of edges somewhere?
-            , buchi_edges() // TODO: ??????
+            , edge_vector(game->edge_vector().size()) // TODO: Exact count of edges somewhere?
         {
             auto owners = get_state_players(game);
             unsigned ns = game->num_states();
 
-            unsigned buchi_edge_count = 0;
+            unsigned buchi_edge_count = 0; // total count of buchi edges
             std::vector<unsigned> in_degree(ns);
             // Used only once to compute bucket sizes in edge_vector
             for (auto& edge: game->edges())
@@ -1777,22 +1794,22 @@ namespace spot
                 states[i].in_edges = {
                     edge_vector.data() + bucket_index[i],
                     in_degree[i]
-                }; // TODO: check syntax
+                };
             }
 
-            buchi_edges = pop_set<buchi_edge>(buchi_edge_count);
+            buchi_edges = pop_set<edge>(buchi_edge_count);
             auto buchi_it = buchi_edges.begin();
-            for (auto& edge: game->edges())
+            for (auto& game_edge: game->edges())
             {
-                unsigned src = edge.src;
-                unsigned idx = game->edge_number(edge);
-                unsigned dst = edge.dst;
-                bool buchi = edge.acc.has(0);
-                edge_vector[bucket_index[dst]++] = { idx, src, buchi };
+                unsigned src = game_edge.src;
+                unsigned idx = game->edge_number(game_edge);
+                unsigned dst = game_edge.dst;
+                bool buchi = game_edge.acc.has(0);
+                edge new_edge = { idx, src, dst, buchi };
+                edge_vector[bucket_index[dst]++] = new_edge;
                 if (buchi)
                 {
-                    buchi_it->dst = dst;
-                    buchi_it->src = src;
+                    *buchi_it = new_edge;
                     buchi_it++;
                 }
             }
@@ -1801,7 +1818,7 @@ namespace spot
         edge_iterator begin()
         {
             auto state_iterator = states.begin();
-            while (state_iterator != states.end() && (*state_iterator).in_edges.empty())
+            while (state_iterator != states.end() && state_iterator->in_edges.empty())
                 ++state_iterator;
             return edge_iterator(*this, state_iterator, 0);
         }
@@ -1870,16 +1887,23 @@ namespace spot
                 state.controlled ^= 1;
         }
 
-        void compute_attractor(std::function<bool(in_edge)> criteria,
+        bool all_controlled()
+        {
+            for (auto& state : states)
+                if (!state.controlled)
+                    return false;
+            return true;
+        }
+
+        void compute_attractor(std::function<bool(edge)> criteria,
                 bool controller = 1, bool register_strategy = false)
         {
           std::vector<unsigned> stack;
           stack.reserve(states.size());
 
-          // NIT: cleaner struct to get index_, then use :-iterator instead?
           for (auto it = states.begin(); it != states.end(); it++)
           {
-              unsigned src = it.index_;
+              unsigned src = it.index();
               if (it->controlled)
                   stack.push_back(src);
           }
@@ -1923,7 +1947,7 @@ namespace spot
             bool any_state_removed = false;
             for (auto it = states.begin(); it != states.end(); it++)
             {
-                unsigned idx = it.index_; // TODO: clean
+                unsigned idx = it.index();
                 if (it->controlled)
                 {
                     states.remove(idx);
@@ -1933,7 +1957,7 @@ namespace spot
 
             for (auto it = buchi_edges.begin(); it != buchi_edges.end(); it++)
             {
-                unsigned idx = it.index_;
+                unsigned idx = it.index();
                 if (states[it->dst].controlled)
                     buchi_edges.remove(idx);
             }
@@ -1946,7 +1970,7 @@ namespace spot
             std::cerr << " ARENA { " << std::endl;
             for (auto it = states.begin(); it != states.end(); it++)
             {
-                std::cerr << "    [" << it.index_ << "] cpre="
+                std::cerr << "    [" << it.index() << "] cpre="
                           << it->cpre_index;
                 if (it->controlled)
                     std::cerr << " (controlled)";
@@ -1970,10 +1994,8 @@ namespace spot
     arena::arena arena(game); // arena arena arena arena arena arena arena game
 
     std::vector<unsigned> w0;
-    bool fixed = false;
-    while (!fixed)
+    while (true)
     {
-      fixed = true;
       // std::cerr << "New iteration." << std::endl;
 
       // std::cerr << "CPre Edges" << std::endl;
@@ -1981,9 +2003,11 @@ namespace spot
       // arena.debug();
 
       // std::cerr << "Attractor 1/2" << std::endl;
-      arena.compute_attractor([](arena::in_edge edge){return !edge.is_buchi;},
+      arena.compute_attractor([](arena::edge edge){return !edge.is_buchi;},
                                  true, true);
       // arena.debug();
+      if (arena.all_controlled())
+          break;
 
       arena.complement_controlled();
 
@@ -1992,14 +2016,14 @@ namespace spot
       // arena.debug();
 
       // std::cerr << "Attractor 2/2" << std::endl;
-      arena.compute_attractor([](arena::in_edge){return true;}, false, true);
+      arena.compute_attractor([](arena::edge){return true;}, false, true);
       // arena.debug();
 
-      fixed = !arena.remove_controlled_states();
+      arena.remove_controlled_states();
     }
 
     for (auto it = arena.states.begin(); it != arena.states.end(); it++)
-        (*winners)[it.index_] = true;
+        (*winners)[it.index()] = true;
 
     for (unsigned src = 0; src < ns; src++)
     {
