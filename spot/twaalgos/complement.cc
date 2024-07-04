@@ -515,7 +515,7 @@ namespace spot
         twa_graph_ptr res = dualize(aut);
         // There are cases with "t" acceptance that get converted to
         // Büchi during completion, then dualized to co-Büchi, but the
-        // acceptance is still not used.  To try to clean it up in this
+        // acceptance is still not used.  Try to clean it up in this
         // case.
         if (aut->num_sets() == 0 ||
             // Also dualize removes sink states, but doesn't simplify
@@ -525,8 +525,9 @@ namespace spot
         return res;
       }
     if (is_very_weak_automaton(aut))
-      // removing alternation may need more acceptance sets than we support.
-      // in this case res==nullptr and we try the other determinization.
+      // Removing alternation may need more acceptance sets than Spot
+      // supports.  When this happens res==nullptr and we fall back to
+      // determinization-based complementation.
       if (twa_graph_ptr res = remove_alternation(dualize(aut), false,
                                                  aborter, false))
         return res;
