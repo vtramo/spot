@@ -73,7 +73,8 @@ namespace spot
   /// If an output_aborter is supplied, it is used to
   /// abort the construction of larger automata.
   ///
-  /// complement_semidet() is not yet used.
+  /// complement_semidet() is not yet used, as it is not always better
+  /// when the input is semi-deterministic.
   SPOT_API twa_graph_ptr
   complement(const const_twa_graph_ptr& aut,
              const output_aborter* aborter = nullptr);
