@@ -1,0 +1,70 @@
+#!/bin/sh
+# -*- coding: utf-8 -*-
+# Copyright (C) by the Spot authors, see the AUTHORS file for details.
+#
+# This file is part of Spot, a model checking library.
+#
+# Spot is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# Spot is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+# License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+. ./defs
+
+set -e
+
+# The following formula was incorrectly reduced during
+# the development of --restrict-dead-edges.
+out=`ltl2tgba 'X((GF!p2 R p3) & G(p3 U p2))' |
+     autfilt --restrict-dead --stats='%T %t'`
+test "$out" = '11 11'  # should be twice the same value
+
+# The following formulas are all reduced
+cat >input.ltl <<EOF
+F((Gp2 & XGp3) | (F!p2 & XF!p3))
+F((XGp2 & G!p1) | G(Fp1 & F!p2))
+F((p3 W Gp1) W XG!p0)
+X(p1 & ((p2 & Gp1) | (!p2 & F!p1))) M Gp2
+FG(p0 M Xp1)
+G!p2 U G(p0 & Xp1)
+FG(p1 M (p0 R (((p0 & p3) | (!p0 & !p3)) M p3)))
+F(G(!p1 & ((!p1 & !p3) | (p1 & p3))) | G(Fp1 & F((!p1 & p3) | (p1 & !p3))))
+G!p3 & FG((p0 | p1 | X!p1) & (!p0 | Xp1) & (!p1 | Xp1))
+FG(p0 & (Xp2 | (!p2 M FG!p3)) & ((p2 W GFp3) | X!p2))
+FG(((p0 M Xp2) | (p1 R Fp3)) & ((!p0 W X!p2) | (!p1 U G!p3)))
+F!p2 & X((Gp1 | XGp0) U XGp2)
+G(Fp0 & FGp1 & F!p2)
+F(G((p0 | p1) & Xp1) & FGp0)
+(p0 | X(p0 M Gp3)) U X((Fp3 & Gp0) | (F!p0 & G!p3))
+XF((Fp2 & XFp3) | (G!p2 & XG!p3))
+FG((Gp3 | X!p0) & (Xp0 | F!p3))
+(p1 & p2) M FG((p2 | XGp3) & (!p2 | XF!p3))
+Fp2 W G(XGp3 M (G!p1 M Xp0))
+FG(p2 M Xp1)
+F(GFp1 & (Xp3 W Gp3))
+F(G(p1 & !p2) | G(Fp2 & F!p1))
+F(G((!p3 M p0) & Fp1) | G(F(p3 W !p0) & FG!p1))
+G!p3 U XG!p0
+XXF(XF!p3 | G((p1 & X(p1 | p3)) | (!p1 & X(!p1 & !p3))))
+FG((Gp2 | Xp3) & (F!p2 | X!p3))
+((p0 & FG!p0) | (!p0 & GFp0)) M G(!p3 & F!p2)
+GFp0 & FGp1 & FGp2 & GFp3
+EOF
+
+ltl2tgba -F input.ltl | tee output.aut |
+  autfilt --restrict-dead --stats="%T %t %M" |
+  while read in out f; do
+    : $in : $out : "$f"
+    test $in -le $out && exit 1
+    :
+  done
+
+autcross -F output.aut --language-preserved 'autfilt --restrict-dead'

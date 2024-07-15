@@ -270,6 +270,7 @@ TESTS_twa = \
   core/dupexp.test \
   core/exclusive-tgba.test \
   core/remprop.test \
+  core/deadends.test \
   core/degendet.test \
   core/degenid.test \
   core/degenlskip.test \
@@ -413,6 +414,7 @@ TESTS_python = \
   python/dbranch.py \
   python/declenv.py \
   python/decompose_scc.py \
+  python/deadends.py \
   python/det.py \
   python/dualize.py \
   python/ecfalse.py \

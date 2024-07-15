@@ -1391,6 +1391,13 @@ namespace spot
       /// \brief For all `x` in \a m, replaces `Fin(x)` by `false`.
       acc_code force_inf(mark_t m) const;
 
+      /// \brief Rewrite an acceptance condition by keeping at most
+      /// one Inf(x) on each dijunctive branch.
+      ///
+      /// For instance `(Fin(0)&Inf(1)&(Inf(2)|Fin(3))) | Inf(4)&Inf(5)`
+      /// will become `(Fin(0)&Inf(1) | Inf(4)`
+      acc_code keep_one_inf_per_branch() const;
+
       /// \brief Return the set of sets appearing in the condition.
       acc_cond::mark_t used_sets() const;
 
@@ -1990,6 +1997,16 @@ namespace spot
     bool inf_satisfiable(mark_t inf) const
     {
       return code_.inf_satisfiable(inf);
+    }
+
+    /// \brief Rewrite an acceptance condition by keeping at most
+    /// one Inf(x) on each disjunctive branch.
+    ///
+    /// For instance `(Fin(0)&Inf(1)&(Inf(2)|Fin(3))) | Inf(4)&Inf(5)`
+    /// will become `(Fin(0)&Inf(1) | Inf(4)`
+    acc_cond keep_one_inf_per_branch() const
+    {
+      return {num_sets(), code_.keep_one_inf_per_branch()};
     }
 
     /// \brief Check potential acceptance of an SCC.

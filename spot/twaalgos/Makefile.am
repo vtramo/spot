@@ -39,6 +39,7 @@ twaalgos_HEADERS = \
   copy.hh \
   cycles.hh \
   dbranch.hh \
+  deadends.hh \
   degen.hh \
   determinize.hh \
   dot.hh \
@@ -114,6 +115,7 @@ libtwaalgos_la_SOURCES = \
   contains.cc \
   cycles.cc \
   dbranch.cc \
+  deadends.cc \
   degen.cc \
   determinize.cc \
   dot.cc \

@@ -1845,6 +1845,86 @@ namespace spot
     return force_inf_rec(&back(), rem);
   }
 
+  namespace
+  {
+    static acc_cond::acc_code keep_one_inf_per_branch_rec
+    (const acc_cond::acc_word* pos, bool inf_seen)
+    {
+      auto start = pos - pos->sub.size;
+      switch (pos->sub.op)
+        {
+        case acc_cond::acc_op::And:
+          {
+            auto cur = --pos;
+            auto res = acc_cond::acc_code::t();
+            // Make a first pass to find Inf(...)
+            if (!inf_seen)
+              do
+                {
+                  if (cur->sub.op == acc_cond::acc_op::Inf)
+                    {
+                      res = acc_cond::acc_code::inf(cur[-1].mark.lowest());
+                      inf_seen = true;
+                      break;
+                    }
+                  cur -= cur->sub.size + 1;
+                }
+              while (cur > start);
+            // Now process the rest.
+            do
+              {
+                if (pos->sub.op != acc_cond::acc_op::Inf)
+                  {
+                    auto tmp =
+                      keep_one_inf_per_branch_rec(pos, inf_seen) &
+                      std::move(res);
+                    std::swap(tmp, res);
+                  }
+                pos -= pos->sub.size + 1;
+              }
+            while (pos > start);
+            return res;
+          }
+        case acc_cond::acc_op::Or:
+          {
+            --pos;
+            auto res = acc_cond::acc_code::f();
+            do
+              {
+                auto tmp =
+                  keep_one_inf_per_branch_rec(pos, inf_seen) | std::move(res);
+                std::swap(tmp, res);
+                pos -= pos->sub.size + 1;
+              }
+            while (pos > start);
+            return res;
+          }
+        case acc_cond::acc_op::Fin:
+          return acc_cond::acc_code::fin(pos[-1].mark);
+        case acc_cond::acc_op::Inf:
+          if (inf_seen)
+            return acc_cond::acc_code::t();
+          else
+            return acc_cond::acc_code::inf(pos[-1].mark.lowest());
+        case acc_cond::acc_op::FinNeg:
+        case acc_cond::acc_op::InfNeg:
+          SPOT_UNREACHABLE();
+          return {};
+        }
+      SPOT_UNREACHABLE();
+      return {};
+    }
+
+  }
+
+  acc_cond::acc_code
+  acc_cond::acc_code::keep_one_inf_per_branch() const
+  {
+    if (is_t() || is_f())
+      return *this;
+    return keep_one_inf_per_branch_rec(&back(), false);
+  }
+
   acc_cond::mark_t
   acc_cond::acc_code::used_sets() const
   {

@@ -51,6 +51,7 @@
 #include <spot/twaalgos/cleanacc.hh>
 #include <spot/twaalgos/complement.hh>
 #include <spot/twaalgos/contains.hh>
+#include <spot/twaalgos/deadends.hh>
 #include <spot/twaalgos/degen.hh>
 #include <spot/twaalgos/dtwasat.hh>
 #include <spot/twaalgos/dualize.hh>
@@ -148,6 +149,7 @@ enum {
   OPT_REM_UNREACH,
   OPT_REM_UNUSED_AP,
   OPT_REM_FIN,
+  OPT_RESTRICT_DEAD_ENDS,
   OPT_SAT_MINIMIZE,
   OPT_SCCS,
   OPT_SEED,
@@ -373,6 +375,9 @@ static const argp_option options[] =
     { "remove-dead-states", OPT_REM_DEAD, nullptr, 0,
       "remove states that are unreachable, or that cannot belong to an "
       "infinite path", 0 },
+    { "restrict-dead-end-edges", OPT_RESTRICT_DEAD_ENDS, nullptr, 0,
+      "restrict labels of dead-end edges, based on useful transitions of the "
+      "state they reach", 0 },
     { "simplify-acceptance", OPT_SIMPL_ACC, nullptr, 0,
       "simplify the acceptance condition by merging identical acceptance sets "
       "and by simplifying some terms containing complementary sets", 0 },
@@ -715,6 +720,7 @@ static bool opt_dca = false;
 static bool opt_streett_like = false;
 static bool opt_enlarge_acceptance_set = false;
 static bool opt_reduce_acceptance_set = false;
+static bool opt_restrict_dead_ends = false;
 
 static spot::twa_graph_ptr
 ensure_deterministic(const spot::twa_graph_ptr& aut, bool nonalt = false)
@@ -1199,6 +1205,9 @@ parse_opt(int key, char* arg, struct argp_state*)
     case OPT_REM_UNUSED_AP:
       opt_rem_unused_ap = true;
       break;
+    case OPT_RESTRICT_DEAD_ENDS:
+      opt_restrict_dead_ends = true;
+      break;
     case OPT_SAT_MINIMIZE:
       opt_sat_minimize = arg ? arg : "";
       break;
@@ -1441,6 +1450,9 @@ namespace
         simplify_acceptance_here(aut);
       else if (opt_clean_acc)
         cleanup_acceptance_here(aut);
+
+      if (opt_restrict_dead_ends)
+        restrict_dead_end_edges_here(aut);
 
       if (opt_sep_sets)
         separate_sets_here(aut);
