@@ -6,13 +6,17 @@ New in spot 2.12.0.dev (not yet released)
     edges leading to dead-ends.  See the description of
     restrict_dead_end_edges_here() below.
 
-   Library:
+  Library:
 
    - restrict_dead_end_edges_here() can reduce non-determinism (but
      not remove it) by restricting the label L of some edge (S)-L->(D)
      going to a state D that does not have other successor than
      itself.  The conditions are detailled in the documentation of
      this function.
+
+   - spot::postprocessor will now call restrict_dead_end_edges_here()
+     in its highest setting.  This can be fine-tuned with the "rde"
+     extra option, see the spot-x (7) man page for detail.
 
 New in spot 2.12  (2024-05-16)
 

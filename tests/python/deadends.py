@@ -111,7 +111,7 @@ State: 1
 [0&1&2] 1 {0 1}
 --END--""")
 
-a = spot.translate('GFa & (FGb | FGc) & GFc')
+a = spot.translate('GFa & (FGb | FGc) & GFc', xargs='rde=0')
 s = a.to_str()
 spot.restrict_dead_end_edges_here(a)
 s += a.to_str()

@@ -206,6 +206,12 @@ it can cause the created temporary automata to have incompatible \
 combinations of atomic propositions that will be eventually be removed. \
 This relabeling is attempted after relabel-bool.  By default, N=8.  Setting \
 this value to 0 will disable the rewriting.") },
+    { DOC("rde", "Disable (0), or enable (1) the 'restrict-dead-end-edges' \
+optimization.  A dead-end-edge is one that move to a state that has only \
+itself as successors.  The label of such edges can be simplified in some \
+situtation, reducing non-determinism slightly.  By default (-1), this is \
+enabled only in --high mode, or if both --medium and --deterministic are \
+used.") },
     { DOC("wdba-minimize", "Set to 0 to disable WDBA-minimization, to 1 to \
 always try it, or 2 to attempt it only on syntactic obligations or on automata \
 that are weak and deterministic.  The default is 1 in --high mode, else 2 in \

@@ -271,6 +271,7 @@ namespace spot
     int wdba_det_max_ = 4096;
     bool acd_ = true;
     bool acd_was_used_;
+    int rde_ = -1;
   };
   /// @}
 }

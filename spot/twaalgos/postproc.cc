@@ -38,6 +38,7 @@
 #include <spot/twaalgos/parity.hh>
 #include <spot/twaalgos/cobuchi.hh>
 #include <spot/twaalgos/cleanacc.hh>
+#include <spot/twaalgos/deadends.hh>
 #include <spot/twaalgos/toparity.hh>
 #include <spot/twaalgos/zlktree.hh>
 
@@ -108,6 +109,7 @@ namespace spot
         wdba_det_max_ = opt->get("wdba-det-max", 4096);
         simul_trans_pruning_ = opt->get("simul-trans-pruning", 512);
         acd_ = opt->get("acd", 1);
+        rde_ = opt->get("rde", -1);
 
         if (sat_acc_ && sat_minimize_ == 0)
           sat_minimize_ = 1;        // Dicho.
@@ -526,6 +528,14 @@ namespace spot
               sim = sbacc(sim);
           }
       }
+
+    // Restricting dead-end edges only makes sense on non-deterministic
+    // automata.  rde_ == 0 disable this.  rde_ > 0 enable it.
+    // By default (rde_ < 0), we only enable this on High and Medium+Det.
+    if (!dba && rde_ != 0 && !is_deterministic(sim) &&
+        (rde_ > 0 || (level_ == High ||
+                      (level_ == Medium && PREF_ == Deterministic))))
+      restrict_dead_end_edges_here(sim);
 
     // If WDBA failed, but the simulation returned a deterministic
     // automaton, use it as dba.

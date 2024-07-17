@@ -59,7 +59,8 @@ FG((Gp2 | Xp3) & (F!p2 | X!p3))
 GFp0 & FGp1 & FGp2 & GFp3
 EOF
 
-ltl2tgba -F input.ltl | tee output.aut |
+# disable rde so we can apply it manually
+ltl2tgba -x rde=0 -F input.ltl | tee output.aut |
   autfilt --restrict-dead --stats="%T %t %M" |
   while read in out f; do
     : $in : $out : "$f"
@@ -68,3 +69,12 @@ ltl2tgba -F input.ltl | tee output.aut |
   done
 
 autcross -F output.aut --language-preserved 'autfilt --restrict-dead'
+
+# by default, the result of ltl2tgba is already restricted
+ltl2tgba -F input.ltl |
+  autfilt --restrict-dead --stats="%T %t %M" |
+  while read in out f; do
+    : $in : $out : "$f"
+    test $in -ne $out && exit 1
+    :
+  done
