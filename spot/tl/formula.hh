@@ -522,6 +522,30 @@ namespace spot
         return is_.spin_atomic_props;
       }
 
+      /// \see formula::is_sigma2
+      bool is_sigma2() const
+      {
+        return is_.sigma2;
+      }
+
+      /// \see formula::is_pi2
+      bool is_pi2() const
+      {
+        return is_.pi2;
+      }
+
+      /// \see formula::is_delta1
+      bool is_delta1() const
+      {
+        return is_.delta1;
+      }
+
+      /// \see formula::is_delta2
+      bool is_delta2() const
+      {
+        return is_.delta2;
+      }
+
     private:
       static size_t bump_next_id();
       void setup_props(op o);
@@ -627,15 +651,19 @@ namespace spot
         bool finite:1;                 // Finite SERE formulae, or Bool+X forms.
         bool eventual:1;               // Purely eventual formula.
         bool universal:1;              // Purely universal formula.
-        bool syntactic_safety:1;       // Syntactic Safety Property.
-        bool syntactic_guarantee:1;    // Syntactic Guarantee Property.
-        bool syntactic_obligation:1;   // Syntactic Obligation Property.
-        bool syntactic_recurrence:1;   // Syntactic Recurrence Property.
-        bool syntactic_persistence:1;  // Syntactic Persistence Property.
+        bool syntactic_safety:1;       // Syntactic Safety Property (S).
+        bool syntactic_guarantee:1;    // Syntactic Guarantee Property (G).
+        bool syntactic_obligation:1;   // Syntactic Obligation Property (O).
+        bool syntactic_recurrence:1;   // Syntactic Recurrence Property (R).
+        bool syntactic_persistence:1;  // Syntactic Persistence Property (P).
         bool not_marked:1;             // No occurrence of EConcatMarked.
         bool accepting_eword:1;        // Accepts the empty word.
         bool lbt_atomic_props:1;       // Use only atomic propositions like p42.
         bool spin_atomic_props:1;      // Use only spin-compatible atomic props.
+        bool delta1:1;                 // Boolean combination of (S) and (G).
+        bool sigma2:1; // Boolean comb. of (S) with X/F/U/M possibly applied.
+        bool pi2:1;    // Boolean comb. of (G) with X/G/R/W possibly applied.
+        bool delta2:1;                 // Boolean combination of (Σ₂) and (Π₂).
       };
       union
       {
@@ -1698,16 +1726,43 @@ namespace spot
     /// universal formula also satisfies the formula.
     /// \cite etessami.00.concur
     SPOT_DEF_PROP(is_universal);
-    /// Whether a PSL/LTL formula is syntactic safety property.
+    /// \brief Whether a PSL/LTL formula is syntactic safety property.
+    ///
+    /// Is class is also called Π₁.
     SPOT_DEF_PROP(is_syntactic_safety);
-    /// Whether a PSL/LTL formula is syntactic guarantee property.
+    /// \brief Whether a PSL/LTL formula is syntactic guarantee property.
+    ///
+    /// Is class is also called Σ₁.
     SPOT_DEF_PROP(is_syntactic_guarantee);
-    /// Whether a PSL/LTL formula is syntactic obligation property.
+    /// \brief Whether a PSL/LTL formula is in the Δ₁ syntactic frament
+    ///
+    /// A formula is in Δ₁ if it is a boolean combination of syntactic
+    /// safety and syntactic guarantee properties.
+    SPOT_DEF_PROP(is_delta1);
+    /// \brief Whether a PSL/LTL formula is syntactic obligation property.
+    ///
+    /// This class is a proper syntactic superset of Δ₁, but has the
+    /// same expressive power.
     SPOT_DEF_PROP(is_syntactic_obligation);
-    /// Whether a PSL/LTL formula is syntactic recurrence property.
+    /// Whether a PSL/LTL formula is in Σ₂
+    SPOT_DEF_PROP(is_sigma2);
+    /// Whether a PSL/LTL formula is in Π₂
+    SPOT_DEF_PROP(is_pi2);
+    /// \brief Whether a PSL/LTL formula is syntactic recurrence property.
+    ///
+    /// This class is a proper syntactic superset of Σ₂ syntactically,
+    /// expressive power.
     SPOT_DEF_PROP(is_syntactic_recurrence);
-    /// Whether a PSL/LTL formula is syntactic persistence property.
+    /// \brief Whether a PSL/LTL formula is syntactic persistence property.
+    ///
+    /// This class is a proper syntactic superset of Π₂, but has the
+    /// same expressive power.
     SPOT_DEF_PROP(is_syntactic_persistence);
+    /// \brief Whether a PSL/LTL formula is in the Δ₂ syntactic frament
+    ///
+    /// A formula is in Δ₂ if it is a boolean combination of Σ₂ and Π₂
+    /// properties.
+    SPOT_DEF_PROP(is_delta2);
     /// \brief Whether the formula has an occurrence of EConcatMarked
     /// or NegClosureMarked
     SPOT_DEF_PROP(is_marked);

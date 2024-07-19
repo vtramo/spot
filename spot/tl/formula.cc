@@ -1290,6 +1290,10 @@ namespace spot
         is_.accepting_eword = false;
         is_.lbt_atomic_props = true;
         is_.spin_atomic_props = true;
+        is_.delta1 = true;
+        is_.sigma2 = true;
+        is_.pi2 = true;
+        is_.delta2 = true;
         break;
       case op::eword:
         is_.boolean = false;
@@ -1312,6 +1316,10 @@ namespace spot
         is_.accepting_eword = true;
         is_.lbt_atomic_props = true;
         is_.spin_atomic_props = true;
+        is_.delta1 = true;
+        is_.sigma2 = true;
+        is_.pi2 = true;
+        is_.delta2 = true;
         break;
       case op::ap:
         is_.boolean = true;
@@ -1348,6 +1356,10 @@ namespace spot
           is_.lbt_atomic_props = lbtap;
           is_.spin_atomic_props = lbtap || is_spin_ap(n.c_str());
         }
+        is_.delta1 = true;
+        is_.sigma2 = true;
+        is_.pi2 = true;
+        is_.delta2 = true;
         break;
       case op::Not:
         props = children[0]->props;
@@ -1364,6 +1376,10 @@ namespace spot
         is_.syntactic_persistence = children[0]->is_syntactic_recurrence();
 
         is_.accepting_eword = false;
+        // is_.delta1 inherited
+        is_.sigma2 = children[0]->is_pi2();
+        is_.pi2 = children[0]->is_sigma2();
+        // is_.delta2 inherited
         break;
       case op::X:
       case op::strong_X:
@@ -1382,6 +1398,10 @@ namespace spot
         // we could make sense of it if we start supporting LTL over
         // finite traces.
         is_.accepting_eword = false;
+        // is_.delta1 inherited
+        // is_.sigma2 inherited
+        // is_.pi2 inherited
+        // is_.delta2 inherited
         break;
       case op::F:
         props = children[0]->props;
@@ -1397,6 +1417,10 @@ namespace spot
         is_.syntactic_recurrence = is_.syntactic_guarantee;
         // is_.syntactic_persistence inherited
         is_.accepting_eword = false;
+        is_.delta1 = is_.syntactic_guarantee;
+        is_.pi2 = is_.syntactic_guarantee;
+        // is_.sigma2 inherited
+        is_.delta2 = is_.pi2 | is_.sigma2;
         break;
       case op::G:
         props = children[0]->props;
@@ -1412,6 +1436,10 @@ namespace spot
         // is_.syntactic_recurrence inherited
         is_.syntactic_persistence = is_.syntactic_safety;
         is_.accepting_eword = false;
+        is_.delta1 = is_.syntactic_safety;
+        is_.sigma2 = is_.syntactic_safety;
+        // is_.pi2 inherited
+        is_.delta2 = is_.pi2 | is_.sigma2;
         break;
       case op::NegClosure:
       case op::NegClosureMarked:
@@ -1427,6 +1455,10 @@ namespace spot
         is_.syntactic_recurrence = true;
         is_.syntactic_persistence = true;
         is_.accepting_eword = false;
+        is_.delta1 = true;
+        is_.sigma2 = true;
+        is_.pi2 = true;
+        is_.delta2 = true;
         assert(children[0]->is_sere_formula());
         assert(!children[0]->is_boolean());
         break;
@@ -1443,6 +1475,10 @@ namespace spot
         is_.syntactic_recurrence = true;
         is_.syntactic_persistence = true;
         is_.accepting_eword = false;
+        is_.delta1 = true;
+        is_.sigma2 = true;
+        is_.pi2 = true;
+        is_.delta2 = true;
         assert(children[0]->is_sere_formula());
         assert(!children[0]->is_boolean());
         break;
@@ -1473,6 +1509,17 @@ namespace spot
             is_.syntactic_recurrence = false;
             is_.syntactic_persistence = false;
           }
+        if (is_.delta1)
+          {
+            assert(is_.pi2 == true);
+            assert(is_.sigma2 == true);
+            assert(is_.delta2 == true);
+          }
+        else
+          {
+            is_.pi2 = false;
+            is_.sigma2 = false;
+          }
         break;
       case op::Implies:
         props = children[0]->props & children[1]->props;
@@ -1494,6 +1541,10 @@ namespace spot
         is_.syntactic_recurrence = children[0]->is_syntactic_persistence()
           && children[1]->is_syntactic_recurrence();
         is_.accepting_eword = false;
+        // is_.delta1 inherited
+        is_.sigma2 = children[0]->is_pi2() && children[1]->is_sigma2();
+        is_.pi2 = children[0]->is_sigma2() && children[1]->is_pi2();
+        // is_.delta2 inherited
         break;
       case op::EConcatMarked:
       case op::EConcat:
@@ -1507,18 +1558,25 @@ namespace spot
 
         is_.syntactic_guarantee = children[1]->is_syntactic_guarantee();
         is_.syntactic_persistence = children[1]->is_syntactic_persistence();
-        if (children[0]->is_finite())
+        is_.sigma2 = children[1]->is_sigma2();
+        if (children[0]->is_finite()) // behaves like X
           {
             is_.syntactic_safety = children[1]->is_syntactic_safety();
             is_.syntactic_obligation = children[1]->is_syntactic_obligation();
             is_.syntactic_recurrence = children[1]->is_syntactic_recurrence();
+            is_.delta1 = children[1]->is_delta1();
+            is_.pi2 = children[1]->is_pi2();
+            is_.delta2 = children[1]->is_delta2();
           }
-        else
+        else                    // behaves like F
           {
             is_.syntactic_safety = false;
             bool g = children[1]->is_syntactic_guarantee();
             is_.syntactic_obligation = g;
             is_.syntactic_recurrence = g;
+            is_.delta1 = g;
+            is_.pi2 = g;
+            is_.delta2 = g | is_.sigma2;
           }
         assert(children[0]->is_sere_formula());
         assert(children[1]->is_psl_formula());
@@ -1536,19 +1594,25 @@ namespace spot
 
         is_.syntactic_safety = children[1]->is_syntactic_safety();
         is_.syntactic_recurrence = children[1]->is_syntactic_recurrence();
-        if (children[0]->is_finite())
+        is_.pi2 = children[1]->is_pi2();
+        if (children[0]->is_finite()) // behaves like X
           {
             is_.syntactic_guarantee = children[1]->is_syntactic_guarantee();
             is_.syntactic_obligation = children[1]->is_syntactic_obligation();
-            is_.syntactic_persistence =
-              children[1]->is_syntactic_persistence();
+            is_.syntactic_persistence = children[1]->is_syntactic_persistence();
+            is_.delta1 = children[1]->is_delta1();
+            is_.sigma2 = children[1]->is_sigma2();
+            is_.delta2 = children[1]->is_delta2();
           }
-        else
+        else                    // behaves like G
           {
             is_.syntactic_guarantee = false;
             bool s = children[1]->is_syntactic_safety();
             is_.syntactic_obligation = s;
             is_.syntactic_persistence = s;
+            is_.delta1 = s;
+            is_.sigma2 = s;
+            is_.delta2 = is_.pi2 | s;
           }
         assert(children[0]->is_sere_formula());
         assert(children[1]->is_psl_formula());
@@ -1596,6 +1660,10 @@ namespace spot
           children[0]->is_syntactic_recurrence()
           && children[1]->is_syntactic_guarantee();
         // is_.syntactic_persistence = Persistence U Persistance
+        is_.delta1 = is_.syntactic_guarantee;
+        // is_.sigma2 = Σ₂ U Σ₂
+        is_.pi2 = is_.syntactic_guarantee;
+        is_.delta2 = is_.sigma2 | is_.pi2;
         break;
       case op::W:
         // See comment for op::U.
@@ -1617,7 +1685,10 @@ namespace spot
         is_.syntactic_persistence = // Safety W Persistance
           children[0]->is_syntactic_safety()
           && children[1]->is_syntactic_persistence();
-
+        is_.delta1 = is_.syntactic_safety;
+        is_.sigma2 = is_.syntactic_safety;
+        // is_.pi2 = Π₂ U Π₂
+        is_.delta2 = is_.sigma2 | is_.pi2;
         break;
       case op::R:
         // See comment for op::U.
@@ -1640,7 +1711,10 @@ namespace spot
         is_.syntactic_persistence = // Persistence R Safety
           children[0]->is_syntactic_persistence()
           && children[1]->is_syntactic_safety();
-
+        is_.delta1 = is_.syntactic_safety;
+        is_.sigma2 = is_.syntactic_safety;
+        // is_.pi2 = Π₂ U Π₂
+        is_.delta2 = is_.sigma2 | is_.pi2;
         break;
       case op::M:
         // See comment for op::U.
@@ -1662,7 +1736,10 @@ namespace spot
           children[0]->is_syntactic_guarantee()
           && children[1]->is_syntactic_recurrence();
         // is_.syntactic_persistence = Persistence M Persistance
-
+        is_.delta1 = is_.syntactic_guarantee;
+        // is_.sigma2 = Σ₂ M Σ₂
+        is_.pi2 = is_.syntactic_guarantee;
+        is_.delta2 = is_.sigma2 | is_.pi2;
         break;
       case op::Or:
         {
@@ -1787,6 +1864,10 @@ namespace spot
           is_.syntactic_obligation = false;
           is_.syntactic_recurrence = false;
           is_.syntactic_persistence = false;
+          is_.delta1 = false;
+          is_.pi2 = false;
+          is_.sigma2 = false;
+          is_.delta2 = false;
 
           switch (op_)
             {
@@ -1832,6 +1913,10 @@ namespace spot
         is_.syntactic_obligation = false;
         is_.syntactic_recurrence = false;
         is_.syntactic_persistence = false;
+        is_.delta1 = false;
+        is_.pi2 = false;
+        is_.sigma2 = false;
+        is_.delta2 = false;
         break;
       }
   }
@@ -2011,31 +2096,38 @@ namespace spot
     return strverscmp(f->ap_name().c_str(), g->ap_name().c_str());
   }
 
-#define printprops                                                        \
-  proprint(is_boolean, "B", "Boolean formula");                                \
+#define printprops                                                      \
+  proprint(is_boolean, "B", "Boolean formula");                         \
   proprint(is_sugar_free_boolean, "&", "without Boolean sugar");        \
-  proprint(is_in_nenoform, "!", "in negative normal form");                \
-  proprint(is_syntactic_stutter_invariant, "x",                                \
-           "syntactic stutter invariant");                                \
+  proprint(is_in_nenoform, "!", "in negative normal form");             \
+  proprint(is_syntactic_stutter_invariant, "x",                         \
+           "syntactic stutter invariant");                              \
   proprint(is_sugar_free_ltl, "f", "without LTL sugar");                \
-  proprint(is_ltl_formula, "L", "LTL formula");                                \
-  proprint(is_psl_formula, "P", "PSL formula");                                \
-  proprint(is_sere_formula, "S", "SERE formula");                        \
-  proprint(is_finite, "F", "finite");                                        \
-  proprint(is_eventual, "e", "pure eventuality");                        \
-  proprint(is_universal, "u", "purely universal");                        \
-  proprint(is_syntactic_safety, "s", "syntactic safety");                \
-  proprint(is_syntactic_guarantee, "g", "syntactic guarantee");                \
-  proprint(is_syntactic_obligation, "o", "syntactic obligation");        \
-  proprint(is_syntactic_persistence, "p", "syntactic persistence");        \
-  proprint(is_syntactic_recurrence, "r", "syntactic recurrence");        \
-  proprint(is_marked, "+", "marked");                                        \
-  proprint(accepts_eword, "0", "accepts the empty word");                \
-  proprint(has_lbt_atomic_props, "l",                                        \
-           "has LBT-style atomic props");                                \
-  proprint(has_spin_atomic_props, "a",                                        \
-           "has Spin-style atomic props");
+  proprint(is_ltl_formula, "L", "LTL formula");                         \
+  proprint(is_psl_formula, "P", "PSL formula");                         \
+  proprint(is_sere_formula, "S", "SERE formula");                       \
+  proprint(is_finite, "F", "finite");                                   \
+  proprint(is_eventual, "e", "pure eventuality");                       \
+  proprint(is_universal, "u", "purely universal");                      \
+  proprint(is_syntactic_safety, "s", "syntactic safety");               \
+  proprint(is_syntactic_guarantee, "g", "syntactic guarantee");         \
+  proprint(is_syntactic_obligation, "o", "syntactic obligation");       \
+  proprint(is_syntactic_persistence, "p", "syntactic persistence");     \
+  proprint(is_syntactic_recurrence, "r", "syntactic recurrence");       \
+  proprint(is_marked, "+", "marked");                                   \
+  proprint(accepts_eword, "0", "accepts the empty word");               \
+  proprint(has_lbt_atomic_props, "l",                                   \
+           "has LBT-style atomic props");                               \
+  proprint(has_spin_atomic_props, "a",                                  \
+           "has Spin-style atomic props");                              \
+  proprint(is_delta1, "O", "delta1");                                   \
+  proprint(is_sigma2, "P", "sigma2");                                   \
+  proprint(is_pi2, "R", "pi2");                                         \
+  proprint(is_delta2, "D", "delta2");
 
+  // O (for Δ₁), P (for Σ₂), R (for Π₂) are the uppercase versions of
+  // o (obligation), p (persistence), r (recurrence) because they are
+  // stricter subsets of those.
 
   std::list<std::string>
   list_formula_props(const formula& f)

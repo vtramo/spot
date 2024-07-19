@@ -1121,6 +1121,14 @@ instance using the following methods:
   recurrence property.
 \\\texttt{is\_syntactic\_persistence()}& Whether the formula is a syntactic
   persistence property.
+\\\texttt{is\_syntactic\_delta1()}& Whether the formula belongs to
+                                    the $\Delta_1$ class.
+\\\texttt{is\_syntactic\_pi2()}& Whether the formula belongs to
+                                 the $\Pi_2$ class.
+\\\texttt{is\_syntactic\_sigma2()}& Whether the formula belongs to
+                                    the $\Sigma_2$ class.
+\\\texttt{is\_syntactic\_delta2()}& Whether the formula belongs to
+                                    the $\Delta_2$ class.
 \\\texttt{is\_marked()}& Whether the formula contains a special
   ``marked'' version of the $\Esuffix$ or $\nsere{r}$ operators.\newfootnotemark{1}
 \\\texttt{accepts\_eword()}& Whether the formula accepts
@@ -1198,6 +1206,9 @@ rules:
            \mid \varphi_U\M \varphi_U
 \end{align*}
 
+Given a formula \texttt{f}, its membership to these two classes can be
+tested with \texttt{f.is\_eventual()} and \texttt{f.is\_universal()}.
+
 \section{Syntactic Hierarchy Classes}
 
 \begin{figure}[tbp]
@@ -1221,12 +1232,13 @@ rules:
     \path[fill=green!40,fill opacity=.5] (6,0) -- (1.5,0) -- (6,3);
     \draw (0,0) rectangle (6,7);
 
-    \node[align=center] (rea) at (3,6)  {Reactivity\\ $\bigwedge\G\F p_i\lor \F\G q_i$};
-    \node[align=center] (rec) at (1,4.5) {Recurrence\\ $\G\F p$};
-    \node[align=center] (per) at (5,4.5) {Persistence\\ $\F\G p$};
-    \node[align=center] (obl) at (3,2.85) {Obligation\\ $\bigwedge\G p_i\lor \F q_i$};
-    \node[align=center] (saf) at (1,1) {Safety\\ $\G p$};
-    \node[align=center] (gua) at (5,1) {Guarantee\\ $\F p$};
+    \node[align=center] (rea) at (3,5.9)  {Reactivity\\ $\bigwedge\G\F p_i\lor \F\G q_i$ \\ $\Delta_2$};
+    \node[align=center] (rec) at (1,4.4) {Recurrence\\ $\G\F p$ \\ $\Pi_2$};
+    \node[align=center] (per) at (5,4.4) {Persistence\\ $\F\G p$ \\ $\Sigma_2$};
+    \node[align=center] (obl) at (3,2.85) {Obligation\\ $\bigwedge\G p_i\lor \F q_i$ \\ $\Delta_1$};
+    \node[align=center] (saf) at (1,1) {Safety\\ $\G p$ \\ $\Pi_1$};
+    \node[align=center] (gua) at (5,1) {Guarantee\\ $\F p$ \\ $\Sigma_1$};
+    \node[align=center] (bas) at (3,0.4) {$\Delta_0$};
 
     \node[align=right,below left] (det) at (-.2,6.7) {Deterministic\\Büchi\\Automata};
     \node[align=left,below right](weak) at (6.2,6.7) {Weak Büchi\\Automata};
@@ -1254,24 +1266,107 @@ presented by~\citet{chang.92.icalp}, but other presentations have been
 done including negation~\citep{cerna.03.mfcs} and weak
 until~\citep{schneider.01.lpar}.
 
-The following grammar rules extend the aforementioned work slightly by
-dealing with PSL operators.  These are the rules used by Spot to
-decide upon construction to which class a formula belongs (see the
-methods \texttt{is\_syntactic\_safety()},
-\texttt{is\_syntactic\_guarantee()},
-\texttt{is\_syntactic\_obligation()},
-\texttt{is\_syntactic\_recurrence()}, and
-\texttt{is\_syntactic\_persistence()} listed on
-page~\pageref{property-methods}).
+Spot implements two versions of a syntactic hierarchy, and extend them
+to deal with PSL operators.
 
-The symbols $\varphi_G$, $\varphi_S$, $\varphi_O$, $\varphi_P$,
-$\varphi_R$ denote any formula belonging respectively to the
-Guarantee, Safety, Obligation, Persistence, or Recurrence classes.
-Additionally $\varphi_B$ denotes a finite LTL formula (the unnamed
-class at the intersection of Safety and Guarantee formulas, at the
-\textbf{b}ottom of Fig.~\ref{fig:hierarchy}).  $v$ denotes any
-variable, $r$ any SERE, $r_F$ any bounded SERE (no loops), and $r_I$
-any unbounded SERE.
+
+The first hierarchy, usually denoted with names such as $\Sigma_i$ and
+$\Pi_i$, as shown in Fig.~\ref{fig:hierarchy}.  Following Esparza et
+al.~\cite{esparza.24.acm}, we also introduce the $\Delta_0$,
+$\Delta_1$, and $\Delta_2$ classes.
+
+Intuitively, those classes are related to how the weak operators
+($\G$, $\W$, $\R$) alternate with the strong operators ($\U$, $\F$,
+$\M$) in formula:
+
+\begin{itemize}
+\item the class $\Delta_0$ contains all formulas that may only
+  use $\X$ as temporal operator,
+\item formulas in $\Pi_1$ contains no strong operators,
+\item formulas in $\Sigma_1$ contains no weak operators,
+\item the class $\Delta_1$ contains all boolean combinations of
+  $\Pi_1$ and $\Sigma_1$,
+\item in each branch of a formula of $\Pi_2$ that contains both types
+  of operator, weak operators are all above strong operators,
+\item in each branch of a formula of $\Sigma_2$ that contains both types
+  of operator, strong operators are all above weak operators,
+\item the class $\Delta_2$ contains all boolean combinations of
+  $\Pi_2$ and $\Sigma_2$.
+\end{itemize}
+
+Those classes can be captured by the following grammar rules, where
+$v$ denotes any variable, $r$ any SERE, $r_F$ any bounded SERE (no
+loops), and $r_I$ any unbounded SERE.
+
+\begin{align*}
+  \varphi_{\Delta_0} ::={}& \0\mid\1\mid v\mid\NOT\varphi_{\Delta_0}\mid\varphi_{\Delta_0}\AND\varphi_{\Delta_0}
+                   \mid(\varphi_{\Delta_0}\OR\varphi_{\Delta_0})\mid\varphi_{\Delta_0}\EQUIV\varphi_{\Delta_0}
+                   \mid\varphi_{\Delta_0}\XOR\varphi_{\Delta_0}\mid\varphi_{\Delta_0}\IMPLIES\varphi_{\Delta_0}
+                   \mid\X\varphi_{\Delta_0}\\
+               \mid{}& \sere{r_F}\mid \nsere{r_F}\\
+  \varphi_{\Pi_1} ::={}& \varphi_{\Delta_0}\mid \NOT\varphi_S\mid
+                   \varphi_{\Pi_1}\AND \varphi_{\Pi_1}\mid (\varphi_{\Pi_1}\OR \varphi_{\Pi_1})
+                   \mid\varphi_S\IMPLIES\varphi_{\Pi_1}\mid
+                   \X\varphi_{\Pi_1} \mid \F\varphi_{\Pi_1}\mid
+                   \varphi_{\Pi_1}\U\varphi_{\Pi_1}\mid \varphi_{\Pi_1}\M\varphi_{\Pi_1}\\
+           \mid{}& \nsere{r}\mid
+                   \sere{r}\Esuffix \varphi_{\Pi_1}\mid
+                   \sere{r_F}\Asuffix \varphi_{\Pi_1} \\
+  \varphi_{\Sigma_1} ::={}& \varphi_{\Delta_0}\mid \NOT\varphi_{\Pi_1}\mid
+                   \varphi_{\Sigma_1}\AND \varphi_{\Sigma_1}\mid (\varphi_{\Sigma_1}\OR \varphi_{\Sigma_1})
+                   \mid\varphi_{\Pi_1}\IMPLIES\varphi_{\Sigma_1}\mid
+                   \X\varphi_{\Sigma_1} \mid \G\varphi_{\Sigma_1}\mid
+                   \varphi_{\Sigma_1}\R\varphi_{\Sigma_1}\mid \varphi_{\Sigma_1}\W\varphi_{\Sigma_1}\\
+           \mid{}& \sere{r}\mid
+                   \sere{r_F}\Esuffix \varphi_{\Sigma_1}\mid
+                   \sere{r}\Asuffix \varphi_{\Sigma_1}\\
+  \varphi_{\Delta_1} ::={}& \varphi_{\Pi_1} \mid \varphi_{\Sigma_1}\mid \NOT\varphi_{\Delta_1}\mid
+                   \varphi_{\Delta_1}\AND \varphi_{\Delta_1}\mid (\varphi_{\Delta_1}\OR \varphi_{\Delta_1})\mid
+                   \varphi_{\Delta_1}\EQUIV \varphi_{\Delta_1}\mid \varphi_{\Delta_1}\XOR \varphi_{\Delta_1}\mid
+                   \varphi_{\Delta_1}\IMPLIES \varphi_{\Delta_1}\\
+           \mid{}& \X\varphi_{\Delta_1} \mid{}
+                   \sere{r_F}\Esuffix \varphi_{\Delta_1} \mid
+                   \sere{r_F}\Asuffix \varphi_{\Delta_1}\\
+  \varphi_{\Sigma_2} ::={}& \varphi_{\Delta_1} \mid \NOT\varphi_{\Pi_2}\mid
+                   \varphi_{\Sigma_2}\AND \varphi_{\Sigma_2}\mid (\varphi_{\Sigma_2}\OR \varphi_{\Sigma_2})\mid
+                   \varphi_{\Pi_2}\IMPLIES \varphi_{\Sigma_2}\\
+           \mid{}& \X\varphi_{\Sigma_2} \mid \F\varphi_{\Sigma_2} \mid
+                   \varphi_{\Sigma_2}\U\varphi_{\Sigma_2}\mid\varphi_{\Sigma_2}\M\varphi_{\Sigma_2}
+                   \mid{} \sere{r}\Esuffix \varphi_{\Sigma_2}\mid \sere{r_F}\Asuffix \varphi_{\Sigma_2}\\
+  \varphi_{\Pi_2} ::={}& \varphi_{\Delta_1} \mid \NOT\varphi_{\Sigma_2}\mid
+                   \varphi_{\Pi_2}\AND \varphi_{\Pi_2}\mid (\varphi_{\Pi_2}\OR \varphi_{\Pi_2})\mid
+                   \varphi_{\Sigma_2}\IMPLIES \varphi_{\Pi_2}\\
+           \mid{}& \X\varphi_{\Pi_2} \mid \G\varphi_{\Pi_2} \mid
+                   \varphi_{\Pi_2}\R\varphi_{\Pi_2}\mid
+                   \varphi_{\Pi_2}\W\varphi_{\Pi_2} \mid{} \sere{r}\Asuffix \varphi_{\Pi_2}\mid \sere{r_F}\Esuffix \varphi_{\Pi_2}\\
+  \varphi_{\Delta_2} ::={}& \varphi_{\Pi_2} \mid \varphi_{\Sigma_2}\mid \NOT\varphi_{\Delta_2}\mid
+                   \varphi_{\Delta_2}\AND \varphi_{\Delta_2}\mid (\varphi_{\Delta_2}\OR \varphi_{\Delta_2})\mid
+                   \varphi_{\Delta_2}\EQUIV \varphi_{\Delta_2}\mid \varphi_{\Delta_2}\XOR \varphi_{\Delta_2}\mid
+                   \varphi_{\Delta_2}\IMPLIES \varphi_{\Delta_2}\\
+           \mid{}& \X\varphi_{\Delta_2} \mid{} \sere{r_F}\Esuffix \varphi_{\Delta_2} \mid
+                   \sere{r_F}\Asuffix \varphi_{\Delta_2}\\
+\end{align*}
+
+
+A nice property of these classes, is that they are as expressive as
+their corresponding automata classes.  For instance any LTL/PSL
+property that is representable by a deterministic Büchi automaton (the
+recurrence class) can be represented by an LTL/PSL formula in the
+$\Pi_2$ fragment, even if the original formula isn't in the $\Pi_2$
+fragment originally.
+
+If the objective is to classify properties syntactically, it is useful
+to use some slightly more complete grammar rules.  In the following
+list, the rules the initial $G$, $S$, $O$, $P$, $R$ of their
+corresponding property clases, as listed in Fig.~\ref{fig:hierarchy}
+(i.e., Guarantee, Safety, Obligation, Persistence, Recurrence).
+Additionally, $B$ denotes the ``bottom'' class (a.k.a. $\Delta_0$).
+Note that $\varphi_B$, $\varphi_G$, and $\varphi_S$ are rigorously
+equivalent to $\varphi_{\Delta_0}$, $\varphi_{\Pi_1}$, and
+$\varphi_{\Sigma_1}$.  The difference in the higher classes are
+\colorbox{yellow}{highlighted}.  There is no generalization of
+$\varphi_{\Delta_2}$ since any LTL/PSL formula is a reactivity
+property.
 
 \begin{align*}
   \varphi_B ::={}& \0\mid\1\mid v\mid\NOT\varphi_B\mid\varphi_B\AND\varphi_B
@@ -1300,36 +1395,70 @@ any unbounded SERE.
                    \varphi_O\EQUIV \varphi_O\mid \varphi_O\XOR \varphi_O\mid
                    \varphi_O\IMPLIES \varphi_O\\
            \mid{}& \X\varphi_O \mid
-                   \varphi_O\U\varphi_G\mid\varphi_O\R\varphi_S \mid
-                   \varphi_S\W\varphi_O\mid \varphi_G\M\varphi_O\\
-           \mid{}& \sere{r} \mid \nsere{r}\mid
-                   \sere{r_F}\Esuffix \varphi_O \mid \sere{r_I}\Esuffix \varphi_G\mid
+                   \colorbox{yellow}{$\varphi_O\U\varphi_G$}\mid
+                   \colorbox{yellow}{$\varphi_O\R\varphi_S$}\mid
+                   \colorbox{yellow}{$\varphi_S\W\varphi_O$}\mid
+                   \colorbox{yellow}{$\varphi_G\M\varphi_O$}\\
+           \mid{}& \sere{r_F}\Esuffix \varphi_O \mid \colorbox{yellow}{$\sere{r_I}\Esuffix \varphi_G$}\mid
                    \sere{r_F}\Asuffix \varphi_O\mid
-                   \sere{r_I}\Asuffix \varphi_S\\
+                   \colorbox{yellow}{$\sere{r_I}\Asuffix \varphi_S$}\\
   \varphi_P ::={}& \varphi_O \mid \NOT\varphi_R\mid
                    \varphi_P\AND \varphi_P\mid (\varphi_P\OR \varphi_P)\mid
                    \varphi_R\IMPLIES \varphi_P\\
            \mid{}& \X\varphi_P \mid \F\varphi_P \mid
-                   \varphi_P\U\varphi_P\mid\varphi_P\R\varphi_S\mid
-                   \varphi_S\W\varphi_P\mid\varphi_P\M\varphi_P\\
+                   \varphi_P\U\varphi_P\mid\colorbox{yellow}{$\varphi_P\R\varphi_S$}\mid
+                   \colorbox{yellow}{$\varphi_S\W\varphi_P$}\mid\varphi_P\M\varphi_P\\
            \mid{}& \sere{r}\Esuffix \varphi_P\mid
                    \sere{r_F}\Asuffix \varphi_P\mid
-                   \sere{r_I}\Asuffix \varphi_S\\
+                   \colorbox{yellow}{$\sere{r_I}\Asuffix \varphi_S$}\\
   \varphi_R ::={}& \varphi_O \mid \NOT\varphi_P\mid
                    \varphi_R\AND \varphi_R\mid (\varphi_R\OR \varphi_R)\mid
                    \varphi_P\IMPLIES \varphi_R\\
            \mid{}& \X\varphi_R \mid \G\varphi_R \mid
-                   \varphi_R\U\varphi_G\mid\varphi_R\R\varphi_R\mid
-                   \varphi_R\W\varphi_R\mid\varphi_G\M\varphi_R\\
-           \mid{}& \sere{r}\Asuffix \varphi_R\mid \sere{r_F}\Esuffix \varphi_R \mid \sere{r_I}\Esuffix \varphi_G\\
+                   \colorbox{yellow}{$\varphi_R\U\varphi_G$}\mid\varphi_R\R\varphi_R\mid
+                   \varphi_R\W\varphi_R\mid\colorbox{yellow}{$\varphi_G\M\varphi_R$}\\
+           \mid{}& \sere{r}\Asuffix \varphi_R\mid \sere{r_F}\Esuffix \varphi_R \mid \colorbox{yellow}{$\sere{r_I}\Esuffix \varphi_G$}\\
 \end{align*}
+
 
 It should be noted that a formula can belong to a class of the
 temporal hierarchy even if it does not syntactically appears so.  For
-instance the formula $(\G(q\OR \F\G p)\AND \G(r\OR \F\G\NOT p))\OR\G
-q\OR \G r$ is not syntactically safe, yet it is a safety formula
-equivalent to $\G q\OR \G r$.  Such a formula is usually said
-\emph{pathologically safe}.
+instance the formula
+$(\G(q\OR \F\G p)\AND \G(r\OR \F\G\NOT p))\OR\G q\OR \G r$ is not
+syntactically safe (and isn't even in $\Delta_2$), yet it is a safety
+formula equivalent to $\G q\OR \G r$ (which is in $\Pi_1$, the
+syntactical class of safety formulas).  Such a formula is usually said
+to be a \emph{pathological safety} formula.
+
+To illustrate the difference in the grammar for the higher classes,
+consider the formula $\G((\G a) \U b)$.  This formula can be converted
+to a deterministic Büchi automaton, so it specifies a recurrence
+property.  It is captured by the grammar rule for $\varphi_R$ above,
+yet it does not belong to the $\Pi_2$ class because of the alternation
+between weak ($\G$), strong ($\U$), and weak ($\G$) operators.
+However the equivalent formula $\G((\G a) \W b))\land \G\F b$ belongs
+to $\Pi_2$.
+
+Spot computes the membership to each of those class whenever a formula
+$f$ is constructed.  Here is how the membership to each of those class
+can be tested:
+\begin{center}
+\begin{tabular}{cl}
+  \toprule
+  $f\in \Delta_0$ & \texttt{f.is\_syntactic\_safety() \&\& f.is\_syntactic\_guarantee()} \\
+  $f\in \Pi_1$, $f\in S$ & \texttt{f.is\_syntactic\_safety()} \\
+  $f\in \Sigma_1$, $f\in G$ & \texttt{f.is\_syntactic\_guarantee()} \\
+  $f\in \Delta_1$ & \texttt{f.is\_delta1()} \\
+  $f\in O$ & \texttt{f.is\_syntactic\_obligation()} \\
+  $f\in \Pi_2$ & \texttt{f.is\_pi2()} \\
+  $f\in R$ & \texttt{f.is\_syntactic\_recurrence()} \\
+  $f\in \Sigma_2$ & \texttt{f.is\_sigma2()} \\
+  $f\in P$ & \texttt{f.is\_syntactic\_persistence()} \\
+  $f\in \Delta_2$ & \texttt{f.is\_delta2()} \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
 
 \chapter{Rewritings}
 
