@@ -74,6 +74,8 @@ enum {
   OPT_BSIZE_MAX,
   OPT_BSIZE_MIN,
   OPT_DEFINE,
+  OPT_DELTA1,
+  OPT_DELTA2,
   OPT_DROP_ERRORS,
   OPT_EQUIVALENT_TO,
   OPT_EXCLUSIVE_AP,
@@ -89,6 +91,7 @@ enum {
   OPT_NNF,
   OPT_OBLIGATION,
   OPT_PERSISTENCE,
+  OPT_PI2,
   OPT_RECURRENCE,
   OPT_REJECT_WORD,
   OPT_RELABEL,
@@ -97,6 +100,7 @@ enum {
   OPT_REMOVE_WM,
   OPT_REMOVE_X,
   OPT_SAFETY,
+  OPT_SIGMA2,
   OPT_SIZE,
   OPT_SIZE_MAX,
   OPT_SIZE_MIN,
@@ -184,15 +188,22 @@ static const argp_option options[] =
     { "suspendable", OPT_SUSPENDABLE, nullptr, 0,
       "synonym for --universal --eventual", 0 },
     { "syntactic-safety", OPT_SYNTACTIC_SAFETY, nullptr, 0,
-      "match syntactic-safety formulas", 0 },
+      "match syntactic-safety (a.k.a. Π₁) formulas", 0 },
+    { "pi1", 0, nullptr, OPTION_ALIAS, nullptr, 0 },
     { "syntactic-guarantee", OPT_SYNTACTIC_GUARANTEE, nullptr, 0,
-      "match syntactic-guarantee formulas", 0 },
+      "match syntactic-guarantee (a.k.a. Σ₁) formulas", 0 },
+    { "sigma1", 0, nullptr, OPTION_ALIAS, nullptr, 0 },
     { "syntactic-obligation", OPT_SYNTACTIC_OBLIGATION, nullptr, 0,
       "match syntactic-obligation formulas", 0 },
+    { "delta1", OPT_DELTA1, nullptr, 0,
+      "match Δ₁ formulas", 0 },
     { "syntactic-recurrence", OPT_SYNTACTIC_RECURRENCE, nullptr, 0,
       "match syntactic-recurrence formulas", 0 },
+    { "pi2", OPT_PI2, nullptr, 0, "match Π₂ formulas", 0 },
     { "syntactic-persistence", OPT_SYNTACTIC_PERSISTENCE, nullptr, 0,
       "match syntactic-persistence formulas", 0 },
+    { "sigma2", OPT_SIGMA2, nullptr, 0, "match Σ₂ formulas", 0 },
+    { "delta2", OPT_DELTA2, nullptr, 0, "match Δ₂ formulas", 0 },
     { "syntactic-stutter-invariant", OPT_SYNTACTIC_SI, nullptr, 0,
       "match stutter-invariant formulas syntactically (LTL-X or siPSL)", 0 },
     { "nox", 0, nullptr, OPTION_ALIAS, nullptr, 0 },
@@ -312,6 +323,10 @@ static bool syntactic_guarantee = false;
 static bool syntactic_obligation = false;
 static bool syntactic_recurrence = false;
 static bool syntactic_persistence = false;
+static bool delta1 = false;
+static bool delta2 = false;
+static bool sigma2 = false;
+static bool pi2 = false;
 static bool syntactic_si = false;
 static bool safety = false;
 static bool guarantee = false;
@@ -441,6 +456,12 @@ parse_opt(int key, char* arg, struct argp_state*)
     case OPT_DEFINE:
       opt->output_define.reset(new output_file(arg ? arg : "-"));
       break;
+    case OPT_DELTA1:
+      delta1 = true;
+      break;
+    case OPT_DELTA2:
+      delta2 = true;
+      break;
     case OPT_DROP_ERRORS:
       error_style = drop_errors;
       break;
@@ -500,6 +521,9 @@ parse_opt(int key, char* arg, struct argp_state*)
       break;
     case OPT_OBLIGATION:
       obligation = true;
+      break;
+    case OPT_PI2:
+      pi2 = true;
       break;
     case OPT_PERSISTENCE:
       persistence = true;
@@ -563,6 +587,9 @@ parse_opt(int key, char* arg, struct argp_state*)
       break;
     case OPT_AP_N:
       ap_n = parse_range(arg, 0, std::numeric_limits<int>::max());
+      break;
+    case OPT_SIGMA2:
+      sigma2 = true;
       break;
     case OPT_SUSPENDABLE:
       universal = true;
@@ -745,8 +772,12 @@ namespace
       matched &= !syntactic_safety || f.is_syntactic_safety();
       matched &= !syntactic_guarantee || f.is_syntactic_guarantee();
       matched &= !syntactic_obligation || f.is_syntactic_obligation();
+      matched &= !delta1 || f.is_delta1();
       matched &= !syntactic_recurrence || f.is_syntactic_recurrence();
+      matched &= !pi2 || f.is_pi2();
       matched &= !syntactic_persistence || f.is_syntactic_persistence();
+      matched &= !sigma2 || f.is_sigma2();
+      matched &= !delta2 || f.is_delta2();
       matched &= !syntactic_si || f.is_syntactic_stutter_invariant();
       if (matched && (ap_n.min > 0 || ap_n.max >= 0))
         {
