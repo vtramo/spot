@@ -945,7 +945,7 @@ namespace spot
       return nested_unop_range(op::X, op::Or /* unused */, level, level, f);
     }
 
-#if SPOT_WANT_STRONG_X
+#ifdef SPOT_WANT_STRONG_X
     /// \brief Construct a strong_X
     /// @{
     SPOT_DEF_UNOP(strong_X);
