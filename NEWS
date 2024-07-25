@@ -32,6 +32,10 @@ New in spot 2.12.0.dev (not yet released)
      following "Efficient Normalization of Linear Temporal Logic" by
      Esparza et al. (J. ACM, 2024).
 
+   - Trivial rewritings (those performed everytime at construction)
+     were missing the rule "[*0]|f ≡ f" when f already accepts the
+     empty word.  (Issue #545.)
+
 New in spot 2.12  (2024-05-16)
 
   Build:

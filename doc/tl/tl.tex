@@ -839,47 +839,47 @@ The following rules are all valid with the two arguments swapped.
 %\samp{$\FUSION$}.)
 
 \begin{align*}
-  \0\AND f &\equiv \0 &
   \0\ANDALT f   &\equiv \0 &
+  \0\AND f &\equiv \0 &
   \0\OR f &\equiv f &
   \0 \FUSION f &\equiv \0 &
-  \0 \CONCAT f &\equiv \0 \\
+  \mathllap{\0 \CONCAT f}&\equiv \0 \\
+  \1\ANDALT b   &\equiv b &
   \1\AND f&\equiv
   \begin{cases}
     1\mathrlap{\text{~if~} \varepsilon\VDash f} \\
     f\mathrlap{\text{~if~} \varepsilon\nVDash f} \\
   \end{cases} &
-  \1\ANDALT b   &\equiv b &
   \1\OR b &\equiv \1 &
-  \1 \FUSION f & \equiv f\mathrlap{\text{~if~}\varepsilon\nVDash f}\\
-  &&
+  \1 \FUSION f & \equiv \mathrlap{f\text{~if~}\varepsilon\nVDash f}\\
   \STAR{} \ANDALT f &\equiv f &
+  &&
   \STAR{} \OR f &\equiv \mathrlap{\STAR{}} &
   &&
-  \STAR{} \CONCAT f &\equiv \STAR{}\text{~if~}\varepsilon\VDash f& \\
-  &&
+  \mathllap{\STAR{} \CONCAT f }&\equiv \STAR{}\text{~if~}\varepsilon\VDash f& \\
   \PLUS{} \ANDALT f &\equiv f \text{~if~}\varepsilon\nVDash f&
+  &&
   \PLUS{} \OR f &\equiv \begin{cases}
     \mathrlap{\STAR{}\text{~if~} \varepsilon\VDash f} \\
     \mathrlap{\PLUS{}\text{~if~} \varepsilon\nVDash f} \\
   \end{cases} &
   &&
   && \\
-  \eword\AND f &\equiv f &
   \eword\ANDALT f &\equiv
   \begin{cases}
-    \mathrlap{\eword\text{~if~} \varepsilon\VDash f} \\
-    \0\mathrlap{\phantom{\STAR{}}\text{~if~} \varepsilon\nVDash f} \\
+    \!\eword\text{~if~}\varepsilon\VDash{f} \\
+    \0\!\phantom{\STAR{}}\text{~if~}\varepsilon\nVDash{f} \\
   \end{cases} &
-  &&
+  \mathllap{\eword}\AND f &\equiv f &
+  \eword\OR f &\equiv f \text{~if~} \varepsilon\VDash f&
   \eword \FUSION f &\equiv \0 &
-  \eword \CONCAT f &\equiv f\\
-  f\AND f &\equiv f&
+  \mathllap{\eword \CONCAT f}&\equiv f\\
   f\ANDALT f &\equiv f &
+  f\AND f &\equiv f&
   f\OR f &\equiv f&
   f\FUSION f&\equiv f\FSTAR{2}&
   f\CONCAT f&\equiv f\STAR{2}\\
-  b_1 \AND b_2 &\equiv b_1\ANDALT b_2 &
+  b_1 \AND b_2 &\equiv \mathrlap{b_1\ANDALT b_2}&
   &&
   &&
   b_1:b_2 &\equiv b_1\ANDALT b_2
@@ -890,7 +890,7 @@ f\STAR{\mvar{i}..\mvar{j}}\CONCAT f\STAR{\mvar{k}..\mvar{l}}&\equiv f\STAR{\mvar
 f\FSTAR{\mvar{i}..\mvar{j}}\FUSION f&\equiv f\FSTAR{\mvar{i+1}..\mvar{j+1}} &
 f\FSTAR{\mvar{i}..\mvar{j}}\FUSION f\FSTAR{\mvar{k}..\mvar{l}}&\equiv f\FSTAR{\mvar{i+k}..\mvar{j+l}}\\
 b\STAR{\mvar{i}..\mvar{j}}\FUSION b &\equiv b\STAR{\mvar{\max(i,1)}..\mvar{j}} &
-b\STAR{\mvar{i}..\mvar{j}}\FUSION b\STAR{\mvar{k}..\mvar{l}} &\equiv b\mathrlap{\STAR{\mvar{\max(i,1)+\max(k,1)-1}..\mvar{j+l-1}}}
+b\STAR{\mvar{i}..\mvar{j}}\FUSION b\STAR{\mvar{k}..\mvar{l}} &\equiv b\STAR{\mvar{\max(i,1)+\max(k,1)-1}..\mvar{j+l-1}}
 \end{align*}
 \section{SERE-LTL Binding Operators}
 

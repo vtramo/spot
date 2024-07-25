@@ -357,7 +357,16 @@ namespace spot
         break;
       case op::OrRat:
         neutral = ff();
-        neutral2 = nullptr;
+        {
+          // If this OrRat contains an operand that accept [*0] but
+          // isn't [*0], then any [+0] can be removed.
+          bool eword_accepted =
+            std::find_if(v.begin(), v.end(),
+                         [](const fnode* f) {
+                           return f->accepts_eword() && !f->is_eword();
+                         }) != v.end();
+          neutral2 = eword_accepted ? eword() : nullptr;
+        }
         abs = one_star();
         abs2 = nullptr;
         weak_abs = one_plus();
