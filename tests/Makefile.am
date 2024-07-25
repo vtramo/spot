@@ -236,6 +236,7 @@ TESTS_twa = \
   core/renault.test \
   core/nondet.test \
   core/det.test \
+  core/delta2.test \
   core/semidet.test \
   core/neverclaimread.test \
   core/parseaut.test \

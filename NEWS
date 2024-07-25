@@ -9,6 +9,8 @@ New in spot 2.12.0.dev (not yet released)
   - ltlfilt learned --pi1, --sigma1, --delta1, --pi2, --sigma2, and
     --delta2 to filter according to classes Π₁,Σ₁,Δ₁,Π₂,Σ₂, and Δ₂.
 
+  - ltlfilt learned --to-delta2 to transform an LTL formula into Δ₂.
+
   Library:
 
    - restrict_dead_end_edges_here() can reduce non-determinism (but

@@ -38,6 +38,7 @@
 #include <spot/misc/timer.hh>
 #include <spot/tl/simplify.hh>
 #include <spot/tl/sonf.hh>
+#include <spot/tl/delta2.hh>
 #include <spot/tl/length.hh>
 #include <spot/tl/relabel.hh>
 #include <spot/tl/unabbrev.hh>
@@ -115,6 +116,7 @@ enum {
   OPT_SYNTACTIC_RECURRENCE,
   OPT_SYNTACTIC_SAFETY,
   OPT_SYNTACTIC_SI,
+  OPT_TO_DELTA2,
   OPT_UNABBREVIATE,
   OPT_UNIVERSAL,
 };
@@ -161,6 +163,8 @@ static const argp_option options[] =
     { "remove-x", OPT_REMOVE_X, nullptr, 0,
       "remove X operators (valid only for stutter-insensitive properties)",
       0 },
+    { "to-delta2", OPT_TO_DELTA2, nullptr, 0,
+      "rewrite LTL formula in Δ₂-form", 0 },
     { "unabbreviate", OPT_UNABBREVIATE, "STR", OPTION_ARG_OPTIONAL,
       "remove all occurrences of the operators specified by STR, which "
       "must be a substring of \"eFGiMRW^\", where 'e', 'i', and '^' stand "
@@ -349,7 +353,7 @@ static int opt_max_count = -1;
 static long int match_count = 0;
 static const char* from_ltlf = nullptr;
 static const char* sonf = nullptr;
-
+static bool to_delta2 = false;
 
 // We want all these variables to be destroyed when we exit main, to
 // make sure it happens before all other global variables (like the
@@ -579,6 +583,9 @@ parse_opt(int key, char* arg, struct argp_state*)
     case OPT_STUTTER_INSENSITIVE:
       stutter_insensitive = true;
       break;
+    case OPT_TO_DELTA2:
+      to_delta2 = true;
+      break;
     case OPT_UNABBREVIATE:
       if (arg)
         unabbreviate += arg;
@@ -733,6 +740,9 @@ namespace
               opt->output_sonf->ostream() << '\n';
             }
         }
+
+      if (to_delta2)
+        f = spot::to_delta2(f);
 
       switch (relabeling)
         {
