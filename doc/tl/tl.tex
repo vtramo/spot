@@ -1473,10 +1473,10 @@ The goals in most of these simplification are to:
 \end{itemize}
 
 Rewritings defined with $\equivEU$ are applied only when
-\verb|tl_simplifier_options::favor_event_univ|' is \texttt{true}:
+`\verb|tl_simplifier_options::favor_event_univ|' is \texttt{true}:
 they try to lift subformulas that are both eventual and universal
 \emph{higher} in the syntax tree.  Conversely, rules defined with $\equivNeu$
-are applied only when \verb|favor_event_univ|' is \texttt{false}: they
+are applied only when `\verb|favor_event_univ|' is \texttt{false}: they
 try to \textit{lower} subformulas that are both eventual and universal.
 
 Currently all these simplifications assume LTL semantics, so they make
@@ -1486,10 +1486,10 @@ only listed with $\X$.
 \subsection{Basic Simplifications}\label{sec:basic-simp}
 
 These simplifications are enabled with
-\verb|tl_simplifier_options::reduce_basics|'.  A couple of them may
+`\verb|tl_simplifier_options::reduce_basics|'.  A couple of them may
 enlarge the size of the formula: they are denoted using $\equiV$
 instead of $\equiv$, and they can be disabled by setting the
-\verb|tl_simplifier_options::reduce_size_strictly|' option to
+`\verb|tl_simplifier_options::reduce_size_strictly|' option to
 \texttt{true}.
 
 \subsubsection{Basic Simplifications for Temporal Operators}
@@ -1715,7 +1715,7 @@ $\Esuffix$.  They assume that $b$, denote a Boolean formula.
 
 As noted at the beginning for section~\ref{sec:basic-simp}, rewritings
 denoted with $\equiV$ can be disabled by setting the
-\verb|tl_simplifier_options::reduce_size_strictly|' option to
+`\verb|tl_simplifier_options::reduce_size_strictly|' option to
 \texttt{true}.
 
 \begin{align*}
@@ -1818,7 +1818,7 @@ $q,\,q_i$           & a pure eventuality that is also purely universal \\
   \G(f_1\AND\ldots\AND f_n \AND q_1 \AND \ldots \AND q_p)&\equivEU \G(f_1\AND\ldots\AND f_n)\AND q_1 \AND \ldots \AND q_p \\
   \G\F(f_1\AND\ldots\AND f_n \AND q_1 \AND \ldots \AND q_p)&\equiv \G(\F(f_1\AND\ldots\AND f_n)\AND q_1 \AND \ldots \AND q_p) \\
   \G(f_1\AND\ldots\AND f_n \AND e_1 \AND \ldots \AND e_m \AND \G(e_{m+1}) \AND \ldots\AND \G(e_p))&\equivEU \G(f_1\AND\ldots\AND f_n)\AND \G(e_1 \AND \ldots \AND e_p) \\
-  \G(f_1\AND\ldots\AND f_n \AND \G(g_1) \AND \ldots \AND \G(g_m) &\equiv \G(f_1\AND\ldots\AND f_n\AND g_1 \AND \ldots \AND g_m) \\
+  \G(f_1\AND\ldots\AND f_n \AND \G(g_1) \AND \ldots \AND \G(g_m)) &\equiv \G(f_1\AND\ldots\AND f_n\AND g_1 \AND \ldots \AND g_m) \\
   \F(f_1 \OR \ldots \OR f_n \OR u_1 \OR \ldots \OR u_m \OR \F(u_{m+1})\OR\ldots\OR \F(u_p)) &\equivEU \F(f_1\OR \ldots\OR f_n) \OR \F(u_1 \OR \ldots \OR u_p)\\
   \F(f_1 \OR \ldots \OR f_n \OR \F(g_1) \OR \ldots \OR \G(g_m)) &\equiv \F(f_1\OR \ldots\OR f_n \OR g_1 \OR \ldots \OR g_m)\\
   \G(f_1)\AND\ldots\AND \G(f_n) \AND \G(e_1) \AND \ldots\AND \G(e_p)&\equivEU \G(f_1\AND\ldots\AND f_n)\AND \G(e_1 \AND \ldots \AND e_p) \\
@@ -1837,19 +1837,19 @@ implication can be done in two ways:
 \begin{description}
 \item[Syntactic Implication Checks] were initially proposed
   by~\citet{somenzi.00.cav}.  This detection is enabled by the
-  ``\verb|tl_simplifier_options::synt_impl|'' option.  This is a
+  `\verb|tl_simplifier_options::synt_impl|' option.  This is a
   cheap way to detect implications, but it may miss some.  The rules
   we implement are described in Appendix~\ref{ann:syntimpl}.
 
 \item[Language Containment Checks] were initially proposed
   by~\citet{tauriainen.03.tr}.  This detection is enabled by the
-  ``\verb|tl_simplifier_options::containment_checks|'' option.
+  `\verb|tl_simplifier_options::containment_checks|' option.
 \end{description}
 
 In the following rewritings rules, $f\simp g$ means that $g$ was
 proved to be implied by $f$ using either of the above two methods.
 Additionally, implications denoted by $f\Simp g$ are only checked if
-the ``\verb|tl_simplifier_options::containment_checks_stronger|''
+the `\verb|tl_simplifier_options::containment_checks_stronger|'
 option is set (otherwise the rewriting rule is not applied).  We write
 $f\simpe g$ iff $f\simp g$ and $g\simp f$.
 
@@ -1936,7 +1936,7 @@ The first six rules, about n-ary operators $\AND$ and $\OR$, are
 implemented for $n$ operands by testing each operand against all
 other.  To prevent the complexity to escalate, this is only performed
 with up to 16 operands.  That value can be changed in
-``\verb|tl_simplifier_options::containment_max_ops|''.
+`\verb|tl_simplifier_options::containment_max_ops|'.
 
 The following rules mix implication-based checks with formulas that
 are pure eventualities ($e$) or that are purely universal ($u$).
