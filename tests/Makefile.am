@@ -415,6 +415,7 @@ TESTS_python = \
   python/declenv.py \
   python/decompose_scc.py \
   python/deadends.py \
+  python/delta2.py \
   python/det.py \
   python/dualize.py \
   python/ecfalse.py \

@@ -26,6 +26,10 @@ New in spot 2.12.0.dev (not yet released)
      formula::is_delta1(), formula::is_sigma2(), formula::is_pi2(),
      formula::is_delta2().  See doc/tl/tl.pdf from more discussion.
 
+   - spot::to_delta2() implements Δ₂-normalization for LTL formulas,
+     following "Efficient Normalization of Linear Temporal Logic" by
+     Esparza et al. (J. ACM, 2024).
+
 New in spot 2.12  (2024-05-16)
 
   Build:
