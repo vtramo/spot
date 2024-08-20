@@ -1276,11 +1276,10 @@ namespace spot
           {
             current_in = bddtrue;
 
-            auto& [plyconddict, plycondvect] = plystatedict;
-
             auto fvisitInTrav
               = [&](const bdd& ccond) -> void
               {
+                auto& [plyconddict, plycondvect] = plystatedict;
 
                 int clvl = bdd_var(ccond);
                 assert(clvl >= inIdx);
