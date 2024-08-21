@@ -36,6 +36,11 @@ New in spot 2.12.0.dev (not yet released)
      were missing the rule "[*0]|f ≡ f" when f already accepts the
      empty word.  (Issue #545.)
 
+  Bug fixes:
+
+  - Generating random formula without any unary opertors would very
+    often create formulas much smaller than asked.
+
 New in spot 2.12  (2024-05-16)
 
   Build:
