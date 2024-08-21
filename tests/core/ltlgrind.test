@@ -200,3 +200,11 @@ EOF
 
 ltlgrind -f 'a U b' -m 999999999999999999999999999 2>err && exit 1
 grep 'too large' err
+
+# The following message appears only if run from a tty.
+if (: > /dev/tty) >/dev/null 2>&1 ; then
+   ltlgrind </dev/tty 2>err && exit 1
+   grep 'No formula to mutate' err
+fi
+
+:
