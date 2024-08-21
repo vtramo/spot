@@ -388,14 +388,14 @@ job_processor::run()
   return error;
 }
 
-void check_no_formula()
+void check_no_formula(const char* action)
 {
   if (!jobs.empty())
     return;
   if (isatty(STDIN_FILENO))
-    error(2, 0, "No formula to translate?  Run '%s --help' for help.\n"
+    error(2, 0, "No formula to %s?  Run '%s --help' for help.\n"
           "Use '%s -' to force reading formulas from the standard "
-          "input.", program_name, program_name);
+          "input.", action, program_name, program_name);
   jobs.emplace_back("-", job_type::LTL_FILENAME);
 }
 

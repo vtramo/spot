@@ -199,7 +199,7 @@ main(int argc, char* argv[])
 
       mut_opts |= opt_all;
 
-      check_no_formula();
+      check_no_formula("mutate");
 
       mutate_processor processor;
       if (processor.run())
