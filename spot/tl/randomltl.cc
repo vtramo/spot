@@ -92,14 +92,20 @@ namespace spot
     {
       assert(n >= 3);
       --n;
-      int l = rrand(1, n - 1);
+      int l;  // size of left
+      if ((n & 1) | rl->has_unary_ops())
+        l = rrand(1, n - 1);
+      else
+        // if we do not have unary ops, we must split n in two odd sizes
+        l = rrand(0, n/2 - 1)*2 + 1;
+
       // Force the order of generation of operands to be right, then
       // left.  This is historical, because gcc evaluates argument
       // from right to left and we used to make the two calls to
       // generate() inside of the call to instance() before
       // discovering that clang would perform the nested calls from
       // left to right.
-      auto right = rl->generate(n - l);
+      formula right = rl->generate(n - l);
       return formula::binop(Op, rl->generate(l), right);
     }
 
@@ -110,7 +116,25 @@ namespace spot
       assert(n >= 3);
       --n;
       const random_psl* rp = static_cast<const random_psl*>(rl);
-      int l = rrand(1, n - 1);
+      int l;  // size of left
+      bool left_must_be_odd = !rp->rs.has_unary_ops();
+      bool right_must_be_odd = !rl->has_unary_ops();
+      if (n & 1)
+        {
+          if (left_must_be_odd && !right_must_be_odd)
+            l = rrand(0, n/2 - 1) * 2 + 1;
+          else if (!left_must_be_odd && right_must_be_odd)
+            l = rrand(1, n/2) * 2;
+          else
+            l = rrand(1, n - 1);
+        }
+      else
+        {
+          if (left_must_be_odd || right_must_be_odd)
+            l = rrand(0, n/2 - 1) * 2 + 1;
+          else
+            l = rrand(1, n - 1);
+        }
       // See comment in binop_builder.
       auto right = rl->generate(n - l);
       return formula::binop(Op, rp->rs.generate(l), right);
@@ -152,9 +176,13 @@ namespace spot
     {
       assert(n >= 3);
       --n;
-      int l = rrand(1, n - 1);
       // See comment in binop_builder.
-      auto right = rl->generate(n - l);
+      int l;  // size of left
+      if ((n & 1) | rl->has_unary_ops())
+        l = rrand(1, n - 1);
+      else
+        l = rrand(0, n/2 - 1)*2 + 1;
+      formula right = rl->generate(n - l);
       return formula::multop(Op, {rl->generate(l), right});
     }
 

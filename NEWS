@@ -1,6 +1,9 @@
 New in spot 2.12.0.dev (not yet released)
 
-  Nothing yet.
+  Bug fixes:
+
+  - Generating random formula without any unary opertors would very
+    often create formulas much smaller than asked.
 
 New in spot 2.12  (2024-05-16)
 

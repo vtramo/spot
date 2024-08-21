@@ -36,3 +36,21 @@ test `wc -l < formulas` = 50
 
 
 randltl --psl --sere-priorities=first_match=10 -n 100 2 | grep first_match
+
+# the random generator had trouble generating formulas of the proper size when
+# unary operators were disabled
+P=true=0,false=0,not=0
+randltl --tree-size=19 -B --boolean-prio=$P 1000 -n10 --stats=%a >out
+cat >expected <<EOF
+10
+10
+10
+10
+10
+10
+10
+10
+10
+10
+EOF
+diff expected out

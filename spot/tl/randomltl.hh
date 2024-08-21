@@ -72,6 +72,12 @@ namespace spot
     /// occurrences of the \c F operator.
     const char* parse_options(char* options);
 
+    /// \brief whether we can use unary operators
+    bool has_unary_ops() const
+    {
+      return total_2_ > 0.0;
+    }
+
   protected:
     void update_sums();
 
