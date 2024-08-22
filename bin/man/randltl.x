@@ -14,3 +14,4 @@ Proceedings of ATVA'13.  LNCS 8172.
 .BR genltl (1),
 .BR ltlfilt (1),
 .BR randaut (1)
+.BR ltlmix (1)

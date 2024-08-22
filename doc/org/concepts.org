@@ -158,7 +158,7 @@ $txt
 #+END_SRC
 
 #+RESULTS:
-[[file:concept-buchi.svg]]
+[[file:concept-buchi2.svg]]
 
 The =1= displayed on the edge that loops on state =1= should be
 read as /true/, i.e., the Boolean formula that accepts

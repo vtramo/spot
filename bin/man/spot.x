@@ -22,6 +22,7 @@ that are listed below.
 .BR ltldo (1)
 .BR ltlfilt (1)
 .BR ltlgrind (1)
+.BR ltlmix (1)
 .BR ltlsynt (1)
 .BR randaut (1)
 .BR randltl (1)

@@ -28,6 +28,45 @@ namespace spot
 {
   namespace
   {
+    // Rename atomic propositions in f using atomic propositions drawn
+    // randomly from \a ap.  Avoid repetition if \a ap is large
+    // enough.  If \a lit is true, change the polarity of the atomic
+    // proposition randomly.
+    static formula
+    randomize_ap(formula f, const atomic_prop_set* ap, bool lit)
+    {
+      std::vector<formula> randap(ap->begin(), ap->end());
+      unsigned current_range = randap.size();
+      std::map<formula, formula> mapping;
+
+      auto relabel = [&](formula f, auto self) -> formula
+      {
+        if (f.is(op::ap))
+          {
+            // Did we already rename this AP?
+            if (auto it = mapping.find(f); it != mapping.end())
+              return it->second;
+
+            // If we exhausted all possible AP, start again
+            if (current_range == 0)
+              current_range = randap.size();
+
+            //
+            unsigned pos = mrand(current_range--);
+            formula ap = randap[pos];
+            std::swap(randap[current_range], randap[pos]);
+
+            if (lit && drand() < 0.5)
+              ap = formula::Not(ap);
+
+            return mapping[f] = ap;
+          }
+        return f.map(self, self);
+      };
+      return relabel(f, relabel);
+    }
+
+
     static formula
     ap_builder(const random_formula* rl, int n)
     {
@@ -36,6 +75,20 @@ namespace spot
       atomic_prop_set::const_iterator i = rl->ap()->begin();
       std::advance(i, mrand(rl->ap()->size()));
       return *i;
+    }
+
+    static formula
+    pattern_builder(const random_formula* rl, int n)
+    {
+      assert(n == 1);
+      (void) n;
+      atomic_prop_set::const_iterator i = rl->patterns()->begin();
+      std::advance(i, mrand(rl->patterns()->size()));
+      formula f = *i;
+      const atomic_prop_set* ap = rl->ap();
+      if (ap && ap->size() > 0)
+        f = randomize_ap(f, ap, rl->draw_literals());
+      return f;
     }
 
     static formula
@@ -353,13 +406,28 @@ namespace spot
   }
 
   // Boolean formulae
-  random_boolean::random_boolean(const atomic_prop_set* ap)
+  random_boolean::random_boolean(const atomic_prop_set* ap,
+                                 const atomic_prop_set* patterns)
     : random_formula(9, ap)
   {
-    proba_[0].setup("ap",      1, ap_builder);
-    proba_[0].proba = ap_->size();
+    if (patterns)
+      {
+        proba_[0].setup("sub", 1, pattern_builder);
+        patterns_ = patterns;
+        proba_[0].proba = patterns_->size();
+      }
+    else
+      {
+        proba_[0].setup("ap",  1, ap_builder);
+        proba_[0].proba = ap_->size();
+      }
     proba_[1].setup("false",   1, false_builder);
     proba_[2].setup("true",    1, true_builder);
+    if (patterns)
+      {
+        proba_[1].proba = 0.0;
+        proba_[2].proba = 0.0;
+      }
     proba_2_or_more_ = proba_2_ = proba_ + 3;
     proba_[3].setup("not",     2, unop_builder<op::Not>);
     proba_[4].setup("equiv",   3, binop_builder<op::Equiv>);
@@ -373,10 +441,19 @@ namespace spot
 
   // LTL formulae
   void
-  random_ltl::setup_proba_()
+  random_ltl::setup_proba_(const atomic_prop_set* patterns)
   {
-    proba_[0].setup("ap",      1, ap_builder);
-    proba_[0].proba = ap_->size();
+    if (patterns)
+      {
+        proba_[0].setup("sub", 1, pattern_builder);
+        patterns_ = patterns;
+        proba_[0].proba = patterns_->size();
+      }
+    else
+      {
+        proba_[0].setup("ap",  1, ap_builder);
+        proba_[0].proba = ap_->size();
+      }
     proba_[1].setup("false",   1, false_builder);
     proba_[2].setup("true",    1, true_builder);
     proba_2_or_more_ = proba_2_ = proba_ + 3;
@@ -395,17 +472,18 @@ namespace spot
     proba_[15].setup("or",     3, multop_builder<op::Or>);
   }
 
-  random_ltl::random_ltl(const atomic_prop_set* ap)
+  random_ltl::random_ltl(const atomic_prop_set* ap,
+                         const atomic_prop_set* patterns)
     : random_formula(16, ap)
   {
-    setup_proba_();
+    setup_proba_(patterns);
     update_sums();
   }
 
   random_ltl::random_ltl(int size, const atomic_prop_set* ap)
     : random_formula(size, ap)
   {
-    setup_proba_();
+    setup_proba_(nullptr);
     // No call to update_sums(), this functions is always
     // called by the random_psl constructor.
   }
@@ -428,7 +506,8 @@ namespace spot
                                      const option_map& opts,
                                      char* opt_pL,
                                      char* opt_pS,
-                                     char* opt_pB)
+                                     char* opt_pB,
+                                     const atomic_prop_set* subs)
     : opt_simpl_level_(opts.get("simplification_level", 3)),
       simpl_(tl_simplifier_options{opt_simpl_level_})
   {
@@ -439,6 +518,7 @@ namespace spot
     opt_tree_size_max_ = opts.get("tree_size_max", 15);
     opt_unique_ = opts.get("unique", 1);
     opt_wf_ = opts.get("wf", 0);
+    bool lit = opts.get("literals", 0);
 
     const char* tok_pL = nullptr;
     const char* tok_pS = nullptr;
@@ -447,23 +527,25 @@ namespace spot
     switch (output_)
       {
       case randltlgenerator::LTL:
-        rf_ = new random_ltl(&aprops_);
+        rf_ = new random_ltl(&aprops_, subs);
+        rf_->draw_literals(lit);
         if (opt_pS)
-          throw std::invalid_argument("Cannot set sere priorities with "
+          throw std::invalid_argument("Cannot set SERE priorities with "
                                       "LTL output");
         if (opt_pB)
-          throw std::invalid_argument("Cannot set boolean priorities with "
+          throw std::invalid_argument("Cannot set Boolean priorities with "
                                       "LTL output");
         tok_pL = rf_->parse_options(opt_pL);
         break;
       case randltlgenerator::Bool:
-        rf_ = new random_boolean(&aprops_);
+        rf_ = new random_boolean(&aprops_, subs);
+        rf_->draw_literals(lit);
         tok_pB = rf_->parse_options(opt_pB);
         if (opt_pL)
-          throw std::invalid_argument("Cannot set ltl priorities with "
+          throw std::invalid_argument("Cannot set LTL priorities with "
                                       "Boolean output");
         if (opt_pS)
-          throw std::invalid_argument("Cannot set sere priorities "
+          throw std::invalid_argument("Cannot set SERE priorities "
                                       "with Boolean output");
         break;
       case randltlgenerator::SERE:
@@ -471,7 +553,7 @@ namespace spot
         tok_pS = rs_->parse_options(opt_pS);
         tok_pB = rs_->rb.parse_options(opt_pB);
         if (opt_pL)
-          throw std::invalid_argument("Cannot set ltl priorities "
+          throw std::invalid_argument("Cannot set LTL priorities "
                                       "with SERE output");
         break;
       case randltlgenerator::PSL:
@@ -500,9 +582,10 @@ namespace spot
                                      const option_map& opts,
                                      char* opt_pL,
                                      char* opt_pS,
-                                     char* opt_pB)
+                                     char* opt_pB,
+                                     const atomic_prop_set* subs)
     : randltlgenerator(create_atomic_prop_set(aprops_n), opts,
-                       opt_pL, opt_pS, opt_pB)
+                       opt_pL, opt_pS, opt_pB, subs)
   {
   }
 
@@ -602,4 +685,5 @@ namespace spot
   {
     rs_->rb.dump_priorities(os);
   }
+
 }

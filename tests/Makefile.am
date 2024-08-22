@@ -176,6 +176,7 @@ TESTS_tl = \
   core/kind.test \
   core/remove_x.test \
   core/ltlrel.test \
+  core/ltlmix.test \
   core/ltlgrind.test \
   core/ltlcrossgrind.test \
   core/ltlfilt.test \

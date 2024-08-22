@@ -37,6 +37,8 @@ static const argp_option options[] =
     { DOC("ltlgrind", "Mutate LTL or PSL formulas to generate similar but "
           "simpler ones.  Use this when looking for shorter formula to "
           "reproduce a bug.") },
+    { DOC("ltlmix",
+          "Combine LTL/PSL formulas taken randomly from some input set.") },
     { nullptr, 0, nullptr, 0, "Tools that output automata or circuits:", 0 },
     { DOC("randaut", "Generate random ω-automata.") },
     { DOC("genaut", "Generate ω-automata from scalable patterns.") },

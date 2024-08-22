@@ -1,0 +1,365 @@
+# -*- coding: utf-8 -*-
+#+TITLE: =ltlgrind=
+#+DESCRIPTION: Spot command-line tool for combining LTL formulas randomly
+#+INCLUDE: setup.org
+#+HTML_LINK_UP: tools.html
+#+PROPERTY: header-args:sh :results verbatim :exports both
+
+This tool creates new formulas by combining formulas randomly selected
+from an input set of formulas.  Some authors have argued that for some
+tasks, like [[https://www.cs.rice.edu/~vardi/papers/time13.pdf][LTL satisfiability]], working with randomly generated
+formulas is often easy, because random formulas tend to simplify
+trivially.  =ltlmix= allows you to take a set of formulas, usually
+some handwritten, meaningful formulas, and combine those formulas to
+build larger sets that are possibly more challenging.
+
+Here is a very simple example that builds five formulas that are
+Boolean combination of formulas from taken in the set
+$\{\mathsf{GF}a,\mathsf{FG}b,\mathsf{X}c\}$:
+
+#+BEGIN_SRC sh :exports both
+ltlmix -f GFa -f FGb -f Xc -n 5
+#+END_SRC
+
+#+RESULTS:
+: !FGb xor !Xc
+: !GFa -> !FGb
+: FGb | (FGb -> Xc)
+: FGb
+: GFa & (FGb | Xc)
+
+* Shape of the generated formulas
+
+** Size of the syntax tree
+
+For each formula that it generates, =ltlmix= constructs a random
+syntax-tree of a certain size (5 by default) in which internal nodes
+represent operators selected randomly from a list of operator, and
+leaves are subformulas selected randomly from the set of input
+formulas.  As an example, the syntax tree of =!φ₁ xor !φ₂= has size 5,
+and its leaves =φ₁= and =φ₂= will be taken randomly from the set of
+input formulas.
+
+The algorithm is actually the same as for =randltl=, except
+that =randltl= use random atomic propositions as leaves when =ltlmix=
+uses random formulas.
+
+The same input formula can be picked several times to be used on
+multiple leaves of the tree.  Note that because Spot implements some
+trivial rewritings directly during the construction of any formula,
+formulas like =FGb | !!FGb= (which correspond to a tree of size 5 in
+the above example) cannot be represented: they are automatically
+simplified to =FGb=.  Similarly, something like =φ xor φ= will be
+output as =0=.
+
+The size of the tree can be changed using the =--tree-size= option.
+
+#+BEGIN_SRC sh :exports both
+  for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
+      ltlmix -fXa -fGb -fFc -fXd -fGe --tree-size=$i
+  done
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+Fc
+!Xd
+0
+Ge xor !Fc
+!Xd xor !Ge
+!Xd xor (Fc | Xd)
+!Ge
+Ge xor (!Ge -> Gb)
+Ge xor (!Xa -> !Fc)
+(Ge & !Fc) xor (!Gb xor !Ge)
+(Ge & !Fc) xor (!Gb xor (Gb | Fc))
+(Ge & (Gb xor Xd)) xor (!Fc -> (Gb | Fc))
+#+end_example
+
+The above shows that while the size of the syntax tree generally grows
+along with =--tree-size= there are several cases where it reduces
+trivially.
+
+** Operator priorities
+
+It is possible to control the set of operators used in the generation.
+The first step is to obtain that list of operators with =--dump-priorities=.
+For instance:
+
+#+BEGIN_SRC sh :exports both
+  ltlmix -fXa -fGb -fFc -fXd -fGe --dump-priorities
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+Use --boolean-priorities to set the following Boolean formula priorities:
+sub	5
+false	0
+true	0
+not	1
+equiv	1
+implies	1
+xor	1
+and	1
+or	1
+#+end_example
+
+In the above list, =false= and =true= represent the Boolean constants
+(which are usually undesirable when building random Boolean formulas),
+and =sub= represent a random formula drawn from the list of input
+formulas.
+
+The above command shows that each operator has a weight, called
+/priority/.  When the priority is 0, the operator is never used.  When
+=ltlmix= generates a syntax tree of size N, it looks among all
+operators that can be used at the root of such a tree, and performs a
+weighted random selection.  In other words, an operator with priority
+=2= will be twice more likely to be selected than an operator with
+priority =1=.
+
+Those priorities can be changed with =--boolean-priorities= as in the
+following example, which disables =xor= and makes =<->= thrice more
+likely to appear.
+
+#+BEGIN_SRC sh :exports both
+  for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
+      ltlmix -fXa -fGb -fFc -fXd -fGe --tree-size=$i --boolean-prio='xor=0,equiv=3'
+  done
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+Fc
+!Xd
+1
+Ge <-> !Fc
+!Xd <-> !Ge
+!Xd <-> (Fc | Xd)
+Ge
+Ge <-> (Gb <-> !Ge)
+Ge <-> (!Fc <-> !Xa)
+(Ge & !Fc) <-> (!Ge -> !Gb)
+(Ge & !Fc) <-> ((Gb | Fc) -> !Gb)
+(Ge & (Gb <-> Xd)) <-> ((Gb | Fc) <-> !Fc)
+#+end_example
+
+** Boolean or LTL syntax tree
+
+By default, the syntax tree generated on top of the randomly selected
+input formula uses only Boolean operators.
+
+Using option =-L= will use LTL operators instead.
+
+#+BEGIN_SRC sh :exports both
+  ltlmix -fXa -fGb -fFc --tree-size=10 -L -n10
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+Gb R (XFc W 0)
+!(Gb | !Xa)
+1 U !X(0)
+(Xa xor Gb) -> (GXa M Fc)
+GFc M 1
+(Fc U Gb) -> (0 R Xa)
+!Gb <-> (Gb | GFc)
+1
+GFc | (1 U Xa)
+!(Xa | GFc)
+#+end_example
+
+The following operators are used:
+
+#+BEGIN_SRC sh :exports both
+  ltlmix -fXa -fGb -fFc -fXd -fGe -L --dump-priorities
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+Use --ltl-priorities to set the following LTL priorities:
+sub	5
+false	1
+true	1
+not	1
+F	1
+G	1
+X	1
+equiv	1
+implies	1
+xor	1
+R	1
+U	1
+W	1
+M	1
+and	1
+or	1
+#+end_example
+
+Note that in the LTL case, =false= and =true= can be generated by default.
+
+* Randomizing atomic propositions with =-A= or =-P=
+
+Options =-A= or =-P= can be used to change the atomic propositions
+used in the input formulas.  This works as follows: if =-A N= was
+given, every time an input formula φ is selected, its atomic
+propositions are replaced by atomic propositions randomly selected in
+a set of size $N$.  If φ uses $i$ atomic propositions and $i\ge N$,
+then those $i$ atomic proposition will be remapped to $i$ distinct
+atomic propositions chosen randomly in that set.  if $i>N$, some of
+the new atomic propositions may replace several of the original atomic
+propositions.
+
+Option =-P N= is similar to =-A N= except that the selected atomic
+propositions can possibly be negated.
+
+
+These options solve two problems:
+
+- They lessen the issue that a formula selected several times can lead
+  to syntax tree such as =φ | φ | φ= that reduces to =φ=.  Now, each
+  occurrence of =φ= as a chance to use different atomic propositions.
+  (the larger =N= is, the more likely it is that these copies of φ
+  will be different).
+
+- They allow combining formulas that had completely different sets of
+  atomic propositions, in such a way that they are now interdependent
+  (the smaller N is the more likely it is that subformulas will share
+  atomic propositions).
+
+
+Here is an example with a single formula, =GFa=, whose atomic proposition
+will be randomly replaced by one of $\{p_0,p_1,p_2,p_3,p_4\}$.
+
+#+BEGIN_SRC sh :exports both
+  ltlmix -fGFa -A5 --tree-size=8 -n10
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+(GFp2 & GFp3) xor (!GFp0 xor GFp1)
+(GFp4 -> GFp1) -> !GFp2
+!GFp4 | ((GFp2 & GFp3) -> GFp2)
+!GFp2 | (GFp3 <-> (GFp2 & GFp1))
+!GFp0 | GFp4
+!(GFp2 & GFp1) <-> (GFp3 xor GFp0)
+(GFp2 xor GFp0) | (GFp4 -> !GFp0)
+(GFp4 | !GFp3) -> GFp4
+!GFp0 -> (GFp2 | GFp1)
+!GFp1 <-> (!GFp2 xor !GFp1)
+#+end_example
+
+Here is a similar example, with polarized atomic propositions instead:
+
+#+BEGIN_SRC sh :exports both
+  ltlmix -fGFa -P5 --tree-size=8 -n10
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+(GFp2 & GF!p3) xor (GFp4 -> !GF!p1)
+(GFp4 | !GFp2) -> (GFp1 -> GF!p1)
+!GF!p2 & (GF!p0 xor (GF!p0 -> GF!p3))
+GFp1 <-> (GF!p3 | !GFp0)
+GF!p1 & GFp0 & (GF!p3 xor !GF!p4)
+(GF!p1 xor GF!p2) | (GF!p3 & !GF!p4)
+!(GFp4 xor (!GF!p2 | !GF!p3))
+GFp0 | (!GFp1 -> (GFp1 -> GF!p4))
+GF!p1 xor (!GF!p2 | (GF!p1 <-> GFp0))
+!((GF!p2 <-> GF!p4) & (GFp1 xor GF!p2))
+#+end_example
+
+
+* More serious examples
+
+** Mixing the DAC patterns
+
+The command [[file:genltl.org][=genltl --dac-pattern=]] will print a list of 55 LTL
+formulas representing various specification patterns listed by Dwyer
+et al. (FMSP'98).  Using =--stat=%x= to count the atomic propositions
+in each formula, and some standard unix tools, we can compute that
+they use at most 6 atomic propositions.
+
+#+BEGIN_SRC sh :exports both
+  genltl --dac-pattern --stat=%x | sort -n | tail -n 1
+#+END_SRC
+#+RESULTS:
+: 6
+
+Based on this, we could decide to generate Boolean combination of
+those formulas while replacing atomic propositions by literals built
+out of a set of 10 atomic propositions (chosen larger than 6 to ensure
+that each individual formula will still make sense after the change of
+atomic propositions).
+
+#+BEGIN_SRC sh :exports both
+  genltl --dac-pattern | ltlmix -n8 -P10
+#+END_SRC
+
+#+RESULTS:
+: !G((p8 & F!p7) -> (!p4 U (!p7 | (!p2 & !p4 & X(!p4 U p1))))) xor !G(!p3 -> ((p4 & !p7) U (!p4 | ((p4 & p7) U (!p4 | ((p4 & !p7) U (!p4 | ((p4 & p7) U (!p4 | (!p7 W !p4) | Gp7)))))))))
+: !G(!p3 -> Gp5) xor !G(!p7 -> G(p9 -> (!p5 & !p8 & X(!p5 U p2))))
+: G(p6 -> ((!(!p1 & p7 & X(!p1 U (!p1 & !p3))) U (p1 | !p2)) | G!(p7 & XF!p3))) & (G((!p4 & XF!p5) -> XF(!p5 & F!p0)) <-> G((p5 & !p6) -> (p5 W (p5 & p7))))
+: !G((p0 & p9) -> (!p7 W (!p0 | p4))) & !G((p1 & !p2) -> (!p8 W p2))
+: ((Fp2 -> ((!p1 -> (!p2 U (p0 & !p2))) U p2)) -> G(p1 -> G(p9 -> (!p4 & p8 & X(!p4 U !p7))))) xor G(p1 -> Gp9)
+: !G((p5 & !p9 & F!p5) -> ((!p8 -> (p5 U (!p0 & p5))) U !p5)) -> !G((p6 & p9) -> (!p7 W !p9))
+: G((!p1 & !p2) -> (p9 W p1)) <-> (G(p5 -> G(p0 -> F!p4)) -> (Fp6 -> ((!p5 & !p6) U (p6 | ((p5 & !p6) U (p6 | ((!p5 & !p6) U (p6 | ((p5 & !p6) U (p6 | (!p5 U p6)))))))))))
+: ((Fp1 -> ((p6 -> (!p1 U (!p1 & !p2 & X(!p1 U !p9)))) U p1)) <-> (F!p0 -> (p0 U (p0 & !p7 & X(p0 U !p9))))) | (Fp2 -> (p6 U (p2 | (p6 & !p7 & X(p6 U p1)))))
+
+Now we might want to clean this list a bit by relabeling each formula
+so is uses atomic propositions $\{p_0,p_1,...\}$ starting at 0 and without gap.
+
+#+BEGIN_SRC sh :exports both
+  genltl --dac-pattern | ltlmix -n8 -P10 | ltlfilt --relabel=pnn
+#+END_SRC
+
+#+RESULTS:
+: !G((p0 & F!p1) -> (!p2 U (!p1 | (!p2 & !p3 & X(!p2 U p4))))) xor !G(!p5 -> ((!p1 & p2) U (!p2 | ((p1 & p2) U (!p2 | ((!p1 & p2) U (!p2 | ((p1 & p2) U (!p2 | (!p1 W !p2) | Gp1)))))))))
+: !G(!p0 -> Gp1) xor !G(!p2 -> G(p3 -> (!p1 & !p4 & X(!p1 U p5))))
+: G(p0 -> ((!(!p1 & p2 & X(!p1 U (!p1 & !p3))) U (p1 | !p4)) | G!(p2 & XF!p3))) & (G((!p5 & XF!p6) -> XF(!p6 & F!p7)) <-> G((!p0 & p6) -> (p6 W (p2 & p6))))
+: !G((p0 & p1) -> (!p2 W (!p0 | p3))) & !G((p4 & !p5) -> (!p6 W p5))
+: ((Fp0 -> ((!p1 -> (!p0 U (!p0 & p2))) U p0)) -> G(p1 -> G(p3 -> (!p4 & p5 & X(!p4 U !p6))))) xor G(p1 -> Gp3)
+: !G((p0 & !p1 & F!p0) -> ((!p2 -> (p0 U (p0 & !p3))) U !p0)) -> !G((p1 & p4) -> (!p5 W !p1))
+: G((!p0 & !p1) -> (p2 W p0)) <-> (G(p3 -> G(p4 -> F!p5)) -> (Fp6 -> ((!p3 & !p6) U (p6 | ((p3 & !p6) U (p6 | ((!p3 & !p6) U (p6 | ((p3 & !p6) U (p6 | (!p3 U p6)))))))))))
+: ((Fp0 -> ((p1 -> (!p0 U (!p0 & !p2 & X(!p0 U !p3)))) U p0)) <-> (F!p4 -> (p4 U (p4 & !p5 & X(p4 U !p3))))) | (Fp2 -> (p1 U (p2 | (p1 & !p5 & X(p1 U p0)))))
+
+** Random conjunctions
+
+Some benchmark (e.g., [[https://www.cs.rice.edu/~vardi/papers/time13.pdf][for LTL satisfiability]]) are built by conjunction
+of $L$ random formulas picked from a set of basic formulas.  Each
+picked formula has its atomic proposition mapped to random literals
+built from a subset of $m$ atomic variables.
+
+Given a value for $m$, option =-P m= will achieve the second part of
+the above description.  To build a conjunction of $L$ formulas, we
+need to ask for a tree of size $2L-1$ in which only the =and= operator
+is allowed.
+
+Here is an example with $L=10$ (hence =--tree-size=19=) and $m=50$.
+The example use a small set of three basic formulas
+$\{\mathsf{G}a,\mathsf{F}a,\mathsf{X}a\}$ for illustration, but in
+practice you should replace these =-f= options by =-F FILENAME=
+pointing to a file containing all the input formulas to select from.
+
+#+BEGIN_SRC sh :exports both
+  ltlmix -fGa -fFa -fXa -n10 -P50 \
+         --tree-size=19 --boolean-prio=not=0,or=0,xor=0,equiv=0,implies=0
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+Xp27 & F!p21 & G!p19 & X!p26 & Fp4 & Gp43 & Fp39 & Fp7
+G!p28 & G!p30 & X!p34 & Fp21 & Gp3 & Fp6 & F!p18 & Xp5 & Fp8 & F!p12
+X!p32 & Xp9 & Gp4 & Xp48 & F!p48 & X!p6 & Fp5 & Xp20 & Fp28 & Fp26
+G!p46 & X!p14 & Fp29 & X!p36 & Fp12 & Xp47 & Fp42 & Gp14 & Fp19
+G!p28 & Fp21 & Fp36 & F!p0 & G!p14 & Xp21 & F!p28 & G!p21 & Gp21 & Gp40
+Gp3 & F!p48 & F!p28 & Xp7 & Gp8 & Xp42 & Gp0 & Xp36 & F!p2 & G!p0
+Xp36 & Xp46 & F!p31 & Xp11 & Xp26 & G!p9 & F!p36 & X!p12 & Fp15 & Xp18
+Xp9 & X!p33 & Fp44 & X!p13 & Gp37 & Xp19 & G!p43 & F!p34 & Gp36 & Gp10
+Xp27 & Xp5 & Fp28 & Xp18 & G!p13 & Gp35 & Gp38 & G!p45 & G!p48 & Gp12
+Xp7 & G!p48 & Xp14 & Fp24 & Xp43 & Fp47 & Fp14 & Gp30 & Xp23 & G!p31
+#+end_example
+
+Selecting 10 random conjuncts out of 3×50×2=300 possibilities has a
+13.7% chance that at least 2 conjuncts will be identical (see [[https://en.wikipedia.org/wiki/Birthday_problem][Birthday
+paradox]]), so because of Spot's trivial rewritings, some hove the above
+formulas may have fewer than 10 conjuncts.

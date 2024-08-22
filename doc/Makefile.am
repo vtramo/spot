@@ -104,6 +104,7 @@ ORG_FILES = \
   org/ltldo.org \
   org/ltlfilt.org \
   org/ltlgrind.org \
+  org/ltlmix.org \
   org/ltlsynt.org \
   org/ltlsynt.tex \
   org/oaut.org \

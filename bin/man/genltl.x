@@ -80,3 +80,4 @@ Proceedings of RV'10.  LNCS 6418.
 .BR ltlfilt (1),
 .BR randaut (1),
 .BR randltl (1)
+.BR ltlmix (1)

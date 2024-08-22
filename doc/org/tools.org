@@ -41,6 +41,7 @@ corresponding commands are hidden.
 * Command-line tools
 
 - [[file:randltl.org][=randltl=]] Generate random LTL/PSL formulas.
+- [[file:ltlmix.org][=ltlmix=]] Combine LTL/PSL formulas taken randomly from some input set.
 - [[file:ltlfilt.org][=ltlfilt=]] Filter, convert, and transform LTL/PSL formulas.
 - [[file:genltl.org][=genltl=]] Generate LTL formulas from scalable patterns.
 - [[file:ltl2tgba.org][=ltl2tgba=]] Translate LTL/PSL formulas into various types of automata.
@@ -77,6 +78,7 @@ convenience, you can browse their HTML versions:
 [[./man/ltldo.1.html][=ltldo=]](1),
 [[./man/ltlfilt.1.html][=ltlfilt=]](1),
 [[./man/ltlgrind.1.html][=ltlgrind=]](1),
+[[./man/ltlmix.1.html][=ltlmix=]](1),
 [[./man/ltlsynt.1.html][=ltlsynt=]](1),
 [[./man/randaut.1.html][=randaut=]](1),
 [[./man/randltl.1.html][=randltl=]](1),

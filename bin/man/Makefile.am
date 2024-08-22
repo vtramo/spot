@@ -35,6 +35,7 @@ dist_man1_MANS = \
   ltldo.1 \
   ltlfilt.1 \
   ltlgrind.1 \
+  ltlmix.1 \
   ltlsynt.1 \
   randaut.1 \
   randltl.1
@@ -71,6 +72,9 @@ ltlfilt.1: $(common_dep) $(srcdir)/ltlfilt.x $(srcdir)/../ltlfilt.cc
 
 ltlgrind.1: $(common_dep) $(srcdir)/ltlgrind.x $(srcdir)/../ltlgrind.cc
 	$(convman) ../ltlgrind$(EXEEXT) $(srcdir)/ltlgrind.x $@
+
+ltlmix.1: $(common_dep) $(srcdir)/ltlmix.x $(srcdir)/../ltlmix.cc
+	$(convman) ../ltlmix$(EXEEXT) $(srcdir)/ltlmix.x $@
 
 ltlsynt.1: $(common_dep) $(srcdir)/ltlsynt.x $(srcdir)/../ltlsynt.cc
 	$(convman) ../ltlsynt$(EXEEXT) $(srcdir)/ltlsynt.x $@

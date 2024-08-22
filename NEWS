@@ -2,6 +2,9 @@ New in spot 2.12.0.dev (not yet released)
 
   Command-line tools:
 
+  - ltlmix is a new tool that generate formulas by combining existing
+    ones. See https://spot.lre.epita.fr/ltlmix.html for examples.
+
   - autfilt learned --restrict-dead-end-edges, to restricts labels of
     edges leading to dead-ends.  See the description of
     restrict_dead_end_edges_here() below.
@@ -38,8 +41,8 @@ New in spot 2.12.0.dev (not yet released)
 
   Bug fixes:
 
-  - Generating random formula without any unary opertors would very
-    often create formulas much smaller than asked.
+  - Generating random formulas without any unary opertor would very
+    often create formulas much smaller than specified.
 
 New in spot 2.12  (2024-05-16)
 

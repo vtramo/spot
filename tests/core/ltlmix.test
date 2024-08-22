@@ -1,0 +1,93 @@
+#! /bin/sh
+# -*- coding: utf-8 -*-
+# Copyright (C) by the Spot authors, see the AUTHORS file for details.
+#
+# This file is part of Spot, a model checking library.
+#
+# Spot is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# Spot is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+# License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+. ./defs || exit 1
+
+set -e
+
+# Make sure sort isn't affected by the user's LC_COLLATE
+LC_ALL=C
+export LC_ALL
+
+ltlmix -fGa -fFb --tree-size=4 -n 50 -o out.ltl 2>stderr && exit 1
+grep 'failed to generate a new unique formula' stderr
+test 34 -eq `wc -l < out.ltl`
+
+ltlmix -fGa -fFb --tree-size=4 -n 500 -L -o out.ltl 2>stderr && exit 1
+grep 'failed to generate a new unique formula' stderr
+test 448 -eq `wc -l < out.ltl`
+
+P=--boolean-priorities=not=0,xor=0,equiv=0,implies=0
+ltlmix -fGa -fFb --tree-size=4 -n 10 $P -o out.ltl 2>stderr && exit 1
+grep 'failed to generate a new unique formula' stderr
+test 4 -eq `wc -l < out.ltl`
+
+ltlmix -fa -A9 --tree-size=1 -n9 | sort > list1
+ltlmix -fa -P9 --tree-size=1 -n18 | sort > list2
+grep -v '!' list2 > list3
+diff list1 list3
+
+# The following message appears only if run from a tty.
+if (: > /dev/tty) >/dev/null 2>&1 ; then
+   ltlmix -A9 -n10 </dev/tty 2>err && exit 2
+   grep 'No formula to combine' err
+fi
+
+
+genltl --gf-equiv-xn=1..3 | ltlmix --tree-size=1 -A2 -n6 | sort >out
+cat >expected <<EOF
+GF(p0 <-> XXXp0)
+GF(p0 <-> XXp0)
+GF(p0 <-> Xp0)
+GF(p1 <-> XXXp1)
+GF(p1 <-> XXp1)
+GF(p1 <-> Xp1)
+EOF
+diff out expected
+
+
+genltl --and-gf=4 > in.ltl
+ltlmix in.ltl --tree-size=1 -A1 --stats=%x > out.txt
+ltlmix in.ltl --tree-size=1 -A2 --stats=%x >> out.txt
+ltlmix in.ltl --tree-size=1 -A3 --stats=%x >> out.txt
+ltlmix in.ltl --tree-size=1 -A4 --stats=%x >> out.txt
+ltlmix in.ltl --tree-size=1 -A5 --stats=%x >> out.txt
+ltlmix in.ltl --tree-size=1 -A6 --stats=%x >> out.txt
+
+cat >expected <<EOF
+1
+2
+3
+4
+4
+4
+EOF
+diff out.txt expected
+
+# Using -P won't change the number of atomic propositions
+ltlmix in.ltl --tree-size=1 -P1 --stats=%x > out.txt
+ltlmix in.ltl --tree-size=1 -P2 --stats=%x >> out.txt
+ltlmix in.ltl --tree-size=1 -P3 --stats=%x >> out.txt
+ltlmix in.ltl --tree-size=1 -P4 --stats=%x >> out.txt
+ltlmix in.ltl --tree-size=1 -P5 --stats=%x >> out.txt
+ltlmix in.ltl --tree-size=1 -P6 --stats=%x >> out.txt
+diff out.txt expected
+
+ltlmix -fa -A500 $P,or=0 -n10 | tee out
+test 10 -eq `grep '&.*&' < out | wc -l`

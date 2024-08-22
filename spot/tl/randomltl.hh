@@ -44,16 +44,33 @@ namespace spot
       delete[] proba_;
     }
 
-    /// Return the set of atomic proposition used to build formulae.
-    const atomic_prop_set*
-      ap() const
+    /// Return the set of atomic proposition used to build formulas.
+    const atomic_prop_set* ap() const
     {
       return ap_;
     }
 
+    /// Return the set of patterns (sub-formulas) used to build formulas.
+    const atomic_prop_set* patterns() const
+    {
+      return patterns_;
+    }
+
+    /// Check whether relabeling APs should use literals.
+    bool draw_literals() const
+    {
+      return draw_literals_;
+    }
+
+    /// Set whether relabeling APs should use literals.
+    void draw_literals(bool lit)
+    {
+      draw_literals_ = lit;
+    }
+
     /// \brief Generate a formula of size \a n.
     ///
-    /// It is possible to obtain formulae that are smaller than \a
+    /// It is possible to obtain formulas that are smaller than \a
     /// n, because some simple simplifications are performed by the
     /// AST.  (For instance the formula <code>a | a</code> is
     /// automatically reduced to <code>a</code> by spot::multop.)
@@ -63,7 +80,7 @@ namespace spot
     /// and atomic propositions.
     std::ostream& dump_priorities(std::ostream& os) const;
 
-    /// \brief Update the priorities used to generate the formulae.
+    /// \brief Update the priorities used to generate the formulas.
     ///
     /// \a options should be comma-separated list of KEY=VALUE
     /// assignments, using keys from the above list.
@@ -98,14 +115,16 @@ namespace spot
     op_proba* proba_2_or_more_;
     double total_2_and_more_;
     const atomic_prop_set* ap_;
+    const atomic_prop_set* patterns_ = nullptr;
+    bool draw_literals_;
   };
 
 
   /// \ingroup tl_io
-  /// \brief Generate random LTL formulae.
+  /// \brief Generate random LTL formulas.
   ///
-  /// This class recursively constructs LTL formulae of a given
-  /// size.  The formulae will use the use atomic propositions from
+  /// This class recursively constructs LTL formulas of a given
+  /// size.  The formulas will use the use atomic propositions from
   /// the set of propositions passed to the constructor, in addition
   /// to the constant and all LTL operators supported by Spot.
   ///
@@ -118,25 +137,26 @@ namespace spot
   public:
     /// Create a random LTL generator using atomic propositions from \a ap.
     ///
-    /// The default priorities are defined as follows:
+    /// The default priorities are defined as follows, depending on the
+    /// presence of \a subformulas.
     ///
     /** \verbatim
-        ap      n
-        false   1
-        true    1
-        not     1
-        F       1
-        G       1
-        X       1
-        equiv   1
-        implies 1
-        xor     1
-        R       1
-        U       1
-        W       1
-        M       1
-        and     1
-        or      1
+        ap      n              sub     n
+        false   1              false   1
+        true    1              true    1
+        not     1              not     1
+        F       1              F       1
+        G       1              G       1
+        X       1              X       1
+        equiv   1              equiv   1
+        implies 1              implies 1
+        xor     1              xor     1
+        R       1              R       1
+        U       1              U       1
+        W       1              W       1
+        M       1              M       1
+        and     1              and     1
+        or      1              or      1
         \endverbatim */
     ///
     /// Where \c n is the number of atomic propositions in the
@@ -147,18 +167,25 @@ namespace spot
     /// as each constant (i.e., true and false) to be picked.
     ///
     /// These priorities can be changed use the parse_options method.
-    random_ltl(const atomic_prop_set* ap);
+    ///
+    /// If a set of subformulas is passed to the constructor, the generator
+    /// will build a Boolean formulas using patterns as atoms.  Atomic
+    /// propositions in patterns will be rewritten randomly by drawing
+    /// some from \a ap.  The probability of false/true to be generated
+    /// default to 0 in this case.
+    random_ltl(const atomic_prop_set* ap,
+               const atomic_prop_set* subformulas = nullptr);
 
   protected:
-    void setup_proba_();
+    void setup_proba_(const atomic_prop_set* patterns);
     random_ltl(int size, const atomic_prop_set* ap);
   };
 
   /// \ingroup tl_io
-  /// \brief Generate random Boolean formulae.
+  /// \brief Generate random Boolean formulas.
   ///
-  /// This class recursively constructs Boolean formulae of a given size.
-  /// The formulae will use the use atomic propositions from the
+  /// This class recursively constructs Boolean formulas of a given size.
+  /// The formulas will use the use atomic propositions from the
   /// set of propositions passed to the constructor, in addition to the
   /// constant and all Boolean operators supported by Spot.
   ///
@@ -169,18 +196,19 @@ namespace spot
     /// Create a random Boolean formula generator using atomic
     /// propositions from \a ap.
     ///
-    /// The default priorities are defined as follows:
+    /// The default priorities are defined as follows depending on
+    /// the presence of \a subformulas.
     ///
     /** \verbatim
-        ap      n
-        false   1
-        true    1
-        not     1
-        equiv   1
-        implies 1
-        xor     1
-        and     1
-        or      1
+        ap      n         sub     n
+        false   1         false   0
+        true    1         true    0
+        not     1         not     1
+        equiv   1         equiv   1
+        implies 1         implies 1
+        xor     1         xor     1
+        and     1         and     1
+        or      1         or      1
         \endverbatim */
     ///
     /// Where \c n is the number of atomic propositions in the
@@ -191,14 +219,20 @@ namespace spot
     /// as each constant (i.e., true and false) to be picked.
     ///
     /// These priorities can be changed use the parse_options method.
-    random_boolean(const atomic_prop_set* ap);
+    ///
+    /// If a set of \a subformulas is passed to the constructor, the
+    /// generator will build a Boolean formulas using patterns as
+    /// atoms.  Atomic propositions in patterns will be rewritten
+    /// randomly by drawing some from \a ap.
+    random_boolean(const atomic_prop_set* ap,
+                   const atomic_prop_set* subformulas = nullptr);
   };
 
   /// \ingroup tl_io
   /// \brief Generate random SERE.
   ///
   /// This class recursively constructs SERE of a given size.
-  /// The formulae will use the use atomic propositions from the
+  /// The formulas will use the use atomic propositions from the
   /// set of propositions passed to the constructor, in addition to the
   /// constant and all SERE operators supported by Spot.
   ///
@@ -230,7 +264,7 @@ namespace spot
     /// These priorities can be changed use the parse_options method.
     ///
     /// In addition, you can set the properties of the Boolean
-    /// formula generator used to build Boolean subformulae using
+    /// formula generator used to build Boolean subformulas using
     /// the parse_options method of the \c rb attribute.
     random_sere(const atomic_prop_set* ap);
 
@@ -238,10 +272,10 @@ namespace spot
   };
 
   /// \ingroup tl_io
-  /// \brief Generate random PSL formulae.
+  /// \brief Generate random PSL formulas.
   ///
-  /// This class recursively constructs PSL formulae of a given size.
-  /// The formulae will use the use atomic propositions from the
+  /// This class recursively constructs PSL formulas of a given size.
+  /// The formulas will use the use atomic propositions from the
   /// set of propositions passed to the constructor, in addition to the
   /// constant and all PSL operators supported by Spot.
   class SPOT_API random_psl: public random_ltl
@@ -249,7 +283,7 @@ namespace spot
   public:
     /// Create a random PSL generator using atomic propositions from \a ap.
     ///
-    /// PSL formulae are built by combining LTL operators, plus
+    /// PSL formulas are built by combining LTL operators, plus
     /// three operators (EConcat, UConcat, Closure) taking a SERE
     /// as parameter.
     ///
@@ -287,11 +321,11 @@ namespace spot
     /// These priorities can be changed use the parse_options method.
     ///
     /// In addition, you can set the properties of the SERE generator
-    /// used to build SERE subformulae using the parse_options method
+    /// used to build SERE subformulas using the parse_options method
     /// of the \c rs attribute.
     random_psl(const atomic_prop_set* ap);
 
-    /// The SERE generator used to generate SERE subformulae.
+    /// The SERE generator used to generate SERE subformulas.
     random_sere rs;
   };
 
@@ -307,12 +341,14 @@ namespace spot
     randltlgenerator(int aprops_n, const option_map& opts,
                      char* opt_pL = nullptr,
                      char* opt_pS = nullptr,
-                     char* opt_pB = nullptr);
+                     char* opt_pB = nullptr,
+                     const atomic_prop_set* subformulas = nullptr);
 
     randltlgenerator(atomic_prop_set aprops, const option_map& opts,
                      char* opt_pL = nullptr,
                      char* opt_pS = nullptr,
-                     char* opt_pB = nullptr);
+                     char* opt_pB = nullptr,
+                     const atomic_prop_set* subformulas = nullptr);
 
     ~randltlgenerator();
 
@@ -345,4 +381,6 @@ namespace spot
     random_psl* rp_ = nullptr;
     random_sere* rs_ = nullptr;
   };
+
+
 }
