@@ -324,10 +324,10 @@ so is uses atomic propositions $\{p_0,p_1,...\}$ starting at 0 and without gap.
 
 ** Random conjunctions
 
-Some benchmark (e.g., [[https://www.cs.rice.edu/~vardi/papers/time13.pdf][for LTL satisfiability]]) are built by conjunction
-of $L$ random formulas picked from a set of basic formulas.  Each
-picked formula has its atomic proposition mapped to random literals
-built from a subset of $m$ atomic variables.
+Some benchmarks (e.g., [[https://www.cs.rice.edu/~vardi/papers/time13.pdf][for LTL satisfiability]]) are built by
+conjunction of $L$ random formulas picked from a set of basic
+formulas.  Each picked formula has its atomic proposition mapped to
+random literals built from a subset of $m$ atomic variables.
 
 Given a value for $m$, option =-P m= will achieve the second part of
 the above description.  To build a conjunction of $L$ formulas, we
@@ -359,7 +359,30 @@ Xp27 & Xp5 & Fp28 & Xp18 & G!p13 & Gp35 & Gp38 & G!p45 & G!p48 & Gp12
 Xp7 & G!p48 & Xp14 & Fp24 & Xp43 & Fp47 & Fp14 & Gp30 & Xp23 & G!p31
 #+end_example
 
+In fact building random conjunctions is common enough to have its own
+flag.  Using =-C N= will see the tree size to $2N-1$ and disable all
+operators but =and=.  The above command can therefore be reduced to
+
+#+BEGIN_SRC sh :exports both
+  ltlmix -fGa -fFa -fXa -n10 -P50 -C10
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+Xp27 & F!p21 & G!p19 & X!p26 & Fp4 & Gp43 & Fp39 & Fp7
+G!p28 & G!p30 & X!p34 & Fp21 & Gp3 & Fp6 & F!p18 & Xp5 & Fp8 & F!p12
+X!p32 & Xp9 & Gp4 & Xp48 & F!p48 & X!p6 & Fp5 & Xp20 & Fp28 & Fp26
+G!p46 & X!p14 & Fp29 & X!p36 & Fp12 & Xp47 & Fp42 & Gp14 & Fp19
+G!p28 & Fp21 & Fp36 & F!p0 & G!p14 & Xp21 & F!p28 & G!p21 & Gp21 & Gp40
+Gp3 & F!p48 & F!p28 & Xp7 & Gp8 & Xp42 & Gp0 & Xp36 & F!p2 & G!p0
+Xp36 & Xp46 & F!p31 & Xp11 & Xp26 & G!p9 & F!p36 & X!p12 & Fp15 & Xp18
+Xp9 & X!p33 & Fp44 & X!p13 & Gp37 & Xp19 & G!p43 & F!p34 & Gp36 & Gp10
+Xp27 & Xp5 & Fp28 & Xp18 & G!p13 & Gp35 & Gp38 & G!p45 & G!p48 & Gp12
+Xp7 & G!p48 & Xp14 & Fp24 & Xp43 & Fp47 & Fp14 & Gp30 & Xp23 & G!p31
+#+end_example
+
+
 Selecting 10 random conjuncts out of 3×50×2=300 possibilities has a
 13.7% chance that at least 2 conjuncts will be identical (see [[https://en.wikipedia.org/wiki/Birthday_problem][Birthday
-paradox]]), so because of Spot's trivial rewritings, some hove the above
+paradox]]), so because of Spot's trivial rewritings, some of the above
 formulas may have fewer than 10 conjuncts.

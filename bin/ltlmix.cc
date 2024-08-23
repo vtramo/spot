@@ -68,26 +68,31 @@ static const argp_option options[] = {
     // Keep this alphabetically sorted (expect for aliases).
     /**************************************************/
     { nullptr, 0, nullptr, 0, "Generation parameters:", 2 },
+    { "allow-dups", OPT_DUPS, nullptr, 0,
+      "allow duplicate formulas to be output", 0 },
     { "ap-count", 'A', "N", 0,
       "rename the atomic propositions in each selected formula by drawing "
       "randomly from N atomic propositions (the rewriting is bijective "
       "if N is larger than the original set)", 0 },
-    { "polarized-ap", 'P', "N", 0,
-      "similar to -A N, but randomize the polarity of the new atomic "
-      "proposition", 0 },
     { "boolean", 'B', nullptr, 0,
-      "generate Boolean combination of formulas (default)", 0 },
-    { "allow-dups", OPT_DUPS, nullptr, 0,
-      "allow duplicate formulas to be output", 0 },
-    { "ltl", 'L', nullptr, 0, "generate LTL combinations of subformulas", 0 },
+      "generate Boolean combinations of formulas (default)", 0 },
     { "formulas", 'n', "INT", 0,
       "number of formulas to generate (default: 1);\n"
       "use a negative value for unbounded generation", 0 },
+    { "ltl", 'L', nullptr, 0, "generate LTL combinations of subformulas", 0 },
+    { "polarized-ap", 'P', "N", 0,
+      "similar to -A N, but randomize the polarity of the new atomic "
+      "propositions", 0 },
+    { "random-conjuncts", 'C', "N", 0,
+      "generate random-conjunctions of N conjuncts; "
+      "shorthand for --tree-size {2N-1} -B "
+      "--boolean-priorities=[disable everything but 'and']", 0 },
     { "seed", OPT_SEED, "INT", 0,
       "seed for the random number generator (default: 0)", 0 },
     { "tree-size", OPT_TREE_SIZE, "RANGE", 0,
       "tree size of main pattern generated (default: 5);\n"
       "input formulas count as size 1.", 0 },
+    RANGE_DOC,
     /**************************************************/
     { nullptr, 0, nullptr, 0, "Adjusting probabilities:", 4 },
     { "dump-priorities", OPT_DUMP_PRIORITIES, nullptr, 0,
@@ -129,6 +134,7 @@ static spot::randltlgenerator::output_type output =
   spot::randltlgenerator::Bool;
 static char* opt_pL = nullptr;
 static char* opt_pB = nullptr;
+static char random_conj[] = "not=0,implies=0,equiv=0,xor=0,or=0";
 static bool opt_dump_priorities = false;
 static int opt_seed = 0;
 static range opt_tree_size = { 5, 5 };
@@ -178,6 +184,14 @@ parse_opt(int key, char* arg, struct argp_state*)
     case 'B':
       output = spot::randltlgenerator::Bool;
       break;
+    case 'C':
+      {
+        int s = 2 * to_int(arg, "-C/--random-conjuncs") - 1;
+        opt_tree_size = {s, s};
+        output = spot::randltlgenerator::Bool;
+        opt_pB = random_conj;
+        break;
+      }
     case 'L':
       output = spot::randltlgenerator::LTL;
       break;

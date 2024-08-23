@@ -91,3 +91,6 @@ diff out.txt expected
 
 ltlmix -fa -A500 $P,or=0 -n10 | tee out
 test 10 -eq `grep '&.*&' < out | wc -l`
+
+ltlmix -fa -A500 -C3 -n10 | tee out2
+diff out out2
