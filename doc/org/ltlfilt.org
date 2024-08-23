@@ -75,9 +75,15 @@ ltlfilt --help | sed -n '/Transformation options.*:/,/^$/p' | sed '1d;$d'
                              propositions.
       --from-ltlf[=alive]    transform LTLf (finite LTL) to LTL by introducing
                              some 'alive' proposition
+      --ins=PROPS            comma-separated list of input atomic propositions
+                             to use with --relabel=io, interpreted as a regex
+                             if enclosed in slashes
       --negate               negate each formula
       --nnf                  rewrite formulas in negative normal form
-      --relabel[=abc|pnn]    relabel all atomic propositions, alphabetically
+      --outs=PROPS           comma-separated list of output atomic propositions
+                             to use with --relabel=io, interpreted as a regex
+                             if enclosed in slashes
+      --relabel[=abc|pnn|io] relabel all atomic propositions, alphabetically
                              unless specified otherwise
       --relabel-bool[=abc|pnn]   relabel Boolean subexpressions that do not
                              share atomic propositions, relabel alphabetically
@@ -95,6 +101,7 @@ ltlfilt --help | sed -n '/Transformation options.*:/,/^$/p' | sed '1d;$d'
       --sonf[=PREFIX]        rewrite formulas in suffix operator normal form
       --sonf-aps[=FILENAME]  when used with --sonf, output the newly introduced
                              atomic propositions
+      --to-delta2            rewrite LTL formula in Δ₂-form
       --unabbreviate[=STR]   remove all occurrences of the operators specified
                              by STR, which must be a substring of "eFGiMRW^",
                              where 'e', 'i', and '^' stand respectively for
@@ -293,6 +300,38 @@ ltldo ltl3ba -f '"proc@loc1" U "proc@loc2"' --spin
 
 This case also relabels the formula before calling =ltl3ba=, and it
 then renames all the atomic propositions in the output.
+
+
+A special relabeling mode related to LTL synthesis is =--relabel=io=.
+In LTL synthesis (see [[file:ltlsynt.org][=ltlsynt=]]), atomic propositions are partitioned
+in two sets: the /input/ propositions represent choices from the
+environment, while /output/ proposition represent choices by the
+controller to be synthesized.  For instance
+=G(req -> Fack) & G(go -> Fgrant)=
+represents could be a specification where =req= and =go= are inputs,
+while =ack= and =grant= are outputs.   Tool such as =ltlsynt= need
+to be told using options such as =--ins= or =--outs= which atomic
+propositions are input or output.  Often these atomic propositions
+can have very long names, so it is useful to be able to rename
+them without fogeting about their nature.  Option =--relabel=io=
+combined with one if =--ins= or =--outs= will do exactly that:
+
+#+BEGIN_SRC sh
+ltlfilt -f 'G(req -> Fack) & G(go -> Fgrant)' --relabel=io --ins=req,go
+#+END_SRC
+#+RESULTS:
+: G(i1 -> Fo1) & G(i0 -> Fo0)
+
+Like in [[file:ltlsynt.org][=ltlsynt=]], options =--ins= and =--outs= take a comma-separated
+list of atomic propositions as argument.  Additionally, if an atomic
+proposition in this list is enclosed in slashes (as in
+=--out=req,/^go/=), it is used as a regular expression for matching
+atomic propositions.
+
+By the way, such an IO-renamed formula can be given to [[file:ltlsynt.org][=ltlsynt=]] without
+having to specify =--ins= or =--outs=, because when these two options
+are missing the convention is that anything starting with =i= is an
+input, and anything starting with =o= is an output.
 
 An example showing how to use the =--from-ltlf= option is on [[file:tut12.org][a
 separate page]].

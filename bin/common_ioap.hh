@@ -25,6 +25,7 @@
 #include <vector>
 #include <unordered_map>
 #include <spot/tl/formula.hh>
+#include <spot/tl/relabel.hh>
 
 // --ins and --outs, as supplied on the command-line
 extern std::optional<std::vector<std::string>> all_output_aps;
@@ -49,3 +50,8 @@ extern std::unordered_map<std::string, bool> identifier_map;
 // regex_out, and identifier_map.
 std::pair<std::vector<std::string>, std::vector<std::string>>
 filter_list_of_aps(spot::formula f, const char* filename, int linenum);
+
+
+// Relabel APs incrementally, based on i/o class.
+spot::formula relabel_io(spot::formula f, spot::relabeling_map& fro,
+                         const char* filename, int linenum);

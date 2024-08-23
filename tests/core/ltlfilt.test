@@ -532,6 +532,102 @@ run 0 ltlfilt -s -u --relabel=pnn --define in >out
 diff exp out
 
 cat >exp <<EOF
+#define i0 (a)
+#define i1 (b)
+#define o0 (c)
+i0 && o0 && Xi1
+#define i0 (a)
+#define i1 (b)
+#define o0 (c)
+i0 && i1 && []<>(i0 || o0) && <>[](i0 || o0)
+#define i0 (a)
+#define i1 (b)
+#define o0 (c)
+i1 && []<>(i0 || o0) && <>[](i0 || o0)
+#define o0 (c)
+#define o1 (d)
+#define o2 (e)
+#define o3 (f)
+#define o4 (h)
+#define o5 (i)
+o4 || o5 || [](o1 && o2) || <>[](!o0 || Xo3)
+#define i0 (b)
+#define o0 (c)
+#define o1 (e)
+#define o2 (f)
+#define o3 (g)
+i0 && o1 && (o2 || o3) && !Xo0
+#define i0 (a)
+#define i1 (b)
+#define o0 (c)
+i1 && []<>(i0 || o0) && ![]<>!(i0 || o0)
+#define i0 (a)
+#define i1 (b)
+#define o0 (c)
+#define o1 (d)
+<>(i0 <-> i1) -> !(o0 <-> o1)
+#define i0 (a)
+#define i1 (b)
+#define o0 (c)
+#define o1 (d)
+#define o2 (e)
+(i0 && i1 && o0) U (o0 && o1 && o2)
+#define i0 (a)
+#define i1 (b)
+#define o0 (c)
+(i0 && i1 && o0) U !(i0 && i1 && o0)
+#define i0 (a)
+#define i1 (b)
+#define o0 (c)
+#define o1 (d)
+#define o2 (e)
+(i0 && i1 && o0) U (!o0 && o1 && o2)
+#define i0 (a)
+#define i1 (b)
+#define o0 (c)
+#define o1 (d)
+#define o2 (e)
+#define o3 (f)
+(o0 && o1 && (i0 || i1)) U (!o1 && o2 && o3)
+#define i0 (a)
+#define i1 (b)
+#define o0 (d)
+#define o1 (e)
+#define o2 (f)
+(o0 && (i0 || i1)) U (!o0 && o1 && o2)
+#define i0 (a)
+#define i1 (b)
+#define o0 (c)
+(i0 && !i0) || (i1 && !i1) || (o0 && !o0)
+#define i0 (a)
+#define i1 (b)
+#define o0 (c)
+#define o1 (d)
+((i0 && !i0) || (i1 && !i1) || (o0 && !o0)) U o1
+#define i0 (a)
+#define i1 (b)
+#define o0 (c)
+#define o1 (d)
+#define o2 (e)
+((i0 && !i0) || (i1 && !i1) || (o0 && o2)) U o1
+#define i0 (a)
+#define i1 (b)
+#define o0 (c)
+((i0 && !i1) || (!i0 && i1)) U o0
+#define i0 (a)
+#define i1 (b)
+#define o0 (c)
+((i0 && !i1) || (i0 -> i1)) U o0
+EOF
+
+run 0 ltlfilt -s -u --relabel=io --ins=a,b --define in >out
+diff exp out
+run 0 ltlfilt -s -u --relabel=io --ins='/[ab]/' --define in >out
+diff exp out
+run 0 ltlfilt -s -u --relabel=io --outs='/[^ab]/' --define in >out
+diff exp out
+
+cat >exp <<EOF
 #define p0 (a & c)
 #define p1 (b)
 p0 & Xp1

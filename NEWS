@@ -5,6 +5,16 @@ New in spot 2.12.0.dev (not yet released)
   - ltlmix is a new tool that generate formulas by combining existing
     ones. See https://spot.lre.epita.fr/ltlmix.html for examples.
 
+  - ltlfilt learned a --relabel=io mode, that is useful to shorten
+    atomic propositions in the context of LTL synthesis.  For instance
+
+    % ltlfilt -f 'G(req->Fack)&G(go->Fgrant)' --relabel=io --ins=req,go
+    G(i1 -> Fo0) & G(i0 -> Fo1)
+
+    The resulting formulas are now usable by ltlsynt without having to
+    specify which atomic propositions are input or output, as this can
+    be inferred from their name.
+
   - autfilt learned --restrict-dead-end-edges, to restricts labels of
     edges leading to dead-ends.  See the description of
     restrict_dead_end_edges_here() below.

@@ -31,6 +31,7 @@
 #include "common_output.hh"
 #include "common_cout.hh"
 #include "common_conv.hh"
+#include "common_ioap.hh"
 #include "common_r.hh"
 #include "common_range.hh"
 
@@ -86,6 +87,7 @@ enum {
   OPT_IGNORE_ERRORS,
   OPT_IMPLIED_BY,
   OPT_IMPLY,
+  OPT_INS,
   OPT_LIVENESS,
   OPT_LTL,
   OPT_NEGATE,
@@ -117,6 +119,7 @@ enum {
   OPT_SYNTACTIC_SAFETY,
   OPT_SYNTACTIC_SI,
   OPT_TO_DELTA2,
+  OPT_OUTS,
   OPT_UNABBREVIATE,
   OPT_UNIVERSAL,
 };
@@ -141,7 +144,7 @@ static const argp_option options[] =
     { "sonf-aps", OPT_SONF_APS, "FILENAME", OPTION_ARG_OPTIONAL,
       "when used with --sonf, output the newly introduced atomic "
       "propositions", 0 },
-    { "relabel", OPT_RELABEL, "abc|pnn", OPTION_ARG_OPTIONAL,
+    { "relabel", OPT_RELABEL, "abc|pnn|io", OPTION_ARG_OPTIONAL,
       "relabel all atomic propositions, alphabetically unless " \
       "specified otherwise", 0 },
     { "relabel-bool", OPT_RELABEL_BOOL, "abc|pnn", OPTION_ARG_OPTIONAL,
@@ -178,6 +181,12 @@ static const argp_option options[] =
     { "from-ltlf", OPT_FROM_LTLF, "alive", OPTION_ARG_OPTIONAL,
       "transform LTLf (finite LTL) to LTL by introducing some 'alive'"
       " proposition", 0 },
+    { "ins", OPT_INS, "PROPS", 0,
+      "comma-separated list of input atomic propositions to use with "
+      "--relabel=io, interpreted as a regex if enclosed in slashes", 0 },
+    { "outs", OPT_OUTS, "PROPS", 0,
+      "comma-separated list of output atomic propositions to use with "
+      "--relabel=io, interpreted as a regex if enclosed in slashes", 0 },
     DECLARE_OPT_R,
     LEVEL_DOC(4),
     /**************************************************/
@@ -341,6 +350,7 @@ static range size = { -1, -1 };
 static range bsize = { -1, -1 };
 enum relabeling_mode { NoRelabeling = 0,
                        ApRelabeling,
+                       IOApRelabeling,
                        BseRelabeling,
                        OverlappingRelabeling };
 static relabeling_mode relabeling = NoRelabeling;
@@ -391,9 +401,12 @@ parse_relabeling_style(const char* arg, const char* optname)
     style = spot::Abc;
   else if (!strncasecmp(arg, "pnn", 4))
     style = spot::Pnn;
+  else if (!*optname && !strncasecmp(arg, "io", 2))
+    relabeling = IOApRelabeling; // style is actually not supported
   else
     error(2, 0, "invalid argument for --relabel%s: '%s'\n"
-          "expecting 'abc' or 'pnn'", optname, arg);
+          "expecting %s", optname, arg,
+          *optname ? "'abc' or 'pnn'" : "'abc', 'pnn', or 'io'");
 }
 
 
@@ -502,6 +515,12 @@ parse_opt(int key, char* arg, struct argp_state*)
         opt->imply = spot::formula::And({opt->imply, i});
         break;
       }
+    case OPT_INS:
+      {
+        all_input_aps.emplace(std::vector<std::string>{});
+        split_aps(arg, *all_input_aps);
+        break;
+      }
     case OPT_LIVENESS:
       liveness = true;
       break;
@@ -517,6 +536,12 @@ parse_opt(int key, char* arg, struct argp_state*)
     case OPT_NNF:
       nnf = true;
       break;
+    case OPT_OUTS:
+      {
+        all_output_aps.emplace(std::vector<std::string>{});
+        split_aps(arg, *all_output_aps);
+        break;
+      }
     case OPT_SONF:
       sonf = arg ? arg : "sonf_";
       break;
@@ -752,6 +777,12 @@ namespace
             f = spot::relabel(f, style, &relmap);
             break;
           }
+        case IOApRelabeling:
+          {
+            relmap.clear();
+            f = relabel_io(f, relmap, filename, linenum);
+            break;
+          }
         case BseRelabeling:
           {
             relmap.clear();
@@ -947,6 +978,9 @@ main(int argc, char** argv)
 
       if (jobs.empty())
         jobs.emplace_back("-", job_type::LTL_FILENAME);
+
+      if (relabeling == IOApRelabeling)
+        process_io_options();
 
       if (boolean_to_isop && simplification_level == 0)
         simplification_level = 1;

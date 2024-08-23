@@ -164,3 +164,37 @@ filter_list_of_aps(spot::formula f, const char* filename, int linenum)
     }
   return {matched[0], matched[1]};
 }
+
+
+spot::formula relabel_io(spot::formula f, spot::relabeling_map& fro,
+                         const char* filename, int linenum)
+{
+  auto [ins, outs] = filter_list_of_aps(f, filename, linenum);
+  // Different implementation of unordered_set, usinged in
+  // filter_list_of_aps can cause aps to be output in different order.
+  // Let's sort everything for the sake of determinism.
+  std::sort(ins.begin(), ins.end());
+  std::sort(outs.begin(), outs.end());
+  spot::relabeling_map to;
+  unsigned ni = 0;
+  for (std::string& i: ins)
+    {
+      std::ostringstream s;
+      s << 'i' << ni++;
+      spot::formula a1 = spot::formula::ap(i);
+      spot::formula a2 = spot::formula::ap(s.str());
+      fro[a2] = a1;
+      to[a1] = a2;
+    }
+  unsigned no = 0;
+  for (std::string& o: outs)
+    {
+      std::ostringstream s;
+      s << 'o' << no++;
+      spot::formula a1 = spot::formula::ap(o);
+      spot::formula a2 = spot::formula::ap(s.str());
+      fro[a2] = a1;
+      to[a1] = a2;
+    }
+  return spot::relabel_apply(f, &to);
+}
