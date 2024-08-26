@@ -34,8 +34,11 @@ namespace spot
   {
   public:
     random_formula(unsigned proba_size,
-                   const atomic_prop_set* ap):
-      proba_size_(proba_size), proba_(new op_proba[proba_size_]), ap_(ap)
+                   const atomic_prop_set* ap,
+                   const atomic_prop_set* output_ap = nullptr,
+                   std::function<bool(formula)> is_output = nullptr):
+    proba_size_(proba_size), proba_(new op_proba[proba_size_]), ap_(ap),
+    output_ap_(output_ap), is_output_(is_output)
     {
     }
 
@@ -48,6 +51,17 @@ namespace spot
     const atomic_prop_set* ap() const
     {
       return ap_;
+    }
+
+    /// Return the set of atomic proposition used to build formulas.
+    const atomic_prop_set* output_ap() const
+    {
+      return output_ap_;
+    }
+
+    std::function<bool(formula)> is_output_fun() const
+    {
+      return is_output_;
     }
 
     /// Return the set of patterns (sub-formulas) used to build formulas.
@@ -115,7 +129,9 @@ namespace spot
     op_proba* proba_2_or_more_;
     double total_2_and_more_;
     const atomic_prop_set* ap_;
+    const atomic_prop_set* output_ap_ = nullptr;
     const atomic_prop_set* patterns_ = nullptr;
+    std::function<bool(formula)> is_output_ = nullptr;
     bool draw_literals_;
   };
 
@@ -174,11 +190,15 @@ namespace spot
     /// some from \a ap.  The probability of false/true to be generated
     /// default to 0 in this case.
     random_ltl(const atomic_prop_set* ap,
+               const atomic_prop_set* output_ap = nullptr,
+               std::function<bool(formula)> is_output = nullptr,
                const atomic_prop_set* subformulas = nullptr);
 
   protected:
     void setup_proba_(const atomic_prop_set* patterns);
-    random_ltl(int size, const atomic_prop_set* ap);
+    random_ltl(int size, const atomic_prop_set* ap,
+               const atomic_prop_set* output_ap = nullptr,
+               std::function<bool(formula)> is_output = nullptr);
   };
 
   /// \ingroup tl_io
@@ -225,6 +245,8 @@ namespace spot
     /// atoms.  Atomic propositions in patterns will be rewritten
     /// randomly by drawing some from \a ap.
     random_boolean(const atomic_prop_set* ap,
+                   const atomic_prop_set* output_ap = nullptr,
+                   std::function<bool(formula)> is_output = nullptr,
                    const atomic_prop_set* subformulas = nullptr);
   };
 
@@ -342,13 +364,15 @@ namespace spot
                      char* opt_pL = nullptr,
                      char* opt_pS = nullptr,
                      char* opt_pB = nullptr,
-                     const atomic_prop_set* subformulas = nullptr);
+                     const atomic_prop_set* subformulas = nullptr,
+                     std::function<bool(formula)> is_output = nullptr);
 
     randltlgenerator(atomic_prop_set aprops, const option_map& opts,
                      char* opt_pL = nullptr,
                      char* opt_pS = nullptr,
                      char* opt_pB = nullptr,
-                     const atomic_prop_set* subformulas = nullptr);
+                     const atomic_prop_set* subformulas = nullptr,
+                     std::function<bool(formula)> is_output = nullptr);
 
     ~randltlgenerator();
 
@@ -366,6 +390,7 @@ namespace spot
   private:
     fset_t unique_set_;
     atomic_prop_set aprops_;
+    atomic_prop_set aprops_out_;
 
     int opt_seed_;
     int opt_tree_size_min_;

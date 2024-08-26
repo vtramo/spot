@@ -28,13 +28,13 @@
 
 namespace spot
 {
-  atomic_prop_set create_atomic_prop_set(unsigned n)
+  atomic_prop_set create_atomic_prop_set(unsigned n, const char* prefix)
   {
     atomic_prop_set res;
     for (unsigned i = 0; i < n; ++i)
       {
         std::ostringstream p;
-        p << 'p' << i;
+        p << prefix << i;
         res.insert(formula::ap(p.str()));
       }
     return res;

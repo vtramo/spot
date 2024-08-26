@@ -24,6 +24,7 @@
 #include "common_setup.hh"
 #include "common_finput.hh"
 #include "common_output.hh"
+#include "common_ioap.hh"
 #include "common_conv.hh"
 #include "common_cout.hh"
 #include "common_range.hh"
@@ -36,7 +37,9 @@ enum {
   OPT_BOOLEAN_PRIORITIES = 256,
   OPT_DUMP_PRIORITIES,
   OPT_DUPS,
+  OPT_INS,
   OPT_LTL_PRIORITIES,
+  OPT_OUTS,
   OPT_SEED,
   OPT_TREE_SIZE,
 };
@@ -70,18 +73,21 @@ static const argp_option options[] = {
     { nullptr, 0, nullptr, 0, "Generation parameters:", 2 },
     { "allow-dups", OPT_DUPS, nullptr, 0,
       "allow duplicate formulas to be output", 0 },
-    { "ap-count", 'A', "N", 0,
+    { "ap-count", 'A', "N[,M]", 0,
       "rename the atomic propositions in each selected formula by drawing "
       "randomly from N atomic propositions (the rewriting is bijective "
-      "if N is larger than the original set)", 0 },
+      "if N is larger than the original set).  If M is specified, two sets "
+      "of atomic propositions are used to represent inputs and outputs, and "
+      "options --ins/--outs can be used to classify the original propositions.",
+      0 },
     { "boolean", 'B', nullptr, 0,
       "generate Boolean combinations of formulas (default)", 0 },
     { "formulas", 'n', "INT", 0,
       "number of formulas to generate (default: 1);\n"
       "use a negative value for unbounded generation", 0 },
     { "ltl", 'L', nullptr, 0, "generate LTL combinations of subformulas", 0 },
-    { "polarized-ap", 'P', "N", 0,
-      "similar to -A N, but randomize the polarity of the new atomic "
+    { "polarized-ap", 'P', "N[,M]", 0,
+      "similar to -A, but randomize the polarity of the new atomic "
       "propositions", 0 },
     { "random-conjuncts", 'C', "N", 0,
       "generate random-conjunctions of N conjuncts; "
@@ -92,6 +98,12 @@ static const argp_option options[] = {
     { "tree-size", OPT_TREE_SIZE, "RANGE", 0,
       "tree size of main pattern generated (default: 5);\n"
       "input formulas count as size 1.", 0 },
+    { "ins", OPT_INS, "PROPS", 0,
+      "comma-separated list of atomic propositions to consider as input, "
+      "interpreted as a regex if enclosed in slashes", 0 },
+    { "outs", OPT_OUTS, "PROPS", 0,
+      "comma-separated list of atomic propositions to consider as putput, "
+      "interpreted as a regex if enclosed in slashes", 0 },
     RANGE_DOC,
     /**************************************************/
     { nullptr, 0, nullptr, 0, "Adjusting probabilities:", 4 },
@@ -140,7 +152,9 @@ static int opt_seed = 0;
 static range opt_tree_size = { 5, 5 };
 static bool opt_unique = true;
 static int opt_ap_count = 0;
+static int opt_out_ap_count = 0;
 static bool opt_literal = false;
+static bool opt_io = false;
 
 namespace
 {
@@ -160,8 +174,12 @@ namespace
     process_formula(spot::formula f, const char* filename = nullptr,
                     int linenum = 0) override
     {
-      (void) filename;
-      (void) linenum;
+      if (opt_io)
+        // Filter the atomic propositions of each formula in order to
+        // report those that are not classifiable.  Throw the result
+        // of that filtering away, as we only care about the potential
+        // diagnostics.
+        (void) filter_list_of_aps(f, filename, linenum);
       opt->sub.insert(f);
       return 0;
     }
@@ -169,6 +187,24 @@ namespace
 }
 
 static sub_processor subreader;
+
+std::pair<int, int> to_int_pair(const char* arg, const char* opt)
+{
+  const char* comma = strchr(arg, ',');
+  if (!comma)
+    {
+      int res = to_int(arg, opt);
+      return {res, 0};
+    }
+  else
+    {
+      std::string arg1(arg, comma);
+      int res1 = to_int(arg1.c_str(), opt);
+      int res2 = to_int(comma + 1, opt);
+      return {res1, res2};
+    }
+}
+
 
 static int
 parse_opt(int key, char* arg, struct argp_state*)
@@ -178,7 +214,8 @@ parse_opt(int key, char* arg, struct argp_state*)
   switch (key)
     {
     case 'A':
-      opt_ap_count = to_int(arg, "-A/--ap-count");
+      std::tie(opt_ap_count, opt_out_ap_count) =
+        to_int_pair(arg, "-A/--ap-count");
       opt_literal = false;
       break;
     case 'B':
@@ -199,7 +236,8 @@ parse_opt(int key, char* arg, struct argp_state*)
       opt_formulas = to_int(arg, "-n/--formulas");
       break;
     case 'P':
-      opt_ap_count = to_int(arg, "-P/--polarized-ap");
+      std::tie(opt_ap_count, opt_out_ap_count) =
+        to_int_pair(arg, "-P/--polarized-ap");
       opt_literal = true;
       break;
     case OPT_BOOLEAN_PRIORITIES:
@@ -214,6 +252,20 @@ parse_opt(int key, char* arg, struct argp_state*)
     case OPT_DUPS:
       opt_unique = false;
       break;
+    case OPT_INS:
+      {
+        all_input_aps.emplace(std::vector<std::string>{});
+        split_aps(arg, *all_input_aps);
+        opt_io = true;
+        break;
+      }
+    case OPT_OUTS:
+      {
+        all_output_aps.emplace(std::vector<std::string>{});
+        split_aps(arg, *all_output_aps);
+        opt_io = true;
+        break;
+      }
     case OPT_SEED:
       opt_seed = to_int(arg, "--seed");
       break;
@@ -249,6 +301,19 @@ main(int argc, char* argv[])
 
       check_no_formula("combine");
 
+      if (opt_io && !opt_out_ap_count)
+        error(2, 0,
+              "options --ins and --outs only make sense when the "
+              "two-argument version of '-A N,M' or '-P N,M' is used.");
+      if (opt_out_ap_count > 0)
+        // Do not require --ins/--outs to be used, as the input
+        // pattern may use atomic propositions starting with i/o
+        // already.  Setting opt_io will cause the subreader to
+        // complain about unclassifible atomic propositions.
+        opt_io = true;
+      if (opt_io)
+        process_io_options();
+
       if (subreader.run())
         return 2;
 
@@ -257,11 +322,16 @@ main(int argc, char* argv[])
 
       spot::srand(opt_seed);
 
+      std::function<bool(spot::formula)> output_p = nullptr;
+      if (opt_out_ap_count)
+        output_p = [&](spot::formula f) { return is_output(f.ap_name()); };
+
       spot::randltlgenerator rg
         (opt_ap_count,
          [&] (){
           spot::option_map opts;
           opts.set("output", output);
+          opts.set("out_ap_size", opt_out_ap_count);
           opts.set("tree_size_min", opt_tree_size.min);
           opts.set("tree_size_max", opt_tree_size.max);
           opts.set("seed", opt_seed);
@@ -269,7 +339,7 @@ main(int argc, char* argv[])
           opts.set("unique", opt_unique);
           opts.set("literals", opt_literal);
           return opts;
-         }(), opt_pL, nullptr, opt_pB, &opt->sub);
+         }(), opt_pL, nullptr, opt_pB, &opt->sub, output_p);
 
       if (opt_dump_priorities)
         {

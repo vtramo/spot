@@ -88,6 +88,72 @@ list_aps_in_formula(spot::formula f)
   return aps;
 }
 
+
+bool
+is_output(const std::string& a, const char* filename, int linenum)
+{
+  if (auto it = identifier_map.find(a); it != identifier_map.end())
+    return it->second;
+
+  bool found_in = false;
+  for (const std::regex& r: regex_in)
+    if (std::regex_search(a, r))
+      {
+        found_in = true;
+        break;
+      }
+  bool found_out = false;
+  for (const std::regex& r: regex_out)
+    if (std::regex_search(a, r))
+      {
+        found_out = true;
+        break;
+      }
+  if (all_input_aps.has_value() == all_output_aps.has_value())
+    {
+      if (!all_input_aps.has_value())
+        {
+          // If the atomic proposition hasn't been classified
+          // because neither --ins nor --out were specified,
+          // attempt to classify automatically using the first
+          // letter.
+          int fl = a[0];
+          if (fl == 'i' || fl == 'I')
+            found_in = true;
+          else if (fl == 'o' || fl == 'O')
+            found_out = true;
+        }
+      if (found_in && found_out)
+        error_at_line(2, 0, filename, linenum,
+                      "'%s' matches both --ins and --outs",
+                      a.c_str());
+      if (!found_in && !found_out)
+        {
+          if (all_input_aps.has_value() || all_output_aps.has_value())
+            error_at_line(2, 0, filename, linenum,
+                          "one of --ins or --outs should match '%s'",
+                          a.c_str());
+          else
+            error_at_line(2, 0, filename, linenum,
+                          "since '%s' does not start with 'i' or 'o', "
+                          "it is unclear if it is an input or "
+                          "an output;\n    use --ins or --outs",
+                          a.c_str());
+        }
+    }
+  else
+    {
+      // if we had only --ins or only --outs, anything not
+      // matching that was given is assumed to belong to the
+      // other one.
+      if (!all_input_aps.has_value() && !found_out)
+        found_in = true;
+      else if (!all_output_aps.has_value() && !found_in)
+        found_out = true;
+    }
+  return found_out;
+}
+
 // Takes a set of the atomic propositions appearing in the formula,
 // and separate them into two vectors: input APs and output APs.
 std::pair<std::vector<std::string>, std::vector<std::string>>
@@ -97,71 +163,7 @@ filter_list_of_aps(spot::formula f, const char* filename, int linenum)
   // now iterate over the list of atomic propositions to filter them
   std::vector<std::string> matched[2]; // 0 = input, 1 = output
   for (const std::string& a: aps)
-    {
-      if (auto it = identifier_map.find(a); it != identifier_map.end())
-        {
-          matched[it->second].push_back(a);
-          continue;
-        }
-
-      bool found_in = false;
-      for (const std::regex& r: regex_in)
-        if (std::regex_search(a, r))
-          {
-            found_in = true;
-            break;
-          }
-      bool found_out = false;
-      for (const std::regex& r: regex_out)
-        if (std::regex_search(a, r))
-          {
-            found_out = true;
-            break;
-          }
-      if (all_input_aps.has_value() == all_output_aps.has_value())
-        {
-          if (!all_input_aps.has_value())
-            {
-              // If the atomic proposition hasn't been classified
-              // because neither --ins nor --out were specified,
-              // attempt to classify automatically using the first
-              // letter.
-              int fl = a[0];
-              if (fl == 'i' || fl == 'I')
-                found_in = true;
-              else if (fl == 'o' || fl == 'O')
-                found_out = true;
-            }
-          if (found_in && found_out)
-            error_at_line(2, 0, filename, linenum,
-                          "'%s' matches both --ins and --outs",
-                          a.c_str());
-          if (!found_in && !found_out)
-            {
-              if (all_input_aps.has_value() || all_output_aps.has_value())
-                error_at_line(2, 0, filename, linenum,
-                              "one of --ins or --outs should match '%s'",
-                              a.c_str());
-              else
-                error_at_line(2, 0, filename, linenum,
-                              "since '%s' does not start with 'i' or 'o', "
-                              "it is unclear if it is an input or "
-                              "an output;\n    use --ins or --outs",
-                              a.c_str());
-            }
-        }
-      else
-        {
-          // if we had only --ins or only --outs, anything not
-          // matching that was given is assumed to belong to the
-          // other one.
-          if (!all_input_aps.has_value() && !found_out)
-            found_in = true;
-          else if (!all_output_aps.has_value() && !found_in)
-            found_out = true;
-        }
-      matched[found_out].push_back(a);
-    }
+    matched[is_output(a, filename, linenum)].push_back(a);
   return {matched[0], matched[1]};
 }
 

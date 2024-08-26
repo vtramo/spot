@@ -32,11 +32,30 @@ namespace spot
     // randomly from \a ap.  Avoid repetition if \a ap is large
     // enough.  If \a lit is true, change the polarity of the atomic
     // proposition randomly.
+    //
+    // If \a out_ap is non-empty, use \a is_output to decide if an original
+    // atomic proposition should be replaced by an AP from ap or out_ap.
     static formula
-    randomize_ap(formula f, const atomic_prop_set* ap, bool lit)
+    randomize_ap(formula f, const atomic_prop_set* ap,
+                 const atomic_prop_set* out_ap,
+                 std::function<bool(formula)> is_output,
+                 bool lit)
     {
       std::vector<formula> randap(ap->begin(), ap->end());
+      std::vector<formula> randap_out;
+      if (out_ap && is_output != nullptr)
+        {
+          randap_out.reserve(out_ap->size());
+          randap_out.insert(randap_out.begin(), out_ap->begin(), out_ap->end());
+        }
+      if (randap_out.empty())
+        {
+          is_output = nullptr;
+          out_ap = nullptr;
+        }
+
       unsigned current_range = randap.size();
+      unsigned current_out_range = randap_out.size();
       std::map<formula, formula> mapping;
 
       auto relabel = [&](formula f, auto self) -> formula
@@ -47,15 +66,29 @@ namespace spot
             if (auto it = mapping.find(f); it != mapping.end())
               return it->second;
 
-            // If we exhausted all possible AP, start again
-            if (current_range == 0)
-              current_range = randap.size();
+            bool is_out = false;
+            if (out_ap && is_output != nullptr)
+              is_out = is_output(f);
 
-            //
-            unsigned pos = mrand(current_range--);
-            formula ap = randap[pos];
-            std::swap(randap[current_range], randap[pos]);
-
+            formula ap;
+            if (!is_out)
+              {
+                // If we exhausted all possible AP, start again
+                if (current_range == 0)
+                  current_range = randap.size();
+                unsigned pos = mrand(current_range--);
+                ap = randap[pos];
+                std::swap(randap[current_range], randap[pos]);
+              }
+            else
+              {
+                // If we exhausted all possible AP, start again
+                if (current_out_range == 0)
+                  current_out_range = randap_out.size();
+                unsigned pos = mrand(current_out_range--);
+                ap = randap_out[pos];
+                std::swap(randap_out[current_out_range], randap_out[pos]);
+              }
             if (lit && drand() < 0.5)
               ap = formula::Not(ap);
 
@@ -86,8 +119,11 @@ namespace spot
       std::advance(i, mrand(rl->patterns()->size()));
       formula f = *i;
       const atomic_prop_set* ap = rl->ap();
+      const atomic_prop_set* out_ap = rl->output_ap();
+      auto is_output = rl->is_output_fun();
       if (ap && ap->size() > 0)
-        f = randomize_ap(f, ap, rl->draw_literals());
+        f = randomize_ap(f, ap, out_ap, is_output,
+                         rl->draw_literals());
       return f;
     }
 
@@ -407,8 +443,10 @@ namespace spot
 
   // Boolean formulae
   random_boolean::random_boolean(const atomic_prop_set* ap,
+                                 const atomic_prop_set* output_ap,
+                                 std::function<bool(formula)> is_output,
                                  const atomic_prop_set* patterns)
-    : random_formula(9, ap)
+    : random_formula(9, ap, output_ap, is_output)
   {
     if (patterns)
       {
@@ -473,15 +511,19 @@ namespace spot
   }
 
   random_ltl::random_ltl(const atomic_prop_set* ap,
+                         const atomic_prop_set* output_ap,
+                         std::function<bool(formula)> is_output,
                          const atomic_prop_set* patterns)
-    : random_formula(16, ap)
+    : random_formula(16, ap, output_ap, is_output)
   {
     setup_proba_(patterns);
     update_sums();
   }
 
-  random_ltl::random_ltl(int size, const atomic_prop_set* ap)
-    : random_formula(size, ap)
+  random_ltl::random_ltl(int size, const atomic_prop_set* ap,
+                         const atomic_prop_set* output_ap,
+                         std::function<bool(formula)> is_output)
+    : random_formula(size, ap, output_ap, is_output)
   {
     setup_proba_(nullptr);
     // No call to update_sums(), this functions is always
@@ -507,7 +549,8 @@ namespace spot
                                      char* opt_pL,
                                      char* opt_pS,
                                      char* opt_pB,
-                                     const atomic_prop_set* subs)
+                                     const atomic_prop_set* subs,
+                                     std::function<bool(formula)> is_output)
     : opt_simpl_level_(opts.get("simplification_level", 3)),
       simpl_(tl_simplifier_options{opt_simpl_level_})
   {
@@ -518,6 +561,9 @@ namespace spot
     opt_tree_size_max_ = opts.get("tree_size_max", 15);
     opt_unique_ = opts.get("unique", 1);
     opt_wf_ = opts.get("wf", 0);
+    unsigned opt_output = opts.get("out_ap_size");
+    if (opt_output > 0)
+      aprops_out_ = create_atomic_prop_set(opt_output, "o");
     bool lit = opts.get("literals", 0);
 
     const char* tok_pL = nullptr;
@@ -527,7 +573,7 @@ namespace spot
     switch (output_)
       {
       case randltlgenerator::LTL:
-        rf_ = new random_ltl(&aprops_, subs);
+        rf_ = new random_ltl(&aprops_, &aprops_out_, is_output, subs);
         rf_->draw_literals(lit);
         if (opt_pS)
           throw std::invalid_argument("Cannot set SERE priorities with "
@@ -538,7 +584,7 @@ namespace spot
         tok_pL = rf_->parse_options(opt_pL);
         break;
       case randltlgenerator::Bool:
-        rf_ = new random_boolean(&aprops_, subs);
+        rf_ = new random_boolean(&aprops_, &aprops_out_, is_output, subs);
         rf_->draw_literals(lit);
         tok_pB = rf_->parse_options(opt_pB);
         if (opt_pL)
@@ -583,9 +629,11 @@ namespace spot
                                      char* opt_pL,
                                      char* opt_pS,
                                      char* opt_pB,
-                                     const atomic_prop_set* subs)
-    : randltlgenerator(create_atomic_prop_set(aprops_n), opts,
-                       opt_pL, opt_pS, opt_pB, subs)
+                                     const atomic_prop_set* subs,
+                                     std::function<bool(formula)> is_output)
+    : randltlgenerator(create_atomic_prop_set(aprops_n,
+                                              is_output == nullptr ? "p" : "i"),
+                       opts, opt_pL, opt_pS, opt_pB, subs, is_output)
   {
   }
 

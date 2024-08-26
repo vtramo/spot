@@ -32,9 +32,11 @@ namespace spot
   /// Set of atomic propositions.
   typedef std::set<formula> atomic_prop_set;
 
-  /// \brief construct an atomic_prop_set with n propositions
+  /// \brief construct an atomic_prop_set with n propositions starting
+  /// with \a prefix
   SPOT_API
-  atomic_prop_set create_atomic_prop_set(unsigned n);
+  atomic_prop_set create_atomic_prop_set(unsigned n,
+                                         const char* prefix = "p");
 
   /// \brief Return the set of atomic propositions occurring in a formula.
   ///

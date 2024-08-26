@@ -94,3 +94,30 @@ test 10 -eq `grep '&.*&' < out | wc -l`
 
 ltlmix -fa -A500 -C3 -n10 | tee out2
 diff out out2
+
+
+ltlmix -fGi -fFo -A3,3 -C4 -n10 | tee out
+cat >expected <<EOF
+Fo1 & Gi1 & Gi2 & Fo0
+Gi1 & Fo0 & Fo2
+Fo1 & Gi1 & Gi2 & Fo2
+Gi1 & Fo0 & Gi0
+Fo1 & Gi1 & Gi2 & Gi0
+Fo1 & Gi1 & Fo0 & Fo2
+Fo1 & Gi1 & Fo2
+Gi1 & Gi2 & Gi0
+Fo1 & Gi1 & Fo0
+Fo1 & Fo2 & Gi0
+EOF
+diff out expected
+
+ltlmix -fGa -fFz -A3,3 --ins='/[a-m]/' -C4 -n10 > out
+diff out expected
+
+ltlmix -fGa -fFz -A3,3 --outs='/[m-o]/,z' -C4 -n10 > out
+diff out expected
+
+
+ltlmix -fGa -fFz -A3,3 -C4 -n10 2> err && exit 1
+cat err
+grep 'ins.*outs' err

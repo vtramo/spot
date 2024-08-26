@@ -45,6 +45,15 @@ extern std::vector<std::regex> regex_out;
 // map identifier to input/output (false=input, true=output)
 extern std::unordered_map<std::string, bool> identifier_map;
 
+
+// Given an atomic proposition AP and the above
+// regex_in/regex_out/identifier_map, decide if this AP is an output
+// (true) or input (false.
+bool
+is_output(const std::string& ap,
+          const char* filename = nullptr, int linenum = 0);
+
+
 // Separate the set of the atomic propositions appearing in f, into
 // two vectors: input APs and output APs, becased on regex_in,
 // regex_out, and identifier_map.
