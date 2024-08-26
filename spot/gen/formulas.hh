@@ -91,6 +91,9 @@ namespace spot
       /// \cite kupferman.10.mochart ,
       /// \cite kupferman.05.tcl .
       LTL_KV_PSI,
+      /// LTL synthesis examples specification from the Lily 1.0.2
+      /// distribution.  \cite jobstmann.06.fmcad
+      LTL_LILY_PATTERNS,
       /// `GF(a1&X(a2&X(a3&...Xan)))&F(b1&F(b2&F(b3&...&Xbm)))`
       /// \cite muller.17.gandalf
       LTL_MS_EXAMPLE,

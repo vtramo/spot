@@ -29,13 +29,17 @@ gh
 J. Geldenhuys and H. Hansen: Larger automata and less
 work for LTL model checking.  Proceedings of Spin'06.  LNCS 3925.
 .TP
+go
+P. Gastin and D. Oddoux: Fast LTL to Büchi Automata Translation.
+Proceedings of CAV'01.  LNCS 2102.
+.TP
 hkrss
 J. Holeček, T. Kratochvila, V. Řehák, D. Šafránek, and P. Šimeček:
 Verification Results in Liberouter Project.  Tech. Report 03, CESNET, 2004.
 .TP
-go
-P. Gastin and D. Oddoux: Fast LTL to Büchi Automata Translation.
-Proceedings of CAV'01.  LNCS 2102.
+jb, lily
+B. Jobstmann, and R. Bloem:
+Optimizations for LTL Synthesis.  Proceedings of FMCAD'06.  IEEE.
 .TP
 kr
 O. Kupferman and A. Rosenberg: The Blow-Up in Translating LTL to Deterministic

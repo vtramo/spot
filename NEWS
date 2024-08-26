@@ -15,6 +15,13 @@ New in spot 2.12.0.dev (not yet released)
     specify which atomic propositions are input or output, as this can
     be inferred from their name.
 
+  - genltl learned --lily-patterns to generate the example LTL
+    synthesis specifications from Lily 1.0.2.  Those come with input
+    and output atomic proposition rewriten in the form "iNN" or "oNN",
+    so they can be fed to ltlsynt directly, as in
+
+       % genltl --lily-patterns | ltlsynt -q
+
   - autfilt learned --restrict-dead-end-edges, to restricts labels of
     edges leading to dead-ends.  See the description of
     restrict_dead_end_edges_here() below.
