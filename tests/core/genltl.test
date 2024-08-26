@@ -241,6 +241,12 @@ test $? = 2
 test "`cat err`" = \
   "genltl: no pattern hkrss-patterns=0, supported range is 1..55"
 
+genltl --lily-patterns=0 2> err && exit 1
+test $? = 2
+test "`cat err`" = \
+  "genltl: no pattern lily-patterns=0, supported range is 1..23"
+
+
 genltl --kr-n=0 2> err && exit 1
 test $? = 2
 test "`cat err`" = "genltl: no pattern kr-n=0, supported range is 1.."

@@ -825,6 +825,56 @@ namespace spot
       }
 
       static formula
+      lily_pattern(int n)
+      {
+        static const char* formulas[] = {
+          "G(i2->(X(o0&X(o0&Xo0))&(o0->X!o0)&(i0->X(!o0 U i1))))",
+          "G(i2->(X(o0|X(o0|Xo0))&(o0->X!o0)&(i0->X(!o0 U i1))))",
+          "G(i0->Xi1)->G(i2->(X(o0|X(o0|Xo0))&(o0->X!o0)&(i0->X(!o0 U i1))))",
+          "G(i0->X(i1|Xi1))->"
+          "G(i2->(X(o0|X(o0|Xo0))&(o0->X!o0)&(i0->X(!o0 U i1))))",
+          "G(i0->X(i1|Xi1))->"
+          "G(i2->(X(i0|o0|X(i0|o0|X(i0|o0)))&(o0->X!o0)&(i0->X(!o0 U i1))))",
+          "G(i0->X(i1|X(i1|Xi1)))->"
+          "G(i2->(X(i0|o0|X(i0|o0|X(i0|o0)))&(o0->X!o0)&(i0->X(!o0 U i1))))",
+          "G(i0->X(i1|Xi1))->G(i0->(X(!o0 U i1)"
+          "&(o0->X!o0)&(i2->(i0|o0|X(i0|o0|X(i0|o0|X(i0|o0)))))))",
+          "GFi0->GFo0",
+          "GFi0->(!o0&G(!o0->((!o0 U i0)&(i0->Fo0)))&GFo0)",
+          "(GFi1|Fi0)->(GFo1|Go0)",
+          "!(G(i1->Fo0)&G(i0->Fo1))",
+          "G!o1|G(i1->Fo0)|G(i0->Fo1)",
+          "Gi0->(Fo0&(G!i0->F!o0))",
+          "G!(o0&o1)&(GFi0->GFo0)&(GFi1->GFo1)",
+          // lily=15 This matches the original formula from Lily, not
+          // the unrealizable version from Syfco.  See
+          // https://github.com/reactive-systems/syfco/issues/55
+          "G(i0->(!(o0&o1)&Fo0&(i1->Fo1)))&((!o0 U i0)|G!o0)&((!o1 U i1)|G!o1)",
+          // lily=16   Same comment as above.
+          "G(i0->(!(o0&o1)&!(o0&o2)&!(o1&o2)&Fo0&(i1->Fo1)&(i2->Fo2)))&"
+          "((!o0 U i0)|G!o0)&((!o1 U i1)|G!o1)&((!o2 U i2)|G!o2)",
+          "G(!(o0&o1)&!(o1&o2)&!(o0&o2))&(GFi0->GFo0)&(GFi1->GFo1)&GFo2",
+          "G(!(o0&o1)&!(o0&o2)&!(o0&o3)&!(o1&o2)&!(o1&o3)&!(o2&o3))&"
+          "(GFi0->GFo0)&(GFi1->GFo1)&(GFi2->GFo2)&GFo3",
+          "GFi1->G(o1->(!(o0&o1)&(o1 U i1)&(o0->(o0 U i1))&(i0->Fo0)&Fo1))",
+          "(!i1&G((!i1&!o2)->X!i1)&G(i1->F!i1)&G(o2->Xi1))->"
+          "G((o1&X!o1)->(o2&(o0|o1)&((o0&X!o0)->o2)&((!o0&(!i0|!i1))->"
+          "Xo0)&((!o1&(i0|!i1))->Xo1)&(i0->F!o0)&F!o1))",
+          "(G(!i0|!i1)&G(!i0|!i2)&G(!i0|!i3)&G(!i1|!i2)&G(!i1|!i3)&"
+          "G(!i2|!i3))->G((!o0|!o1)&(!o0|!o2)&(!o0|!o3)&(!o1|!o2)&(!o1|!o3)&"
+          "(!o2|!o3)&G(i0->(Xo0|XXo0|XXXo0))&G(i1->(Xo1|XXo1|XXXo1))&"
+          "G(i2->(Xo2|XXo2|XXXo2))&G(i3->(Xo3|XXo3|XXXo3)))",
+          "(!i0&!i1&!i2&G!(i0&i1)&GF!i2&G((!i2&o0)->X!i2)&G(i2->X(!i2|"
+          "X(!i2|X(!i2 | X!i2)))))->G(!(i2&Xo0)&(i1->F!o0)&(i0->Fo0))",
+          "(G((i0&Xo0)->Xi0)&GF!i0)->GX(!i0&X!o0)",
+        };
+        constexpr unsigned max = (sizeof formulas)/(sizeof *formulas);
+        if (n < 1 || (unsigned) n > max)
+          bad_number("lily-patterns", n, max);
+        return parse_formula(formulas[n - 1]);
+      }
+
+      static formula
       p_pattern(int n)
       {
         static const char* formulas[] = {
@@ -1359,12 +1409,8 @@ namespace spot
           return kr1_exp(n, "a", "b", "c", "d", "y", "z");
         case LTL_KV_PSI:
           return kv_exp(n, "a", "b", "c", "d");
-        case LTL_OR_FG:
-          return FG_n("p", n, false);
-        case LTL_OR_G:
-          return combunop_n("p", n, op::G, false);
-        case LTL_OR_GF:
-          return GF_n("p", n, false);
+        case LTL_LILY_PATTERNS:
+          return lily_pattern(n);
         case LTL_MS_EXAMPLE:
           return ms_example("a", "b", n, m);
         case LTL_MS_PHI_H:
@@ -1373,6 +1419,12 @@ namespace spot
           return ms_phi_rs("a", "b", n, true);
         case LTL_MS_PHI_S:
           return ms_phi_rs("a", "b", n, false);
+        case LTL_OR_FG:
+          return FG_n("p", n, false);
+        case LTL_OR_G:
+          return combunop_n("p", n, op::G, false);
+        case LTL_OR_GF:
+          return GF_n("p", n, false);
         case LTL_P_PATTERNS:
           return p_pattern(n);
         case LTL_PPS_ARBITER_STANDARD:
@@ -1448,6 +1500,7 @@ namespace spot
           "kr-n",
           "kr-nlogn",
           "kv-psi",
+          "lily-patterns",
           "ms-example",
           "ms-phi-h",
           "ms-phi-r",
@@ -1518,6 +1571,9 @@ namespace spot
         case LTL_KR_N:
         case LTL_KR_NLOGN:
         case LTL_KV_PSI:
+          return 0;
+        case LTL_LILY_PATTERNS:
+          return 23;
         case LTL_MS_EXAMPLE:
         case LTL_MS_PHI_H:
         case LTL_MS_PHI_R:
@@ -1586,6 +1642,7 @@ namespace spot
         case LTL_KR_N:
         case LTL_KR_NLOGN:
         case LTL_KV_PSI:
+        case LTL_LILY_PATTERNS:
           return 1;
         case LTL_MS_EXAMPLE:
           return 2;

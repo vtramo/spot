@@ -1316,3 +1316,32 @@ f2='G(i1->(o1|!o2)) & G(!i1->(o3|!o4)) & G(i2->(!o1|o2)) & G(!i2->(!o3|o4))&Go5'
 ltlsynt -f "$f2" --polarity=before-decom --verbose 2>out 1>&2
 sed 's/ [0-9.e-]* seconds/ X seconds/g;s/ -> /->/g;' out > outx
 diff outx exp
+
+
+genltl --lily-patterns | ltlsynt -q > out && exit 2
+cat >expected <<EOF
+UNREALIZABLE
+UNREALIZABLE
+REALIZABLE
+REALIZABLE
+REALIZABLE
+REALIZABLE
+REALIZABLE
+REALIZABLE
+REALIZABLE
+REALIZABLE
+UNREALIZABLE
+REALIZABLE
+REALIZABLE
+REALIZABLE
+REALIZABLE
+REALIZABLE
+REALIZABLE
+REALIZABLE
+REALIZABLE
+REALIZABLE
+REALIZABLE
+REALIZABLE
+REALIZABLE
+EOF
+diff out expected

@@ -115,6 +115,11 @@ static const argp_option options[] =
     { "kv-psi", gen::LTL_KV_PSI, "RANGE", 0,
       "quadratic formula with doubly exponential DBA", 0 },
     OPT_ALIAS(kr-n2),
+    { "lily-patterns", gen::LTL_LILY_PATTERNS, "RANGE", OPTION_ARG_OPTIONAL,
+      "LTL synthesis specification examples from Lily 1.0.2 "
+      "[Jobstmann & Bloem, FMCAD'06] "
+      "(range should be included in 1..23)", 0 },
+    OPT_ALIAS(jb-patterns),
     { "ms-example", gen::LTL_MS_EXAMPLE, "RANGE[,RANGE]", 0,
       "GF(a1&X(a2&X(a3&...Xan)))&F(b1&F(b2&F(b3&...&Xbm)))", 0 },
     { "ms-phi-h", gen::LTL_MS_PHI_H, "RANGE", 0,
