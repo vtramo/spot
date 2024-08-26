@@ -218,7 +218,7 @@ These options solve two problems:
 - They lessen the issue that a formula selected several times can lead
   to syntax tree such as =φ | φ | φ= that reduces to =φ=.  Now, each
   occurrence of =φ= as a chance to use different atomic propositions.
-  (the larger =N= is, the more likely it is that these copies of φ
+  (The larger =N= is, the more likely it is that these copies of φ
   will be different).
 
 - They allow combining formulas that had completely different sets of
@@ -386,3 +386,106 @@ Selecting 10 random conjuncts out of 3×50×2=300 possibilities has a
 13.7% chance that at least 2 conjuncts will be identical (see [[https://en.wikipedia.org/wiki/Birthday_problem][Birthday
 paradox]]), so because of Spot's trivial rewritings, some of the above
 formulas may have fewer than 10 conjuncts.
+
+** Random conjunctions for LTL synthesis
+
+Generating formulas for LTL synthesis differs from LTL satisfiability
+because we have to deal with two sets of atomic proposition: one set
+for input, and one set for output.
+
+[[https://www.ijcai.org/proceedings/2017/0189.pdf][Zhu et al. (IJCAI'17)]] generate their benchmark for LTL synthesis using
+a setup similar to the above, except that when atomic proposition are
+randomized, we must make sure not to change their input or output
+nature.
+
+They use small examples from the [[http://www.ist.tugraz.at/staff/jobstmann/lily/][Lily]] distribution has basic formulas
+to combine.  Spot can print those using =genltl --lily=.  There are 23
+of them, we will limit ourselves to four of them for illustrative
+purpose.
+
+#+BEGIN_SRC sh :exports both
+  genltl --lily=8..11
+#+END_SRC
+
+#+RESULTS:
+: GFi0 -> GFo0
+: GFi0 -> (!o0 & G(!o0 -> ((!o0 U i0) & (i0 -> Fo0))) & GFo0)
+: (GFi1 | Fi0) -> (GFo1 | Go0)
+: !(G(i1 -> Fo0) & G(i0 -> Fo1))
+
+Notice that atomic proposition either start with =i= (for input) or
+=o= for output.  This allows Spot to infer their nature.  For instance,
+we could feed those directly to [[file:ltlsynt.org][=ltlsynt=]]:
+
+#+BEGIN_SRC sh :exports both :prologue true
+  genltl --lily=8..11 | ltlsynt -q
+#+END_SRC
+
+#+RESULTS:
+: REALIZABLE
+: REALIZABLE
+: REALIZABLE
+: UNREALIZABLE
+
+
+When randomizing the atomic propositions in these formulas before
+combining them, we want to replace each input (resp. output)
+proposition by a random input (resp. output) proposition.  This is
+achieved by passing two numbers to =-A= or =-P=.  In the case of [[https://www.ijcai.org/proceedings/2017/0189.pdf][Zhu
+et al.]], they do not change the polarity of the proposition during
+their generation, so we would use =-A= to mimic their setup.
+
+Here are 6 random conjunctions of the above four patterns, in which
+each input (resp. output) atomic proposition has been replaced by a
+random input (resp. output) atomic proposition picked randomly in a
+set of 5 (resp. 4).
+
+
+#+BEGIN_SRC sh :exports both
+  genltl --lily=8..11 | ltlmix -A5,4 -C3 -n6
+#+END_SRC
+
+#+RESULTS:
+: !(G(i3 -> Fo3) & G(i2 -> Fo2)) & (GFi2 -> (!o1 & GFo1 & G(!o1 -> ((!o1 U i2) & (i2 -> Fo1))))) & (GFi4 -> GFo1)
+: (GFi2 -> (!o1 & GFo1 & G(!o1 -> ((!o1 U i2) & (i2 -> Fo1))))) & !(G(i0 -> Fo1) & G(i4 -> Fo3)) & (GFi4 -> (!o3 & GFo3 & G(!o3 -> ((i4 -> Fo3) & (!o3 U i4)))))
+: (GFi3 -> (!o3 & GFo3 & G(!o3 -> ((i3 -> Fo3) & (!o3 U i3))))) & ((GFi2 | Fi3) -> (GFo0 | Go2)) & ((Fi0 | GFi2) -> (GFo3 | Go2))
+: (GFi3 -> GFo2) & (GFi2 -> GFo0) & (GFi3 -> (!o0 & GFo0 & G(!o0 -> ((!o0 U i3) & (i3 -> Fo0)))))
+: !(G(i3 -> Fo1) & G(i1 -> Fo3)) & !(G(i3 -> Fo0) & G(i0 -> Fo2)) & ((GFi0 | Fi3) -> (GFo0 | Go1))
+: ((Fi1 | GFi4) -> (Go0 | GFo2)) & !(G(i0 -> Fo2) & G(i4 -> Fo1)) & !(G(i3 -> Fo2) & G(i1 -> Fo1))
+
+#+BEGIN_SRC sh :exports both :prologue true
+  genltl --lily=8..11 | ltlmix -A5,4 -C3 -n6 | ltlsynt -q
+#+END_SRC
+
+#+RESULTS:
+: UNREALIZABLE
+: UNREALIZABLE
+: REALIZABLE
+: UNREALIZABLE
+: UNREALIZABLE
+: UNREALIZABLE
+
+Note that because one of the original pattern is unrealizable, any
+conjunction involving it will be unrealizable.  Even if we had only
+realizable specifications to combine, the smaller the atomic
+propositions set are, the more likely the random conjuncts will be in
+conflict.  Therefore, increasing the number of atomic propositions to
+chose from may help to get more realizable formulas.
+
+#+BEGIN_SRC sh :exports both :prologue true
+  genltl --lily=8..11 | ltlmix -A50,50 -C3 -n6 | ltlsynt -q
+#+END_SRC
+
+#+RESULTS:
+: UNREALIZABLE
+: UNREALIZABLE
+: REALIZABLE
+: REALIZABLE
+: UNREALIZABLE
+: UNREALIZABLE
+
+
+When the original LTL synthesis specification formulas have atomic
+proposition that do not start with =i= or =o=, options =--ins= and
+=--outs= can be used to specify the nature of the atomic propositions.
+These options work as with [[file:ltlsynt.org][=ltlsynt=]].
