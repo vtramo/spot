@@ -64,6 +64,7 @@ twaalgos_HEADERS = \
   ltl2tgba_fm.hh \
   magic.hh \
   mask.hh \
+  matchstates.hh \
   minimize.hh \
   mealy_machine.hh \
   couvreurnew.hh \
@@ -139,6 +140,7 @@ libtwaalgos_la_SOURCES = \
   ltl2tgba_fm.cc \
   magic.cc \
   mask.cc \
+  matchstates.cc \
   minimize.cc \
   mealy_machine.cc \
   couvreurnew.cc \

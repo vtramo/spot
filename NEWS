@@ -56,6 +56,12 @@ New in spot 2.12.0.dev (not yet released)
      were missing the rule "[*0]|f ≡ f" when f already accepts the
      empty word.  (Issue #545.)
 
+   - spot::match_states(A, B) is a new function that returns a vector
+     V such that V[x] contains all states y such that state (x, y) can
+     reach an accepting cycle in product(A, B).  In particular, if A
+     and B accept the same language, any word accepted by A from state
+     x can be accepted in B from some state in V[x].
+
   Bug fixes:
 
   - Generating random formulas without any unary opertor would very

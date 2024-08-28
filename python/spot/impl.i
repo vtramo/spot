@@ -132,6 +132,7 @@
 #include <spot/twaalgos/contains.hh>
 #include <spot/twaalgos/determinize.hh>
 #include <spot/twaalgos/magic.hh>
+#include <spot/twaalgos/matchstates.hh>
 #include <spot/twaalgos/minimize.hh>
 #include <spot/twaalgos/mealy_machine.hh>
 #include <spot/twaalgos/neverclaim.hh>
@@ -522,6 +523,7 @@ namespace std {
   %template(pairintacccond) pair<int, spot::acc_cond>;
   %template(vectorformula) vector<spot::formula>;
   %template(vectorunsigned) vector<unsigned>;
+  %template(vectorvectorunsigned) vector<vector<unsigned>>;
   %template(vectorpairunsigned) vector<pair<unsigned, unsigned>>;
   %template(vectoracccond) vector<spot::acc_cond>;
   %template(vectoracccode) vector<spot::acc_cond::acc_code>;
@@ -739,6 +741,7 @@ def state_is_accepting(self, src) -> "bool":
 %include <spot/twaalgos/contains.hh>
 %include <spot/twaalgos/langmap.hh>
 %include <spot/twaalgos/magic.hh>
+%include <spot/twaalgos/matchstates.hh>
 %include <spot/twaalgos/minimize.hh>
 %include <spot/twaalgos/mealy_machine.hh>
 %include <spot/twaalgos/neverclaim.hh>

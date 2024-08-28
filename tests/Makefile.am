@@ -435,6 +435,7 @@ TESTS_python = \
   python/ltlf.py \
   python/ltlparse.py \
   python/ltlsimple.py \
+  python/matchstates.py \
   python/mealy.py \
   python/_mealy.ipynb \
   python/merge.py \
