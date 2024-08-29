@@ -60,3 +60,18 @@ m3 = spot.match_states(a, c)
 tc.assertEqual(m3, ((), (), (), ()))
 m4 = spot.match_states(c, a)
 tc.assertEqual(m4, ((), ))
+
+f = spot.formula("Ga | Gb | Gc")
+m5 = spot.match_states(a, f)
+tc.assertEqual(m5, (f, f, f, f))
+m6 = spot.match_states(b, f)
+tc.assertEqual(m6, (spot.formula("Gc"),
+                    spot.formula("Gb | Gc"),
+                    spot.formula("Gb"),
+                    spot.formula("Ga"),
+                    spot.formula("Ga | Gc"),
+                    spot.formula("Ga | Gb"),
+                    spot.formula("Ga | Gb | Gc")))
+
+m7 = spot.match_states(c, f)  # Note that f is not the formula for c
+tc.assertEqual(m7, (spot.formula("0"),))

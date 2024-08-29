@@ -1887,7 +1887,7 @@ namespace spot
                  bool exprop, bool symb_merge, bool branching_postponement,
                  bool fair_loop_approx, const atomic_prop_set* unobs,
                  tl_simplifier* simplifier, bool unambiguous,
-                 const output_aborter* aborter)
+                 const output_aborter* aborter, bool label_with_ltl)
   {
     tl_simplifier* s = simplifier;
 
@@ -2216,8 +2216,9 @@ namespace spot
         if (orig_f.is_syntactic_guarantee())
           a->prop_terminal(true);
       }
-    // Set the following to true to preserve state names.
-    a->release_formula_namer(namer, false);
+
+    // This gives each state a name of label_with_ltl is set.
+    a->release_formula_namer(namer, label_with_ltl);
 
     if (!simplifier)
       // This should not be deleted before we have registered all propositions.

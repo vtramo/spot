@@ -62,6 +62,12 @@ New in spot 2.12.0.dev (not yet released)
      and B accept the same language, any word accepted by A from state
      x can be accepted in B from some state in V[x].
 
+     That function also has a variant spot::match_states(A, f) where f
+     is an LTL formula.  In this case it returns and array of
+     formulas.  If f represents a superset of the language of A, then
+     any word accepted by A from state x satisfies V[x].  Related to
+     Issue #591.
+
   Bug fixes:
 
   - Generating random formulas without any unary opertor would very

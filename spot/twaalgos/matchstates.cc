@@ -20,6 +20,8 @@
 #include <spot/twaalgos/matchstates.hh>
 #include <spot/twaalgos/sccinfo.hh>
 #include <spot/twaalgos/product.hh>
+#include <spot/twaalgos/ltl2tgba_fm.hh>
+#include <spot/tl/parse.hh>
 
 namespace spot
 {
@@ -45,6 +47,43 @@ namespace spot
     return v;
   }
 
+  std::vector<formula>
+  match_states(const const_twa_graph_ptr& aut1, formula f)
+  {
+    twa_graph_ptr aut2 = ltl_to_tgba_fm(f, aut1->get_dict(),
+                                        false /* exprop */,
+                                        true /* symbolic merge */,
+                                        false /* branching postponement */,
+                                        false /* fair loop approx. */,
+                                        nullptr /* unobs event */,
+                                        nullptr /* simplifier */,
+                                        false /* unambiguous */,
+                                        nullptr /* aborter */,
+                                        true /* label with LTL */);
+    auto state_names =
+      aut2->get_named_prop<std::vector<std::string>>("state-names");
+    auto v = match_states(aut1, aut2);
+    unsigned sz1 = aut1->num_states();
+    unsigned sz2 = aut2->num_states();
 
+    // State are labeled with strings, but we know those strings to
+    // represent LTL formulas, so convert those.
+    std::vector<formula> state_formulas;
+    state_formulas.reserve(sz2);
+    for (unsigned i = 0; i < sz2; ++i)
+      state_formulas.push_back(parse_formula((*state_names)[i]));
 
+    std::vector<formula> res;
+    res.reserve(sz1);
+
+    std::vector<formula> disjuncts;
+    for (unsigned i = 0; i < sz1; ++i)
+      {
+        disjuncts.clear();
+        for (unsigned j: v[i])
+          disjuncts.push_back(state_formulas[j]);
+        res.push_back(formula::Or(disjuncts));
+      }
+    return res;
+  }
 }

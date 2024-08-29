@@ -20,6 +20,7 @@
 
 #include <spot/misc/common.hh>
 #include <spot/twa/fwd.hh>
+#include <spot/tl/formula.hh>
 #include <vector>
 
 namespace spot
@@ -37,4 +38,21 @@ namespace spot
   SPOT_API std::vector<std::vector<unsigned>>
   match_states(const const_twa_graph_ptr& aut1,
                const const_twa_graph_ptr& aut2);
+
+  /// \ingroup twa_algorithms \brief match the states of \a aut with
+  /// formulas "reachable" from \a f.
+  ///
+  /// The returned vector V assigns each state `x` of \a aut to a
+  /// formula `V[x]`.
+  ///
+  /// This translates \a f as an automaton B in which states are labeled
+  /// by formulas, match the states of \a aut with the states of B, and
+  /// use that to find formulas associated to each state of \a aut.
+  ///
+  /// In particular, if the language of \a f is a superset of the
+  /// language of \a aut, then every word accepted in \a aut from
+  /// state `x` will satisfy formula `V[x]`.  However `V[x]` may
+  /// accept more than the words accepted from `a` in \a aut.
+  SPOT_API std::vector<formula>
+  match_states(const const_twa_graph_ptr& aut, formula f);
 }

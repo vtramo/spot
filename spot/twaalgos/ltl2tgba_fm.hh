@@ -74,6 +74,10 @@ namespace spot
   /// constructed automaton would become larger than specified by the
   /// output_aborter.
   ///
+  /// \param label_with_ltl keep one LTL formula equivalent the
+  /// language recognized by each state, and use that to name each
+  /// state.
+  ///
   /// \return A spot::twa_graph that recognizes the language of \a f.
   SPOT_API twa_graph_ptr
   ltl_to_tgba_fm(formula f, const bdd_dict_ptr& dict,
@@ -83,5 +87,6 @@ namespace spot
                  const atomic_prop_set* unobs = nullptr,
                  tl_simplifier* simplifier = nullptr,
                  bool unambiguous = false,
-                 const output_aborter* aborter = nullptr);
+                 const output_aborter* aborter = nullptr,
+                 bool label_with_ltl = false);
 }
