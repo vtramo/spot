@@ -22,6 +22,8 @@
 #include <spot/twaalgos/product.hh>
 #include <spot/twaalgos/ltl2tgba_fm.hh>
 #include <spot/tl/parse.hh>
+#include <spot/tl/print.hh>
+#include <spot/tl/simplify.hh>
 
 namespace spot
 {
@@ -73,6 +75,8 @@ namespace spot
     for (unsigned i = 0; i < sz2; ++i)
       state_formulas.push_back(parse_formula((*state_names)[i]));
 
+    tl_simplifier tls(tl_simplifier_options(2));
+
     std::vector<formula> res;
     res.reserve(sz1);
 
@@ -82,8 +86,20 @@ namespace spot
         disjuncts.clear();
         for (unsigned j: v[i])
           disjuncts.push_back(state_formulas[j]);
-        res.push_back(formula::Or(disjuncts));
+        res.push_back(tls.simplify(formula::Or(disjuncts)));
       }
     return res;
   }
+
+  void
+  match_states_decorate(twa_graph_ptr& aut, formula f)
+  {
+    std::vector<formula> v = spot::match_states(aut, f);
+    auto* n = new std::vector<std::string>;
+    n->reserve(v.size());
+    for (spot::formula f: v)
+      n->push_back(str_psl(f));
+    aut->set_named_prop("state-names", n);
+  }
+
 }

@@ -39,8 +39,9 @@ namespace spot
   match_states(const const_twa_graph_ptr& aut1,
                const const_twa_graph_ptr& aut2);
 
-  /// \ingroup twa_algorithms \brief match the states of \a aut with
-  /// formulas "reachable" from \a f.
+  /// \ingroup twa_algorithms
+  /// \brief match the states of \a aut with formulas "reachable" from
+  /// \a f.
   ///
   /// The returned vector V assigns each state `x` of \a aut to a
   /// formula `V[x]`.
@@ -55,4 +56,12 @@ namespace spot
   /// accept more than the words accepted from `a` in \a aut.
   SPOT_API std::vector<formula>
   match_states(const const_twa_graph_ptr& aut, formula f);
+
+
+  /// \ingroup twa_algorithms
+  ///
+  /// \brief label the state of \a aut with the result of
+  /// `match_states(aut,f)`.
+  SPOT_API void
+  match_states_decorate(twa_graph_ptr& aut, formula f);
 }

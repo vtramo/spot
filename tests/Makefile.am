@@ -316,6 +316,7 @@ TESTS_twa = \
   core/sbacc.test \
   core/stutter-tgba.test \
   core/strength.test \
+  core/trackf.test \
   core/emptchk.test \
   core/emptchke.test \
   core/dfs.test \

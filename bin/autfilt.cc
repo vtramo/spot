@@ -44,6 +44,7 @@
 #include <spot/misc/timer.hh>
 #include <spot/parseaut/public.hh>
 #include <spot/tl/exclusive.hh>
+#include <spot/tl/parse.hh>
 #include <spot/twaalgos/alternation.hh>
 #include <spot/twaalgos/are_isomorphic.hh>
 #include <spot/twaalgos/canonicalize.hh>
@@ -63,6 +64,7 @@
 #include <spot/twaalgos/isweakscc.hh>
 #include <spot/twaalgos/langmap.hh>
 #include <spot/twaalgos/mask.hh>
+#include <spot/twaalgos/matchstates.hh>
 #include <spot/twaalgos/product.hh>
 #include <spot/twaalgos/randomize.hh>
 #include <spot/twaalgos/remfin.hh>
@@ -165,6 +167,7 @@ enum {
   OPT_SUM_AND,
   OPT_TERMINAL_SCCS,
   OPT_TO_FINITE,
+  OPT_TRACK_FORMULA,
   OPT_TRIV_SCCS,
   OPT_USED_AP_N,
   OPT_UNUSED_AP_N,
@@ -413,6 +416,7 @@ static const argp_option options[] =
       "Convert an automaton with \"alive\" and \"!alive\" propositions "
       "into a Büchi automaton interpretable as a finite automaton.  "
       "States with a outgoing \"!alive\" edge are marked as accepting.", 0 },
+    /**************************************************/
     { nullptr, 0, nullptr, 0, "Decorations (for -d and -H1.1 output):", 9 },
     { "highlight-accepting-run", OPT_HIGHLIGHT_ACCEPTING_RUN, "NUM",
       OPTION_ARG_OPTIONAL, "highlight one accepting run using color NUM", 0},
@@ -426,9 +430,12 @@ static const argp_option options[] =
       OPTION_ARG_OPTIONAL,
       "highlight nondeterministic states and edges with color NUM", 0},
     { "highlight-word", OPT_HIGHLIGHT_WORD, "[NUM,]WORD", 0,
-      "highlight one run matching WORD using color NUM", 0},
+      "highlight one run matching WORD using color NUM", 0 },
     { "highlight-languages", OPT_HIGHLIGHT_LANGUAGES, nullptr, 0 ,
-      "highlight states that recognize identical languages", 0},
+      "highlight states that recognize identical languages", 0 },
+    { "track-formula", OPT_TRACK_FORMULA, "FORMULA", 0,
+      "attempt to label the states of the automaton assuming the automaton "
+      "recognize FORMULA (use deterministic automata for precision)", 0 },
     /**************************************************/
     { nullptr, 0, nullptr, 0,
       "If any option among --small, --deterministic, or --any is given, "
@@ -716,6 +723,7 @@ static int opt_highlight_nondet_states = -1;
 static int opt_highlight_nondet_edges = -1;
 static int opt_highlight_accepting_run = -1;
 static bool opt_highlight_languages = false;
+static spot::formula opt_track_formula = nullptr;
 static bool opt_dca = false;
 static bool opt_streett_like = false;
 static bool opt_enlarge_acceptance_set = false;
@@ -1271,6 +1279,9 @@ parse_opt(int key, char* arg, struct argp_state*)
     case OPT_TO_FINITE:
       opt_to_finite = arg ? arg : "alive";
       break;
+    case OPT_TRACK_FORMULA:
+      opt_track_formula = spot::parse_formula(arg);
+      break;
     case OPT_TRIV_SCCS:
       opt_triv_sccs = parse_range(arg, 0, std::numeric_limits<int>::max());
       opt_art_sccs_set = true;
@@ -1707,6 +1718,9 @@ namespace
         aut = spot::split_edges(aut);
       else if (opt_separate_edges)
         aut = spot::separate_edges(aut);
+
+      if (opt_track_formula)
+        match_states_decorate(aut, opt_track_formula);
 
       if (opt_to_finite)
         aut = spot::to_finite(aut, opt_to_finite);
