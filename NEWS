@@ -5,6 +5,11 @@ New in spot 2.12.0.dev (not yet released)
   - Generating random formula without any unary opertors would very
     often create formulas much smaller than asked.
 
+  - The parity game solver, which internally works on "parity max
+    odd", but actually accept any type of parity acceptance, could be
+    confused by games with "parity min" acceptance using transition
+    with several colors (a rather uncommon situation).
+
 New in spot 2.12  (2024-05-16)
 
   Build:

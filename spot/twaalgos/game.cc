@@ -357,7 +357,8 @@ namespace spot
         // Takes an edge and returns the "equivalent" max odd parity
         auto equiv_par = [max, odd, next_max_par, inv = 2*max-1](const auto& e)
           {
-            par_t e_par = e.acc.max_set() - 1; // -1 for empty
+            par_t e_par =
+              (max ? e.acc.max_set() : e.acc.min_set()) - 1; // -1 for empty
             // If "min" and empty -> set to n
             if (!max & (e_par == -1))
               e_par = next_max_par;

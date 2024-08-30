@@ -351,6 +351,21 @@ State: 17
 --END--"""
 )
 
+def maximize_colors(aut, is_max):
+    ns = aut.num_sets()
+    v = []
+    if is_max:
+        for c in range(ns+1):
+            v.append(spot.mark_t(list(range(c))))
+        for e in aut.edges():
+            e.acc = v[e.acc.max_set()]
+    else:
+        for c in range(ns+1):
+            v.append(spot.mark_t(list(range(c, ns))))
+        v.insert(0, spot.mark_t([]))
+        for e in aut.edges():
+            e.acc = v[e.acc.min_set()]
+
 # Test the different parity conditions
 gdpa = spot.tgba_determinize(spot.degeneralize_tba(g),
                              False, True, True, False)
@@ -370,6 +385,14 @@ for kind in [spot.parity_kind_min, spot.parity_kind_max]:
         tc.assertTrue(spot.solve_parity_game(g_test_split1))
         c_strat1 = spot.get_strategy(g_test_split1)
         tc.assertTrue(c_strat == c_strat1)
+        # Same test, but adding a lot of useless colors in the game
+        g_test_split2 = spot.change_parity(g_test_split, kind, style)
+        maximize_colors(g_test_split2, kind == spot.parity_kind_max)
+        spot.set_state_players(g_test_split2, sp)
+        tc.assertTrue(spot.solve_parity_game(g_test_split2))
+        c_strat2 = spot.get_strategy(g_test_split2)
+        tc.assertTrue(c_strat == c_strat2)
+
 
 # Test that strategies are not appended
 # if solve is called multiple times
