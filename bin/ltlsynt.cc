@@ -324,7 +324,7 @@ namespace
       rs->patch_game(game);
 
     if (opt_dot)
-      spot::print_dot(std::cout, game, opt_print_hoa_args);
+      spot::print_dot(std::cout, game, opt_dot_arg);
     else if (opt_print_pg)
       spot::print_pg(std::cout, game);
     else

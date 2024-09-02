@@ -81,6 +81,8 @@ New in spot 2.12.0.dev (not yet released)
     confused by games with "parity min" acceptance using transition
     with several colors (a rather uncommon situation).
 
+  - "ltlsynt ... --print-game --dot=ARGS" was ignoring ARGS.
+
 New in spot 2.12  (2024-05-16)
 
   Build:
