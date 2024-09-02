@@ -1085,7 +1085,11 @@ diff outx exp
 
 # Test --dot and --hide-status
 ltlsynt -f 'i <-> Fo' --ins=i --aiger --dot | grep arrowhead=dot
-ltlsynt -f 'i <-> Fo' --ins=i --print-game-hoa --dot | grep 'shape="diamond"'
+ltlsynt -f 'i <-> Fo' --ins=i --print-game-hoa --dot > out
+grep 'shape="diamond"' out
+grep 'Inf(0)' out
+ltlsynt -f 'i <-> Fo' --ins=i --print-game-hoa --dot=bar > out
+grep 'label=<Inf(<font' out
 ltlsynt -f 'i <-> Fo' --ins=i --dot --hide-status > res
 cat >exp <<EOF
 digraph "" {
