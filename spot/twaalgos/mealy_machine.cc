@@ -2604,9 +2604,14 @@ namespace
           return {};
         case PICOSAT_SATISFIABLE:
           {
-            std::vector<int>
-                res(1 + (unsigned) picosat_variables(lm.psat_), -1);
-            SPOT_ASSUME(res.data()); // g++ 11 believes data might be nullptr
+            unsigned nvar = 1 + (unsigned) picosat_variables(lm.psat_);
+            // Asssuming res.data() non-null was enough to prevent g++
+            // 11 from issuing a spurious "potential null pointer
+            // dereference" on the res[0] assignment.  Since g++14 we
+            // also need to assume nvar>0.
+            SPOT_ASSUME(nvar > 0);
+            std::vector<int> res(nvar, -1);
+            SPOT_ASSUME(res.data());
             res[0] = 0; // Convention
             for (int lit : lm.all_lits)
               res[lit] = picosat_deref(lm.psat_, lit);
