@@ -38,11 +38,17 @@ if 'SPOT_UNINSTALLED' in os.environ:
 # We may have third-party plugins that want to be loaded as "spot.xxx", but
 # that are installed in a different $prefix.  This sets things so that any
 # file that looks like spot-extra/xxx.py can be loaded with "import spot.xxx".
+# When libtool is used in a development build, it is likely that PYTHONPATH
+# is already set up to contains something like .../spot-extra/.libs, so we
+# want to copy those as well.
 for path in sys.path:
     if path not in __path__:
-        path += "/spot-extra"
-        if os.path.isdir(path):
+        if "/spot-extra" in path:
             __path__.append(path)
+        else:
+            path += "/spot-extra"
+            if os.path.isdir(path):
+                __path__.append(path)
 
 
 from spot.impl import *
@@ -58,7 +64,7 @@ from spot.aux import \
      ostream_to_svg as _ostream_to_svg
 
 
-# The parrameters used by default when show() is called on an automaton.
+# The parameters used by default when show() is called on an automaton.
 _show_default = None
 
 
