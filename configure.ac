@@ -220,7 +220,7 @@ AC_CHECK_PROG([LBTT_TRANSLATE], [lbtt-translate], [lbtt-translate])
 AX_CHECK_VALGRIND
 # Debian used to reserve the name 'swig' for swig-2.0.  So prefer
 # swig4.0 (available in Debian bullseye) to swig3.0 (available in Debian buster)
-# ti swig.
+# to swig.
 AC_CHECK_PROGS([SWIG], [swig4.0 swig3.0 swig], [swig])
 
 AC_SUBST([CROSS_COMPILING], [$cross_compiling])
