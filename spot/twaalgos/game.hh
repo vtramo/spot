@@ -151,20 +151,20 @@ namespace spot
   /// \brief Set the owner for all the states.
   /// @{
   SPOT_API
-  void set_state_players(twa_graph_ptr arena, const region_t& owners);
+  void set_state_players(twa_graph_ptr& arena, const region_t& owners);
   SPOT_API
-  void set_state_players(twa_graph_ptr arena, region_t&& owners);
+  void set_state_players(twa_graph_ptr& arena, region_t&& owners);
   /// @}
 
   /// \ingroup games
   /// \brief Set the owner of a state.
   SPOT_API
-  void set_state_player(twa_graph_ptr arena, unsigned state, bool owner);
+  void set_state_player(twa_graph_ptr& arena, unsigned state, bool owner);
 
   /// \ingroup games
   /// \brief Get the owner of a state.
   SPOT_API
-  bool get_state_player(const_twa_graph_ptr arena, unsigned state);
+  bool get_state_player(const const_twa_graph_ptr& arena, unsigned state);
 
   /// \ingroup games
   /// \brief Get the owner of all states
@@ -181,9 +181,9 @@ namespace spot
   SPOT_API
   const strategy_t& get_strategy(const const_twa_graph_ptr& arena);
   SPOT_API
-  void set_strategy(twa_graph_ptr arena, const strategy_t& strat);
+  void set_strategy(twa_graph_ptr& arena, const strategy_t& strat);
   SPOT_API
-  void set_strategy(twa_graph_ptr arena, strategy_t&& strat);
+  void set_strategy(twa_graph_ptr& arena, strategy_t&& strat);
   /// @}
 
   /// \ingroup games
@@ -205,23 +205,29 @@ namespace spot
   /// \brief Set the winner for all the states.
   /// @{
   SPOT_API
-  void set_state_winners(twa_graph_ptr arena, const region_t& winners);
+  void set_state_winners(twa_graph_ptr& arena, const region_t& winners);
   SPOT_API
-  void set_state_winners(twa_graph_ptr arena, region_t&& winners);
+  void set_state_winners(twa_graph_ptr& arena, region_t&& winners);
   /// @}
 
   /// \ingroup games
   /// \brief Set the winner of a state.
   SPOT_API
-  void set_state_winner(twa_graph_ptr arena, unsigned state, bool winner);
+  void set_state_winner(twa_graph_ptr& arena, unsigned state, bool winner);
 
   /// \ingroup games
   /// \brief Get the winner of a state.
   SPOT_API
-  bool get_state_winner(const_twa_graph_ptr arena, unsigned state);
+  bool get_state_winner(const const_twa_graph_ptr& arena, unsigned state);
 
   /// \ingroup games
   /// \brief Get the winner of all states
+  /// @{
   SPOT_API
   const region_t& get_state_winners(const const_twa_graph_ptr& arena);
+#ifndef SWIG
+  SPOT_API
+  const region_t& get_state_winners(twa_graph_ptr& arena);
+#endif
+  /// @}
 }
