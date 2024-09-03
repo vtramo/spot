@@ -648,7 +648,7 @@ test $? -eq 2
 grep "one.*should match 'b'" stderr
 ltlsynt -f 'GFa | FGb | GFc' 2>stderr && :
 test $? -eq 2
-grep "[-]-ins or --outs" stderr
+grep "[-]-ins.*--outs" stderr
 
 # Try to find a direct strategy for GFa <-> GFb and a direct strategy for
 # Gc
@@ -1139,10 +1139,14 @@ ltlsynt --decomp=yes -f "$s" --realizability >out
 ltlsynt --decomp=no --outs='/^o[0-9]*$/' -f "$s" --realizability >>out
 ltlsynt --decomp=no --outs='/^o[0-9]$/' -f "$s" --realizability >>out && :
 ltlsynt  -f "$s" --ins='/^i[0-9]*$/' --realizability >>out
+echo ".inputs i1 i2 i3 i4 i5 i6 i7 i8" > part.part
+echo ".outputs /^o1[0-9]*/ o01 o02 o03 o04 o05 o06 o07 o08 o09" >> part.part
+ltlsynt  -f "$s" --part-file=part.part --realizability >>out
 cat >expected <<EOF
 REALIZABLE
 REALIZABLE
 UNREALIZABLE
+REALIZABLE
 REALIZABLE
 EOF
 diff out expected

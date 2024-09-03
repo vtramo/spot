@@ -64,3 +64,6 @@ filter_list_of_aps(spot::formula f, const char* filename, int linenum);
 // Relabel APs incrementally, based on i/o class.
 spot::formula relabel_io(spot::formula f, spot::relabeling_map& fro,
                          const char* filename, int linenum);
+
+// Read a .part file.
+void read_part_file(const char* filename);

@@ -121,3 +121,19 @@ diff out expected
 ltlmix -fGa -fFz -A3,3 -C4 -n10 2> err && exit 1
 cat err
 grep 'ins.*outs' err
+
+echo '.inputs a c .outputs b d ' > part.part
+ltlmix -fXa -fGb -f'c U d' --part-file=part.part -C4 -A3,3 -n10 >out
+cat >expected <<EOF
+(i1 U o2) & Go1 & (i0 U o2)
+Go1 & (i0 U o2) & Xi1 & Go2
+Go2 & (i2 U o1) & Xi2 & Go0
+Go2 & Go0 & (i1 U o0) & Xi0
+Go1 & Xi2 & Xi0 & (i0 U o0)
+Xi1 & Xi2 & Go0 & (i2 U o0)
+Xi1 & (i1 U o0) & Xi0 & (i1 U o1)
+Go2 & Xi2 & (i0 U o0)
+(i0 U o2) & (i0 U o0) & (i0 U o1)
+Go1 & Xi0 & (i0 U o0) & (i0 U o1)
+EOF
+diff out expected

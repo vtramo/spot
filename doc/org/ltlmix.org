@@ -489,6 +489,6 @@ chose from may help to get more realizable formulas.
 
 
 When the original LTL synthesis specification formulas have atomic
-proposition that do not start with =i= or =o=, options =--ins= and
-=--outs= can be used to specify the nature of the atomic propositions.
-These options work as with [[file:ltlsynt.org][=ltlsynt=]].
+proposition that do not start with =i= or =o=, options =--ins=,
+=--outs=, or =--part-file= can be used to specify the nature of the
+atomic propositions.  These options work as [[file:ltlsynt.org::#input-options][=ltlsynt='s input options]].

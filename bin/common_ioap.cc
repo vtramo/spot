@@ -18,6 +18,7 @@
 
 #include "common_ioap.hh"
 #include "error.h"
+#include <fstream>
 #include <unordered_set>
 
 // --ins and --outs, as supplied on the command-line
@@ -30,6 +31,8 @@ std::vector<std::regex> regex_in;
 std::vector<std::regex> regex_out;
 // map identifier to input/output (false=input, true=output)
 std::unordered_map<std::string, bool> identifier_map;
+
+static bool a_part_file_was_read = false;
 
 static std::string
 str_tolower(std::string s)
@@ -71,7 +74,10 @@ void process_io_options()
           regex_out.push_back(std::regex(f.substr(1, sz - 2)));
         else if (auto [it, is_new] = identifier_map.try_emplace(f, true);
                  !is_new && !it->second)
-          error(2, 0, "'%s' appears in both --ins and --outs",
+          error(2, 0,
+                a_part_file_was_read ?
+                "'%s' appears in both inputs and outputs" :
+                "'%s' appears in both --ins and --outs",
                 f.c_str());
       }
 }
@@ -125,19 +131,23 @@ is_output(const std::string& a, const char* filename, int linenum)
         }
       if (found_in && found_out)
         error_at_line(2, 0, filename, linenum,
+                      a_part_file_was_read ?
+                      "'%s' matches both inputs and outputs" :
                       "'%s' matches both --ins and --outs",
                       a.c_str());
       if (!found_in && !found_out)
         {
           if (all_input_aps.has_value() || all_output_aps.has_value())
             error_at_line(2, 0, filename, linenum,
+                          a_part_file_was_read ?
+                          "'%s' does not match any input or output" :
                           "one of --ins or --outs should match '%s'",
                           a.c_str());
           else
             error_at_line(2, 0, filename, linenum,
                           "since '%s' does not start with 'i' or 'o', "
                           "it is unclear if it is an input or "
-                          "an output;\n    use --ins or --outs",
+                          "an output;\n    use --ins, --outs, or --part-file",
                           a.c_str());
         }
     }
@@ -199,4 +209,60 @@ spot::formula relabel_io(spot::formula f, spot::relabeling_map& fro,
       to[a1] = a2;
     }
   return spot::relabel_apply(f, &to);
+}
+
+// Read FILENAME as a ".part" file.   It should
+// contains lines of text of the following form:
+//
+//    .inputs IN1 IN2 IN3...
+//    .outputs OUT1 OUT2 OUT3...
+void read_part_file(const char* filename)
+{
+  std::ifstream in(filename);
+  if (!in)
+    error(2, errno, "cannot open '%s'", filename);
+
+  // This parsing is inspired from Lily's parser for .part files.  We
+  // read words one by one, and change the "mode" if we the word is
+  // ".inputs" or ".outputs".  A '#' introduce a comment until the end
+  // of the line.
+  std::string word;
+  enum { Unknown, Input, Output } mode = Unknown;
+  while (in >> word)
+    {
+      // The benchmarks for Syft use ".inputs:" instead of ".inputs".
+      if (word == ".inputs" || word == ".inputs:")
+        {
+          mode = Input;
+          if (!all_input_aps.has_value())
+            all_input_aps.emplace();
+        }
+      // The benchmarks for Syft use ".outputs:" instead of ".outputs".
+      else if (word == ".outputs"  || word == ".outputs:")
+        {
+          mode = Output;
+          if (!all_output_aps.has_value())
+            all_output_aps.emplace();
+        }
+      else if (word[0] == '#')
+        {
+          // Skip the rest of the line.
+          in.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        }
+      else if (mode == Unknown)
+        {
+          error_at_line(2, 0, filename, 0,
+                        "expected '.inputs' or '.outputs' instead of '%s'",
+                        word.c_str());
+        }
+      else if (mode == Input)
+        {
+          all_input_aps->push_back(str_tolower(word));
+        }
+      else /* mode == Output */
+        {
+          all_output_aps->push_back(str_tolower(word));
+        }
+    }
+  a_part_file_was_read = true;
 }

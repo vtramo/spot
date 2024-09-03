@@ -314,7 +314,7 @@ to be told using options such as =--ins= or =--outs= which atomic
 propositions are input or output.  Often these atomic propositions
 can have very long names, so it is useful to be able to rename
 them without fogeting about their nature.  Option =--relabel=io=
-combined with one if =--ins= or =--outs= will do exactly that:
+combined with one if =--ins=, =--outs=, or =--part-file= will do exactly that:
 
 #+BEGIN_SRC sh
 ltlfilt -f 'G(req -> Fack) & G(go -> Fgrant)' --relabel=io --ins=req,go
@@ -322,16 +322,14 @@ ltlfilt -f 'G(req -> Fack) & G(go -> Fgrant)' --relabel=io --ins=req,go
 #+RESULTS:
 : G(i1 -> Fo1) & G(i0 -> Fo0)
 
-Like in [[file:ltlsynt.org][=ltlsynt=]], options =--ins= and =--outs= take a comma-separated
-list of atomic propositions as argument.  Additionally, if an atomic
-proposition in this list is enclosed in slashes (as in
-=--out=req,/^go/=), it is used as a regular expression for matching
-atomic propositions.
+The syntax for options =--ins=, =--outs= and =--part-file= is the
+same as for [[file:ltlsynt.org::#input-options][=ltlsynt=]].
 
-By the way, such an IO-renamed formula can be given to [[file:ltlsynt.org][=ltlsynt=]] without
-having to specify =--ins= or =--outs=, because when these two options
-are missing the convention is that anything starting with =i= is an
-input, and anything starting with =o= is an output.
+By the way, such an IO-renamed formula can be given to [[file:ltlsynt.org][=ltlsynt=]]
+without having to specify =--ins=, =--outs=, or =--part-file=, because
+when these two options are missing the convention is that anything
+starting with =i= is an input, and anything starting with =o= is an
+output.
 
 An example showing how to use the =--from-ltlf= option is on [[file:tut12.org][a
 separate page]].

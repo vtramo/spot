@@ -57,6 +57,7 @@ enum
   OPT_HIDE,
   OPT_INPUT,
   OPT_OUTPUT,
+  OPT_PART_FILE,
   OPT_POLARITY,
   OPT_PRINT,
   OPT_PRINT_AIGER,
@@ -79,6 +80,8 @@ static const argp_option options[] =
     { "ins", OPT_INPUT, "PROPS", 0,
       "comma-separated list of uncontrollable (a.k.a. input) atomic"
       " propositions, interpreted as a regex if enclosed in slashes", 0 },
+    { "part-file", OPT_PART_FILE, "FILENAME", 0,
+      "read the I/O partition of atomic propositions from FILENAME", 0 },
     { "tlsf", OPT_TLSF, "FILENAME", 0,
       "Read a TLSF specification from FILENAME, and call syfco to "
       "convert it into LTL", 0 },
@@ -993,17 +996,16 @@ parse_opt(int key, char *arg, struct argp_state *)
       show_status = false;
       break;
     case OPT_INPUT:
-      {
-        all_input_aps.emplace(std::vector<std::string>{});
-        split_aps(arg, *all_input_aps);
-        break;
-      }
+      all_input_aps.emplace();
+      split_aps(arg, *all_input_aps);
+      break;
     case OPT_OUTPUT:
-      {
-        all_output_aps.emplace(std::vector<std::string>{});
-        split_aps(arg, *all_output_aps);
-        break;
-      }
+      all_output_aps.emplace();
+      split_aps(arg, *all_output_aps);
+      break;
+    case OPT_PART_FILE:
+      read_part_file(arg);
+      break;
     case OPT_POLARITY:
       opt_polarity = XARGMATCH("--polarity", arg,
                                polarity_args, polarity_values);

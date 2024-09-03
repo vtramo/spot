@@ -40,6 +40,7 @@ enum {
   OPT_INS,
   OPT_LTL_PRIORITIES,
   OPT_OUTS,
+  OPT_PART_FILE,
   OPT_SEED,
   OPT_TREE_SIZE,
 };
@@ -102,8 +103,10 @@ static const argp_option options[] = {
       "comma-separated list of atomic propositions to consider as input, "
       "interpreted as a regex if enclosed in slashes", 0 },
     { "outs", OPT_OUTS, "PROPS", 0,
-      "comma-separated list of atomic propositions to consider as putput, "
+      "comma-separated list of atomic propositions to consider as output, "
       "interpreted as a regex if enclosed in slashes", 0 },
+    { "part-file", OPT_PART_FILE, "FILENAME", 0,
+      "read the I/O partition of atomic propositions from FILENAME", 0 },
     RANGE_DOC,
     /**************************************************/
     { nullptr, 0, nullptr, 0, "Adjusting probabilities:", 4 },
@@ -253,19 +256,19 @@ parse_opt(int key, char* arg, struct argp_state*)
       opt_unique = false;
       break;
     case OPT_INS:
-      {
-        all_input_aps.emplace(std::vector<std::string>{});
-        split_aps(arg, *all_input_aps);
-        opt_io = true;
-        break;
-      }
+      all_input_aps.emplace();
+      split_aps(arg, *all_input_aps);
+      opt_io = true;
+      break;
     case OPT_OUTS:
-      {
-        all_output_aps.emplace(std::vector<std::string>{});
-        split_aps(arg, *all_output_aps);
-        opt_io = true;
-        break;
-      }
+      all_output_aps.emplace();
+      split_aps(arg, *all_output_aps);
+      opt_io = true;
+      break;
+    case OPT_PART_FILE:
+      read_part_file(arg);
+      opt_io = true;
+      break;
     case OPT_SEED:
       opt_seed = to_int(arg, "--seed");
       break;
@@ -303,7 +306,7 @@ main(int argc, char* argv[])
 
       if (opt_io && !opt_out_ap_count)
         error(2, 0,
-              "options --ins and --outs only make sense when the "
+              "options --ins, --outs, --part-file only make sense when the "
               "two-argument version of '-A N,M' or '-P N,M' is used.");
       if (opt_out_ap_count > 0)
         // Do not require --ins/--outs to be used, as the input

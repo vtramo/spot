@@ -2,8 +2,12 @@ New in spot 2.12.0.dev (not yet released)
 
   Command-line tools:
 
-  - ltlmix is a new tool that generate formulas by combining existing
+  - ltlmix is a new tool that generates formulas by combining existing
     ones. See https://spot.lre.epita.fr/ltlmix.html for examples.
+
+  - ltlsynt learned a --part-file option, to specify the partition of
+    input/output proposition from a *.part file, as used in several
+    other tools.
 
   - ltlfilt learned a --relabel=io mode, that is useful to shorten
     atomic propositions in the context of LTL synthesis.  For instance
@@ -13,7 +17,8 @@ New in spot 2.12.0.dev (not yet released)
 
     The resulting formulas are now usable by ltlsynt without having to
     specify which atomic propositions are input or output, as this can
-    be inferred from their name.
+    be inferred from their name.  (This suspports a --part-file option
+    as well.)
 
   - genltl learned --lily-patterns to generate the example LTL
     synthesis specifications from Lily 1.0.2.  Those come with input

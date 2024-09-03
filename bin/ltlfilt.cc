@@ -120,6 +120,7 @@ enum {
   OPT_SYNTACTIC_SI,
   OPT_TO_DELTA2,
   OPT_OUTS,
+  OPT_PART_FILE,
   OPT_UNABBREVIATE,
   OPT_UNIVERSAL,
 };
@@ -187,6 +188,9 @@ static const argp_option options[] =
     { "outs", OPT_OUTS, "PROPS", 0,
       "comma-separated list of output atomic propositions to use with "
       "--relabel=io, interpreted as a regex if enclosed in slashes", 0 },
+    { "part-file", OPT_PART_FILE, "FILENAME", 0,
+      "file containing the partition of atomic propositions to use with "
+      "--relabel=io", 0 },
     DECLARE_OPT_R,
     LEVEL_DOC(4),
     /**************************************************/
@@ -516,11 +520,9 @@ parse_opt(int key, char* arg, struct argp_state*)
         break;
       }
     case OPT_INS:
-      {
-        all_input_aps.emplace(std::vector<std::string>{});
-        split_aps(arg, *all_input_aps);
-        break;
-      }
+      all_input_aps.emplace();
+      split_aps(arg, *all_input_aps);
+      break;
     case OPT_LIVENESS:
       liveness = true;
       break;
@@ -537,11 +539,12 @@ parse_opt(int key, char* arg, struct argp_state*)
       nnf = true;
       break;
     case OPT_OUTS:
-      {
-        all_output_aps.emplace(std::vector<std::string>{});
-        split_aps(arg, *all_output_aps);
-        break;
-      }
+      all_output_aps.emplace();
+      split_aps(arg, *all_output_aps);
+      break;
+    case OPT_PART_FILE:
+      read_part_file(arg);
+      break;
     case OPT_SONF:
       sonf = arg ? arg : "sonf_";
       break;

@@ -626,6 +626,18 @@ run 0 ltlfilt -s -u --relabel=io --ins='/[ab]/' --define in >out
 diff exp out
 run 0 ltlfilt -s -u --relabel=io --outs='/[^ab]/' --define in >out
 diff exp out
+echo '.inputs a b' >rel.part
+run 0 ltlfilt -s -u --relabel=io --part=rel.part --define in >out
+diff exp out
+echo '.inputs /[ab]/ # .output ignored' >rel.part
+run 0 ltlfilt -s -u --relabel=io --part=rel.part --define in >out
+diff exp out
+echo '.outputs /[^ab]/  # .input ignored' >rel.part
+run 0 ltlfilt -s -u --relabel=io --part=rel.part --define in >out
+diff exp out
+echo 'error /[^ab]/' >rel.part
+run 2 ltlfilt -s -u --relabel=io --part=rel.part --define in 2>err
+grep "expected '.inputs' or '.outputs'" err
 
 cat >exp <<EOF
 #define p0 (a & c)

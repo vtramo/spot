@@ -9,7 +9,7 @@
 
 This tool synthesizes reactive controllers from LTL/PSL formulas.
 
-Consider a set $I$ of /input/ atomic propositions, a set $O$ of output atomic
+Consider a set $I$ of /input/ atomic propositions, a set $O$ of /output/ atomic
 propositions, and a PSL formula \phi over the propositions in $I \cup O$.  A
 *reactive controller* realizing \phi is a function $c: (2^{I})^\star \times 2^I \mapsto
 2^O$ such that, for every \omega-word $(u_i)_{i \in N} \in (2^I)^\omega$ over
@@ -21,46 +21,34 @@ exists. Such controllers are easily represented as automata (or more
 specifically as Mealy machines).  In the automaton representing the
 controller, the acceptance condition is irrelevant and trivially true.
 
-=ltlsynt= has three mandatory options:
-- =--ins=: a comma-separated list of input atomic propositions, or input regexes enclosed in slashes;
-- =--outs=: a comma-separated list of output atomic propositions, or output regexes enclosed in slashes;
-- =--formula= or =--file=: a specification in LTL or PSL.
-
-One of =--ins= or =--outs= may be omitted, as any atomic proposition
-not listed as input can be assumed to be output and vice versa.  If
-both are omitted, =ltlsynts= will assume ~--ins=/^[iI]/~ and
-~--outs=/^[oO]/~, i.e., atomic propositions will be classified as
-input or output based on their first letter.
-
-The following example illustrates the synthesis of a controller
-ensuring that input =i1= and =i2= are both true initially if and only
-if eventually output =o1= will go from true to false at some point.
-Note that this is an equivalence, not an implication.
+Here is a small example where $I=\{i_1,i_2\}$ and $O=\{o_1\}$.  The
+specification asks that $o_1$ hold at some point if and only if $i_1$
+and $i_2$ hold one after the other at some point.
 
 #+NAME: example
 #+BEGIN_SRC sh :exports both
-ltlsynt -f '(i1 & i2) <-> F(o1 & X(!o1))'
+ltlsynt -f 'F(i1 & Xi2) <-> F(o1)'
 #+END_SRC
 
 #+RESULTS: example
 #+begin_example
 REALIZABLE
 HOA: v1
-States: 3
+States: 2
 Start: 0
-AP: 3 "i1" "i2" "o1"
+AP: 3 "i1" "o1" "i2"
 acc-name: all
 Acceptance: 0 t
 properties: trans-labels explicit-labels state-acc deterministic
-controllable-AP: 2
+controllable-AP: 1
 --BODY--
 State: 0
-[0&1&2] 1
-[!0&2 | !1&2] 2
+[!0&!1] 0
+[0&!1] 1
 State: 1
-[!2] 1
-State: 2
-[2] 2
+[!0&!1&!2] 0
+[0&!1&!2] 1
+[1&2] 1
 --END--
 #+end_example
 
@@ -78,7 +66,7 @@ to visualize this machine.
 
 #+NAME: exampledot
 #+BEGIN_SRC sh :exports code
-ltlsynt -f '(i1 & i2) <-> F(o1 & X(!o1))' --hide-status --dot
+ltlsynt -f 'F(i1 & Xi2) <-> F(o1)' --hide-status --dot
 #+END_SRC
 
 #+BEGIN_SRC dot :file ltlsyntex.svg :var txt=exampledot :exports results
@@ -99,75 +87,49 @@ ltlsynt --ins=a -f 'F a'
 #+RESULTS:
 : UNREALIZABLE
 
-By default, the controller is output in HOA format, but it can be
-output as an And-Inverter-Graph in [[http://fmv.jku.at/aiger/][AIGER format]] using the =--aiger=
-flag. This is the output format required for the [[http://syntcomp.org/][SYNTCOMP]] competition.
+* Input options
+   :PROPERTIES:
+   :CUSTOM_ID: input-options
+   :END:
 
-#+NAME: exampleaig
-#+BEGIN_SRC sh :exports both
-ltlsynt -f '(i1 & i2) <-> F(o1 & X(!o1))' --aiger
-#+END_SRC
+=ltlsynt= require two pieces of information two solve a reactive
+LTL/PSL synthesis problem: an LTL (or PSL) formula, and a partition of
+its atomic propositions as input and output.
 
-#+RESULTS: exampleaig
-#+begin_example
-REALIZABLE
-aag 18 2 2 1 14
-2
-4
-6 23
-8 37
-7
-10 6 9
-12 4 9
-14 5 10
-16 13 15
-18 2 17
-20 3 10
-22 19 21
-24 7 8
-26 4 24
-28 5 7
-30 27 29
-32 2 31
-34 3 7
-36 33 35
-i0 i1
-i1 i2
-o0 o1
-#+end_example
+The specification formula can be passed with =-f/--formula= or
+=-F/--file=.  If multiple specifications formulas are passed, they
+will all be solved individually.
 
-The above format is not very human friendly.  Again, by passing both
-=--aiger= and =--dot=, one can display the And-Inverter-Graph representing
-the controller:
+The input/output partition can be given in several ways.  If it is
+not specified, =ltlsynt= assumes that input variables should start
+with =i=, and output variables should start with =o=.
 
-#+NAME: exampleaigdot
-#+BEGIN_SRC sh :exports code
-ltlsynt -f '(i1 & i2) <-> F(o1 & X(!o1))' --hide-status --aiger --dot
-#+END_SRC
+Options =--ins= and =--outs= should be followed by a comma-separated
+list of input atomic propositions, or input regexes enclosed in
+slashes.  E.g., =--ins=switch,/^in/,car=.  If only one of these
+options is given, atomic propositions not matched by that option
+are assumed to belong to the other set.
 
-#+BEGIN_SRC dot :file ltlsyntexaig.svg :var txt=exampleaigdot :exports results
-  $txt
-#+END_SRC
+Another way to specify the input/output partition is using a =*.part=
+file passed to the =--part-file= option.  Such a file is used by
+several other synthesis tools.  The format is space-separated list of
+words representing atomic-propositions.  Two keywords =.inputs= and
+=.outputs= indicate the set of the atomic-propositions that follow.
+For instance:
 
-#+RESULTS:
-[[file:ltlsyntexaig.svg]]
+#+BEGIN_EXAMPLE
+.inputs request cancel
+.outputs grant ack
+#+END_EXAMPLE
 
-In the above diagram, round nodes represent AND gates.  Small black
-circles represent inversions (or negations), colored triangles are
-used to represent input signals (at the bottom) and output signals (at
-the top), and finally rectangles represent latches.  A latch is a one
-bit register that delays the signal by one step.  Initially, all
-latches are assumed to contain =false=, and they emit their value from
-the =L0_out= and =L1_out= rectangles at the bottom.  Their input value,
-to be emitted at the next step, is received via the =L0_in= and =L1_in=
-boxes at the top.  In =ltlsynt='s encoding, the set of latches is used
-to keep track of the current state of the Mealy machine.
+Using =--part-file=THEABOVEFILE= is equivalent to
+=--ins=request,cancel --outs=grant,ack=.
 
-The generation of a controller can be disabled with the flag
-=--realizability=.  In this case, =ltlsynt='s output is limited to
-=REALIZABLE= or =UNREALIZABLE=.
+As an extension to this simple =*.part= format, words enclosed in
+slashes are interpreted as regexes, like for the =--ins= and =--outs=
+options.
 
-* TLSF
+* TLSF input
 
 =ltlsynt= was made with the [[http://syntcomp.org/][SYNTCOMP]] competition in mind, and more
 specifically the TLSF track of this competition.  TLSF is a high-level
@@ -192,6 +154,65 @@ OUT=$(syfco --print-output-signals FILE)
 ltlsynt --formula="$LTL" --outs="$OUT"
 #+END_SRC
 
+
+* Output options
+
+By default, the controller is output in HOA format, but it can be
+output as an And-Inverter-Graph in [[http://fmv.jku.at/aiger/][AIGER format]] using the =--aiger=
+flag. This is the output format required for the [[http://syntcomp.org/][SYNTCOMP]] competition.
+
+#+NAME: exampleaig
+#+BEGIN_SRC sh :exports both
+ltlsynt -f 'F(i1 & Xi2) <-> F(o1)' --aiger
+#+END_SRC
+
+#+RESULTS: exampleaig
+#+begin_example
+REALIZABLE
+aag 5 2 1 1 2
+2
+4
+6 11
+8
+8 4 6
+10 3 9
+i0 i1
+i1 i2
+o0 o1
+#+end_example
+
+The above format is not very human friendly.  Again, by passing both
+=--aiger= and =--dot=, one can display the And-Inverter-Graph representing
+the controller:
+
+#+NAME: exampleaigdot
+#+BEGIN_SRC sh :exports code
+ltlsynt -f 'F(i1 & Xi2) <-> F(o1)' --hide-status --aiger --dot
+#+END_SRC
+
+#+RESULTS: exampleaigdot
+
+#+BEGIN_SRC dot :file ltlsyntexaig.svg :var txt=exampleaigdot :exports results
+  $txt
+#+END_SRC
+
+#+RESULTS:
+[[file:ltlsyntexaig.svg]]
+
+In the above diagram, round nodes represent AND gates.  Small black
+circles represent inversions (or negations), colored triangles are
+used to represent input signals (at the bottom) and output signals (at
+the top), and finally rectangles represent latches.  A latch is a one
+bit register that delays the signal by one step.  Initially, all
+latches are assumed to contain =false=, and they emit their value from
+the =*_out= rectangles at the bottom.  Their input value, to be
+emitted at the next step, is received via the =*_in= boxes at the top.
+In =ltlsynt='s encoding, the set of latches is used to keep track of
+the current state of the Mealy machine.
+
+The generation of a controller can be disabled with the flag
+=--realizability=.  In this case, =ltlsynt='s output is limited to
+=REALIZABLE= or =UNREALIZABLE=.
 
 * Internal details
 
