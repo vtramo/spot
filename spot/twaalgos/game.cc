@@ -1085,12 +1085,12 @@ namespace spot
     return aut;
   }
 
-  void set_state_players(twa_graph_ptr arena, const region_t& owners)
+  void set_state_players(twa_graph_ptr& arena, const region_t& owners)
   {
     set_state_players(arena, region_t(owners));
   }
 
-  void set_state_players(twa_graph_ptr arena, region_t&& owners)
+  void set_state_players(twa_graph_ptr& arena, region_t&& owners)
   {
     if (owners.size() != arena->num_states())
       throw std::runtime_error
@@ -1100,7 +1100,7 @@ namespace spot
                                     new region_t(std::move(owners)));
   }
 
-  void set_state_player(twa_graph_ptr arena, unsigned state, bool owner)
+  void set_state_player(twa_graph_ptr& arena, unsigned state, bool owner)
   {
     if (state >= arena->num_states())
       throw std::runtime_error("set_state_player(): invalid state number");
@@ -1141,7 +1141,7 @@ namespace spot
     return *owners;
   }
 
-  bool get_state_player(const_twa_graph_ptr arena, unsigned state)
+  bool get_state_player(const const_twa_graph_ptr& arena, unsigned state)
   {
     if (state >= arena->num_states())
       throw std::runtime_error("get_state_player(): invalid state number");
@@ -1165,11 +1165,11 @@ namespace spot
     return *strat_ptr;
   }
 
-  void set_strategy(twa_graph_ptr arena, const strategy_t& strat)
+  void set_strategy(twa_graph_ptr& arena, const strategy_t& strat)
   {
     set_strategy(arena, strategy_t(strat));
   }
-  void set_strategy(twa_graph_ptr arena, strategy_t&& strat)
+  void set_strategy(twa_graph_ptr& arena, strategy_t&& strat)
   {
     if (arena->num_states() != strat.size())
       throw std::runtime_error("set_strategy(): strategies need to have "
@@ -1214,12 +1214,12 @@ namespace spot
   }
 
 
-  void set_state_winners(twa_graph_ptr arena, const region_t& winners)
+  void set_state_winners(twa_graph_ptr& arena, const region_t& winners)
   {
     set_state_winners(arena, region_t(winners));
   }
 
-  void set_state_winners(twa_graph_ptr arena, region_t&& winners)
+  void set_state_winners(twa_graph_ptr& arena, region_t&& winners)
   {
     if (winners.size() != arena->num_states())
       throw std::runtime_error
@@ -1229,7 +1229,7 @@ namespace spot
                                     new region_t(std::move(winners)));
   }
 
-  void set_state_winner(twa_graph_ptr arena, unsigned state, bool winner)
+  void set_state_winner(twa_graph_ptr& arena, unsigned state, bool winner)
   {
     if (state >= arena->num_states())
       throw std::runtime_error("set_state_winner(): invalid state number");
@@ -1258,7 +1258,20 @@ namespace spot
     return *winners;
   }
 
-  bool get_state_winner(const_twa_graph_ptr arena, unsigned state)
+  // This second version should not be needed, but g++14 emits
+  // "possibly dangling reference" warnings when it sees that the
+  // first function is called with a temporary const_twa_graph_ptr to
+  // return a reference.
+  const region_t& get_state_winners(twa_graph_ptr& arena)
+  {
+    region_t *winners = arena->get_named_prop<region_t>("state-winner");
+    if (!winners)
+      throw std::runtime_error
+        ("get_state_winners(): state-winner property not defined, not a game?");
+    return *winners;
+  }
+
+  bool get_state_winner(const const_twa_graph_ptr& arena, unsigned state)
   {
     if (state >= arena->num_states())
       throw std::runtime_error("get_state_winner(): invalid state number");
