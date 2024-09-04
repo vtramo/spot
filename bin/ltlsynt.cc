@@ -334,12 +334,13 @@ namespace
       spot::print_hoa(std::cout, game, opt_print_hoa_args) << '\n';
   }
 
+
   // If filename is passed, it is printed instead of the formula.  We
   // use that when processing games since we have no formula to print.
   // It would be cleaner to have two columns: one for location (that's
   // filename + line number if known), and one for formula (if known).
   static void
-  print_csv(const spot::formula& f, const char* filename = nullptr)
+  print_csv(const spot::formula& f, const char* filename, bool was_game)
   {
     auto& vs = gi->verbose_stream;
     auto& bv = gi->bv;
@@ -357,7 +358,7 @@ namespace
     // (Even if that file was empty initially.)
     if (!outf.append())
       {
-        out << ("\"formula\",\"algo\",\"tot_time\",\"trans_time\","
+        out << ("\"source\",\"formula\",\"algo\",\"tot_time\",\"trans_time\","
                 "\"split_time\",\"todpa_time\"");
         if (!opt_print_pg && !opt_print_hoa)
           {
@@ -374,14 +375,23 @@ namespace
             out << ",\"nb latches\",\"nb gates\"";
         out << '\n';
       }
-    std::ostringstream os;
-    if (filename)
-      os << filename;
-    else
-      os << f;
-    spot::escape_rfc4180(out << '"', os.str()) << "\",";
-     // if a filename was given, assume the game has been read directly
-    if (!filename)
+    {
+      std::ostringstream os;
+      if (filename)
+        {
+          os << filename;
+          spot::escape_rfc4180(out << '"', os.str()) << '"';
+          os.str("");
+          os.clear();
+        }
+      out << ',';
+      if (was_game)
+        os << filename;
+      else
+        os << f;
+      spot::escape_rfc4180(out << '"', os.str()) << "\",";
+    }
+    if (!was_game)
       out << '"' << algo_names[(int) gi->s] << '"';
     out << ',' << bv->total_time
         << ',' << bv->trans_time
@@ -752,7 +762,18 @@ namespace
         filter_list_of_aps(f, filename, linenum);
       int res = solve_formula(f, input_aps, output_aps);
       if (opt_csv)
-        print_csv(f);
+        {
+          if (filename == 0 || linenum <= 0)
+            {
+              print_csv(f, filename, false);
+            }
+          else
+            {
+              std::ostringstream os;
+              os << filename << ':' << linenum;
+              print_csv(f, os.str().c_str(), false);
+            }
+        }
       return res;
     }
 
@@ -951,7 +972,7 @@ namespace
               std::string loc = os.str();
               int res = process_pgame(haut->aut, loc);
               if (res < 2 && opt_csv)
-                print_csv(nullptr, loc.c_str());
+                print_csv(nullptr, loc.c_str(), true);
               err = std::max(err, res);
             }
         }
