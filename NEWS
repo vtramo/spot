@@ -9,7 +9,9 @@ New in spot 2.12.0.dev (not yet released)
     processed formulas as the first column of the CSV file.  A new
     option --csv-without-formula=FILENAME can be used to save
     everything but the formula column (as it can be very large, and
-    can be found from the source filename).
+    can be found from the source filename).  Several column names have
+    also been renamed for consistency, so any script reading these
+    file might require some adjustment.
 
   - ltlsynt learned a --part-file option, to specify the partition of
     input/output proposition from a *.part file, as used in several

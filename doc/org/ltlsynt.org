@@ -268,6 +268,8 @@ be tried by separating them using commas.  For instance
 
 * Other useful options
 
+** Printing games
+
 You can also ask =ltlsynt= to print to obtained parity game into
 [[https://github.com/tcsprojects/pgsolver][PGSolver]] format, with the flag =--print-pg=, or in the HOA format,
 using =--print-game-hoa=.  These flags deactivate the resolution of the
@@ -284,8 +286,102 @@ ltlsynt -f '(i1 & i2) <-> F(o1 & X(!o1))' --print-game-hoa --dot
 #+RESULTS:
 [[file:ltlsyntexgame.svg]]
 
+** Saving statistics
+
 For benchmarking purpose, the =--csv= option can be used to record
-intermediate statistics about the resolution.
+intermediate statistics about the resolution.  The =--csv= option will
+also save the formula into the CSV file, which can therefore become
+very large.  The variant =--csv-without-formula= is usually enough.
+
+For instance the following command tests the realizability of the 23
+demonstration specifications from [[http://www.ist.tugraz.at/staff/jobstmann/lily/][Lily 1.0.2]] while saving some
+statistics in =bench.csv=.  (If you compare our results with theirs,
+keep in mind that Lily uses Moore's semantics, while =ltlsynt= uses
+Mealy's semantics.)
+
+#+BEGIN_SRC sh :results verbatim :exports code :epilogue true
+  genltl --lily-patterns |
+      ltlsynt --algo=acd --realizability --csv-without-formula=bench.csv
+#+END_SRC
+#+RESULTS:
+#+begin_example
+UNREALIZABLE
+UNREALIZABLE
+REALIZABLE
+REALIZABLE
+REALIZABLE
+REALIZABLE
+REALIZABLE
+REALIZABLE
+REALIZABLE
+REALIZABLE
+UNREALIZABLE
+REALIZABLE
+REALIZABLE
+REALIZABLE
+REALIZABLE
+REALIZABLE
+REALIZABLE
+REALIZABLE
+REALIZABLE
+REALIZABLE
+REALIZABLE
+REALIZABLE
+REALIZABLE
+#+end_example
+
+After execution, =bench.csv= contains a table like the following:
+
+#+BEGIN_SRC sh :results output raw :exports results
+sed 's/"//g
+s/|/\\vert{}/g
+s/--/@@html:--@@/g
+1a\
+|-|
+s/^/| /
+s/$/ |/
+s/,/|/g
+' bench.csv
+#+END_SRC
+
+#+RESULTS:
+| source | algo |    tot_time |  trans_time |  split_time |  todpa_time |  solve_time | realizable | game_states | game_states_env |
+|--------+------+-------------+-------------+-------------+-------------+-------------+------------+-------------+-----------------|
+| -:1    | acd  | 0.000472663 |  0.00019603 |  2.0339e-05 |  2.0388e-05 |  1.4617e-05 |          0 |           3 |               2 |
+| -:2    | acd  |  0.00028595 | 0.000188466 |  1.4417e-05 |  2.0027e-05 |   5.861e-06 |          0 |          13 |               7 |
+| -:3    | acd  | 0.000741622 | 0.000591889 |  4.7229e-05 |  1.9516e-05 |  1.8014e-05 |          1 |          26 |              12 |
+| -:4    | acd  | 0.000917794 | 0.000725371 |  7.2026e-05 |  3.0328e-05 |  2.0349e-05 |          1 |          33 |              15 |
+| -:5    | acd  | 0.000878991 | 0.000612978 | 0.000102604 |  3.4155e-05 |  2.7913e-05 |          1 |          47 |              20 |
+| -:6    | acd  |  0.00100199 | 0.000761539 |  8.0191e-05 |  2.9817e-05 |  2.9075e-05 |          1 |          55 |              24 |
+| -:7    | acd  | 0.000587721 | 0.000425814 |  4.6268e-05 |  1.6261e-05 |  1.4106e-05 |          1 |          26 |              11 |
+| -:8    | acd  |  1.4046e-05 |           0 |           0 |           0 |           0 |          1 |           0 |               0 |
+| -:9    | acd  | 0.000519242 | 0.000400918 |  2.2322e-05 |  2.9446e-05 |  1.3886e-05 |          1 |          16 |               6 |
+| -:10   | acd  |  6.0835e-05 |           0 |           0 |           0 |           0 |          1 |           0 |               0 |
+| -:11   | acd  |  5.5245e-05 |  1.8335e-05 |   5.249e-06 |   4.007e-06 |   4.549e-06 |          0 |           3 |               2 |
+| -:12   | acd  |  1.6411e-05 |           0 |           0 |           0 |           0 |          1 |           0 |               0 |
+| -:13   | acd  | 0.000192153 | 0.000134825 |    1.06e-05 |   8.506e-06 |    5.33e-06 |          1 |           5 |               2 |
+| -:14   | acd  | 0.000291931 | 0.000209857 |  1.0881e-05 |  1.4076e-05 |   6.182e-06 |          1 |           4 |               2 |
+| -:15   | acd  | 0.000690605 | 0.000480759 |  9.4349e-05 |  3.2541e-05 |  1.8675e-05 |          1 |          30 |               9 |
+| -:16   | acd  |  0.00232829 |  0.00173036 | 0.000348709 |  9.2966e-05 |  6.1276e-05 |          1 |         103 |              29 |
+| -:17   | acd  | 0.000554708 |  0.00038608 |  2.4887e-05 |  2.9205e-05 |  1.1902e-05 |          1 |           6 |               3 |
+| -:18   | acd  |  0.00114041 |  0.00088879 |  3.3784e-05 |  3.4585e-05 |  1.1602e-05 |          1 |           8 |               4 |
+| -:19   | acd  | 0.000761799 | 0.000517278 |  4.3132e-05 |  5.1968e-05 |   2.127e-05 |          1 |          11 |               4 |
+| -:20   | acd  |   0.0169891 |   0.0133503 |  0.00172203 |  0.00113707 | 0.000412299 |          1 |        1002 |             311 |
+| -:21   | acd  |    0.118002 |    0.115604 |  0.00165549 | 0.000149402 |  0.00024346 |          1 |         371 |              75 |
+| -:22   | acd  |  0.00316832 |  0.00240598 | 0.000305407 | 0.000103245 |  0.00010582 |          1 |          86 |              30 |
+| -:23   | acd  | 0.000824969 | 0.000632956 |  3.2161e-05 |  2.9766e-05 |  2.0299e-05 |          1 |          17 |               7 |
+
+A source of the form =-:N= designates the Nth line of the standard
+input, as =ltlsynt= was reading from that. The various =*_time*=
+columns refers to different steps in the processing pipeline.  Note
+that various bits and minor operations are not timed, so =tot_time=
+(the total time) should be larger than the sum of times used for
+translation, splitting, conversion to DPA, and game solving.  Some of
+these intermediate processing time are listed as =0= above because
+(e.g., for input 8, 10, 12) because the specifications can be found to
+be realizable trivially without building any game.
+
+** Verifying the output
 
 The =--verify= option requests that the produced strategy or aiger
 circuit are compatible with the specification.  This is done by

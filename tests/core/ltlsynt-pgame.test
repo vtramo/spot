@@ -143,12 +143,11 @@ test 4 = `wc -l < out.csv`
 
 ltlsynt --from-pgame starve.ehoa \
         --from-pgame UnderapproxDemo2.ehoa \
-        --from-pgame aut7.hoa --csv=out.csv >result || :
+        --from-pgame aut7.hoa --csv-without-formula=out.csv >result || :
 test 4 = `wc -l < out.csv`
 cut -d, -f 9,10,11,12,13 <out.csv >right
-end='"strat_num_states","strat_num_edges"'
 cat >expect <<EOF
-"realizable","dpa_num_states","dpa_num_states_env",$end
+"realizable","game_states","game_states_env","strat_states","strat_edges"
 1,4,2,1,2
 0,9,4,0,0
 0,10,5,0,0

@@ -2215,17 +2215,6 @@ namespace spot
       (twa_graph_ptr strat)
       {
         dict->unregister_all_my_variables(&tmp);
-        if (vs)
-          {
-            *vs << "direct strategy was found.\n";
-            if (want_strategy)
-            {
-                *vs << "direct strat has " << strat->num_states()
-                << " states, " << strat->num_edges()
-                << " edges and " << strat->num_sets() << " colors\n";
-
-            }
-          }
         if (strat)
           {
             strat->merge_edges();
@@ -2237,6 +2226,13 @@ namespace spot
                   { outputs &= bdd_ithvar(strat->register_ap(ap)); });
 
             set_synthesis_outputs(strat, outputs);
+          }
+        if (vs)
+          {
+            *vs << "direct strategy was found.\n";
+            if (strat && want_strategy)
+              *vs << "direct strategy has " << strat->num_states()
+                  << " states and " << strat->num_edges() << " edges\n";
           }
         return mealy_like{
                   mealy_like::realizability_code::REALIZABLE_REGULAR,
@@ -2383,15 +2379,19 @@ namespace spot
       auto res = trans.run(f_left);
 
       if (!is_deterministic(res))
-        return ret_sol_maybe();
+        {
+          if (bv)
+            {
+              auto delta = sw.stop();
+              bv->trans_time += delta;
+              if (vs)
+                *vs << "translating formula done in " << delta
+                    << " seconds...\n... but it gave a "
+                    << "non-deterministic automaton (rejected)\n";
+            }
+          return ret_sol_maybe();
+        }
 
-      if (bv)
-      {
-        auto delta = sw.stop();
-        bv->trans_time += delta;
-        if (vs)
-          *vs << "translating formula done in " << delta << " seconds\n";
-      }
       res->prop_complete(trival::maybe());
 
       bdd output_bdd = bddtrue;
@@ -2442,12 +2442,23 @@ namespace spot
         res->prop_terminal(trival::maybe());
       res->set_named_prop<bdd>("synthesis-outputs", new bdd(output_bdd));
 
+      if (bv)
+        {
+          auto delta = sw.stop();
+          bv->trans_time += delta;
+          if (vs)
+            *vs << "translating formula done in " << delta << " seconds\n";
+        }
       return ret_sol_exists(res);
     }
     else if (f_other.is_tt())
     {
       if (!want_strategy)
         return ret_sol_exists(nullptr);
+      stopwatch sw;
+      if (bv)
+        sw.start();
+
       auto res = make_twa_graph(dict);
       res->prop_weak(true);
 
@@ -2463,6 +2474,13 @@ namespace spot
       bdd g_bdd = formula_to_bdd(f_g, dict, res);
       res->new_state();
       res->new_edge(0, 0, g_bdd);
+      if (bv)
+        {
+          auto delta = sw.stop();
+          bv->trans_time += delta;
+          if (vs)
+            *vs << "translating formula done in " << delta << " seconds\n";
+        }
       return ret_sol_exists(res);
     }
     return ret_sol_maybe();

@@ -349,8 +349,8 @@ namespace
   {
     auto& vs = gi->verbose_stream;
     auto& bv = gi->bv;
-    if (not bv)
-      error(2, 0, "no information available for csv (please send bug report)");
+    if (!bv)
+      error(2, 0, "no information available for csv (please report bug)");
     if (vs)
       *vs << "writing CSV to " << opt_csv << '\n';
 
@@ -377,10 +377,11 @@ namespace
               out << ",\"aig_time\"";
             out << ",\"realizable\""; //-1: Unknown, 0: Unreal, 1: Real
           }
-        out << ",\"dpa_num_states\",\"dpa_num_states_env\""
-            << ",\"strat_num_states\",\"strat_num_edges\"";
+        out << ",\"game_states\",\"game_states_env\"";
+        if (!opt_real)
+          out << ",\"strat_states\",\"strat_edges\"";
         if (opt_print_aiger)
-            out << ",\"nb latches\",\"nb gates\"";
+            out << ",\"aig_latches\",\"aig_gates\"";
         out << '\n';
       }
     {
@@ -418,15 +419,13 @@ namespace
         out << ',' << bv->realizable;
       }
     out << ',' << bv->nb_states_arena
-        << ',' << bv->nb_states_arena_env
-        << ',' << bv->nb_strat_states
-        << ',' << bv->nb_strat_edges;
-
+        << ',' << bv->nb_states_arena_env;
+    if (!opt_real)
+      out << ',' << bv->nb_strat_states
+          << ',' << bv->nb_strat_edges;
     if (opt_print_aiger)
-    {
       out << ',' << bv->nb_latches
           << ',' << bv->nb_gates;
-    }
     out << '\n';
     outf.close(opt_csv);
   }
@@ -608,8 +607,6 @@ namespace
               safe_tot_time();
               return 1;
             }
-          if (gi->bv)
-            gi->bv->realizable = true;
           // Create the (partial) strategy
           // only if we need it
           if (!opt_real)
@@ -654,6 +651,8 @@ namespace
               "(please send bug report)");
       }
     }
+    if (gi->bv)
+      gi->bv->realizable = true;
 
     // If we only wanted to print the game we are done
     if (want_game())

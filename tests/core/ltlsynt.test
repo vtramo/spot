@@ -211,7 +211,7 @@ there are 1 subformulas
 trying to create strategy directly for GFa <-> GFb
 translating formula done in X seconds
 direct strategy was found.
-direct strat has 1 states, 2 edges and 0 colors
+direct strategy has 1 states and 1 edges
 simplification took X seconds
 EOF
 ltlsynt --ins=a --outs=b -f 'GFa <-> GFb' --verbose --algo=ps 2> out
@@ -660,7 +660,7 @@ there are 1 subformulas
 trying to create strategy directly for GFa <-> GFb
 translating formula done in X seconds
 direct strategy was found.
-direct strat has 1 states, 2 edges and 0 colors
+direct strategy has 1 states and 1 edges
 simplification took X seconds
 EOF
 ltlsynt -f '(GFa <-> GFb) && (G(c <-> d))' --outs=b,c --verbose 2> out
@@ -676,7 +676,7 @@ do
 trying to create strategy directly for $f
 translating formula done in X seconds
 direct strategy was found.
-direct strat has 1 states, 2 edges and 0 colors
+direct strategy has 1 states and 1 edges
 simplification took X seconds
 EOF
   ltlsynt -f "$f" --outs=b,c --verbose --decompose=0 \
@@ -705,7 +705,7 @@ cat >exp <<EOF
 trying to create strategy directly for (GFb <-> GFa) & G((a & c) | (!a & !c))
 translating formula done in X seconds
 direct strategy was found.
-direct strat has 1 states, 2 edges and 0 colors
+direct strategy has 1 states and 1 edges
 simplification took X seconds
 EOF
 ltlsynt -f '(GFb <-> GFa) && (G((a&c)|(!a&!c)))' --outs=b,c --verbose\
@@ -719,7 +719,7 @@ cat >exp <<EOF
 trying to create strategy directly for Fa <-> FGb
 translating formula done in X seconds
 direct strategy was found.
-direct strat has 2 states, 3 edges and 0 colors
+direct strategy has 2 states and 3 edges
 simplification took X seconds
 EOF
 ltlsynt -f "Fa <-> FGb" --outs=b,c --verbose --decompose=0 --verify 2> out
@@ -789,8 +789,9 @@ new formula: x & y
 new formula: 1
 there are 1 subformulas
 trying to create strategy directly for 1
+translating formula done in X seconds
 direct strategy was found.
-direct strat has 1 states, 1 edges and 0 colors
+direct strategy has 1 states and 1 edges
 simplification took X seconds
 AIG circuit was created in X seconds and has 0 latches and 0 gates
 EOF
@@ -804,13 +805,15 @@ cat >exp <<EOF
 there are 2 subformulas
 working on subformula Gx
 trying to create strategy directly for Gx
+translating formula done in X seconds
 direct strategy was found.
-direct strat has 1 states, 1 edges and 0 colors
+direct strategy has 1 states and 1 edges
 simplification took X seconds
 working on subformula Gy
 trying to create strategy directly for Gy
+translating formula done in X seconds
 direct strategy was found.
-direct strat has 1 states, 1 edges and 0 colors
+direct strategy has 1 states and 1 edges
 simplification took X seconds
 AIG circuit was created in X seconds and has 0 latches and 0 gates
 EOF
@@ -1061,7 +1064,7 @@ there are 1 subformulas
 trying to create strategy directly for GFi <-> GFo1
 translating formula done in X seconds
 direct strategy was found.
-direct strat has 1 states, 2 edges and 0 colors
+direct strategy has 1 states and 1 edges
 simplification took X seconds
 EOF
 ltlsynt -f "G(o1|o2) & (GFi <-> GFo1)" --outs="o1,o2" --verbose\
@@ -1255,8 +1258,9 @@ new formula: G(o1 | !o2) & G(!o1 | o2)
   o2 := o1
 new formula: G(o1 | !o1)
 trying to create strategy directly for G(o1 | !o1)
+translating formula done in X seconds
 direct strategy was found.
-direct strat has 1 states, 1 edges and 0 colors
+direct strategy has 1 states and 1 edges
 simplification took X seconds
 working on subformula G(!i1 -> (o3 | !o4)) & G(!i2 -> (!o3 | o4))
 the following signals can be temporarily removed:
@@ -1266,8 +1270,9 @@ new formula: G(o3 | !o4) & G(!o3 | o4)
   o4 := o3
 new formula: G(o3 | !o3)
 trying to create strategy directly for G(o3 | !o3)
+translating formula done in X seconds
 direct strategy was found.
-direct strat has 1 states, 1 edges and 0 colors
+direct strategy has 1 states and 1 edges
 simplification took X seconds
 REALIZABLE
 HOA: v1
@@ -1298,13 +1303,15 @@ new formula: G(i1->(o1 | !o2)) & G(!i1->(o3 | !o4)) & $gg
 there are 2 subformulas
 working on subformula G(i1->(o1 | !o2)) & G(i2->(!o1 | o2))
 trying to create strategy directly for G(i1->(o1 | !o2)) & G(i2->(!o1 | o2))
+translating formula done in X seconds
 direct strategy was found.
-direct strat has 1 states, 1 edges and 0 colors
+direct strategy has 1 states and 1 edges
 simplification took X seconds
 working on subformula G(!i1->(o3 | !o4)) & G(!i2->(!o3 | o4))
 trying to create strategy directly for G(!i1->(o3 | !o4)) & G(!i2->(!o3 | o4))
+translating formula done in X seconds
 direct strategy was found.
-direct strat has 1 states, 1 edges and 0 colors
+direct strategy has 1 states and 1 edges
 simplification took X seconds
 REALIZABLE
 HOA: v1
