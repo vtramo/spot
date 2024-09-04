@@ -50,6 +50,7 @@ enum
   OPT_ALGO = 256,
   OPT_BYPASS,
   OPT_CSV,
+  OPT_CSV_NO_FORMULA,
   OPT_DECOMPOSE,
   OPT_DOT,
   OPT_FROM_PGAME,
@@ -153,6 +154,9 @@ static const argp_option options[] =
       "output statistics as CSV in FILENAME or on standard output "
       "(if '>>' is used to request append mode, the header line is "
       "not output)", 0 },
+    { "csv-without-formula", OPT_CSV_NO_FORMULA, "[>>]FILENAME",
+      OPTION_ARG_OPTIONAL, "like --csv, but without 'fomula' column", 0 },
+    { "csv-no-formula", 0, nullptr, OPTION_ALIAS, nullptr, 0 },
     { "hide-status", OPT_HIDE, nullptr, 0,
       "Hide the REALIZABLE or UNREALIZABLE line.  (Hint: exit status "
       "is enough of an indication.)", 0 },
@@ -182,6 +186,7 @@ Exit status:\n\
   2   if any error has been reported";
 
 static const char* opt_csv = nullptr;
+static bool opt_csv_with_formula = true;
 static bool opt_print_pg = false;
 static bool opt_print_hoa = false;
 static const char* opt_print_hoa_args = nullptr;
@@ -358,7 +363,10 @@ namespace
     // (Even if that file was empty initially.)
     if (!outf.append())
       {
-        out << ("\"source\",\"formula\",\"algo\",\"tot_time\",\"trans_time\","
+        out << "\"source\",";
+        if (opt_csv_with_formula)
+          out << "\"formula\",";
+        out << ("\"algo\",\"tot_time\",\"trans_time\","
                 "\"split_time\",\"todpa_time\"");
         if (!opt_print_pg && !opt_print_hoa)
           {
@@ -385,11 +393,14 @@ namespace
           os.clear();
         }
       out << ',';
-      if (was_game)
-        os << filename;
-      else
-        os << f;
-      spot::escape_rfc4180(out << '"', os.str()) << "\",";
+      if (opt_csv_with_formula)
+        {
+          if (was_game)
+            os << filename;
+          else
+            os << f;
+          spot::escape_rfc4180(out << '"', os.str()) << "\",";
+        }
     }
     if (!was_game)
       out << '"' << algo_names[(int) gi->s] << '"';
@@ -763,7 +774,7 @@ namespace
       int res = solve_formula(f, input_aps, output_aps);
       if (opt_csv)
         {
-          if (filename == 0 || linenum <= 0)
+          if (!filename || linenum <= 0)
             {
               print_csv(f, filename, false);
             }
@@ -996,6 +1007,11 @@ parse_opt(int key, char *arg, struct argp_state *)
       break;
     case OPT_CSV:
       opt_csv = arg ? arg : "-";
+      opt_csv_with_formula = true;
+      break;
+    case OPT_CSV_NO_FORMULA:
+      opt_csv = arg ? arg : "-";
+      opt_csv_with_formula = false;
       break;
     case OPT_DECOMPOSE:
       opt_decompose_ltl = XARGMATCH("--decompose", arg,
