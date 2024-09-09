@@ -47,7 +47,8 @@
 
 enum
 {
-  OPT_ALGO = 256,
+  OPT_AIGER = 256,
+  OPT_ALGO,
   OPT_BYPASS,
   OPT_CSV_WITH_FORMULA,
   OPT_CSV_WITHOUT_FORMULA,
@@ -61,7 +62,6 @@ enum
   OPT_PART_FILE,
   OPT_POLARITY,
   OPT_PRINT,
-  OPT_PRINT_AIGER,
   OPT_PRINT_HOA,
   OPT_REAL,
   OPT_SIMPLIFY,
@@ -134,7 +134,7 @@ static const argp_option options[] =
       "print the parity game in the HOA format, do not solve it", 0 },
     { "realizability", OPT_REAL, nullptr, 0,
       "realizability only, do not compute a winning strategy", 0 },
-    { "aiger", OPT_PRINT_AIGER, "ite|isop|both[+ud][+dc]"
+    { "aiger", OPT_AIGER, "ite|isop|both[+ud][+dc]"
                                  "[+sub0|sub1|sub2]", OPTION_ARG_OPTIONAL,
       "encode the winning strategy as an AIG circuit and print it in AIGER"
       " format. The first word indicates the encoding to used: \"ite\" for "
@@ -193,7 +193,7 @@ static bool opt_print_hoa = false;
 static const char* opt_print_hoa_args = nullptr;
 static bool opt_real = false;
 static bool opt_do_verify = false;
-static const char* opt_print_aiger = nullptr;
+static const char* opt_aiger = nullptr;
 static const char* opt_dot_arg = nullptr;
 static bool opt_dot = false;
 static spot::synthesis_info* gi;
@@ -383,7 +383,7 @@ namespace
             out << ",sum_solve_time";
             if (!opt_real)
               out << ",sum_strat2aut_time";
-            if (opt_print_aiger)
+            if (opt_aiger)
               out << ",aig_time";
             out << ",realizable"; //-1: Unknown, 0: Unreal, 1: Real
           }
@@ -400,7 +400,7 @@ namespace
             if (!was_game)
               out << ",sum_simpl_strat_states,sum_simpl_strat_edges";
           }
-        if (opt_print_aiger)
+        if (opt_aiger)
           out << ",aig_latches,aig_gates";
         out << '\n';
       }
@@ -439,7 +439,7 @@ namespace
         out << ',' << bv->sum_solve_time;
         if (!opt_real)
           out << ',' << bv->sum_strat2aut_time;
-        if (opt_print_aiger)
+        if (opt_aiger)
           out << ',' << bv->aig_time;
         out << ',' << bv->realizable;
       }
@@ -463,7 +463,7 @@ namespace
           out << ',' << bv->sum_simpl_strat_states
               << ',' << bv->sum_simpl_strat_edges;
       }
-    if (opt_print_aiger)
+    if (opt_aiger)
       out << ',' << bv->aig_latches
           << ',' << bv->aig_gates;
     out << '\n';
@@ -668,8 +668,7 @@ namespace
                   spot::solved_game_to_mealy(arena, *gi);
               // Keep the machine split for aiger
               // else -> separated
-              spot::simplify_mealy_here(ml.mealy_like, *gi,
-                                        opt_print_aiger);
+              spot::simplify_mealy_here(ml.mealy_like, *gi, opt_aiger);
               ml.glob_cond = bddfalse;
               mealy_machines.push_back(ml);
             }
@@ -686,8 +685,7 @@ namespace
             {
               // Keep the machine split for aiger
               // else -> separated
-              spot::simplify_mealy_here(m_like.mealy_like, *gi,
-                                        opt_print_aiger);
+              spot::simplify_mealy_here(m_like.mealy_like, *gi, opt_aiger);
             }
           SPOT_FALLTHROUGH;
         }
@@ -728,14 +726,13 @@ namespace
     automaton_printer printer;
     spot::process_timer timer_printer_dummy;
 
-    if (opt_print_aiger)
+    if (opt_aiger)
       {
         spot::stopwatch sw2;
         if (gi->bv)
           sw2.start();
-        saig = spot::mealy_machines_to_aig(mealy_machines, opt_print_aiger,
-                                           input_aps,
-                                           sub_outs_str, rs);
+        saig = spot::mealy_machines_to_aig(mealy_machines, opt_aiger,
+                                           input_aps, sub_outs_str, rs);
         if (gi->bv)
           {
             gi->bv->aig_time = sw2.stop();
@@ -752,7 +749,7 @@ namespace
           }
         if (opt_dot)
           spot::print_dot(std::cout, saig, opt_dot_arg);
-        else
+        else if (automaton_format != Quiet)
           spot::print_aiger(std::cout, saig) << '\n';
       }
     else
@@ -966,16 +963,16 @@ namespace
       spot::twa_graph_ptr mealy_like =
         spot::solved_game_to_mealy(arena, *gi);
       // Keep the machine split for aiger otherwise, separate it.
-      spot::simplify_mealy_here(mealy_like, *gi, opt_print_aiger);
+      spot::simplify_mealy_here(mealy_like, *gi, opt_aiger);
 
       automaton_printer printer;
       spot::process_timer timer_printer_dummy;
-      if (opt_print_aiger)
+      if (opt_aiger)
         {
           if (gi->bv)
             sw_local.start();
           spot::aig_ptr saig =
-            spot::mealy_machine_to_aig(mealy_like, opt_print_aiger);
+            spot::mealy_machine_to_aig(mealy_like, opt_aiger);
           if (gi->bv)
             {
               gi->bv->aig_time = sw_local.stop();
@@ -990,7 +987,8 @@ namespace
                                   << " latches and "
                                   << gi->bv->aig_gates << " gates\n";
             }
-          spot::print_aiger(std::cout, saig) << '\n';
+          if (automaton_format != Quiet)
+            spot::print_aiger(std::cout, saig) << '\n';
         }
       else
         {
@@ -1102,8 +1100,8 @@ parse_opt(int key, char *arg, struct argp_state *)
       opt_print_hoa = true;
       opt_print_hoa_args = arg;
       break;
-    case OPT_PRINT_AIGER:
-      opt_print_aiger = arg ? arg : "ite";
+    case OPT_AIGER:
+      opt_aiger = arg ? arg : "ite";
       break;
     case OPT_REAL:
       opt_real = true;
@@ -1158,6 +1156,10 @@ main(int argc, char **argv)
 
     check_no_formula();
     process_io_options();
+
+    // -q implies --hide-status
+    if (automaton_format == Quiet)
+      show_status = false;
 
     ltl_processor processor;
     if (int res = processor.run(); res == 0 || res == 1)
