@@ -32,7 +32,7 @@ namespace spot
   {
     enum class algo
     {
-      DET_SPLIT=0,
+      DET_SPLIT = 0,
       SPLIT_DET,
       DPA_SPLIT,
       LAR,
@@ -42,30 +42,79 @@ namespace spot
 
     enum class splittype
     {
-      AUTO=0,  // Uses a heuristic to choose
+      AUTO = 0,  // Uses a heuristic to choose
       EXPL,  // Explicit enumerations of inputs
       SEMISYM,  // Works on one bdd per env state
       FULLYSYM  // Works on a fully symbolic version of the automaton
     };
 
+    // These statistics are recorded by various steps of the synthesis
+    // process.
     struct bench_var
     {
+      // Number of sub-spefications resulting from the decomposition.
+      // Updated by ltlsynt.
+      unsigned sub_specs = 0;
+      // Total time needed for the synthesis.  Computed by ltlsynt.
       double total_time = 0.0;
-      double trans_time = 0.0;
-      double split_time = 0.0;
-      double paritize_time = 0.0;
-      double solve_time = 0.0;
-      double strat2aut_time = 0.0;
-      double simplify_strat_time = 0.0;
+      // Time needed to transform the LTL formula(s) into automata, summed
+      // over all subspecs.   The type of automaton constructed depends on
+      // the "algo" parameter.
+      double sum_trans_time = 0.0;
+      // Time needed to split the automata into separate
+      // environment/controler steps.  Summed over all subspecs.
+      // Splitting may occur before or after paritization depending on
+      // the "algo" parameter.
+      double sum_split_time = 0.0;
+      // Time needed to convert the automaton to deterministic parity
+      // automata.  Summed over all subspecs.  Paritization may occur
+      // before or after splitting depending on the "algo" parameter.
+      double sum_paritize_time = 0.0;
+      // Time needed to solve the game.  Summed over all subspecs.
+      double sum_solve_time = 0.0;
+      // Time needed to convert the winning strategy into an
+      // automaton.  Summed over all subspecs.
+      double sum_strat2aut_time = 0.0;
+      // Time needed to simplify the winning strategy.  Summed over
+      // all subspecs.
+      double sum_simplify_strat_time = 0.0;
+      // Time needed to encode all the strategies into one AIG.
       double aig_time = 0.0;
-      unsigned nb_states_arena = 0;
-      unsigned nb_states_arena_env = 0;
-      unsigned nb_strat_states = 0;
-      unsigned nb_strat_edges = 0;
-      unsigned nb_simpl_strat_states = 0;
-      unsigned nb_simpl_strat_edges = 0;
-      unsigned nb_latches = 0;
-      unsigned nb_gates = 0;
+      // Size of the automaton resulting from the main translation.
+      // If multiple subspecifications are used, only the largest
+      // (states,edges,colors,aps) triplet is kept.
+      unsigned max_trans_states = 0;
+      unsigned max_trans_edges = 0;
+      unsigned max_trans_colors = 0;
+      unsigned max_trans_ap = 0;
+      // Size of the game that should be solved.  If multiple
+      // subspecifications are used, only the maximum states and
+      // colors are kept (those are compared independently).
+      unsigned max_game_states = 0;
+      unsigned max_game_colors = 0;
+      // Size of the strategy extracted from the game.  If multiple
+      // subspecifications are used, only the maximum pair (states,
+      // edges) is kept.
+      unsigned max_strat_states = 0;
+      unsigned max_strat_edges = 0;
+      // Size of the strategy extracted from the game, summed over all
+      // subspecifications.
+      unsigned sum_strat_states = 0;
+      unsigned sum_strat_edges = 0;
+      // Size of the strategy after simplification game.  If multiple
+      // subspecifications are used, only the maximum pair (states,
+      // edges) is kept.
+      unsigned max_simpl_strat_states = 0;
+      unsigned max_simpl_strat_edges = 0;
+      // Size of the strategy after simplification, summed over all
+      // subspecifications.
+      unsigned sum_simpl_strat_states = 0;
+      unsigned sum_simpl_strat_edges = 0;
+      // Size of the AIG
+      unsigned aig_latches = 0;
+      unsigned aig_gates = 0;
+      // Whether the (global) specification is realizable.  Updated by
+      // ltlsynt.
       bool realizable = false;
     };
 

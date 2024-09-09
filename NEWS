@@ -5,13 +5,22 @@ New in spot 2.12.0.dev (not yet released)
   - ltlmix is a new tool that generates formulas by combining existing
     ones. See https://spot.lre.epita.fr/ltlmix.html for examples.
 
-  - ltlsynt --csv=FILENAME will now save the source filename for the
-    processed formulas as the first column of the CSV file.  A new
+  - (BACKWARD INCOMPATIBILITY) ltlsynt's CSV output has been largely
+    overhauled, and the output columns have been both renamed (for
+    consistency) and augmented (with new statistics).  The new CSV
+    output should more useful when the input specification was
+    decomposed, in particular, there is a column giving the number of
+    sub-specifications obained, and other statistics columns have name
+    starting with "max_" or "sum_" indicating how said statistics are
+    updated across sub-speciications.
+
+    See https://spot.lre.epita.fr/ltlsynt.html#csv for an example.
+
+    Additionally, --csv=FILENAME will now save the source filename for
+    the processed formulas as the first column of the CSV file.  A new
     option --csv-without-formula=FILENAME can be used to save
     everything but the formula column (as it can be very large, and
-    can be found from the source filename).  Several column names have
-    also been renamed for consistency, so any script reading these
-    file might require some adjustment.
+    can be found from the source filename).
 
   - ltlsynt learned a --part-file option, to specify the partition of
     input/output proposition from a *.part file, as used in several

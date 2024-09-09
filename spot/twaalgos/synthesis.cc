@@ -1574,11 +1574,11 @@ namespace spot
     // release the variables
     // Release the pairs
     for (auto pair_ptr : {replace_fwd,
-                                    replace_bkwd,
-                                    replace_in_fwd,
-                                    replace_in_bkwd,
-                                    replace_out_fwd,
-                                    replace_out_bkwd})
+                          replace_bkwd,
+                          replace_in_fwd,
+                          replace_in_bkwd,
+                          replace_out_fwd,
+                          replace_out_bkwd})
       bdd_freepair(pair_ptr);
     aut->get_dict()->unregister_all_my_variables(&N);
 
@@ -1602,17 +1602,17 @@ namespace spot
          : sp;
 
     switch (sp)
-    {
-      case (synthesis_info::splittype::EXPL):
+      {
+      case synthesis_info::splittype::EXPL:
         return split_2step_expl_impl(aut, output_bdd, complete_env);
-      case (synthesis_info::splittype::SEMISYM):
+      case synthesis_info::splittype::SEMISYM:
         return split_2step_sym_impl<false>(aut, output_bdd, complete_env);
-      case (synthesis_info::splittype::FULLYSYM):
+      case synthesis_info::splittype::FULLYSYM:
         return split_2step_sym_impl<true>(aut, output_bdd, complete_env);
       default:
         throw std::runtime_error("split_2step_(): "
                                  "Expected explicit splittype.");
-    }
+      }
   }
 
   }  // End anonymous
@@ -1826,13 +1826,29 @@ namespace spot
       sw.start();
     auto aut = trans.run(f);
     if (bv)
-      bv->trans_time += sw.stop();
-
+      {
+        bv->sum_trans_time += sw.stop();
+        unsigned ns = aut->num_states();
+        unsigned ne = aut->num_edges();
+        unsigned nc = aut->num_sets();
+        unsigned na = aut->ap().size();
+        if (std::tie(bv->max_trans_states,
+                     bv->max_trans_edges,
+                     bv->max_trans_colors,
+                     bv->max_trans_ap)
+            < std::tie(ns, ne, nc, na))
+          {
+            bv->max_trans_states = ns;
+            bv->max_trans_edges = ne;
+            bv->max_trans_colors = nc;
+            bv->max_trans_ap = na;
+          }
+      }
     if (vs)
       {
         assert(bv);
         *vs << "translating formula done in "
-            << bv->trans_time << " seconds\n";
+            << bv->sum_trans_time << " seconds\n";
         *vs << "automaton has " << aut->num_states()
             << " states and " << aut->num_sets() << " colors\n";
       }
@@ -1879,20 +1895,20 @@ namespace spot
               << tmp->num_sets() << " colors\n";
         tmp->merge_states();
         if (bv)
-          bv->paritize_time += sw.stop();
+          bv->sum_paritize_time += sw.stop();
         if (vs)
           *vs << "simplification done\nDPA has "
               << tmp->num_states() << " states\n"
               << "determinization and simplification took "
-              << bv->paritize_time << " seconds\n";
+              << bv->sum_paritize_time << " seconds\n";
         if (bv)
           sw.start();
 
         dpa = set_split(tmp);
         if (bv)
-          bv->split_time += sw.stop();
+          bv->sum_split_time += sw.stop();
         if (vs)
-          *vs << "split inputs and outputs done in " << bv->split_time
+          *vs << "split inputs and outputs done in " << bv->sum_split_time
               << " seconds\nautomaton has "
               << tmp->num_states() << " states\n";
         break;
@@ -1903,18 +1919,18 @@ namespace spot
           sw.start();
         aut->merge_states();
         if (bv)
-          bv->paritize_time += sw.stop();
+          bv->sum_paritize_time += sw.stop();
         if (vs)
-          *vs << "simplification done in " << bv->paritize_time
+          *vs << "simplification done in " << bv->sum_paritize_time
               << " seconds\nDPA has " << aut->num_states()
               << " states\n";
         if (bv)
           sw.start();
         dpa = set_split(aut);
         if (bv)
-          bv->split_time += sw.stop();
+          bv->sum_split_time += sw.stop();
         if (vs)
-          *vs << "split inputs and outputs done in " << bv->split_time
+          *vs << "split inputs and outputs done in " << bv->sum_split_time
               << " seconds\nautomaton has "
               << dpa->num_states() << " states\n";
         break;
@@ -1924,9 +1940,9 @@ namespace spot
         sw.start();
         auto split = set_split(aut);
         if (bv)
-          bv->split_time += sw.stop();
+          bv->sum_split_time += sw.stop();
         if (vs)
-          *vs << "split inputs and outputs done in " << bv->split_time
+          *vs << "split inputs and outputs done in " << bv->sum_split_time
               << " seconds\nautomaton has "
               << split->num_states() << " states\n";
         if (bv)
@@ -1942,12 +1958,12 @@ namespace spot
         // Merge states knows about players
         dpa->merge_states();
         if (bv)
-          bv->paritize_time += sw.stop();
+          bv->sum_paritize_time += sw.stop();
         if (vs)
           *vs << "simplification done\nDPA has "
               << dpa->num_states() << " states\n"
               << "determinization and simplification took "
-              << bv->paritize_time << " seconds\n";
+              << bv->sum_paritize_time << " seconds\n";
         break;
       }
       case algo::ACD:
@@ -1971,10 +1987,10 @@ namespace spot
         else
           dpa = acd_transform(aut);
         if (bv)
-          bv->paritize_time += sw.stop();
+          bv->sum_paritize_time += sw.stop();
         if (vs)
           *vs << (gi.s == algo::ACD ? "ACD" : "LAR")
-              << " construction done in " << bv->paritize_time
+              << " construction done in " << bv->sum_paritize_time
               << " seconds\nDPA has "
               << dpa->num_states() << " states, "
               << dpa->num_sets() << " colors\n";
@@ -1983,9 +1999,9 @@ namespace spot
           sw.start();
         dpa = set_split(dpa);
         if (bv)
-          bv->split_time += sw.stop();
+          bv->sum_split_time += sw.stop();
         if (vs)
-          *vs << "split inputs and outputs done in " << bv->split_time
+          *vs << "split inputs and outputs done in " << bv->sum_split_time
               << " seconds\nautomaton has "
               << dpa->num_states() << " states\n";
         break;
@@ -2045,6 +2061,7 @@ namespace spot
 
     if (gi.bv)
       {
+        gi.bv->sum_strat2aut_time += sw.stop();
         auto sp = get_state_players(m);
         auto n_s_env = sp.size() - std::accumulate(sp.begin(),
                                                    sp.end(),
@@ -2055,9 +2072,14 @@ namespace spot
                         {
                           n_e_env += sp[e.src];
                         });
-        gi.bv->strat2aut_time += sw.stop();
-        gi.bv->nb_strat_states += n_s_env;
-        gi.bv->nb_strat_edges += n_e_env;
+        if (std::tie(gi.bv->max_strat_states, gi.bv->max_strat_edges)
+            < std::tie(n_s_env, n_e_env))
+          {
+            gi.bv->max_strat_states = n_s_env;
+            gi.bv->max_strat_edges = n_e_env;
+          }
+        gi.bv->sum_strat_states += n_s_env;
+        gi.bv->sum_strat_edges += n_e_env;
       }
 
     assert(is_mealy(m));
@@ -2383,7 +2405,7 @@ namespace spot
           if (bv)
             {
               auto delta = sw.stop();
-              bv->trans_time += delta;
+              bv->sum_trans_time += delta;
               if (vs)
                 *vs << "translating formula done in " << delta
                     << " seconds...\n... but it gave a "
@@ -2445,7 +2467,7 @@ namespace spot
       if (bv)
         {
           auto delta = sw.stop();
-          bv->trans_time += delta;
+          bv->sum_trans_time += delta;
           if (vs)
             *vs << "translating formula done in " << delta << " seconds\n";
         }
@@ -2477,7 +2499,7 @@ namespace spot
       if (bv)
         {
           auto delta = sw.stop();
-          bv->trans_time += delta;
+          bv->sum_trans_time += delta;
           if (vs)
             *vs << "translating formula done in " << delta << " seconds\n";
         }
@@ -2922,10 +2944,10 @@ namespace spot
       }
     bool res = solve_game(arena);
     if (gi.bv)
-      gi.bv->solve_time += sw.stop();
+      gi.bv->sum_solve_time += sw.stop();
     if (gi.verbose_stream)
       *(gi.verbose_stream) << "game solved in "
-                           << gi.bv->solve_time << " seconds\n";
+                           << gi.bv->sum_solve_time << " seconds\n";
     return res;
   }
 

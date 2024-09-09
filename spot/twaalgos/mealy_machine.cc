@@ -4353,9 +4353,10 @@ namespace spot
         if (si.verbose_stream)
           *si.verbose_stream << "simplification took " << sw.stop()
                              << " seconds\n";
-        si.bv->simplify_strat_time += sw.stop();
-        auto n_s_env = 0u;
-        auto n_e_env = 0u;
+        si.bv->sum_simplify_strat_time += sw.stop();
+        unsigned n_s_env = 0;
+        unsigned n_e_env = 0;
+        // If the strategy is split, count only the environment's states
         if (auto sp = m->get_named_prop<region_t>("state-player"))
           {
             n_s_env = sp->size() - std::accumulate(sp->begin(),
@@ -4365,15 +4366,22 @@ namespace spot
                           [&n_e_env, &sp](const auto& e)
                             {
                               n_e_env += (*sp)[e.src];
-                        });
+                            });
           }
         else
           {
             n_s_env = m->num_states();
             n_e_env = m->num_edges();
           }
-        si.bv->nb_simpl_strat_states += n_s_env;
-        si.bv->nb_simpl_strat_edges += n_e_env;
+        if (std::tie(si.bv->max_simpl_strat_states,
+                     si.bv->max_simpl_strat_edges)
+            < std::tie(n_s_env, n_e_env))
+          {
+            si.bv->max_simpl_strat_states = n_s_env;
+            si.bv->max_simpl_strat_edges = n_e_env;
+          }
+        si.bv->sum_simpl_strat_states += n_s_env;
+        si.bv->sum_simpl_strat_edges += n_e_env;
       }
   }
 }

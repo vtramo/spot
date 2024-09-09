@@ -1333,7 +1333,7 @@ sed 's/ [0-9.e-]* seconds/ X seconds/g;s/ -> /->/g;' out > outx
 diff outx exp
 
 
-genltl --lily-patterns | ltlsynt -q > out && exit 2
+genltl --lily-patterns | ltlsynt --realizability > out && exit 2
 cat >expected <<EOF
 UNREALIZABLE
 UNREALIZABLE
