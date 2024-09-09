@@ -145,11 +145,12 @@ ltlsynt --from-pgame starve.ehoa \
         --from-pgame UnderapproxDemo2.ehoa \
         --from-pgame aut7.hoa --csv-without-formula=out.csv >result || :
 test 4 = `wc -l < out.csv`
-cut -d, -f 9,10,11,12,13 <out.csv >right
+cut -d, -f 1,2,7,8,9,10,11,12,13 <out.csv >right
+REST=strat_states,max_strat_edges,max_simpl_strat_states,max_simpl_strat_edges
 cat >expect <<EOF
-"realizable","game_states","game_states_env","strat_states","strat_edges"
-1,4,2,1,2
-0,9,4,0,0
-0,10,5,0,0
+source,split,realizable,max_game_states,max_game_colors,max_$REST
+"starve.ehoa:1.1-18.7",auto,1,4,3,1,2,1,2
+"UnderapproxDemo2.ehoa:1.1-25.7",auto,0,9,3,0,0,0,0
+"aut7.hoa:1.1-23.7",auto,0,10,1,0,0,0,0
 EOF
 diff right expect

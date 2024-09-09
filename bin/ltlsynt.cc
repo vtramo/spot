@@ -298,18 +298,18 @@ ARGMATCH_VERIFY(simplify_args, simplify_values);
 
 static const char* const splittype_args[] =
   {
+    "auto",
     "expl",
     "semisym",
     "fullysym",
-    "auto",
     nullptr
   };
 static spot::synthesis_info::splittype splittype_values[] =
   {
+    spot::synthesis_info::splittype::AUTO,
     spot::synthesis_info::splittype::EXPL,
     spot::synthesis_info::splittype::SEMISYM,
     spot::synthesis_info::splittype::FULLYSYM,
-    spot::synthesis_info::splittype::AUTO,
   };
 ARGMATCH_VERIFY(splittype_args, splittype_values);
 
@@ -363,25 +363,44 @@ namespace
     // (Even if that file was empty initially.)
     if (!outf.append())
       {
-        out << "\"source\",";
+        out << "source";
         if (opt_csv_with_formula)
-          out << "\"formula\",";
-        out << ("\"algo\",\"tot_time\",\"trans_time\","
-                "\"split_time\",\"todpa_time\"");
+          out << ",formula";
+        if (!was_game)
+          {
+            out << ",subspecs";
+            out << ",algo";
+          }
+        out << ",split,total_time";
+        if (!was_game)
+          out << ",sum_trans_time";
+        out << ",sum_split_time";
+        if (!was_game)
+          out << ",sum_todpa_time";
         if (!opt_print_pg && !opt_print_hoa)
           {
-            out << ",\"solve_time\"";
+            out << ",sum_solve_time";
             if (!opt_real)
-              out << ",\"strat2aut_time\"";
+              out << ",sum_strat2aut_time";
             if (opt_print_aiger)
-              out << ",\"aig_time\"";
-            out << ",\"realizable\""; //-1: Unknown, 0: Unreal, 1: Real
+              out << ",aig_time";
+            out << ",realizable"; //-1: Unknown, 0: Unreal, 1: Real
           }
-        out << ",\"game_states\",\"game_states_env\"";
+        if (!was_game)
+          out << (",max_trans_states,max_trans_edges"
+                  ",max_trans_colors,max_trans_ap");
+        out << ",max_game_states,max_game_colors";
         if (!opt_real)
-          out << ",\"strat_states\",\"strat_edges\"";
+          {
+            out << ",max_strat_states,max_strat_edges";
+            if (!was_game)
+              out << ",sum_strat_states,sum_strat_edges";
+            out << ",max_simpl_strat_states,max_simpl_strat_edges";
+            if (!was_game)
+              out << ",sum_simpl_strat_states,sum_simpl_strat_edges";
+          }
         if (opt_print_aiger)
-            out << ",\"aig_latches\",\"aig_gates\"";
+          out << ",aig_latches,aig_gates";
         out << '\n';
       }
     {
@@ -404,28 +423,48 @@ namespace
         }
     }
     if (!was_game)
-      out << '"' << algo_names[(int) gi->s] << '"';
-    out << ',' << bv->total_time
-        << ',' << bv->trans_time
-        << ',' << bv->split_time
-        << ',' << bv->paritize_time;
+      {
+        out << bv->sub_specs << ',';
+        out << algo_names[(int) gi->s] << ',';
+      }
+    out << splittype_args[(int) gi->sp] << ',' << bv->total_time;
+    if (!was_game)
+      out << ',' << bv->sum_trans_time;
+    out << ',' << bv->sum_split_time;
+    if (!was_game)
+      out << ',' << bv->sum_paritize_time;
     if (!opt_print_pg && !opt_print_hoa)
       {
-        out << ',' << bv->solve_time;
+        out << ',' << bv->sum_solve_time;
         if (!opt_real)
-          out << ',' << bv->strat2aut_time;
+          out << ',' << bv->sum_strat2aut_time;
         if (opt_print_aiger)
           out << ',' << bv->aig_time;
         out << ',' << bv->realizable;
       }
-    out << ',' << bv->nb_states_arena
-        << ',' << bv->nb_states_arena_env;
+    if (!was_game)
+      out << ',' << bv->max_trans_states
+          << ',' << bv->max_trans_edges
+          << ',' << bv->max_trans_colors
+          << ',' << bv->max_trans_ap;
+    out << ',' << bv->max_game_states
+        << ',' << bv->max_game_colors;
     if (!opt_real)
-      out << ',' << bv->nb_strat_states
-          << ',' << bv->nb_strat_edges;
+      {
+        out << ',' << bv->max_strat_states
+            << ',' << bv->max_strat_edges;
+        if (!was_game)
+          out << ',' << bv->sum_strat_states
+              << ',' << bv->sum_strat_edges;
+        out << ',' << bv->max_simpl_strat_states
+            << ',' << bv->max_simpl_strat_edges;
+        if (!was_game)
+          out << ',' << bv->sum_simpl_strat_states
+              << ',' << bv->sum_simpl_strat_edges;
+      }
     if (opt_print_aiger)
-      out << ',' << bv->nb_latches
-          << ',' << bv->nb_gates;
+      out << ',' << bv->aig_latches
+          << ',' << bv->aig_gates;
     out << '\n';
     outf.close(opt_csv);
   }
@@ -515,6 +554,8 @@ namespace
           }
 
       }
+    if (gi->bv)
+      gi->bv->sub_specs = sub_form.size();
     std::vector<std::vector<std::string>> sub_outs_str;
     std::transform(sub_outs.begin(), sub_outs.end(),
                    std::back_inserter(sub_outs_str),
@@ -584,16 +625,23 @@ namespace
       case spot::mealy_like::realizability_code::UNKNOWN:
         {
           auto arena = spot::ltl_to_game(*sub_f, *sub_o, *gi);
+#ifndef NDEBUG
+          auto spptr =
+            arena->get_named_prop<std::vector<bool>>("state-player");
+          assert(spptr);
+          assert((spptr->at(arena->get_init_state_number()) == false)
+                 && "Env needs first turn");
+#endif
           if (gi->bv)
             {
-              gi->bv->nb_states_arena += arena->num_states();
-              auto spptr =
-                  arena->get_named_prop<std::vector<bool>>("state-player");
-              assert(spptr);
-              gi->bv->nb_states_arena_env +=
-                  std::count(spptr->cbegin(), spptr->cend(), false);
-              assert((spptr->at(arena->get_init_state_number()) == false)
-                     && "Env needs first turn");
+              unsigned ns = arena->num_states();
+              unsigned nc = arena->num_sets();
+              if (std::tie(gi->bv->max_game_states, gi->bv->max_game_colors)
+                  < std::tie(ns, nc))
+                {
+                  gi->bv->max_game_states = ns;
+                  gi->bv->max_game_colors = nc;
+                }
             }
           if (want_game())
             {
@@ -690,8 +738,8 @@ namespace
         if (gi->bv)
           {
             gi->bv->aig_time = sw2.stop();
-            gi->bv->nb_latches = saig->num_latches();
-            gi->bv->nb_gates = saig->num_gates();
+            gi->bv->aig_latches = saig->num_latches();
+            gi->bv->aig_gates = saig->num_gates();
           }
         if (gi->verbose_stream)
           {
@@ -828,7 +876,10 @@ namespace
                       const std::string& location)
     {
       if (opt_csv)              // reset benchmark data
-        gi->bv = spot::synthesis_info::bench_var();
+        {
+          gi->bv = spot::synthesis_info::bench_var();
+          gi->bv->sub_specs = 1;  // We do not know how to split a game
+        }
       spot::stopwatch sw_global;
       spot::stopwatch sw_local;
       if (gi->bv)
@@ -881,13 +932,9 @@ namespace
         }
       if (gi->bv)
         {
-          gi->bv->split_time += sw_local.stop();
-          gi->bv->nb_states_arena += arena->num_states();
-          auto spptr =
-            arena->get_named_prop<std::vector<bool>>("state-player");
-          assert(spptr);
-          gi->bv->nb_states_arena_env +=
-            std::count(spptr->cbegin(), spptr->cend(), false);
+          gi->bv->sum_split_time += sw_local.stop();
+          gi->bv->max_game_states = arena->num_states();
+          gi->bv->max_game_colors = arena->num_sets();
         }
       if (opt_print_pg || opt_print_hoa)
         {
@@ -931,16 +978,16 @@ namespace
           if (gi->bv)
             {
               gi->bv->aig_time = sw_local.stop();
-              gi->bv->nb_latches = saig->num_latches();
-              gi->bv->nb_gates = saig->num_gates();
+              gi->bv->aig_latches = saig->num_latches();
+              gi->bv->aig_gates = saig->num_gates();
             }
           if (gi->verbose_stream)
             {
               *gi->verbose_stream << "AIG circuit was created in "
                                   << gi->bv->aig_time
-                                  << " seconds and has " << saig->num_latches()
+                                  << " seconds and has " << gi->bv->aig_latches
                                   << " latches and "
-                                  << saig->num_gates() << " gates\n";
+                                  << gi->bv->aig_gates << " gates\n";
             }
           spot::print_aiger(std::cout, saig) << '\n';
         }

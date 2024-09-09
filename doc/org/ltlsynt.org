@@ -286,7 +286,10 @@ ltlsynt -f '(i1 & i2) <-> F(o1 & X(!o1))' --print-game-hoa --dot
 #+RESULTS:
 [[file:ltlsyntexgame.svg]]
 
-** Saving statistics
+** Saving statistics in CSV
+   :PROPERTIES:
+   :CUSTOM_ID: csv
+   :END:
 
 For benchmarking purpose, the =--csv= option can be used to record
 intermediate statistics about the resolution.  The =--csv= option will
@@ -301,7 +304,7 @@ Mealy's semantics.)
 
 #+BEGIN_SRC sh :results verbatim :exports code :epilogue true
   genltl --lily-patterns |
-      ltlsynt --algo=acd --realizability --csv-without-formula=bench.csv
+      ltlsynt --algo=acd -q --csv-without-formula=bench.csv
 #+END_SRC
 #+RESULTS:
 #+begin_example
@@ -344,42 +347,91 @@ s/,/|/g
 ' bench.csv
 #+END_SRC
 
+#+ATTR_HTML: :class csv-table
 #+RESULTS:
-| source | algo |    tot_time |  trans_time |  split_time |  todpa_time |  solve_time | realizable | game_states | game_states_env |
-|--------+------+-------------+-------------+-------------+-------------+-------------+------------+-------------+-----------------|
-| -:1    | acd  | 0.000472663 |  0.00019603 |  2.0339e-05 |  2.0388e-05 |  1.4617e-05 |          0 |           3 |               2 |
-| -:2    | acd  |  0.00028595 | 0.000188466 |  1.4417e-05 |  2.0027e-05 |   5.861e-06 |          0 |          13 |               7 |
-| -:3    | acd  | 0.000741622 | 0.000591889 |  4.7229e-05 |  1.9516e-05 |  1.8014e-05 |          1 |          26 |              12 |
-| -:4    | acd  | 0.000917794 | 0.000725371 |  7.2026e-05 |  3.0328e-05 |  2.0349e-05 |          1 |          33 |              15 |
-| -:5    | acd  | 0.000878991 | 0.000612978 | 0.000102604 |  3.4155e-05 |  2.7913e-05 |          1 |          47 |              20 |
-| -:6    | acd  |  0.00100199 | 0.000761539 |  8.0191e-05 |  2.9817e-05 |  2.9075e-05 |          1 |          55 |              24 |
-| -:7    | acd  | 0.000587721 | 0.000425814 |  4.6268e-05 |  1.6261e-05 |  1.4106e-05 |          1 |          26 |              11 |
-| -:8    | acd  |  1.4046e-05 |           0 |           0 |           0 |           0 |          1 |           0 |               0 |
-| -:9    | acd  | 0.000519242 | 0.000400918 |  2.2322e-05 |  2.9446e-05 |  1.3886e-05 |          1 |          16 |               6 |
-| -:10   | acd  |  6.0835e-05 |           0 |           0 |           0 |           0 |          1 |           0 |               0 |
-| -:11   | acd  |  5.5245e-05 |  1.8335e-05 |   5.249e-06 |   4.007e-06 |   4.549e-06 |          0 |           3 |               2 |
-| -:12   | acd  |  1.6411e-05 |           0 |           0 |           0 |           0 |          1 |           0 |               0 |
-| -:13   | acd  | 0.000192153 | 0.000134825 |    1.06e-05 |   8.506e-06 |    5.33e-06 |          1 |           5 |               2 |
-| -:14   | acd  | 0.000291931 | 0.000209857 |  1.0881e-05 |  1.4076e-05 |   6.182e-06 |          1 |           4 |               2 |
-| -:15   | acd  | 0.000690605 | 0.000480759 |  9.4349e-05 |  3.2541e-05 |  1.8675e-05 |          1 |          30 |               9 |
-| -:16   | acd  |  0.00232829 |  0.00173036 | 0.000348709 |  9.2966e-05 |  6.1276e-05 |          1 |         103 |              29 |
-| -:17   | acd  | 0.000554708 |  0.00038608 |  2.4887e-05 |  2.9205e-05 |  1.1902e-05 |          1 |           6 |               3 |
-| -:18   | acd  |  0.00114041 |  0.00088879 |  3.3784e-05 |  3.4585e-05 |  1.1602e-05 |          1 |           8 |               4 |
-| -:19   | acd  | 0.000761799 | 0.000517278 |  4.3132e-05 |  5.1968e-05 |   2.127e-05 |          1 |          11 |               4 |
-| -:20   | acd  |   0.0169891 |   0.0133503 |  0.00172203 |  0.00113707 | 0.000412299 |          1 |        1002 |             311 |
-| -:21   | acd  |    0.118002 |    0.115604 |  0.00165549 | 0.000149402 |  0.00024346 |          1 |         371 |              75 |
-| -:22   | acd  |  0.00316832 |  0.00240598 | 0.000305407 | 0.000103245 |  0.00010582 |          1 |          86 |              30 |
-| -:23   | acd  | 0.000824969 | 0.000632956 |  3.2161e-05 |  2.9766e-05 |  2.0299e-05 |          1 |          17 |               7 |
+| source | subspecs | algo | split |  total_time | sum_trans_time | sum_split_time | sum_todpa_time | sum_solve_time | sum_strat2aut_time | realizable | max_trans_states | max_trans_edges | max_trans_colors | max_trans_ap | max_game_states | max_game_colors | max_strat_states | max_strat_edges | sum_strat_states | sum_strat_edges | max_simpl_strat_states | max_simpl_strat_edges | sum_simpl_strat_states | sum_simpl_strat_edges |
+|--------+----------+------+-------+-------------+----------------+----------------+----------------+----------------+--------------------+------------+------------------+-----------------+------------------+--------------+-----------------+-----------------+------------------+-----------------+------------------+-----------------+------------------------+-----------------------+------------------------+-----------------------|
+| -:1    |        2 | acd  | auto  | 0.000327418 |    0.000135325 |     1.5128e-05 |      1.543e-05 |      6.171e-06 |                  0 |          0 |                1 |               0 |                0 |            0 |               3 |               1 |                0 |               0 |                0 |               0 |                      0 |                     0 |                      0 |                     0 |
+| -:2    |        2 | acd  | auto  |  0.00020147 |    0.000117201 |      9.227e-06 |     1.2634e-05 |      3.607e-06 |          6.642e-06 |          0 |                5 |               8 |                0 |            1 |              10 |               0 |                2 |               2 |                2 |               2 |                      2 |                     2 |                      2 |                     2 |
+| -:3    |        1 | acd  | auto  | 0.000487781 |    0.000360129 |     2.8053e-05 |     1.1211e-05 |     1.0851e-05 |          5.741e-06 |          1 |               12 |              46 |                1 |            3 |              26 |               1 |                5 |               5 |                5 |               5 |                      2 |                     4 |                      2 |                     4 |
+| -:4    |        1 | acd  | auto  | 0.000491777 |    0.000356242 |     3.3032e-05 |     1.5269e-05 |     1.0379e-05 |          6.683e-06 |          1 |               15 |              62 |                1 |            3 |              33 |               1 |                6 |               6 |                6 |               6 |                      3 |                     7 |                      3 |                     7 |
+| -:5    |        1 | acd  | auto  | 0.000476078 |    0.000314904 |     4.4103e-05 |     1.5029e-05 |     1.2133e-05 |         1.4237e-05 |          1 |               20 |              88 |                1 |            3 |              47 |               1 |                8 |               9 |                8 |               9 |                      6 |                    17 |                      6 |                    17 |
+| -:6    |        1 | acd  | auto  | 0.000486699 |    0.000300587 |     4.4013e-05 |     1.6531e-05 |     1.3766e-05 |           1.57e-05 |          1 |               24 |             111 |                1 |            3 |              55 |               1 |               11 |              12 |               11 |              12 |                      7 |                    21 |                      7 |                    21 |
+| -:7    |        1 | acd  | auto  | 0.000394895 |     0.00024404 |     2.7942e-05 |      9.317e-06 |     1.2443e-05 |          7.344e-06 |          1 |               11 |              38 |                1 |            3 |              26 |               1 |                7 |               8 |                7 |               8 |                      6 |                    14 |                      6 |                    14 |
+| -:8    |        1 | acd  | auto  |  1.3125e-05 |      1.293e-06 |              0 |              0 |              0 |                  0 |          1 |                0 |               0 |                0 |            0 |               0 |               0 |                0 |               0 |                0 |               0 |                      1 |                     1 |                      1 |                     1 |
+| -:9    |        1 | acd  | auto  | 0.000309784 |    0.000223411 |     1.3456e-05 |     1.9046e-05 |      8.466e-06 |          3.968e-06 |          1 |                6 |              19 |                2 |            2 |              16 |               2 |                2 |               3 |                2 |               3 |                      2 |                     3 |                      2 |                     3 |
+| -:10   |        1 | acd  | auto  |  1.4206e-05 |       6.81e-07 |              0 |              0 |              0 |                  0 |          1 |                0 |               0 |                0 |            0 |               0 |               0 |                0 |               0 |                0 |               0 |                      1 |                     1 |                      1 |                     1 |
+| -:11   |        1 | acd  | auto  |  2.8453e-05 |      9.968e-06 |      2.504e-06 |      2.114e-06 |      2.295e-06 |                  0 |          0 |                1 |               0 |                0 |            0 |               3 |               1 |                0 |               0 |                0 |               0 |                      0 |                     0 |                      0 |                     0 |
+| -:12   |        1 | acd  | auto  |  1.3826e-05 |       8.81e-07 |              0 |              0 |              0 |                  0 |          1 |                0 |               0 |                0 |            0 |               0 |               0 |                0 |               0 |                0 |               0 |                      1 |                     1 |                      1 |                     1 |
+| -:13   |        1 | acd  | auto  | 0.000124284 |     7.6274e-05 |      6.192e-06 |      4.869e-06 |      3.066e-06 |          3.196e-06 |          1 |                2 |               3 |                1 |            2 |               5 |               1 |                2 |               2 |                2 |               2 |                      1 |                     2 |                      1 |                     2 |
+| -:14   |        1 | acd  | auto  | 0.000184107 |    0.000122141 |      6.412e-06 |      8.275e-06 |      3.567e-06 |          2.725e-06 |          1 |                1 |               3 |                2 |            2 |               4 |               1 |                2 |               2 |                2 |               2 |                      2 |                     2 |                      2 |                     2 |
+| -:15   |        1 | acd  | auto  |  0.00042922 |    0.000279297 |     3.7861e-05 |     1.9096e-05 |      1.057e-05 |          6.933e-06 |          1 |                8 |              40 |                2 |            4 |              30 |               1 |                7 |              12 |                7 |              12 |                      5 |                    13 |                      5 |                    13 |
+| -:16   |        1 | acd  | auto  |   0.0015915 |     0.00103173 |    0.000202432 |      5.328e-05 |     3.6118e-05 |         1.8925e-05 |          1 |               22 |             225 |                3 |            6 |             103 |               1 |               22 |              40 |               22 |              40 |                     17 |                    71 |                     17 |                    71 |
+| -:17   |        1 | acd  | auto  | 0.000271983 |    0.000184298 |      8.636e-06 |      9.919e-06 |      3.988e-06 |          3.046e-06 |          1 |                1 |               4 |                3 |            3 |               6 |               1 |                3 |               3 |                3 |               3 |                      3 |                     3 |                      3 |                     3 |
+| -:18   |        1 | acd  | auto  | 0.000380097 |    0.000274818 |     1.1502e-05 |     1.1481e-05 |      4.098e-06 |          3.366e-06 |          1 |                1 |               5 |                4 |            4 |               8 |               1 |                4 |               4 |                4 |               4 |                      4 |                     4 |                      4 |                     4 |
+| -:19   |        1 | acd  | auto  | 0.000263427 |    0.000170873 |     1.4458e-05 |     1.6912e-05 |      7.214e-06 |          2.835e-06 |          1 |                4 |              15 |                2 |            3 |              11 |               2 |                1 |               1 |                1 |               1 |                      1 |                     1 |                      1 |                     1 |
+| -:20   |        1 | acd  | auto  |  0.00668276 |     0.00504907 |    0.000916819 |    0.000353497 |    0.000170251 |          9.368e-06 |          1 |              311 |            3488 |                2 |            5 |            1002 |               2 |               10 |              10 |               10 |              10 |                      6 |                    12 |                      6 |                    12 |
+| -:21   |        1 | acd  | auto  |   0.0414155 |      0.0392309 |    0.000744745 |     5.4213e-05 |     8.4029e-05 |         7.5533e-05 |          1 |               75 |             546 |                1 |            8 |             371 |               1 |               74 |             228 |               74 |             228 |                     71 |                   339 |                     71 |                   339 |
+| -:22   |        1 | acd  | auto  |  0.00126613 |    0.000785011 |    0.000112663 |     3.5397e-05 |     3.5998e-05 |         1.7854e-05 |          1 |               30 |             161 |                2 |            4 |              86 |               1 |               22 |              25 |               22 |              25 |                     15 |                    67 |                     15 |                    67 |
+| -:23   |        1 | acd  | auto  | 0.000305085 |    0.000213032 |      1.061e-05 |     1.0009e-05 |      6.752e-06 |           5.23e-06 |          1 |                7 |              16 |                1 |            2 |              17 |               1 |                5 |               6 |                5 |               6 |                      3 |                     6 |                      3 |                     6 |
 
-A source of the form =-:N= designates the Nth line of the standard
-input, as =ltlsynt= was reading from that. The various =*_time*=
-columns refers to different steps in the processing pipeline.  Note
-that various bits and minor operations are not timed, so =tot_time=
-(the total time) should be larger than the sum of times used for
-translation, splitting, conversion to DPA, and game solving.  Some of
-these intermediate processing time are listed as =0= above because
-(e.g., for input 8, 10, 12) because the specifications can be found to
-be realizable trivially without building any game.
+The names of the columns should be mostly self explanatory.  The
+decomposition of the specification into multiple sub-specifications
+makes it slightly incoveniant to track statistics in a run.  The
+column =subspecs= indicates how many sub-specifications were found in
+the original specification.  Columns with names of the form =sum_*=
+accumulate their statistics over all subspecifications.  Columns with
+names of the form =max_*= keep only the largest statistics.  The following
+statistics are gathered:
+
+- =source=: location of the specification in the form FILENAME:LINE
+  (FILENAME is =-= when reading from standard input as in the above
+  example).
+- =formula= (if requested): the actual LTL formula used for the
+  specification
+- =subspecs=: the number of sub-specifications resulting from the
+  decomposition
+- =algo=: the name of the approach used to construct game, as
+  specified with the =--algo= option
+- =split=: the name of the approach used to split the automaton into
+  input and output steps, as specified with the =--split= option
+- =total_time=: total time measured by =ltlsynt= to solve the problem
+  once the problem has been loaded (parsing of the formula, conversion
+  from TSLF, or parsing of a parity game are all excluded)
+- =sum_trans_time=: sum of the translation time needed to obtain an
+  automaton from each subspecification.
+- =sum_split_time=: sum of the times needed to split the automata
+- =sum_todpa_time=: sum of the times needed to paritize the automata
+- =sum_solve_time=: sum of the times needed to solve the game for each
+  subspecification
+- =sum_strat2aut_time= sum of the time needed to extract the
+  strategies
+- =realizable=: whether the specification is realizable
+- =max_trans_states,max_trans_edges,max_trans_colors,max_trans_ap=:
+  Size of the largest automaton constructed for a subspecification.
+  The largest size is actually the largest quadruple of the form
+  (states,edges,colors,ap), so those maximum values are not
+  independent.
+- =max_game_states=: maximum number of state in any game constructed
+- =max_game_colors=: maximum numbers of colors in any game constructed
+  (might not be the same game as for =max_game_states=)
+- =max_strat_states,max_strat_edges=: size of the largest strategy
+  found.  The largest size is the largest pair (states,edges), so
+  those two values are not indeendent.
+- =sum_strat_states,sum_strat_edges=: sum of the states/edges in
+  strategies for all subspecifications
+- =max_simpl_strat_states,max_simpl_strat_edges=: size of the largest
+  simplified strategy.
+- =sum_simpl_strat_states,sum_simpl_strat_edges=: sum of the
+  states/edges in simplified strategies for all subspecifications
+- =aig_gates,aig_latches=: Size of the AIG circuit, if requested.
+
+
+In the table from the previous section some of the intermediate
+processing times are listed as =0= (e.g., for input 8, 10, 12) because
+the specifications can be found to be realizable trivially without
+building any game.
+
 
 ** Verifying the output
 
