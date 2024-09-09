@@ -267,7 +267,7 @@ for r in '' '--real'; do
           done)
 done
 for a in sd ds lar lar.old; do
-    test 1 = `grep -c ",.$a.," FILE` || exit 1
+    test 1 = `grep -c ",$a," FILE` || exit 1
 done
 
 # ltlsynt --algo=lar --ins=a --outs=b -f 'FGa <-> GF(c&a)' --print-pg --csv >out

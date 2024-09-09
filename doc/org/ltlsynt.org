@@ -294,41 +294,17 @@ ltlsynt -f '(i1 & i2) <-> F(o1 & X(!o1))' --print-game-hoa --dot
 For benchmarking purpose, the =--csv= option can be used to record
 intermediate statistics about the resolution.
 
-For instance the following command tests the realizability of the 23
-demonstration specifications from [[http://www.ist.tugraz.at/staff/jobstmann/lily/][Lily 1.0.2]] while saving some
-statistics in =bench.csv=.  (If you compare our results with theirs,
-keep in mind that Lily uses Moore's semantics, while =ltlsynt= uses
-Mealy's semantics.)
+For instance the following command builds controllers (when they
+exist) for the 23 demonstration specifications from [[http://www.ist.tugraz.at/staff/jobstmann/lily/][Lily 1.0.2]] while
+saving some statistics in =bench.csv=.  (If you compare our results
+with theirs, keep in mind that Lily uses Moore's semantics, while
+=ltlsynt= uses Mealy's semantics.)  We use =-q= to hide the
+constructed controllers, as we are only interested in the statistics.
 
 #+BEGIN_SRC sh :results verbatim :exports code :epilogue true
-  genltl --lily-patterns | ltlsynt --algo=acd -q --csv=bench.csv
+  genltl --lily-patterns | ltlsynt --algo=acd --aiger -q --csv=bench.csv
 #+END_SRC
 #+RESULTS:
-#+begin_example
-UNREALIZABLE
-UNREALIZABLE
-REALIZABLE
-REALIZABLE
-REALIZABLE
-REALIZABLE
-REALIZABLE
-REALIZABLE
-REALIZABLE
-REALIZABLE
-UNREALIZABLE
-REALIZABLE
-REALIZABLE
-REALIZABLE
-REALIZABLE
-REALIZABLE
-REALIZABLE
-REALIZABLE
-REALIZABLE
-REALIZABLE
-REALIZABLE
-REALIZABLE
-REALIZABLE
-#+end_example
 
 After execution, =bench.csv= contains a table like the following:
 
@@ -346,31 +322,37 @@ s/,/|/g
 
 #+ATTR_HTML: :class csv-table
 #+RESULTS:
-| source | subspecs | algo | split |  total_time | sum_trans_time | sum_split_time | sum_todpa_time | sum_solve_time | sum_strat2aut_time | realizable | max_trans_states | max_trans_edges | max_trans_colors | max_trans_ap | max_game_states | max_game_colors | max_strat_states | max_strat_edges | sum_strat_states | sum_strat_edges | max_simpl_strat_states | max_simpl_strat_edges | sum_simpl_strat_states | sum_simpl_strat_edges |
-|--------+----------+------+-------+-------------+----------------+----------------+----------------+----------------+--------------------+------------+------------------+-----------------+------------------+--------------+-----------------+-----------------+------------------+-----------------+------------------+-----------------+------------------------+-----------------------+------------------------+-----------------------|
-| -:1    |        2 | acd  | auto  | 0.000645823 |    0.000271534 |     2.6961e-05 |     2.8614e-05 |     1.0931e-05 |                  0 |          0 |                1 |               0 |                0 |            0 |               3 |               1 |                0 |               0 |                0 |               0 |                      0 |                     0 |                      0 |                     0 |
-| -:2    |        2 | acd  | auto  | 0.000560151 |    0.000345114 |     2.4457e-05 |     3.6228e-05 |      9.639e-06 |         1.1773e-05 |          0 |                5 |               8 |                0 |            1 |              10 |               0 |                2 |               2 |                2 |               2 |                      2 |                     2 |                      2 |                     2 |
-| -:3    |        1 | acd  | auto  |   0.0013147 |    0.000951121 |     8.1794e-05 |     3.2291e-05 |     2.9255e-05 |         1.5389e-05 |          1 |               12 |              46 |                1 |            3 |              26 |               1 |                5 |               5 |                5 |               5 |                      2 |                     4 |                      2 |                     4 |
-| -:4    |        1 | acd  | auto  |  0.00131727 |    0.000944167 |     9.2395e-05 |     3.6679e-05 |     3.0989e-05 |         1.8685e-05 |          1 |               15 |              62 |                1 |            3 |              33 |               1 |                6 |               6 |                6 |               6 |                      3 |                     7 |                      3 |                     7 |
-| -:5    |        1 | acd  | auto  |  0.00137646 |    0.000919601 |    0.000126099 |     4.3342e-05 |     3.4295e-05 |         4.1769e-05 |          1 |               20 |              88 |                1 |            3 |              47 |               1 |                8 |               9 |                8 |               9 |                      6 |                    17 |                      6 |                    17 |
-| -:6    |        1 | acd  | auto  |  0.00140189 |    0.000877561 |    0.000128823 |     4.8351e-05 |     3.9455e-05 |         4.5746e-05 |          1 |               24 |             111 |                1 |            3 |              55 |               1 |               11 |              12 |               11 |              12 |                      7 |                    21 |                      7 |                    21 |
-| -:7    |        1 | acd  | auto  |  0.00109549 |    0.000722327 |     7.5212e-05 |     2.8033e-05 |     2.3525e-05 |         1.6241e-05 |          1 |               11 |              38 |                1 |            3 |              26 |               1 |                7 |               8 |                7 |               8 |                      6 |                    14 |                      6 |                    14 |
-| -:8    |        1 | acd  | auto  |  3.4956e-05 |      2.364e-06 |              0 |              0 |              0 |                  0 |          1 |                0 |               0 |                0 |            0 |               0 |               0 |                0 |               0 |                0 |               0 |                      1 |                     1 |                      1 |                     1 |
-| -:9    |        1 | acd  | auto  | 0.000963203 |     0.00068121 |     4.9574e-05 |     5.1888e-05 |     2.8173e-05 |         1.1412e-05 |          1 |                6 |              19 |                2 |            2 |              16 |               2 |                2 |               3 |                2 |               3 |                      2 |                     3 |                      2 |                     3 |
-| -:10   |        1 | acd  | auto  |  5.5886e-05 |      4.098e-06 |              0 |              0 |              0 |                  0 |          1 |                0 |               0 |                0 |            0 |               0 |               0 |                0 |               0 |                0 |               0 |                      1 |                     1 |                      1 |                     1 |
-| -:11   |        1 | acd  | auto  | 0.000113636 |     3.7351e-05 |     1.5379e-05 |     1.1382e-05 |      6.893e-06 |                  0 |          0 |                1 |               0 |                0 |            0 |               3 |               1 |                0 |               0 |                0 |               0 |                      0 |                     0 |                      0 |                     0 |
-| -:12   |        1 | acd  | auto  |  4.6338e-05 |      2.535e-06 |              0 |              0 |              0 |                  0 |          1 |                0 |               0 |                0 |            0 |               0 |               0 |                0 |               0 |                0 |               0 |                      1 |                     1 |                      1 |                     1 |
-| -:13   |        1 | acd  | auto  | 0.000361985 |    0.000218364 |     1.7153e-05 |     1.3826e-05 |      8.587e-06 |          8.576e-06 |          1 |                2 |               3 |                1 |            2 |               5 |               1 |                2 |               2 |                2 |               2 |                      1 |                     2 |                      1 |                     2 |
-| -:14   |        1 | acd  | auto  | 0.000529893 |    0.000350774 |     1.8105e-05 |     2.3745e-05 |     1.0009e-05 |          7.585e-06 |          1 |                1 |               3 |                2 |            2 |               4 |               1 |                2 |               2 |                2 |               2 |                      2 |                     2 |                      2 |                     2 |
-| -:15   |        1 | acd  | auto  |   0.0011819 |    0.000769016 |    0.000107514 |     5.5094e-05 |     3.1399e-05 |         1.9367e-05 |          1 |                8 |              40 |                2 |            4 |              30 |               1 |                7 |              12 |                7 |              12 |                      5 |                    13 |                      5 |                    13 |
-| -:16   |        1 | acd  | auto  |  0.00427915 |     0.00279572 |    0.000574768 |    0.000156947 |    0.000103396 |         5.4894e-05 |          1 |               22 |             225 |                3 |            6 |             103 |               1 |               22 |              40 |               22 |              40 |                     17 |                    71 |                     17 |                    71 |
-| -:17   |        1 | acd  | auto  | 0.000811907 |    0.000552656 |     2.4486e-05 |     2.9295e-05 |     1.1221e-05 |          8.436e-06 |          1 |                1 |               4 |                3 |            3 |               6 |               1 |                3 |               3 |                3 |               3 |                      3 |                     3 |                      3 |                     3 |
-| -:18   |        1 | acd  | auto  |  0.00109892 |    0.000793111 |     3.2972e-05 |     3.3543e-05 |     1.1472e-05 |          9.668e-06 |          1 |                1 |               5 |                4 |            4 |               8 |               1 |                4 |               4 |                4 |               4 |                      4 |                     4 |                      4 |                     4 |
-| -:19   |        1 | acd  | auto  | 0.000800405 |     0.00051217 |     4.2461e-05 |     5.0525e-05 |     2.4046e-05 |         1.2293e-05 |          1 |                4 |              15 |                2 |            3 |              11 |               2 |                1 |               1 |                1 |               1 |                      1 |                     1 |                      1 |                     1 |
-| -:20   |        1 | acd  | auto  |   0.0196147 |      0.0149021 |     0.00268845 |     0.00104262 |    0.000504074 |         2.5819e-05 |          1 |              311 |            3488 |                2 |            5 |            1002 |               2 |               10 |              10 |               10 |              10 |                      6 |                    12 |                      6 |                    12 |
-| -:21   |        1 | acd  | auto  |    0.119126 |       0.113659 |     0.00162097 |    0.000147229 |    0.000243901 |        0.000215418 |          1 |               75 |             546 |                1 |            8 |             371 |               1 |               74 |             228 |               74 |             228 |                     71 |                   339 |                     71 |                   339 |
-| -:22   |        1 | acd  | auto  |  0.00351029 |     0.00222552 |    0.000303284 |     0.00010043 |    0.000104838 |         5.3962e-05 |          1 |               30 |             161 |                2 |            4 |              86 |               1 |               22 |              25 |               22 |              25 |                     15 |                    67 |                     15 |                    67 |
-| -:23   |        1 | acd  | auto  | 0.000890897 |    0.000617519 |      3.165e-05 |     2.9737e-05 |     2.0017e-05 |         1.5259e-05 |          1 |                7 |              16 |                1 |            2 |              17 |               1 |                5 |               6 |                5 |               6 |                      3 |                     6 |                      3 |                     6 |
+| source | subspecs | algo | split |  total_time | sum_trans_time | sum_split_time | sum_todpa_time | sum_solve_time | sum_strat2aut_time |    aig_time | realizable | max_trans_states | max_trans_edges | max_trans_colors | max_trans_ap | max_game_states | max_game_colors | max_strat_states | max_strat_edges | sum_strat_states | sum_strat_edges | max_simpl_strat_states | max_simpl_strat_edges | sum_simpl_strat_states | sum_simpl_strat_edges | aig_latches | aig_gates |
+|--------+----------+------+-------+-------------+----------------+----------------+----------------+----------------+--------------------+-------------+------------+------------------+-----------------+------------------+--------------+-----------------+-----------------+------------------+-----------------+------------------+-----------------+------------------------+-----------------------+------------------------+-----------------------+-------------+-----------|
+| -:1    |        2 | acd  | auto  | 0.000408974 |    0.000183978 |     1.9226e-05 |     1.8736e-05 |      7.654e-06 |                  0 |           0 |          0 |                1 |               0 |                0 |            0 |               3 |               1 |                0 |               0 |                0 |               0 |                      0 |                     0 |                      0 |                     0 |           0 |         0 |
+| -:2    |        2 | acd  | auto  | 0.000297303 |    0.000176515 |     1.3345e-05 |     1.7834e-05 |      5.431e-06 |          8.075e-06 |           0 |          0 |                5 |               8 |                0 |            1 |              10 |               0 |                2 |               2 |                2 |               2 |                      2 |                     2 |                      2 |                     2 |           0 |         0 |
+| -:3    |        1 | acd  | auto  | 0.000791278 |    0.000549861 |     4.4484e-05 |     1.7753e-05 |     1.6862e-05 |          8.436e-06 |   5.246e-05 |          1 |               12 |              46 |                1 |            3 |              26 |               1 |                5 |               5 |                5 |               5 |                      2 |                     2 |                      2 |                     2 |           1 |         0 |
+| -:4    |        1 | acd  | auto  |  0.00078738 |    0.000526687 |     6.6005e-05 |     2.0329e-05 |     1.7083e-05 |          1.028e-05 |   3.678e-05 |          1 |               15 |              62 |                1 |            3 |              33 |               1 |                6 |               6 |                6 |               6 |                      3 |                     3 |                      3 |                     3 |           2 |         8 |
+| -:5    |        1 | acd  | auto  | 0.000835672 |    0.000494376 |     6.9522e-05 |     2.3264e-05 |     1.8816e-05 |         2.2202e-05 |  8.9289e-05 |          1 |               20 |              88 |                1 |            3 |              47 |               1 |                8 |               9 |                8 |               9 |                      6 |                     7 |                      6 |                     7 |           3 |        46 |
+| -:6    |        1 | acd  | auto  | 0.000872972 |    0.000479157 |     7.4541e-05 |       2.64e-05 |     2.1601e-05 |         2.5038e-05 |  8.8497e-05 |          1 |               24 |             111 |                1 |            3 |              55 |               1 |               11 |              12 |               11 |              12 |                      7 |                     9 |                      7 |                     9 |           3 |        46 |
+| -:7    |        1 | acd  | auto  | 0.000787119 |    0.000382314 |      4.238e-05 |     1.4988e-05 |     1.3055e-05 |          8.546e-06 | 0.000155214 |          1 |               11 |              38 |                1 |            3 |              26 |               1 |                7 |               8 |                7 |               8 |                      6 |                     7 |                      6 |                     7 |           3 |        29 |
+| -:8    |        1 | acd  | auto  |  3.2521e-05 |      1.794e-06 |              0 |              0 |              0 |                  0 |   1.052e-05 |          1 |                0 |               0 |                0 |            0 |               0 |               0 |                0 |               0 |                0 |               0 |                      1 |                     1 |                      1 |                     1 |           0 |         0 |
+| -:9    |        1 | acd  | auto  | 0.000505467 |    0.000354952 |      2.106e-05 |     2.7602e-05 |     1.3225e-05 |          6.282e-06 |  1.8395e-05 |          1 |                6 |              19 |                2 |            2 |              16 |               2 |                2 |               3 |                2 |               3 |                      2 |                     3 |                      2 |                     3 |           1 |         1 |
+| -:10   |        1 | acd  | auto  |  3.2231e-05 |      1.092e-06 |              0 |              0 |              0 |                  0 |  1.0921e-05 |          1 |                0 |               0 |                0 |            0 |               0 |               0 |                0 |               0 |                0 |               0 |                      1 |                     1 |                      1 |                     1 |           0 |         0 |
+| -:11   |        1 | acd  | auto  |  4.1779e-05 |     1.5269e-05 |      3.847e-06 |      3.436e-06 |      3.737e-06 |                  0 |           0 |          0 |                1 |               0 |                0 |            0 |               3 |               1 |                0 |               0 |                0 |               0 |                      0 |                     0 |                      0 |                     0 |           0 |         0 |
+| -:12   |        1 | acd  | auto  |  3.4015e-05 |      1.352e-06 |              0 |              0 |              0 |                  0 |  1.2925e-05 |          1 |                0 |               0 |                0 |            0 |               0 |               0 |                0 |               0 |                0 |               0 |                      1 |                     1 |                      1 |                     1 |           0 |         0 |
+| -:13   |        1 | acd  | auto  | 0.000229304 |    0.000135867 |      9.848e-06 |      7.855e-06 |      4.819e-06 |          4.749e-06 |  1.2514e-05 |          1 |                2 |               3 |                1 |            2 |               5 |               1 |                2 |               2 |                2 |               2 |                      1 |                     2 |                      1 |                     2 |           0 |         0 |
+| -:14   |        1 | acd  | auto  | 0.000310568 |    0.000199397 |     1.0069e-05 |     1.2905e-05 |      5.571e-06 |          3.888e-06 |  1.7733e-05 |          1 |                1 |               3 |                2 |            2 |               4 |               1 |                2 |               2 |                2 |               2 |                      2 |                     2 |                      2 |                     2 |           1 |         0 |
+| -:15   |        1 | acd  | auto  |  0.00075019 |    0.000435724 |     6.0634e-05 |     2.9616e-05 |     1.6872e-05 |          1.075e-05 |  8.2957e-05 |          1 |                8 |              40 |                2 |            4 |              30 |               1 |                7 |              12 |                7 |              12 |                      5 |                    10 |                      5 |                    10 |           3 |        38 |
+| -:16   |        1 | acd  | auto  |  0.00297522 |     0.00156048 |    0.000310197 |      8.474e-05 |     5.5796e-05 |         2.9766e-05 | 0.000558948 |          1 |               22 |             225 |                3 |            6 |             103 |               1 |               22 |              40 |               22 |              40 |                     17 |                    36 |                     17 |                    36 |           5 |       326 |
+| -:17   |        1 | acd  | auto  | 0.000468838 |    0.000296471 |     1.3916e-05 |     1.5699e-05 |      6.362e-06 |          4.568e-06 |  2.9867e-05 |          1 |                1 |               4 |                3 |            3 |               6 |               1 |                3 |               3 |                3 |               3 |                      3 |                     3 |                      3 |                     3 |           2 |         3 |
+| -:18   |        1 | acd  | auto  | 0.000630864 |    0.000437838 |     1.8946e-05 |     1.7714e-05 |      6.342e-06 |          5.139e-06 |  3.2902e-05 |          1 |                1 |               5 |                4 |            4 |               8 |               1 |                4 |               4 |                4 |               4 |                      4 |                     4 |                      4 |                     4 |           2 |         5 |
+| -:19   |        1 | acd  | auto  | 0.000424403 |     0.00026955 |     2.2813e-05 |      2.641e-05 |     1.1281e-05 |          4.309e-06 |  1.5469e-05 |          1 |                4 |              15 |                2 |            3 |              11 |               2 |                1 |               1 |                1 |               1 |                      1 |                     1 |                      1 |                     1 |           0 |         0 |
+| -:20   |        1 | acd  | auto  |      0.0109 |     0.00806685 |      0.0014951 |    0.000575409 |    0.000282314 |         1.8305e-05 | 0.000173057 |          1 |              311 |            3488 |                2 |            5 |            1002 |               2 |               10 |              10 |               10 |              10 |                      6 |                     8 |                      6 |                     8 |           3 |        30 |
+| -:21   |        1 | acd  | auto  |   0.0674067 |      0.0618205 |     0.00108741 |     8.1494e-05 |    0.000130147 |         0.00011593 |  0.00220405 |          1 |               75 |             546 |                1 |            8 |             371 |               1 |               74 |             228 |               74 |             228 |                     71 |                   213 |                     71 |                   213 |           7 |      1299 |
+| -:22   |        1 | acd  | auto  |  0.00230346 |     0.00124588 |    0.000171444 |     5.5064e-05 |     5.4483e-05 |         2.7612e-05 | 0.000318924 |          1 |               30 |             161 |                2 |            4 |              86 |               1 |               22 |              25 |               22 |              25 |                     15 |                    19 |                     15 |                    19 |           4 |       194 |
+| -:23   |        1 | acd  | auto  | 0.000509164 |    0.000336807 |     1.6551e-05 |     1.5599e-05 |      1.046e-05 |          8.035e-06 |  3.3092e-05 |          1 |                7 |              16 |                1 |            2 |              17 |               1 |                5 |               6 |                5 |               6 |                      3 |                     4 |                      3 |                     4 |           2 |        10 |
+
+The subset of columns output is adjusted according to the task
+performed by =ltlsynt=.  For instance with =--realizability=, the CSV
+file will not include statistics about the winning strategies or the
+AIG circuits.  When reading a game with =--from-pgame=, columns giving
+statistics about LTL translation will be omitted.
 
 The names of the columns should be mostly self explanatory.  The
 decomposition of the specification into multiple sub-specifications
@@ -396,14 +378,15 @@ statistics are gathered:
 - =total_time=: total time measured by =ltlsynt= to solve the problem
   once the problem has been loaded (parsing of the formula, conversion
   from TSLF, or parsing of a parity game are all excluded)
-- =sum_trans_time=: sum of the translation time needed to obtain an
+- =sum_trans_time=: sum of the translation time used to obtain an
   automaton from each subspecification.
-- =sum_split_time=: sum of the times needed to split the automata
-- =sum_todpa_time=: sum of the times needed to paritize the automata
-- =sum_solve_time=: sum of the times needed to solve the game for each
+- =sum_split_time=: sum of the times used to split the automata
+- =sum_todpa_time=: sum of the times used to paritize the automata
+- =sum_solve_time=: sum of the times used to solve the game for each
   subspecification
-- =sum_strat2aut_time= sum of the time needed to extract the
+- =sum_strat2aut_time=: sum of the time needed to extract the
   strategies
+- =aig_time=: time used to encode all strategies into one AIG circuit
 - =realizable=: whether the specification is realizable
 - =max_trans_states,max_trans_edges,max_trans_colors,max_trans_ap=:
   Size of the largest automaton constructed for a subspecification.
@@ -425,10 +408,9 @@ statistics are gathered:
 - =aig_gates,aig_latches=: Size of the AIG circuit, if requested.
 
 
-In the table from the previous section some of the intermediate
-processing times are listed as =0= (e.g., for input 8, 10, 12) because
-the specifications can be found to be realizable trivially without
-building any game.
+In this example table, some of the intermediate processing times are
+listed as =0= (e.g., for input 8, 10, 12) because the specifications
+can be found to be realizable trivially without building any game.
 
 
 ** Verifying the output

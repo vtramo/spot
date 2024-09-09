@@ -105,6 +105,10 @@ New in spot 2.12.0.dev (not yet released)
 
   - "ltlsynt ... --print-game --dot=ARGS" was ignoring ARGS.
 
+  - "ltlsynt --aiger -q ..." was still printing the realizability
+    status and the AIG circuit; it now does the job silently as
+    requested.
+
 New in spot 2.12  (2024-05-16)
 
   Build:
