@@ -49,8 +49,8 @@ enum
 {
   OPT_ALGO = 256,
   OPT_BYPASS,
-  OPT_CSV,
-  OPT_CSV_NO_FORMULA,
+  OPT_CSV_WITH_FORMULA,
+  OPT_CSV_WITHOUT_FORMULA,
   OPT_DECOMPOSE,
   OPT_DOT,
   OPT_FROM_PGAME,
@@ -150,13 +150,14 @@ static const argp_option options[] =
       "For games and strategies, standard automata rendering "
       "options are supported (e.g., see ltl2tgba --dot).  For AIG circuit, "
       "use (h) for horizontal and (v) for vertical layouts.", 0 },
-    { "csv", OPT_CSV, "[>>]FILENAME", OPTION_ARG_OPTIONAL,
+    { "csv", OPT_CSV_WITHOUT_FORMULA, "[>>]FILENAME", OPTION_ARG_OPTIONAL,
       "output statistics as CSV in FILENAME or on standard output "
       "(if '>>' is used to request append mode, the header line is "
       "not output)", 0 },
-    { "csv-without-formula", OPT_CSV_NO_FORMULA, "[>>]FILENAME",
-      OPTION_ARG_OPTIONAL, "like --csv, but without 'fomula' column", 0 },
-    { "csv-no-formula", 0, nullptr, OPTION_ALIAS, nullptr, 0 },
+    { "csv-without-formula", 0, nullptr, OPTION_ALIAS, nullptr, 0 },
+    { "csv-with-formula", OPT_CSV_WITH_FORMULA, "[>>]FILENAME",
+      OPTION_ARG_OPTIONAL,
+      "like --csv, but with an additional 'fomula' column", 0 },
     { "hide-status", OPT_HIDE, nullptr, 0,
       "Hide the REALIZABLE or UNREALIZABLE line.  (Hint: exit status "
       "is enough of an indication.)", 0 },
@@ -1051,11 +1052,11 @@ parse_opt(int key, char *arg, struct argp_state *)
     case OPT_BYPASS:
       opt_bypass = XARGMATCH("--bypass", arg, bypass_args, bypass_values);
       break;
-    case OPT_CSV:
+    case OPT_CSV_WITH_FORMULA:
       opt_csv = arg ? arg : "-";
       opt_csv_with_formula = true;
       break;
-    case OPT_CSV_NO_FORMULA:
+    case OPT_CSV_WITHOUT_FORMULA:
       opt_csv = arg ? arg : "-";
       opt_csv_with_formula = false;
       break;

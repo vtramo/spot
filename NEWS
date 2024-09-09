@@ -8,19 +8,19 @@ New in spot 2.12.0.dev (not yet released)
   - (BACKWARD INCOMPATIBILITY) ltlsynt's CSV output has been largely
     overhauled, and the output columns have been both renamed (for
     consistency) and augmented (with new statistics).  The new CSV
-    output should more useful when the input specification was
+    output should be more useful when the input specification is
     decomposed, in particular, there is a column giving the number of
-    sub-specifications obained, and other statistics columns have name
-    starting with "max_" or "sum_" indicating how said statistics are
-    updated across sub-speciications.
+    sub-specifications obained, and other statistics columns have
+    names starting with "max_" or "sum_" indicating how said
+    statistics are updated across sub-specifications.
 
     See https://spot.lre.epita.fr/ltlsynt.html#csv for an example.
 
     Additionally, --csv=FILENAME will now save the source filename for
-    the processed formulas as the first column of the CSV file.  A new
-    option --csv-without-formula=FILENAME can be used to save
-    everything but the formula column (as it can be very large, and
-    can be found from the source filename).
+    the processed formulas as the first column of the CSV file, and
+    the "formula" column is no longer output by default to save space.
+    This "formula" column can be added back with the new option
+    --csv-with-formula=FILENAME if really needed.
 
   - ltlsynt learned a --part-file option, to specify the partition of
     input/output proposition from a *.part file, as used in several
