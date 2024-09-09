@@ -31,7 +31,8 @@ i1 <-> F(o1 xor o2)
 F(i1) <-> G(o2)
 EOF
 
-ltlsynt --ins=i1,i2 -F formulas.ltl -f 'o1 & F(i1 <-> o2)' -q --csv=out.csv &&\
+ltlsynt --ins=i1,i2 -F formulas.ltl -f 'o1 & F(i1 <-> o2)' -q \
+        --csv-with-formula=out.csv &&\
     exit 2
 test $? -eq 1 || exit 2
 
@@ -68,7 +69,7 @@ diff filtered.csv expected
 
 # ltlfilt should be able to read the second column
 mv filtered.csv input.csv
-ltlsynt --ins=i1,i2 -F input.csv/-2 --csv=out.csv -q && exit 2
+ltlsynt --ins=i1,i2 -F input.csv/-2 --csv-with-formula=out.csv -q && exit 2
 test $? -eq 1
 $PYTHON test.py
 cat >expected <<EOF
@@ -82,7 +83,7 @@ EOF
 diff filtered.csv expected
 
 grep -v 0,0 filtered.csv >input.csv
-ltlsynt -F input.csv/-2 --csv=out.csv -q
+ltlsynt -F input.csv/-2 --csv-with-formula=out.csv -q
 $PYTHON test.py
 cat >expected <<EOF
 source,formula,algo,realizable,sum_strat_states
@@ -93,7 +94,7 @@ input.csv:5,o1 & F(i1 <-> o2),lar,1,2
 EOF
 diff filtered.csv expected
 
-ltlsynt -F input.csv/-2 --csv-without-formula=out.csv -q
+ltlsynt -F input.csv/-2 --csv=out.csv -q
 cut out.csv -d, -f1,2,3 >filtered.csv
 cat >expected <<EOF
 source,subspecs,algo
