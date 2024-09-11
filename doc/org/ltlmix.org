@@ -476,7 +476,7 @@ conflict.  Therefore, increasing the number of atomic propositions to
 chose from may help to get more realizable formulas.
 
 #+BEGIN_SRC sh :exports both :epilogue true
-  genltl --lily=8..11 | ltlmix -A50,50 -C3 -n6 | ltlsynt -q
+  genltl --lily=8..11 | ltlmix -A50,50 -C3 -n6 | ltlsynt --realizability
 #+END_SRC
 
 #+RESULTS:
