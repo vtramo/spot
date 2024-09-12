@@ -494,12 +494,12 @@ diff out exp
 
 for splitt in expl semisym fullysym auto
 do
-  res=$(ltlsynt -f "G((i0 && i1)<->X(o0)) && G((i2|i3)<->X(o1))" \
+  # REALIZABLE
+  ltlsynt -f "G((i0 && i1)<->X(o0)) && G((i2|i3)<->X(o1))" \
           --outs="o0,o1" --aiger=isop+ud --algo=lar --decompose=no \
-          --simpl=no --splittype="$splitt" --realizability)
-  if [[ "$res" != "REALIZABLE" ]]; then
-    echo "Expected realizable"
-  fi
+          --simpl=no --splittype="$splitt" --realizability || exit 2
+  # UNREALIZABLE
+  ltlsynt -f "Gi & Fo" --splittype="$splitt" --realizability && exit 2
 done
 
 

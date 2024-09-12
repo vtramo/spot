@@ -1386,6 +1386,8 @@ namespace spot
           {
             assert(std::holds_alternative<bdd>(ccondin));
             const bdd& ccond = std::get<bdd>(ccondin);
+            if (ccond == bddfalse)
+              return;
             int clvl = ccond == bddtrue ? inIdx : bdd_var(ccond);
             if (clvl >= inIdx)
               {
@@ -1468,17 +1470,11 @@ namespace spot
             for (const auto &e: aut->out(s))
               enc_out_s |= encode_edge(e);  // Switch to new ins and outs
 
-            // Can only be false if there is no outgoing edge
-            // In this case: Nothing to do
-            assert(enc_out_s != bddfalse
-                   || (!(aut->out(s).begin())));
-
             if (enc_out_s == bddfalse)
             {
-              std::cerr << "Dead end state: " << s << '\n';
-#ifndef NDEBUG
-              print_hoa(std::cerr, aut);
-#endif
+              // Can only be false if there is no outgoing edge
+              // In this case: Nothing to do
+              assert(!(aut->out(s).begin()));
               continue;
             }
 
