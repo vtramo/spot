@@ -18,85 +18,74 @@
 
 #include "config.h"
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <cassert>
 #include <cstdlib>
+#include <cstring>
 #include <spot/tl/parse.hh>
-#include <spot/tl/print.hh>
-#include <spot/tl/simplify.hh>
 #include <spot/tl/nenoform.hh>
+#include <spot/tl/simplify.hh>
+#include <spot/tl/print.hh>
 
 static void
 syntax(char* prog)
 {
-  std::cerr << prog << " formula1 formula2?\n";
+  std::cerr << prog << " file\n";
   exit(2);
 }
 
 int
 main(int argc, char** argv)
 {
-  if (argc < 4)
+  if (argc != 2)
     syntax(argv[0]);
-
-  int opt = atoi(argv[1]);
-  int exit_return = 0;
-
-  {
-    auto ftmp1 = spot::parse_infix_psl(argv[2]);
-
-    if (ftmp1.format_errors(std::cerr))
+  std::ifstream input(argv[1]);
+  if (!input)
+    {
+      std::cerr << "failed to open " << argv[1] << '\n';
       return 2;
+    }
 
-    auto ftmp2 = spot::parse_infix_psl(argv[3]);
+  spot::tl_simplifier* c = new spot::tl_simplifier;
+  std::string s;
+  unsigned line = 0;
+  while (std::getline(input, s))
+    {
+      ++line;
+      std::cerr << line << ": " << s << '\n';
+      if (s[0] == '#')                // Skip comments
+        continue;
 
-    if (ftmp2.format_errors(std::cerr))
-      return 2;
-
-    spot::formula f1 = spot::negative_normal_form(ftmp1.f);
-    spot::formula f2 = spot::negative_normal_form(ftmp2.f);
-
-    std::string f1s = spot::str_psl(f1);
-    std::string f2s = spot::str_psl(f2);
-
-    spot::tl_simplifier* c = new spot::tl_simplifier;
-
-    switch (opt)
-      {
-      case 0:
-        std::cout << "Test f1 < f2" << std::endl;
-        if (c->syntactic_implication(f1, f2))
-          {
-            std::cout << f1s << " < " << f2s << '\n';
-            exit_return = 1;
-          }
-        break;
-
-      case 1:
-        std::cout << "Test !f1 < f2" << std::endl;
-        if (c->syntactic_implication_neg(f1, f2, false))
-          {
-            std::cout << "!(" << f1s << ") < " << f2s << '\n';
-            exit_return = 1;
-          }
-        break;
-
-      case 2:
-        std::cout << "Test f1 < !f2" << std::endl;
-        if (c->syntactic_implication_neg(f1, f2, true))
-          {
-            std::cout << f1s << " < !(" << f2s << ")\n";
-            exit_return = 1;
-          }
-        break;
-      default:
-        break;
-      }
-
-    f1.dump(std::cout) << '\n';
-    f2.dump(std::cout) << '\n';
-
-    delete c;
-  }
+      spot::formula f[2];
+      std::istringstream ss(s);
+      for (unsigned i = 0; i < 2; ++i)
+        {
+          std::string form;
+          if (!std::getline(ss, form, ','))
+            {
+              std::cerr << "missing first formula\n";
+              exit(2);
+            }
+          std::string tmp;
+          while (form.size() > 0 && form.back() == '\\'
+                 && std::getline(ss, tmp, ','))
+            {
+              form.back() = ',';
+              form += tmp;
+            }
+          auto pf = spot::parse_infix_psl(form);
+          if (pf.format_errors(std::cerr))
+            return 2;
+          f[i] = spot::negative_normal_form(pf.f);
+        }
+      // ignore the rest of the line
+      std::cout << spot::str_psl(f[0]) << ',' << spot::str_psl(f[1]) << ','
+                << c->syntactic_implication(f[0], f[1]) << ','
+                << c->syntactic_implication_neg(f[0], f[1], false) << ','
+                << c->syntactic_implication_neg(f[0], f[1], true) << '\n';
+    }
+  delete c;
   assert(spot::fnode::instances_check());
-  return exit_return;
+  return 0;
 }
