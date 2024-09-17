@@ -46,6 +46,7 @@ misc_HEADERS = \
   memusage.hh \
   mspool.hh \
   optionmap.hh \
+  permute.hh \
   position.hh \
   random.hh \
   satsolver.hh \

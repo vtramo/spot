@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <numeric>
 #include <spot/twaalgos/randomize.hh>
+#include <spot/misc/permute.hh>
 #include <spot/misc/random.hh>
 
 namespace spot
@@ -47,11 +48,8 @@ namespace spot
         if (auto sn =
             aut->get_named_prop<std::vector<std::string>>("state-names"))
           {
-            unsigned sns = sn->size(); // Might be != n.
-            auto nn = new std::vector<std::string>(n);
-            for (unsigned i = 0; i < sns && i < n; ++i)
-              (*nn)[nums[i]] = (*sn)[i];
-            aut->set_named_prop("state-names", nn);
+            sn->resize(n);
+            permute_vector(*sn, nums);
           }
         if (auto hs = aut->get_named_prop<std::map<unsigned, unsigned>>
             ("highlight-states"))

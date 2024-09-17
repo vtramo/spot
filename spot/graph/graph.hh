@@ -20,6 +20,7 @@
 
 #include <spot/misc/common.hh>
 #include <spot/misc/_config.h>
+#include <spot/misc/permute.hh>
 #include <vector>
 #include <type_traits>
 #include <tuple>
@@ -1446,8 +1447,7 @@ namespace spot
     /// dangling.
     ///
     /// \param newst A vector indicating how each state should be
-    /// renumbered.  Use -1U to erase an unreachable state.  All other
-    /// numbers are expected to satisfy newst[i] ≤ i for all i.
+    /// renumbered.  Use -1U to erase an unreachable state.
     ///
     /// \param used_states the number of states used (after
     /// renumbering)
@@ -1461,24 +1461,19 @@ namespace spot
       //std::cerr << "\nbefore defrag\n";
       //dump_storage(std::cerr);
 
-      // Shift all states in states_, as indicated by newst.
+      // Permute all states in states_, as indicated by newst.
+      // This will put erased states after used_states.
+      permute_vector(states_, newst);
       unsigned send = states_.size();
-      for (state s = 0; s < send; ++s)
+      for (state s = used_states; s < send; ++s)
         {
-          state dst = newst[s];
-          if (dst == s)
-            continue;
-          if (dst == -1U)
-            {
-              // This is an erased state.  Mark all its edges as
-              // dead (i.e., t.next_succ should point to t for each of
-              // them).
-              auto t = states_[s].succ;
-              while (t)
-                std::swap(t, edges_[t].next_succ);
-              continue;
-            }
-          states_[dst] = std::move(states_[s]);
+          // This is an erased state.  Mark all its edges as
+          // dead (i.e., t.next_succ should point to t for each of
+          // them).
+          auto t = states_[s].succ;
+          while (t)
+            std::swap(t, edges_[t].next_succ);
+          continue;
         }
       states_.resize(used_states);
 

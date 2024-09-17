@@ -93,6 +93,9 @@ New in spot 2.12.0.dev (not yet released)
      any word accepted by A from state x satisfies V[x].  Related to
      Issue #591.
 
+  - twa_graph::defrag_states(num) no longer require num[i]≤i; num
+    can now describe a permutation of the state numbers.
+
   Bug fixes:
 
   - Generating random formulas without any unary opertor would very

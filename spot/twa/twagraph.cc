@@ -1257,18 +1257,10 @@ namespace spot
         for (auto& e: edges())
           fixup(e.dst);
       }
-
+    // Update properties...
     if (auto* names = get_named_prop<std::vector<std::string>>("state-names"))
       {
-        unsigned size = names->size();
-        for (unsigned s = 0; s < size; ++s)
-          {
-            unsigned dst = newst[s];
-            if (dst == s || dst == -1U)
-              continue;
-            assert(dst < s);
-            (*names)[dst] = std::move((*names)[s]);
-          }
+        permute_vector(*names, newst);
         names->resize(used_states);
       }
     if (auto hs = get_named_prop<std::map<unsigned, unsigned>>
@@ -1325,15 +1317,7 @@ namespace spot
                             "degen-levels"})
       if (auto os = get_named_prop<std::vector<unsigned>>(prop))
         {
-          unsigned size = os->size();
-          for (unsigned s = 0; s < size; ++s)
-            {
-              unsigned dst = newst[s];
-              if (dst == s || dst == -1U)
-                continue;
-              assert(dst < s);
-              (*os)[dst] = (*os)[s];
-            }
+          permute_vector(*os, newst);
           os->resize(used_states);
         }
     if (auto ss = get_named_prop<std::vector<unsigned>>("simulated-states"))
@@ -1349,19 +1333,10 @@ namespace spot
     // Reassign the state-players
     if (auto sp = get_named_prop<std::vector<bool>>("state-player"))
       {
-        const auto ns = (unsigned) used_states;
-        const auto sps = (unsigned) sp->size();
-        assert(ns <= sps);
-        assert(sps == newst.size());
-
-        for (unsigned i = 0; i < sps; ++i)
-          {
-            if (newst[i] == -1u)
-              continue;
-            (*sp)[newst[i]] = (*sp)[i];
-          }
-        sp->resize(ns);
+        permute_vector(*sp, newst);
+        sp->resize(used_states);
       }
+    // Finally, update all states and edges.
     init_number_ = newst[init_number_];
     g_.defrag_states(newst, used_states);
   }

@@ -734,8 +734,7 @@ namespace spot
     ///
     /// \param newst A vector indicating how each state should be
     /// renumbered.  Use -1U to mark an unreachable state for removal.
-    /// Ignoring the occurrences of -1U, the renumbering is expected
-    /// to satisfy newst[i] ≤ i for all i.   If the automaton contains
+    /// Ignoring the occurrences of -1U.   If the automaton contains
     /// universal branching, this vector is likely to be modified by
     /// this function, so do not reuse it afterwards.
     ///
