@@ -133,6 +133,7 @@
 #include <spot/twaalgos/determinize.hh>
 #include <spot/twaalgos/magic.hh>
 #include <spot/twaalgos/matchstates.hh>
+#include <spot/twaalgos/mcs.hh>
 #include <spot/twaalgos/minimize.hh>
 #include <spot/twaalgos/mealy_machine.hh>
 #include <spot/twaalgos/neverclaim.hh>
@@ -742,6 +743,7 @@ def state_is_accepting(self, src) -> "bool":
 %include <spot/twaalgos/langmap.hh>
 %include <spot/twaalgos/magic.hh>
 %include <spot/twaalgos/matchstates.hh>
+%include <spot/twaalgos/mcs.hh>
 %include <spot/twaalgos/minimize.hh>
 %include <spot/twaalgos/mealy_machine.hh>
 %include <spot/twaalgos/neverclaim.hh>

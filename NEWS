@@ -51,6 +51,10 @@ New in spot 2.12.0.dev (not yet released)
   - autfilt learned --track-formula=F to label states with formulas
     derived from F.  (This is more precise on deterministic automata.)
 
+  - autfilt learned --mcs[=any|scc] to reorder states according to a
+    maximum cardinality search.  The argument specifies how to break
+    ties.
+
   - ltlfilt learned --pi1, --sigma1, --delta1, --pi2, --sigma2, and
     --delta2 to filter according to classes Π₁,Σ₁,Δ₁,Π₂,Σ₂, and Δ₂.
 
@@ -95,6 +99,11 @@ New in spot 2.12.0.dev (not yet released)
 
   - twa_graph::defrag_states(num) no longer require num[i]≤i; num
     can now describe a permutation of the state numbers.
+
+  - spot::maximum_cardinality_search() and
+    spot::maximum_cardinality_search_reorder_here() are new function
+    to compute (and apply) an ordering of state based on a maximum
+    cardinality search.
 
   Bug fixes:
 

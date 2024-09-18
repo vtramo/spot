@@ -65,6 +65,7 @@
 #include <spot/twaalgos/langmap.hh>
 #include <spot/twaalgos/mask.hh>
 #include <spot/twaalgos/matchstates.hh>
+#include <spot/twaalgos/mcs.hh>
 #include <spot/twaalgos/product.hh>
 #include <spot/twaalgos/randomize.hh>
 #include <spot/twaalgos/remfin.hh>
@@ -137,6 +138,7 @@ enum {
   OPT_KEEP_STATES,
   OPT_KILL_STATES,
   OPT_MASK_ACC,
+  OPT_MCS,
   OPT_MERGE,
   OPT_NONDET_STATES,
   OPT_PARTIAL_DEGEN,
@@ -296,6 +298,9 @@ static const argp_option options[] =
     WORD_DOC,
     /**************************************************/
     { nullptr, 0, nullptr, 0, "Transformations:", 7 },
+    { "mcs-order", OPT_MCS, "any|scc", OPTION_ARG_OPTIONAL,
+      "reorder states using a maximum cardinality search; use option to"
+      " specify how to break ties", 0 },
     { "merge-transitions", OPT_MERGE, nullptr, 0,
       "merge transitions with same destination and acceptance", 0 },
     { "product", OPT_PRODUCT_AND, "FILENAME", 0,
@@ -522,6 +527,21 @@ static bool const aliases_types[] =
 };
 ARGMATCH_VERIFY(aliases_args, aliases_types);
 
+spot::mcs_tie_break opt_mcs_tie = spot::MCS_TIE_ANY;
+static char const* const mcs_args[] =
+{
+  "any",
+  "scc",
+  nullptr,
+};
+static spot::mcs_tie_break const mcs_types[] =
+{
+  spot::MCS_TIE_ANY,
+  spot::MCS_TIE_SCC,
+};
+ARGMATCH_VERIFY(mcs_args, mcs_types);
+
+
 enum acc_type {
   ACC_Any = 0,
   ACC_Given,
@@ -653,6 +673,7 @@ static struct opt_t
   std::vector<std::pair<spot::twa_graph_ptr, unsigned>> hl_words;
 }* opt;
 
+static bool opt_mcs = false;
 static bool opt_merge = false;
 static bool opt_has_univ_branching = false;
 static bool opt_has_exist_branching = false;
@@ -1107,9 +1128,6 @@ parse_opt(int key, char* arg, struct argp_state*)
         opt_rem_dead = true;
         break;
       }
-    case OPT_MERGE:
-      opt_merge = true;
-      break;
     case OPT_MASK_ACC:
       {
         for (auto res : to_longs(arg))
@@ -1125,6 +1143,14 @@ parse_opt(int key, char* arg, struct argp_state*)
           }
         break;
       }
+    case OPT_MCS:
+      opt_mcs = true;
+      if (arg)
+        opt_mcs_tie = XARGMATCH("--mcs", arg, mcs_args, mcs_types);
+      break;
+    case OPT_MERGE:
+      opt_merge = true;
+      break;
     case OPT_NONDET_STATES:
       opt_nondet_states = parse_range(arg, 0, std::numeric_limits<int>::max());
       opt_nondet_states_set = true;
@@ -1743,6 +1769,9 @@ namespace
         for (auto& [word_aut, color]: opt->hl_words)
           if (auto run = spot::product(aut, word_aut)->accepting_run())
             run->project(aut)->highlight(color);
+
+      if (opt_mcs)
+        spot::maximum_cardinality_search_reorder_here(aut, opt_mcs_tie);
 
       timer.stop();
       if (opt->uniq)

@@ -37,6 +37,7 @@ twaalgos_HEADERS = \
   compsusp.hh \
   contains.hh \
   copy.hh \
+  couvreurnew.hh \
   cycles.hh \
   dbranch.hh \
   deadends.hh \
@@ -65,9 +66,9 @@ twaalgos_HEADERS = \
   magic.hh \
   mask.hh \
   matchstates.hh \
+  mcs.hh \
   minimize.hh \
   mealy_machine.hh \
-  couvreurnew.hh \
   neverclaim.hh \
   parity.hh \
   postproc.hh \
@@ -114,6 +115,7 @@ libtwaalgos_la_SOURCES = \
   complement.cc \
   compsusp.cc \
   contains.cc \
+  couvreurnew.cc \
   cycles.cc \
   dbranch.cc \
   deadends.cc \
@@ -141,9 +143,9 @@ libtwaalgos_la_SOURCES = \
   magic.cc \
   mask.cc \
   matchstates.cc \
+  mcs.cc \
   minimize.cc \
   mealy_machine.cc \
-  couvreurnew.cc \
   ndfs_result.hxx \
   neverclaim.cc \
   parity.cc \

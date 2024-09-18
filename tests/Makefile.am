@@ -280,6 +280,7 @@ TESTS_twa = \
   core/randomize.test \
   core/lbttparse.test \
   core/ltlf.test \
+  core/mcs.test \
   core/scc.test \
   core/sccdot.test \
   core/sccif.test \
