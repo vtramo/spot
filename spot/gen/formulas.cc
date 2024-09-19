@@ -1428,9 +1428,9 @@ namespace spot
         case LTL_P_PATTERNS:
           return p_pattern(n);
         case LTL_PPS_ARBITER_STANDARD:
-          return pps_arbiter("r", "g", n, false);
+          return pps_arbiter("i", "o", n, false);
         case LTL_PPS_ARBITER_STRICT:
-          return pps_arbiter("r", "g", n, true);
+          return pps_arbiter("i", "o", n, true);
         case LTL_R_LEFT:
           return bin_n("p", n, op::R, false);
         case LTL_R_RIGHT:

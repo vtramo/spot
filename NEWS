@@ -10,7 +10,7 @@ New in spot 2.12.0.dev (not yet released)
     consistency) and augmented (with new statistics).  The new CSV
     output should be more useful when the input specification is
     decomposed, in particular, there is a column giving the number of
-    sub-specifications obained, and other statistics columns have
+    sub-specifications obtained, and other statistics columns have
     names starting with "max_" or "sum_" indicating how said
     statistics are updated across sub-specifications.
 
@@ -43,6 +43,12 @@ New in spot 2.12.0.dev (not yet released)
     so they can be fed to ltlsynt directly, as in
 
        % genltl --lily-patterns | ltlsynt -q
+
+  - genltl's --pps-arbiter-standard and --pps-arbiter-strict have been
+    changed to rename variables {r1,r2,...,g1,g2...} as
+    {i1,i1,...,o1,o2,...} so that these formula can be fed directly to
+    ltlsynt.
+
 
   - autfilt learned --restrict-dead-end-edges, to restricts labels of
     edges leading to dead-ends.  See the description of

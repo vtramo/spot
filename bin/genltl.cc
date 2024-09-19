@@ -140,11 +140,11 @@ static const argp_option options[] =
     OPT_ALIAS(beem-patterns),
     OPT_ALIAS(p),
     { "pps-arbiter-standard", gen::LTL_PPS_ARBITER_STANDARD, "RANGE", 0,
-      "Arbiter with n clients that sent requests (ri) and "
-      "receive grants (gi).  Standard semantics.", 0 },
+      "Arbiter with n clients that sent requests (iN) and "
+      "receive grants (oN).  Standard semantics.", 0 },
     { "pps-arbiter-strict", gen::LTL_PPS_ARBITER_STRICT, "RANGE", 0,
-      "Arbiter with n clients that sent requests (ri) and "
-      "receive grants (gi).  Strict semantics.", 0 },
+      "Arbiter with n clients that sent requests (iN) and "
+      "receive grants (oN).  Strict semantics.", 0 },
     { "r-left", gen::LTL_R_LEFT, "RANGE", 0, "(((p1 R p2) R p3) ... R pn)", 0 },
     { "r-right", gen::LTL_R_RIGHT, "RANGE", 0, "(p1 R (p2 R (... R pn)))", 0 },
     { "rv-counter", gen::LTL_RV_COUNTER, "RANGE", 0, "n-bit counter", 0 },
