@@ -1,4 +1,4 @@
-New in spot 2.12.0.dev (not yet released)
+New in spot 2.12.1.dev  (not yet released)
 
   Command-line tools:
 
@@ -68,40 +68,40 @@ New in spot 2.12.0.dev (not yet released)
 
   Library:
 
-   - restrict_dead_end_edges_here() can reduce non-determinism (but
-     not remove it) by restricting the label L of some edge (S)-L->(D)
-     going to a state D that does not have other successor than
-     itself.  The conditions are detailled in the documentation of
-     this function.
+  - restrict_dead_end_edges_here() can reduce non-determinism (but
+    not remove it) by restricting the label L of some edge (S)-L->(D)
+    going to a state D that does not have other successor than
+    itself.  The conditions are detailled in the documentation of
+    this function.
 
-   - spot::postprocessor will now call restrict_dead_end_edges_here()
-     in its highest setting.  This can be fine-tuned with the "rde"
-     extra option, see the spot-x (7) man page for detail.
+  - spot::postprocessor will now call restrict_dead_end_edges_here()
+    in its highest setting.  This can be fine-tuned with the "rde"
+    extra option, see the spot-x (7) man page for detail.
 
-   - The formula class now keeps track of membership to the Δ₁, Σ₂,
-     Π₂, and Δ₂ syntactic class.  This can be tested with
-     formula::is_delta1(), formula::is_sigma2(), formula::is_pi2(),
-     formula::is_delta2().  See doc/tl/tl.pdf from more discussion.
+  - The formula class now keeps track of membership to the Δ₁, Σ₂,
+    Π₂, and Δ₂ syntactic class.  This can be tested with
+    formula::is_delta1(), formula::is_sigma2(), formula::is_pi2(),
+    formula::is_delta2().  See doc/tl/tl.pdf from more discussion.
 
-   - spot::to_delta2() implements Δ₂-normalization for LTL formulas,
-     following "Efficient Normalization of Linear Temporal Logic" by
-     Esparza et al. (J. ACM, 2024).
+  - spot::to_delta2() implements Δ₂-normalization for LTL formulas,
+    following "Efficient Normalization of Linear Temporal Logic" by
+    Esparza et al. (J. ACM, 2024).
 
-   - Trivial rewritings (those performed everytime at construction)
-     were missing the rule "[*0]|f ≡ f" when f already accepts the
-     empty word.  (Issue #545.)
+  - Trivial rewritings (those performed everytime at construction)
+    were missing the rule "[*0]|f ≡ f" when f already accepts the
+    empty word.  (Issue #545.)
 
-   - spot::match_states(A, B) is a new function that returns a vector
-     V such that V[x] contains all states y such that state (x, y) can
-     reach an accepting cycle in product(A, B).  In particular, if A
-     and B accept the same language, any word accepted by A from state
-     x can be accepted in B from some state in V[x].
+  - spot::match_states(A, B) is a new function that returns a vector
+    V such that V[x] contains all states y such that state (x, y) can
+    reach an accepting cycle in product(A, B).  In particular, if A
+    and B accept the same language, any word accepted by A from state
+    x can be accepted in B from some state in V[x].
 
-     That function also has a variant spot::match_states(A, f) where f
-     is an LTL formula.  In this case it returns and array of
-     formulas.  If f represents a superset of the language of A, then
-     any word accepted by A from state x satisfies V[x].  Related to
-     Issue #591.
+    That function also has a variant spot::match_states(A, f) where f
+    is an LTL formula.  In this case it returns and array of
+    formulas.  If f represents a superset of the language of A, then
+    any word accepted by A from state x satisfies V[x].  Related to
+    Issue #591.
 
   - twa_graph::defrag_states(num) no longer require num[i]≤i; num
     can now describe a permutation of the state numbers.
@@ -113,8 +113,16 @@ New in spot 2.12.0.dev (not yet released)
 
   Bug fixes:
 
-  - Generating random formulas without any unary opertor would very
-    often create formulas much smaller than specified.
+  - "ltlsynt --aiger -q ..." was still printing the realizability
+    status and the AIG circuit; it now does the job silently as
+    requested.
+
+New in spot 2.12.1  (2024-09-23)
+
+  Bug fixes:
+
+  - Generating random formula without any unary opertors would very
+    often create formulas much smaller than asked.
 
   - The parity game solver, which internally works on "parity max
     odd", but actually accept any type of parity acceptance, could be
@@ -123,9 +131,10 @@ New in spot 2.12.0.dev (not yet released)
 
   - "ltlsynt ... --print-game --dot=ARGS" was ignoring ARGS.
 
-  - "ltlsynt --aiger -q ..." was still printing the realizability
-    status and the AIG circuit; it now does the job silently as
-    requested.
+  - Work around various warnings from g++14.
+
+  - Improved handling of spot-extra/ directory with newer Swig
+    versions.  Necessary to recompile Seminator 2 with Swig 4.
 
 New in spot 2.12  (2024-05-16)
 
