@@ -436,11 +436,12 @@ publish-stable:
     - cd ..
     - ls -l
     - tgz=`ls spot-*.tar.* | head -n 1`
-    - case $tgz in *[0-9].tar.*) scp $tgz doc@perso:/var/www/dload/spot/;; esac
+    - case $tgz in *[0-9].tar.*) scp $tgz doc@perso:/var/www/dload/spot/; scp $tgz doc@dload:/var/www/html/spot/;; esac
     - rm -rf ./*
     - curl -X POST -F ref=master -F token=$TRIGGER_SPOT_WEB -F "variables[spot_branch]=stable" https://gitlab.lre.epita.fr/api/v4/projects/131/trigger/pipeline
     - curl -X POST "https://archive.softwareheritage.org/api/1/origin/save/git/url/https://gitlab.lre.epita.fr/spot/spot/"
     - curl "https://web.archive.org/save/https://www.lrde.epita.fr/dload/spot/$tgz"
+    - curl "https://web.archive.org/save/https://www.lre.epita.fr/dload/spot/$tgz"
 
 publish-unstable:
   only:
