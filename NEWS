@@ -1,4 +1,4 @@
-New in spot 2.12.0.dev (not yet released)
+New in spot 2.12.1  (2024-09-23)
 
   Bug fixes:
 
@@ -11,6 +11,11 @@ New in spot 2.12.0.dev (not yet released)
     with several colors (a rather uncommon situation).
 
   - "ltlsynt ... --print-game --dot=ARGS" was ignoring ARGS.
+
+  - Work around various warnings from g++14.
+
+  - Improved handling of spot-extra/ directory with newer Swig
+    versions.  Necessary to recompile Seminator 2 with Swig 4.
 
 New in spot 2.12  (2024-05-16)
 
