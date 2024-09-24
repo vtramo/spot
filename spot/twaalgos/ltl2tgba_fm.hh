@@ -92,4 +92,6 @@ namespace spot
 
   SPOT_API twa_graph_ptr
   sere_to_tgba(formula f, const bdd_dict_ptr& dict, bool disable_scc_trimming = false);
+
+  SPOT_API int sere_translation_options(const char* version = nullptr);
 }

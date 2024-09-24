@@ -24,6 +24,7 @@
 #include <spot/tl/apcollect.hh>
 #include <spot/tl/mark.hh>
 #include <spot/tl/nenoform.hh>
+#include <spot/tl/expansions.hh>
 #include <cassert>
 #include <memory>
 #include <utility>
@@ -101,15 +102,14 @@ namespace spot
     class ratexp_to_dfa final
     {
       typedef twa_graph::namer<formula> namer;
+      // Use robin_hood::pair because std::pair is not no-throw constructible
+      typedef robin_hood::pair<twa_graph_ptr, const namer*> labelled_aut;
     public:
       ratexp_to_dfa(translate_dict& dict, bool disable_scc_trimming = false);
 
       std::vector<std::pair<bdd, formula>> succ(formula f);
       ~ratexp_to_dfa();
 
-    protected:
-      // Use robin_hood::pair because std::pair is not no-throw constructible
-      typedef robin_hood::pair<twa_graph_ptr, const namer*> labelled_aut;
       labelled_aut translate(formula f);
 
     private:
@@ -887,8 +887,25 @@ namespace spot
       bdd res;
       if (!f.is_boolean())
         {
-          ratexp_trad_visitor v(dict, to_concat);
-          res = v.visit(f);
+          if (sere_translation_options() == 0)
+            {
+              ratexp_trad_visitor v(dict, to_concat);
+              res = v.visit(f);
+            }
+          else // version expansion
+            {
+              // auto d = make_bdd_dict();
+              res = bddfalse;
+              for (auto [label, succ]: expansion(f, dict.dict, nullptr, exp_opts::expand_opt::None, nullptr))
+                {
+                  // std::cout << label << ' ' << succ << std::endl;
+                  if (to_concat)
+                    succ = formula::Concat({succ, to_concat});
+                  // std::cout << succ << std::endl;
+                  int x = dict.register_next_variable(succ);
+                  res |= label & bdd_ithvar(x);
+                }
+            }
         }
       else
         {
@@ -899,6 +916,7 @@ namespace spot
           int x = dict.register_next_variable(to_concat);
           res &= bdd_ithvar(x);
         }
+      // std::cout << res << std::endl;
       return res;
     }
 
@@ -2199,7 +2217,8 @@ namespace spot
     translate_dict d(a, s, false, false, false);
     ratexp_to_dfa sere2dfa(d, disable_scc_trimming);
 
-    auto [dfa, namer, state] = sere2dfa.succ(f);
+    auto [dfa, namer] = sere2dfa.translate(f);
+    auto state = dfa->state_from_number(namer->get_state(f));
 
     // language was empty, build an automaton with one non accepting state
     if (dfa == nullptr)
@@ -2246,5 +2265,33 @@ namespace spot
     res->set_named_prop("state-names", names);
 
     return res;
+  }
+
+  int sere_translation_options(const char* version)
+  {
+    static int pref = -1;
+    const char *env = nullptr;
+    if (!version && pref < 0)
+      version = env = getenv("SPOT_SERE_TRANSLATE_OPT");
+    if (version)
+      {
+        if (!strcasecmp(version, "bdd"))
+          pref = 0;
+        else if (!strcasecmp(version, "expansion"))
+          pref = 1;
+        else
+          {
+            const char* err = ("sere_translation_options(): argument"
+                              " should be one of {bdd,expansion}");
+            if (env)
+              err = "SPOT_SERE_TRANSLATE_OPT should be one of {bdd,expansion}";
+            throw std::runtime_error(err);
+          }
+      }
+    else if (pref < 0)
+      {
+        pref = 0;
+      }
+    return pref;
   }
 }
