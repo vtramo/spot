@@ -18,9 +18,14 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "config.h"
+
+#include <string.h>
+
 #include <spot/twaalgos/alternation.hh>
+#include <spot/twaalgos/ltl2tgba_fm.hh>
 #include <spot/twaalgos/translate_aa.hh>
 #include <spot/tl/derive.hh>
+#include <spot/tl/expansions.hh>
 #include <spot/tl/nenoform.hh>
 
 #include <iostream>
@@ -176,7 +181,6 @@ namespace spot
           {
             unsigned init_state = aut_->new_state();
 
-            outedge_combiner oe(aut_, accepting_sink_);
             bdd comb = bddtrue;
             for (const auto& sub_formula : f)
               {
@@ -285,7 +289,22 @@ namespace spot
           {
             unsigned rhs_init = recurse(f[1]);
             const auto& dict = aut_->get_dict();
-            twa_graph_ptr sere_aut = derive_finite_automaton_with_first(f[0], dict);
+            twa_graph_ptr sere_aut;
+            if (sere_aa_translation_options() == 0)
+              {
+                // old bdd method
+                sere_aut = sere_to_tgba(f[0], dict, true);
+              }
+            else if (sere_aa_translation_options() == 1)
+              {
+                // derivation
+                sere_aut = derive_finite_automaton_with_first(f[0], dict);
+              }
+            else
+              {
+                // linear form
+                sere_aut = expand_finite_automaton(f[0], dict, exp_opts::expand_opt::None);
+              }
 
             // TODO: this should be a std::vector<bool> !
             std::vector<unsigned> acc_states;
@@ -326,7 +345,22 @@ namespace spot
           {
             unsigned rhs_init = recurse(f[1]);
             const auto& dict = aut_->get_dict();
-            twa_graph_ptr sere_aut = derive_finite_automaton_with_first(f[0], dict);
+            twa_graph_ptr sere_aut;
+            if (sere_aa_translation_options() == 0)
+              {
+                // old bdd method
+                sere_aut = sere_to_tgba(f[0], dict, true);
+              }
+            else if (sere_aa_translation_options() == 1)
+              {
+                // derivation
+                sere_aut = derive_finite_automaton_with_first(f[0], dict);
+              }
+            else
+              {
+                // linear form
+                sere_aut = expand_finite_automaton(f[0], dict, exp_opts::expand_opt::None);
+              }
 
             // DFA recognizes the empty language, so {0} []-> rhs is always true
             unsigned ns = sere_aut->num_states();
@@ -481,5 +515,35 @@ namespace spot
       }
 
     return aut;
+  }
+
+  int sere_aa_translation_options(const char* version)
+  {
+    static int pref = -1;
+    const char *env = nullptr;
+    if (!version && pref < 0)
+      version = env = getenv("SPOT_SERE_AA_TRANSLATE_OPT");
+    if (version)
+      {
+        if (!strcasecmp(version, "bdd"))
+          pref = 0;
+        else if (!strcasecmp(version, "derive"))
+          pref = 1;
+        else if (!strcasecmp(version, "expansion"))
+          pref = 2;
+        else
+          {
+            const char* err = ("sere_aa_translation_options(): argument"
+                              " should be one of {bdd,derive,expansion}");
+            if (env)
+              err = "SPOT_SERE_AA_TRANSLATE_OPT should be one of {bdd,derive,expansion}";
+            throw std::runtime_error(err);
+          }
+      }
+    else if (pref < 0)
+      {
+        pref = 0;
+      }
+    return pref;
   }
 }

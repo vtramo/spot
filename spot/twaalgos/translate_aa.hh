@@ -29,4 +29,6 @@ namespace spot
 {
   SPOT_API twa_graph_ptr
   ltl_to_aa(formula f, bdd_dict_ptr& dict, bool purge_dead_states = false);
+
+  SPOT_API int sere_aa_translation_options(const char* version = nullptr);
 }
