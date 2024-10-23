@@ -722,7 +722,10 @@ namespace spot
                         if ((li & kj) != bddfalse)
                           res.push_back({li & kj, fj});
                   }
-                res.push_back({li, formula::Fusion({ei, F})});
+
+                formula ei_fusion_F = formula::Fusion({ei, F});
+                if (!ei_fusion_F.is(op::ff))
+                  res.push_back({li, ei_fusion_F});
               }
 
             finalize(res, opts, d, seen);
