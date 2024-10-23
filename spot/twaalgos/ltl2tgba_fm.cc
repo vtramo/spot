@@ -224,6 +224,7 @@ namespace spot
       int
       register_proposition(formula f)
       {
+        // TODO: call this in expansions
         int num = dict->register_proposition(f, this);
         var_set &= bdd_ithvar(num);
         return num;
@@ -894,14 +895,11 @@ namespace spot
             }
           else // version expansion
             {
-              // auto d = make_bdd_dict();
               res = bddfalse;
-              for (auto [label, succ]: expansion(f, dict.dict, nullptr, exp_opts::expand_opt::None, nullptr))
+              for (auto [label, succ]: expansion(f, dict.dict, &dict, exp_opts::expand_opt::None, nullptr))
                 {
-                  // std::cout << label << ' ' << succ << std::endl;
                   if (to_concat)
                     succ = formula::Concat({succ, to_concat});
-                  // std::cout << succ << std::endl;
                   int x = dict.register_next_variable(succ);
                   res |= label & bdd_ithvar(x);
                 }
@@ -916,7 +914,6 @@ namespace spot
           int x = dict.register_next_variable(to_concat);
           res &= bdd_ithvar(x);
         }
-      // std::cout << res << std::endl;
       return res;
     }
 
@@ -2209,6 +2206,10 @@ namespace spot
   twa_graph_ptr
   sere_to_tgba(formula f, const bdd_dict_ptr& dict, bool disable_scc_trimming)
   {
+    // make sure we use bdd translation in this case
+    auto old_opt = sere_translation_options();
+    sere_translation_options("bdd");
+
     f = negative_normal_form(f);
 
     tl_simplifier* s = new tl_simplifier(dict);
@@ -2218,7 +2219,6 @@ namespace spot
     ratexp_to_dfa sere2dfa(d, disable_scc_trimming);
 
     auto [dfa, namer] = sere2dfa.translate(f);
-    auto state = dfa->state_from_number(namer->get_state(f));
 
     // language was empty, build an automaton with one non accepting state
     if (dfa == nullptr)
@@ -2263,6 +2263,10 @@ namespace spot
       }
 
     res->set_named_prop("state-names", names);
+
+    // restore previous option
+    if (old_opt != 0)
+      sere_translation_options("expansion");
 
     return res;
   }
