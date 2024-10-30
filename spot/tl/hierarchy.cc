@@ -312,7 +312,7 @@ namespace spot
     bool wide = false;
     if (opt)
       for (;;)
-        switch (int o = *opt++)
+        switch (char o = *opt++)
           {
           case 'v':
             verbose = true;
