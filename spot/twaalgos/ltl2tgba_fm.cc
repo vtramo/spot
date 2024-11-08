@@ -1887,7 +1887,8 @@ namespace spot
                  bool exprop, bool symb_merge, bool branching_postponement,
                  bool fair_loop_approx, const atomic_prop_set* unobs,
                  tl_simplifier* simplifier, bool unambiguous,
-                 const output_aborter* aborter, bool label_with_ltl)
+                 const output_aborter* aborter, bool label_with_ltl,
+                 bool force_obligation)
   {
     tl_simplifier* s = simplifier;
 
@@ -1921,9 +1922,9 @@ namespace spot
     // cause the resulting automaton not to be weak.  For instance formulas
     // such as "FGa | FGb" (note: not "F(Ga | Gb)") will introduce terms like
     // "FGb&GF!a" that are not syntactic persistence.
-    bool one_set_enough = (unambiguous
-                            ? f2.is_syntactic_obligation()
-                            : f2.is_syntactic_persistence());
+    bool one_set_enough = force_obligation || (unambiguous
+                                               ? f2.is_syntactic_obligation()
+                                               : f2.is_syntactic_persistence());
     translate_dict d(a, s, exprop, one_set_enough, unambiguous);
 
     // Compute the set of all promises that can possibly occur inside

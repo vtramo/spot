@@ -88,6 +88,7 @@ namespace spot
       ParityMaxEven = ParityMax | ParityEven,
       CoBuchi = 128,
       Buchi = 256, // introduced in Spot 2.10, does not imply SBAcc
+      Finite = 512, // introduced in Spot 2.13, used only by translator
     };
 
     /// \brief Select the desired output type.
@@ -149,6 +150,7 @@ namespace spot
       SBAcc = 8,                // State-based acceptance.
       Unambiguous = 16,
       Colored = 32,             // Colored parity; requires parity acceptance
+      Obligation = 64,          // Assume the input is an obligation (Spot≥2.13)
     };
     typedef int output_pref;
 
@@ -190,6 +192,13 @@ namespace spot
     /// automata with \c t as acceptance condition, combining \c
     /// Monitor with \c Complete may produce Büchi automata in case a
     /// sink state (which should be rejecting) is added.
+    ///
+    /// Note 4: \c Obligation is not really an output preference, but
+    /// rather an indication that the input can be assumed to be an
+    /// Obligation, bypassing some unnecessary checks.  This is set
+    /// automatically by the translator when translating LTLf
+    /// formulas, so it is probably best considered as an
+    /// implementation detail.
     ///
     /// If set_pref() is not called, the default \c output_type is \c Small.
     void

@@ -167,6 +167,74 @@ diff expected3 out3
 
 autfilt out3 > out4
 diff out3 out4
+
+# ltl2tgba --ltlf should have a similar output
+cat >expected3b <<EOF
+HOA: v1
+name: "a & Xa"
+States: 3
+Start: 0
+AP: 1 "a"
+acc-name: Buchi
+Acceptance: 1 Inf(0)
+properties: trans-labels explicit-labels state-acc deterministic
+--BODY--
+State: 0
+[0] 2
+State: 1 {0}
+[t] 1
+State: 2 {0}
+[0] 1
+--END--
+HOA: v1
+name: "a & X[!]a"
+States: 3
+Start: 2
+AP: 1 "a"
+acc-name: Buchi
+Acceptance: 1 Inf(0)
+properties: trans-labels explicit-labels state-acc deterministic
+--BODY--
+State: 0 {0}
+[t] 0
+State: 1
+[0] 0
+State: 2
+[0] 1
+--END--
+HOA: v1
+name: "(a U b) & (Fc | F(d & X(0)))"
+States: 5
+Start: 4
+AP: 4 "b" "a" "c" "d"
+acc-name: Buchi
+Acceptance: 1 Inf(0)
+properties: trans-labels explicit-labels state-acc deterministic
+--BODY--
+State: 0
+[!2&!3] 0
+[2] 2
+[!2&3] 3
+State: 1
+[!0&1] 1
+[0] 2
+State: 2 {0}
+[t] 2
+State: 3 {0}
+[!2&!3] 0
+[2] 2
+[!2&3] 3
+State: 4
+[0&!2&!3] 0
+[!0&1&2] 1
+[0&2] 2
+[0&!2&3] 3
+[!0&1&!2] 4
+--END--
+EOF
+ltl2tgba --ltlf 'a & Xa' 'a & X[!]a' '(a U b) & (F(c) | F(d & X(0)))' >out4b
+diff out4b expected3b
+
 # Removing the [f] lines should not change anything for autfilt
 grep -v '\[f\]' out4 > out3
 cmp out3 out4 && exit 1 # make sure we did remove something

@@ -109,12 +109,20 @@ namespace spot
   /// If an \a output_aborter is given, the determinization is aborted
   /// whenever it would produce an automaton that is too large.  In
   /// this case, aut_f is returned unchanged.
+  ///
+  /// If \a assume_correct is set, the resulting WDBA is not checked
+  /// for correctness.  Note that the correctness check is already
+  /// skipped in all cases captured by
+  /// minimize_obligation_guaranteed_to_work().  Setting this allows
+  /// to skip the correctness checks in more cases, if you know that
+  /// the input is an obligation properties.
   SPOT_API twa_graph_ptr
   minimize_obligation(const const_twa_graph_ptr& aut_f,
                       formula f = nullptr,
                       const_twa_graph_ptr aut_neg_f = nullptr,
                       bool reject_bigger = false,
-                      const output_aborter* aborter = nullptr);
+                      const output_aborter* aborter = nullptr,
+                      bool assume_correct = false);
 
   /// \brief Whether calling minimize_obligation is sure to work
   ///

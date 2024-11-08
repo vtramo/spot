@@ -832,6 +832,8 @@ def _postproc_translate_options(obj, default_type, *args):
             type_ = postprocessor.ParityEven
         elif val == 'parity':
             type_ = postprocessor.Parity
+        elif val == 'finite':
+            type_ = postprocessor.Finite
         else:
             assert(val == 'monitor')
             type_ = postprocessor.Monitor
@@ -887,6 +889,7 @@ def _postproc_translate_options(obj, default_type, *args):
         'complete': misc_set,
         'dca': type_set,
         'deterministic': pref_set,
+        'finite': type_set,
         'g': type_set,
         'gen': type_set,
         'generic': type_set,

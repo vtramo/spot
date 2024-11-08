@@ -227,6 +227,12 @@ namespace spot
                             degen_lowinit_, degen_remscc_);
   }
 
+#define PREF_ (pref_ & (Small | Deterministic))
+#define COMP_ (pref_ & Complete)
+#define SBACC_ (pref_ & SBAcc)
+#define COLORED_ (pref_ & Colored)
+#define OBLIGATION_ (pref_ & Obligation)
+
   twa_graph_ptr
   postprocessor::do_scc_filter(const twa_graph_ptr& a, bool arg) const
   {
@@ -235,7 +241,9 @@ namespace spot
     if (state_based_ && a->prop_state_acc().is_true())
       return scc_filter_states(a, arg);
     else
-      return scc_filter(a, arg, nullptr, type_ == CoBuchi || type_ == Buchi);
+      return scc_filter(a, arg, nullptr,
+                        type_ == CoBuchi || type_ == Buchi ||
+                        OBLIGATION_);
   }
 
   twa_graph_ptr
@@ -243,12 +251,6 @@ namespace spot
   {
     return do_scc_filter(a, scc_filter_ > 1);
   }
-
-#define PREF_ (pref_ & (Small | Deterministic))
-#define COMP_ (pref_ & Complete)
-#define SBACC_ (pref_ & SBAcc)
-#define COLORED_ (pref_ & Colored)
-
 
   twa_graph_ptr
   postprocessor::finalize(twa_graph_ptr tmp) const
@@ -266,7 +268,7 @@ namespace spot
     assert(!!SBACC_ == state_based_);
     if (state_based_)
       tmp = sbacc(tmp);
-    if (type_ == Buchi)
+    if (type_ == Buchi || type_ == Finite)
       tmp = ensure_ba(tmp, level_ == High);
     if (want_parity)
       {
@@ -314,7 +316,8 @@ namespace spot
       pref_ |= SBAcc;
 
     bool via_gba =
-      (type_ == Buchi) || (type_ == GeneralizedBuchi) || (type_ == Monitor);
+      (type_ == Buchi) || (type_ == GeneralizedBuchi) || (type_ == Monitor) ||
+      (type_ == Finite);
     bool want_parity = type_ & Parity;
     acd_was_used_ = false;
 
@@ -395,7 +398,7 @@ namespace spot
     if (PREF_ == Any && level_ == Low
         && (type_ == Generic
             || type_ == GeneralizedBuchi
-            || (type_ == Buchi && a->acc().is_buchi())
+            || ((type_ == Buchi || type_ == Finite) && a->acc().is_buchi())
             || (type_ == Monitor && a->num_sets() == 0)
             || (want_parity && a->acc().is_parity())
             || (type_ == CoBuchi && a->acc().is_co_buchi())))
@@ -438,7 +441,7 @@ namespace spot
 
     if (PREF_ == Any)
       {
-        if (type_ == Buchi
+        if (type_ == Buchi || type_ == Finite
             || (type_ == CoBuchi && a->acc().is_generalized_co_buchi()))
           {
             a = choose_degen(a);
@@ -476,7 +479,8 @@ namespace spot
           wdba_minimize = 0;
       }
     if (wdba_minimize == 2)
-      wdba_minimize = minimize_obligation_guaranteed_to_work(a, f);
+      wdba_minimize = OBLIGATION_ ||
+        minimize_obligation_guaranteed_to_work(a, f);
     if (wdba_minimize)
       {
         bool reject_bigger = (PREF_ == Small) && (level_ <= Medium);
@@ -486,7 +490,8 @@ namespace spot
                                      + a->num_states()) : -1U);
         if (!ab && PREF_ != Deterministic)
           ab = &wdba_aborter;
-        dba = minimize_obligation(a, f, nullptr, reject_bigger, ab);
+        dba = minimize_obligation(a, f, nullptr, reject_bigger, ab,
+                                  OBLIGATION_);
 
         if (dba
             && dba->prop_inherently_weak().is_true()
@@ -495,7 +500,7 @@ namespace spot
             // The WDBA is a BA, so no degeneralization is required.
             // We just need to add an acceptance set if there is none.
             dba_is_minimal = dba_is_wdba = true;
-            if (type_ == Buchi)
+            if (type_ == Buchi || type_ == Finite)
               ensure_ba(dba, level_ == High);
           }
         else
@@ -511,7 +516,7 @@ namespace spot
       {
         if ((state_based_ && a->prop_state_acc().is_true())
             && !tba_determinisation_
-            && (type_ != Buchi || a->acc().is_buchi()))
+            && ((type_ != Buchi && type_ != Finite) || a->acc().is_buchi()))
           {
             sim = do_sba_simul(a, ba_simul_);
           }
@@ -520,7 +525,7 @@ namespace spot
             sim = do_simul(a, simul_);
             // Degeneralize the result of the simulation if needed.
             // No need to do that if tba_determinisation_ will be used.
-            if (type_ == Buchi && !tba_determinisation_)
+            if ((type_ == Buchi || type_ == Finite) && !tba_determinisation_)
               sim = choose_degen(sim);
             else if (want_parity && !sim->acc().is_parity())
               sim = do_degen_tba(sim);
@@ -548,7 +553,7 @@ namespace spot
         // that we won't perform it.  So do degeneralize.
         if (tba_determinisation_)
           {
-            if (type_ == Buchi)
+            if (type_ == Buchi || type_ == Finite)
               dba = choose_degen(dba);
             else if (state_based_)
               dba = sbacc(dba);
@@ -599,7 +604,7 @@ namespace spot
         else
           {
             // degeneralize sim, because we did not do it earlier
-            if (type_ == Buchi)
+            if (type_ == Buchi || type_ == Finite)
               sim = choose_degen(sim);
           }
       }
@@ -637,7 +642,7 @@ namespace spot
           throw std::runtime_error
             ("postproc() not yet updated to mix sat-minimize and Generic");
         unsigned target_acc;
-        if (type_ == Buchi)
+        if (type_ == Buchi || type_ == Finite)
           target_acc = 1;
         else if (sat_acc_ != -1)
           target_acc = sat_acc_;
@@ -719,7 +724,8 @@ namespace spot
 
     // Degeneralize the dba resulting from tba-determinization or
     // sat-minimization (which is a TBA) if requested and needed.
-    if (dba && !dba_is_wdba && type_ == Buchi && state_based_
+    if (dba && !dba_is_wdba && (type_ == Buchi || type_ == Finite)
+        && state_based_
         && !(dba_is_minimal && dba->num_sets() == 1))
       dba = degeneralize(dba);
 

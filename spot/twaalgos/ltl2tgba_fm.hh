@@ -88,5 +88,6 @@ namespace spot
                  tl_simplifier* simplifier = nullptr,
                  bool unambiguous = false,
                  const output_aborter* aborter = nullptr,
-                 bool label_with_ltl = false);
+                 bool label_with_ltl = false,
+                 bool force_obligation = false);
 }
