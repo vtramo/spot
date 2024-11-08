@@ -637,14 +637,15 @@ namespace spot
                       formula f,
                       const_twa_graph_ptr aut_neg_f,
                       bool reject_bigger,
-                      const output_aborter* aborter)
+                      const output_aborter* aborter,
+                      bool assume_correct)
   {
     if (!aut_f->is_existential())
       throw std::runtime_error
         ("minimize_obligation() does not support alternation");
 
     bool minimization_will_be_correct = false;
-    if (minimize_obligation_guaranteed_to_work(aut_f, f))
+    if (assume_correct || minimize_obligation_guaranteed_to_work(aut_f, f))
       {
         minimization_will_be_correct = true;
       }

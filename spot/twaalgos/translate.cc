@@ -22,12 +22,16 @@
 #include <spot/twaalgos/compsusp.hh>
 #include <spot/misc/optionmap.hh>
 #include <spot/tl/relabel.hh>
+#include <spot/tl/ltlf.hh>
 #include <spot/twaalgos/relabel.hh>
+#include <spot/twaalgos/remprop.hh>
 #include <spot/twaalgos/gfguarantee.hh>
 #include <spot/twaalgos/isdet.hh>
 #include <spot/twaalgos/product.hh>
 #include <spot/twaalgos/sccinfo.hh>
 #include <spot/twaalgos/dbranch.hh>
+
+#define OBLIGATION_ (pref_ & Obligation)
 
 namespace spot
 {
@@ -122,13 +126,13 @@ namespace spot
   {
 #define PREF_ (pref_ & (Small | Deterministic))
 
-    bool unambiguous = (pref_ & postprocessor::Unambiguous);
-    if (unambiguous && type_ == postprocessor::Monitor)
+    bool unambiguous = (pref_ & Unambiguous);
+    if (unambiguous && type_ == Monitor)
       {
         // Deterministic monitor are unambiguous, so the unambiguous
         // option is not really relevant for monitors.
         unambiguous = false;
-        set_pref(pref_ | postprocessor::Deterministic);
+        pref_ |= postprocessor::Deterministic;
       }
 
     // This helps ltl_to_tgba_fm() to order BDD variables in a more
@@ -141,7 +145,11 @@ namespace spot
     bool split_hard =
       type_ == Generic || (type_ & Parity) || type_ == GeneralizedBuchi;
 
-    if (ltl_split_ && !r.is_syntactic_obligation())
+    bool postprocess_was_done = false;
+
+    // It would make sense to split, even in the presence of multiple
+    // obligations.
+    if (ltl_split_ && !r.is_syntactic_obligation() /* && !OBLIGATION_ */)
       {
         formula r2 = r;
         unsigned leading_x = 0;
@@ -182,7 +190,8 @@ namespace spot
             // with disjunction, but it seems to generate larger automata
             // in many cases and it needs to be further investigated.  Maybe
             // this could be relaxed in the case of deterministic output.
-            (!r2.is(op::And) && (type_ == GeneralizedBuchi || type_ == Buchi)))
+            (!r2.is(op::And) && (type_ == GeneralizedBuchi
+                                 || (type_ & (Buchi | Finite)))))
           goto nosplit;
 
         op topop = r2.kind();
@@ -246,23 +255,36 @@ namespace spot
         // Don't blindingly apply reduce_parity() in the
         // generic case, for issue #402.
         om_ws.set("gen-reduce-parity", 0);
-        om_wos = om_ws;
-        om_wos.set("ltl-split", 0);
-        translator translate_without_split(simpl_, &om_wos);
-        // Never force colored automata at intermediate steps.
-        // This is best added at the very end.
-        translate_without_split.set_pref(pref_ & ~Colored);
-        translate_without_split.set_level(level_);
-        translate_without_split.set_type(type_);
         translator translate_with_split(simpl_, &om_ws);
+        // Translation with split is performed on sub-formulas
+        // that have been separated from the main one.
+        //
+        // Never force colored automata at intermediate steps.  This
+        // is best added at the very end.
         translate_with_split.set_pref(pref_ & ~Colored);
         translate_with_split.set_level(level_);
-        translate_with_split.set_type(type_);
-
+        translate_with_split.set_type(type_ == postprocessor::Finite ?
+                                      postprocessor::Buchi : type_);
+        // "Translation without split" is used when the split failed
+        // and the input formula is still whole.  In that case we can
+        // disable LTL simplification (already performed), and
+        // postprocessings (because those will be performed again on the
+        // result of that translation).
+        om_wos = om_ws;
+        om_wos.set("ltl-split", 0);
+        om_wos.set("tls-impl", 0); // input already simplified
+        translator translate_without_split(simpl_, &om_wos);
+        translate_without_split.set_pref(pref_ & ~Colored);
+        translate_without_split.set_level(level_);
+        translate_without_split.set_type(type_ == postprocessor::Finite ?
+                                         postprocessor::Buchi : type_);
         auto transrun = [&](formula f)
           {
             if (f == r2)
-              return translate_without_split.run(f);
+              {
+                postprocess_was_done = true;
+                return translate_without_split.run(f);
+              }
             else
               return translate_with_split.run(f);
           };
@@ -417,15 +439,16 @@ namespace spot
         bool bpost = branchpost_ == 1;
         aut = ltl_to_tgba_fm(r, simpl_->get_dict(), exprop,
                              true, bpost, false, nullptr, nullptr,
-                             unambiguous);
+                             unambiguous,
+                             nullptr, false, type_ == Finite);
         if (!bpost && branchpost_ != 0 && delay_branching_here(aut))
           {
             aut->purge_unreachable_states();
             aut->merge_edges();
           }
       }
-
-    aut = this->postprocessor::run(aut, r);
+    if (!postprocess_was_done)
+      aut = this->postprocessor::run(aut, r);
     if (aut2)
       {
         aut2 = this->postprocessor::run(aut2, r);
@@ -453,6 +476,25 @@ namespace spot
       state_based_ = true;
     else if (state_based_)
       pref_ |= SBAcc;
+
+    formula to_work_on = *f;
+    std::string alive_ap;
+    if (type_ == Finite)        // LTLf semantics
+      {
+        pref_ |= Obligation;
+        // translating LTLf via LTL requires adding some atomic
+        // proposition to keep track of when the formula is actually
+        // "alive".  We just have to make sure that AP isn't already
+        // used in the formula.
+        atomic_prop_set apset;
+        atomic_prop_collect(to_work_on, &apset);
+        alive_ap = "alive";
+
+        while (apset.find(formula::ap(alive_ap)) != apset.end())
+          alive_ap.push_back('$');
+
+        to_work_on = from_ltlf(to_work_on, alive_ap.c_str());
+      }
 
     if (simpl_owned_)
       {
@@ -486,7 +528,6 @@ namespace spot
     // function.  However after applying this function, we might have
     // false edges.
     relabeling_map m;
-    formula to_work_on = *f;
     if (relabel_bool_ > 0 || relabel_overlap_ > 0)
       {
         std::set<formula> aps;
@@ -568,8 +609,10 @@ namespace spot
     formula r = simpl_->simplify(to_work_on);
     if (to_work_on == *f)
       *f = r;
-    else
+    else if (type_ != Finite)
       *f = relabel_apply(r, &m);
+    // TODO: In the Finite case we should get rid of alive in the
+    // formula before updating *f.
 
     auto aut = run_aux(r);
 
@@ -578,8 +621,10 @@ namespace spot
         unsigned ne = aut->num_edges();
         relabel_here(aut, &m);
         if (aut->num_edges() < ne)
-          return finalize(do_scc_filter(aut));
+          aut = finalize(do_scc_filter(aut));
       }
+    if (type_ == Finite)
+      aut = to_finite(aut, alive_ap.c_str());
     return aut;
   }
 

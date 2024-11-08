@@ -66,6 +66,15 @@ New in spot 2.12.1.dev  (not yet released)
 
   - ltlfilt learned --to-delta2 to transform an LTL formula into Δ₂.
 
+  - ltl2tgba learned an experimental --ltlf option that interprets the
+    input as an LTLf and produces a Büchi automaton that should be
+    interpreted as a finite automaton.
+     % ltl2tgba --ltlf FORMULA
+    is more than just a shorthand for
+     % ltlfilt --from-ltlf -f FORMULA | ltl2tgba | autfilt --to-finite
+    but because knowing that the input is an LTLf formula allows
+    some shortcuts when building the automaton and simplifying it.
+
   Library:
 
   - restrict_dead_end_edges_here() can reduce non-determinism (but
@@ -77,6 +86,16 @@ New in spot 2.12.1.dev  (not yet released)
   - spot::postprocessor will now call restrict_dead_end_edges_here()
     in its highest setting.  This can be fine-tuned with the "rde"
     extra option, see the spot-x (7) man page for detail.
+
+  - spot::translator and spot::processor now support
+       set_type(postprocessor::Finite)
+    and
+       set_pref(postprocessor::Obligation)
+    The first tells that the input should be interpreted as LTLf in order
+    to build a Finite automaton.   The second, which is best considered
+    as an implementation detail (it will be turned on automatically
+    by the translator when necessary), tells the postprocessor that it
+    can assumes it is simplifying an obligation property.
 
   - The formula class now keeps track of membership to the Δ₁, Σ₂,
     Π₂, and Δ₂ syntactic class.  This can be tested with

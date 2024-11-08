@@ -40,12 +40,14 @@
 
 static const char argp_program_doc[] = "\
 Translate linear-time formulas (LTL/PSL) into various types of automata.\n\n\
-By default it will apply all available optimizations to output \
-the smallest Transition-based Generalized Büchi Automata, \
-output in the HOA format.\n\
+By default it will apply all available optimizations to output small \
+Transition-based Generalized Büchi Automata, output in the HOA format.\n\
 If multiple formulas are supplied, several automata will be output.";
 
-enum { OPT_NEGATE = 256 };
+enum {
+  OPT_NEGATE = 256,
+  OPT_LTLF = 257,
+};
 
 static const argp_option options[] =
   {
@@ -62,6 +64,10 @@ static const argp_option options[] =
     { "negate", OPT_NEGATE, nullptr, 0, "negate each formula", 1 },
     { "unambiguous", 'U', nullptr, 0, "output unambiguous automata", 2 },
     { nullptr, 0, nullptr, 0, "Miscellaneous options:", -1 },
+    { "ltlf", OPT_LTLF, nullptr, 0,
+      "assume the input is an LTLf formula; the output will have Büchi "
+      "acceptance but should be interpreted using finite automata semantics",
+      1 },
     { "extra-options", 'x', "OPTS", 0,
       "fine-tuning options (see spot-x (7))", 0 },
     { nullptr, 0, nullptr, 0, nullptr, 0 }
@@ -98,6 +104,9 @@ parse_opt(int key, char* arg, struct argp_state*)
         if (opt)
           error(2, 0, "failed to parse --options near '%s'", opt);
       }
+      break;
+    case OPT_LTLF:
+      type = spot::postprocessor::Finite;
       break;
     case OPT_NEGATE:
       negate = true;
