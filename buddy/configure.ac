@@ -117,6 +117,7 @@ AC_CONFIG_FILES([
   examples/fdd/Makefile
   examples/milner/Makefile
   examples/money/Makefile
+  examples/mtbdd/Makefile
   examples/queen/Makefile
   examples/solitare/Makefile
 ])

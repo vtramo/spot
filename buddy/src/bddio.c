@@ -130,14 +130,24 @@ void bdd_fprintall(FILE *ofile)
       if (LOW(n) != -1)
       {
 	 fprintf(ofile, "[%5d - %2u] ", n, bddnodes[n].refcou);
-	 if (filehandler)
-	    filehandler(ofile, bddlevel2var[LEVEL(n)]);
-	 else
-	    fprintf(ofile, "%3d", bddlevel2var[LEVEL(n)]);
-
-	 fprintf(ofile, ": %3d", LOW(n));
-	 fprintf(ofile, " %3d", HIGH(n));
-	 fprintf(ofile, "\n");
+         if (ISTERM(n))
+           {
+             fprintf(ofile, "terminal %3d\n", TERM(n));
+           }
+         else
+           {
+             int lvl = LEVEL(n);
+             if (lvl & MARKON)
+               {
+                 fprintf(ofile, "MARKED ");
+                 lvl &= MARKOFF;
+               }
+             if (filehandler)
+               filehandler(ofile, bddlevel2var[lvl]);
+             else
+               fprintf(ofile, "%3d", bddlevel2var[LEVEL(n)]);
+             fprintf(ofile, ": %3d %3d\n", LOW(n), HIGH(n));
+           }
       }
    }
 }
@@ -185,14 +195,18 @@ void bdd_fprinttable(FILE *ofile, BDD r)
 	 LEVELp(node) &= MARKOFF;
 
 	 fprintf(ofile, "[%5d] ", n);
-	 if (filehandler)
-	    filehandler(ofile, bddlevel2var[LEVELp(node)]);
-	 else
-	    fprintf(ofile, "%3d", bddlevel2var[LEVELp(node)]);
-
-	 fprintf(ofile, ": %3d", LOWp(node));
-	 fprintf(ofile, " %3d", HIGHp(node));
-	 fprintf(ofile, "\n");
+         if (ISTERMp(node))
+           {
+             fprintf(ofile, "terminal %3d\n", TERMp(node));
+           }
+         else
+           {
+             if (filehandler)
+               filehandler(ofile, bddlevel2var[LEVELp(node)]);
+             else
+               fprintf(ofile, "%3d", bddlevel2var[LEVELp(node)]);
+             fprintf(ofile, ": %3d %3d\n", LOWp(node), HIGHp(node));
+           }
       }
    }
 }
@@ -258,7 +272,7 @@ static void bdd_printset_rec(FILE *ofile, int r, int *set)
    if (r == 0)
       return;
    else
-   if (r == 1)
+     if (r == 1 || ISTERM(r))
    {
       fprintf(ofile, "<");
       first = 1;
@@ -277,7 +291,12 @@ static void bdd_printset_rec(FILE *ofile, int r, int *set)
 	    fprintf(ofile, ":%d", (set[n]==2 ? 1 : 0));
 	 }
       }
-
+      if (ISTERM(r))
+        {
+          if (!first)
+            fprintf(ofile, ", ");
+          fprintf(ofile, "Terminal(%d)", TERM(r));
+        }
       fprintf(ofile, ">");
    }
    else
@@ -314,6 +333,36 @@ void bdd_printdot(BDD r)
 }
 
 
+void bdd_fprintdot_array(FILE* ofile, const BDD* arr, unsigned n)
+{
+   fprintf(ofile, "digraph G {\n  {\n    rank = source;\n");
+   for (unsigned i = 0; i < n; ++i)
+     fprintf(ofile, "    Arr%d [shape=none,label=\"[%d]\"]\n", i, i);
+   fprintf(ofile, "  }\n");
+
+
+   for (unsigned i = 0; i < n; ++i)
+     {
+       BDD r = arr[i];
+       fprintf(ofile, "  Arr%d->%d\n", i, r);
+       bdd_fprintdot_rec(ofile, r);
+     }
+
+   fprintf(ofile, "}\n");
+
+   for (unsigned i = 0; i < n; ++i)
+     bdd_unmark(arr[i]);
+   UNMARK(0);                   /* those aren't covered by bdd_unmark */
+   UNMARK(1);
+}
+
+
+void bdd_printdot_array(const BDD* arr, unsigned n)
+{
+  bdd_fprintdot_array(stdout, arr, n);
+}
+
+
 int bdd_fnprintdot(char *fname, BDD r)
 {
    FILE *ofile = fopen(fname, "w");
@@ -328,28 +377,46 @@ int bdd_fnprintdot(char *fname, BDD r)
 void bdd_fprintdot(FILE* ofile, BDD r)
 {
    fprintf(ofile, "digraph G {\n");
-   fprintf(ofile, "0 [shape=box, label=\"0\", style=filled, shape=box, height=0.3, width=0.3];\n");
-   fprintf(ofile, "1 [shape=box, label=\"1\", style=filled, shape=box, height=0.3, width=0.3];\n");
 
    bdd_fprintdot_rec(ofile, r);
 
    fprintf(ofile, "}\n");
 
    bdd_unmark(r);
+   UNMARK(0);                   /* those aren't covered by bdd_unmark */
+   UNMARK(1);
 }
 
 
 static void bdd_fprintdot_rec(FILE* ofile, BDD r)
 {
-   if (ISCONST(r) || MARKED(r))
+   if (MARKED(r))
       return;
+
+   if (ISCONST(r))
+     {
+       SETMARK(r);
+       fprintf(ofile,
+               "%d [shape=box, label=\"%d\", style=filled, height=0.3, width=0.3];\n",
+               r, r);
+       return;
+     }
+   if (ISTERM(r))
+     {
+       SETMARK(r);
+       fprintf(ofile,
+               "%d [shape=pentagon, label=\"%d (\\N)\", style=filled, height=0.3, width=0.3];\n",
+               r, TERM(r));
+       return;
+     }
+
 
    fprintf(ofile, "%d [label=\"", r);
    if (filehandler)
       filehandler(ofile, bddlevel2var[LEVEL(r)]);
    else
       fprintf(ofile, "%d", bddlevel2var[LEVEL(r)]);
-   fprintf(ofile, "\"];\n");
+   fprintf(ofile, " (\\N)\"];\n");
 
    fprintf(ofile, "%d -> %d [style=dotted];\n", r, LOW(r));
    fprintf(ofile, "%d -> %d [style=filled];\n", r, HIGH(r));
@@ -401,6 +468,9 @@ int bdd_save(FILE *ofile, BDD r)
       return 0;
    }
 
+   if (__unlikely(ISTERM(r)))
+     bdd_error(BDD_TERMINAL);
+
    bdd_markcount(r, &n);
    bdd_unmark(r);
    fprintf(ofile, "%d %d\n", n, bddvarnum);
@@ -423,6 +493,9 @@ static int bdd_save_rec(FILE *ofile, int root)
 
    if (root < 2)
       return 0;
+
+   if (__unlikely(ISTERM(root)))
+     bdd_error(BDD_TERMINAL);
 
    if (LEVELp(node) & MARKON)
       return 0;

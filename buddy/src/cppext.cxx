@@ -235,14 +235,12 @@ ostream &operator<<(ostream &o, const bdd &r)
    if (bdd_ioformat::curformat == IOFORMAT_DOT)
    {
       o << "digraph G {\n";
-      o << "0 [shape=box, label=\"0\", style=filled, shape=box, height=0.3, width=0.3];\n";
-      o << "1 [shape=box, label=\"1\", style=filled, shape=box, height=0.3, width=0.3];\n";
-
       bdd_printdot_rec(o, r.root);
-
       o << "}\n";
 
       bdd_unmark(r.root);
+      UNMARK(0);                   /* those aren't covered by bdd_unmark */
+      UNMARK(1);
    }
    else
    if (bdd_ioformat::curformat == IOFORMAT_FDDSET)
@@ -334,7 +332,7 @@ static void bdd_printset_rec(ostream& o, int r, int* set)
    if (r == 0)
       return;
    else
-   if (r == 1)
+   if (r == 1 || ISTERM(r))
    {
       o << "<";
       first = 1;
@@ -353,7 +351,12 @@ static void bdd_printset_rec(ostream& o, int r, int* set)
 	    o << ":" << (set[n]==2 ? 1 : 0);
 	 }
       }
-
+      if (ISTERM(r))
+        {
+          if (!first)
+            o << ", ";
+          o << "Terminal(" << TERM(r) << ')';
+        }
       o << ">";
    }
    else
@@ -371,8 +374,23 @@ static void bdd_printset_rec(ostream& o, int r, int* set)
 
 static void bdd_printdot_rec(ostream& o, int r)
 {
-   if (ISCONST(r) || MARKED(r))
+   if (MARKED(r))
       return;
+
+   if (ISCONST(r))
+     {
+       SETMARK(r);
+       o << r << "[shape=box, label=\""
+         << r << "\", style=filled, height=0.3, width=0.3];\n";
+       return;
+     }
+   if (ISTERM(r))
+     {
+       SETMARK(r);
+       o << r << "[shape=pentagon, label=\""
+         << TERM(r) << " (\\N)\", style=filled, height=0.3, width=0.3];\n";
+       return;
+     }
 
    o << r << "[label=\"";
    if (strmhandler_bdd)

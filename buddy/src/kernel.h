@@ -147,7 +147,9 @@ extern int bddreordermethod;
 
 /*=== KERNEL DEFINITIONS ===============================================*/
 
-#define MAXVAR 0x1FFFFF
+#define TERMNODE 0x1FFFFF
+#define MAXVAR 0x1FFFFF-1
+
 #define MAXREF 0x3FF
 
    /* Reference counting */
@@ -174,6 +176,8 @@ extern int bddreordermethod;
 #define TRIPLE(a,b,c) (((unsigned)a)+((unsigned)b)*12582917U+((unsigned)c)*4256249U)
 
    /* Inspection of BDD nodes */
+#define ISTERM(a) (LEVEL(a) == TERMNODE)
+#define ISTERMp(p) ((p)->level == TERMNODE)
 #define ISCONST(a) ((a) < 2)
 #define ISNONCONST(a) ((a) >= 2)
 #define ISONE(a)   ((a) == 1)
@@ -181,9 +185,11 @@ extern int bddreordermethod;
 #define LEVEL(a)   (bddnodes[a].level)
 #define LOW(a)     (bddnodes[a].low)
 #define HIGH(a)    (bddnodes[a].high)
+#define TERM(a)    (bddnodes[a].high)
 #define LEVELp(p)   ((p)->level)
 #define LOWp(p)     ((p)->low)
 #define HIGHp(p)    ((p)->high)
+#define TERMp(p)    ((p)->high)
 
    /* Stacking for garbage collector */
 #define INITREF    bddrefstacktop = bddrefstack

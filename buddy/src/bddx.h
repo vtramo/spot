@@ -249,6 +249,20 @@ typedef struct s_bddCacheStat
    long unsigned int swapCount;
 } bddCacheStat;
 
+struct bddExtCacheEntry;
+typedef struct bddExtCacheEntry bddExtCacheEntry;
+
+typedef struct bddExtCache
+{
+  bddExtCacheEntry* table;
+  int tablesize;  /* power of 2 */
+  /* We maintain a circular list of external caches, so that
+     the garbage collector can reset them. */
+  struct bddExtCache* next_ext_cache;
+  struct bddExtCache* prev_ext_cache;
+} bddExtCache;
+
+
 /*=== BDD interface prototypes =========================================*/
 
 /*
@@ -315,6 +329,11 @@ BUDDY_API BDD      bdd_false(void) __constfn;
 BUDDY_API int      bdd_varnum(void) __purefn;
 BUDDY_API BDD      bdd_ithvar(int) __purefn;
 BUDDY_API BDD      bdd_nithvar(int) __purefn;
+  /* Create a terminal for multi-terminal BDDs.  Those require
+     special handling functions. */
+BUDDY_API BDD      bdd_terminal(int) __purefn;
+BUDDY_API int      bdd_is_terminal(BDD) __purefn;
+BUDDY_API int      bdd_get_terminal(BDD) __purefn;
 BUDDY_API int      bdd_var(BDD) __purefn;
 BUDDY_API BDD      bdd_low(BDD) __purefn;
 BUDDY_API BDD      bdd_high(BDD) __purefn;
@@ -337,6 +356,10 @@ BUDDY_API void     bdd_resetpair(bddPair *);
 BUDDY_API void     bdd_freepair(bddPair*);
 BUDDY_API int      bdd_stable_cmp(BDD, BDD);
 
+BUDDY_API void     bdd_extcache_init(bddExtCache*, int);
+BUDDY_API void     bdd_extcache_reset(bddExtCache*);
+BUDDY_API void     bdd_extcache_done(bddExtCache*);
+
   /* In bddop.c */
 
 BUDDY_API int      bdd_setcacheratio(int);
@@ -349,6 +372,17 @@ BUDDY_API int      bdd_next_minterm(mintermEnumerator*);
 BUDDY_API void     bdd_free_minterm(mintermEnumerator*);
 BUDDY_API BDD      bdd_not(BDD);
 BUDDY_API BDD      bdd_apply(BDD, BDD, int);
+BUDDY_API BDD      bdd_mt_apply2(BDD, BDD, int (*)(int, int),
+                                 bddExtCache*, int, int);
+BUDDY_API BDD      bdd_mt_apply2b(BDD, BDD, int (*)(int, int),
+                                  bddExtCache*, int, int);
+BUDDY_API BDD      bdd_mt_apply1(BDD, int (*)(int),
+                                 BDD, BDD,
+                                 bddExtCache*, int);
+BUDDY_API BDD      bdd_const_to_terminal(BDD, BDD, BDD,
+                                         bddExtCache*, int);
+BUDDY_API BDD      bdd_terminal_to_const(BDD, BDD, BDD,
+                                         bddExtCache*, int);
 BUDDY_API BDD      bdd_and(BDD, BDD);
 BUDDY_API BDD      bdd_or(BDD, BDD);
 BUDDY_API BDD      bdd_xor(BDD, BDD);
@@ -380,7 +414,7 @@ BUDDY_API BDD      bdd_satone(BDD);
 BUDDY_API BDD      bdd_satoneset(BDD, BDD, BDD);
 BUDDY_API BDD      bdd_fullsatone(BDD);
 BUDDY_API BDD      bdd_satoneshortest(BDD, unsigned, unsigned, unsigned);
-BUDDY_API BDD	bdd_satprefix(BDD *);
+BUDDY_API BDD	   bdd_satprefix(BDD *);
 BUDDY_API void     bdd_allsat(BDD r, bddallsathandler handler);
 BUDDY_API double   bdd_satcount(BDD);
 BUDDY_API double   bdd_satcountset(BDD, BDD);
@@ -404,6 +438,8 @@ BUDDY_API void     bdd_printset(BDD);
 BUDDY_API int      bdd_fnprintdot(char *, BDD);
 BUDDY_API void     bdd_fprintdot(FILE *, BDD);
 BUDDY_API void     bdd_printdot(BDD);
+BUDDY_API void     bdd_fprintdot_array(FILE *, const BDD*, unsigned);
+BUDDY_API void     bdd_printdot_array(const BDD*, unsigned);
 BUDDY_API int      bdd_fnsave(char *, BDD);
 BUDDY_API int      bdd_save(FILE *, BDD);
 BUDDY_API int      bdd_fnload(char *, BDD *);
@@ -492,6 +528,7 @@ BUDDY_API_VAR const BDD bddtrue;
 #define BVEC_DIVZERO (-22) /* Division by zero */
 
 #define BDD_INVMERGE (-23) /* Merging clashing rewriting rules */
+#define BDD_TERMINAL (-24) /* terminals are not supported */
 
 #define BDD_ERRNUM 25
 
@@ -503,6 +540,7 @@ BUDDY_API_VAR const BDD bddtrue;
 #include <iostream>
 #include <memory>
 #include <type_traits>
+#include <vector>
 
 /*=== User BDD class ===================================================*/
 
@@ -591,6 +629,9 @@ protected:
    friend bddxfalse bdd_false(void);
    friend bdd      bdd_ithvarpp(int);
    friend bdd      bdd_nithvarpp(int);
+   friend bdd      bdd_terminalpp(int);
+   friend int      bdd_is_terminal(const bdd&);
+   friend int      bdd_get_terminal(const bdd&);
    friend int      bdd_var(const bdd &);
    friend bdd      bdd_low(const bdd &);
    friend bdd      bdd_high(const bdd &);
@@ -610,6 +651,17 @@ protected:
    friend bdd      bdd_not(const bdd &);
    friend bdd      bdd_simplify(const bdd &, const bdd &);
    friend bdd      bdd_apply(const bdd &, const bdd &, int);
+   friend bdd      bdd_mt_apply2(const bdd&, const bdd&, int (*)(int, int),
+                                 bddExtCache*, int, int);
+   friend bdd      bdd_mt_apply2b(const bdd&, const bdd&, int (*)(int, int),
+                                  bddExtCache*, int, int);
+   friend bdd      bdd_mt_apply1(const bdd&, int (*)(int),
+                                 const bdd&, const bdd&,
+                                 bddExtCache*, int);
+   friend bdd      bdd_const_to_terminal(const bdd&, const bdd&, const bdd&,
+                                         bddExtCache*, int);
+   friend bdd      bdd_terminal_to_const(const bdd&, const bdd&, const bdd&,
+                                         bddExtCache*, int);
    friend bdd      bdd_and(const bdd &, const bdd &);
    friend bdd      bdd_or(const bdd &, const bdd &);
    friend bdd      bdd_xor(const bdd &, const bdd &);
@@ -660,6 +712,8 @@ protected:
    friend void   bdd_fprintset(FILE *, const bdd &);
    friend void   bdd_printset(const bdd &);
    friend void   bdd_printdot(const bdd &);
+   friend void   bdd_printdot_array(const bdd*, unsigned n);
+   friend void   bdd_fprintdot_array(FILE*, const bdd*, unsigned n);
    friend int    bdd_fnprintdot(char*, const bdd &);
    friend void   bdd_fprintdot(FILE*, const bdd &);
    friend std::ostream &operator<<(std::ostream &, const bdd &);
@@ -667,6 +721,8 @@ protected:
    friend int    bdd_save(FILE*, const bdd &);
    friend int    bdd_fnload(char*, bdd &);
    friend int    bdd_load(FILE*, bdd &);
+   friend std::vector<bdd> leaves_of(const bdd&);
+   friend std::vector<bdd> leaves_of(const std::vector<bdd>& b);
 
    friend bdd    fdd_ithvarpp(int, int);
    friend bdd    fdd_ithsetpp(int);
@@ -680,7 +736,6 @@ protected:
    friend int    fdd_scanset(const bdd &, int *&, int &);
 
    friend int    bdd_addvarblock(const bdd &, int);
-
    friend class bvec;
    friend bvec bvec_ite(const bdd& a, const bvec& b, const bvec& c);
    friend bvec bvec_shlfixed(const bvec &e, int pos, const bdd &c);
@@ -743,6 +798,15 @@ inline bdd bdd_low(const bdd &r)
 inline bdd bdd_high(const bdd &r)
 { return bdd_high(r.root); }
 
+inline bdd bdd_terminalpp(int v)
+{ return bdd_terminal(v); }
+
+inline int bdd_is_terminal(const bdd& r)
+{ return bdd_is_terminal(r.root); }
+
+inline int bdd_get_terminal(const bdd& r)
+{ return bdd_get_terminal(r.root); }
+
 inline int bdd_scanset(const bdd &r, int *&v, int &n)
 { return bdd_scanset(r.root, &v, &n); }
 
@@ -801,6 +865,44 @@ inline bdd bdd_not(const bdd &r)
 
 inline bdd bdd_apply(const bdd &l, const bdd &r, int op)
 { return bdd_apply(l.root, r.root, op); }
+
+inline bdd bdd_mt_apply2(const bdd &l, const bdd &r, int (*op)(int, int),
+                         bddExtCache* cache, int ophash,
+                         int applyop_shortcut = -1)
+{ return bdd_mt_apply2(l.root, r.root, op, cache, ophash, applyop_shortcut); }
+
+inline bdd bdd_mt_apply2b(const bdd &l, const bdd &r, int (*op)(int, int),
+                          bddExtCache* cache, int ophash,
+                          int applyop_shortcut = -1)
+{ return bdd_mt_apply2b(l.root, r.root, op, cache, ophash, applyop_shortcut); }
+
+inline bdd bdd_mt_apply1(const bdd &r, int (*op)(int),
+                         const bdd& replace_false, const bdd& replace_true,
+                         bddExtCache* cache, int ophash)
+{
+  return bdd_mt_apply1(r.root, op,
+                       replace_false.root, replace_true.root,
+                       cache, ophash);
+}
+
+inline bdd bdd_const_to_terminal(const bdd& r,
+                                 const bdd& for_false,
+                                 const bdd& for_true,
+                                 bddExtCache* cache, int ophash)
+{
+  return bdd_const_to_terminal(r.root, for_false.root, for_true.root,
+                               cache, ophash);
+}
+
+inline bdd bdd_terminal_to_const(const bdd& r,
+                                 const bdd& map_to_false,
+                                 const bdd& map_to_true,
+                                 bddExtCache* cache, int ophash)
+{
+  return bdd_terminal_to_const(r.root, map_to_false.root, map_to_true.root,
+                               cache, ophash);
+}
+
 
 inline bdd bdd_and(const bdd &l, const bdd &r)
 { return bdd_apply(l.root, r.root, bddop_and); }
@@ -938,6 +1040,19 @@ inline void bdd_printdot(const bdd &r)
 inline void bdd_fprintdot(FILE* ofile, const bdd &r)
 { bdd_fprintdot(ofile, r.root); }
 
+
+inline void bdd_fprintdot_array(FILE* ofile, const bdd* r, unsigned n)
+{
+  static_assert(sizeof(bdd) == sizeof(int));
+  bdd_fprintdot_array(ofile, reinterpret_cast<const int*>(r), n);
+}
+
+inline void bdd_printdot_array(const bdd* r, unsigned n)
+{
+  static_assert(sizeof(bdd) == sizeof(int));
+  bdd_printdot_array(reinterpret_cast<const int*>(r), n);
+}
+
 inline int bdd_fnprintdot(char* fname, const bdd &r)
 { return bdd_fnprintdot(fname, r.root); }
 
@@ -960,6 +1075,7 @@ inline int bdd_addvarblock(const bdd &v, int f)
 #define bdd_init bdd_cpp_init
 #define bdd_ithvar bdd_ithvarpp
 #define bdd_nithvar bdd_nithvarpp
+#define bdd_terminal bdd_terminalpp
 #define bdd_makeset bdd_makesetpp
 #define bdd_ibuildcube bdd_ibuildcubepp
 #define bdd_ibuildcube2 bdd_ibuildcubepp2

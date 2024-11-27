@@ -1,5 +1,5 @@
 /*========================================================================
-	       Copyright (C) 1996-2002, 2021 by Jorn Lind-Nielsen
+	       Copyright (C) 1996-2002 by Jorn Lind-Nielsen
 			    All rights reserved
 
     Permission is hereby granted, without written agreement and without
@@ -137,7 +137,9 @@ static const char *errorstrings[BDD_ERRNUM] =
   "Mismatch in bitvector size",
   "Illegal shift-left/right parameter",
   "Division by zero",
-  "Unmergeable rewritings."};
+  "Unmergeable rewritings",
+  "Terminals are not supported for this operation",
+};
 
 
 /*=== OTHER INTERNAL DEFINITIONS =======================================*/
@@ -833,7 +835,7 @@ ALSO    {* bdd\_err\_hook *}
 const char *bdd_errstring(int e)
 {
    e = abs(e);
-   if (e<1 || e>BDD_ERRNUM)
+   if (e<1 || e>=BDD_ERRNUM)
       return NULL;
    return errorstrings[e-1];
 }
@@ -949,6 +951,28 @@ BDD bdd_nithvar(int var)
 #endif
 
    return bddvarset[var*2+1];
+}
+
+/* Create a terminal for multi-terminal BDDs.  Those require
+   special handling functions. */
+BDD      bdd_terminal(int val)
+{
+  // We store the terminal value in the HIGH link, but the LOW value
+  // should never be equal to that to prevent bdd_makenode from
+  // simplifying this.  We change LOW here so we do not need
+  // additional tests in bdd_makenode.
+  return bdd_makenode(TERMNODE, val == 0, val);
+}
+
+int      bdd_is_terminal(BDD root)
+{
+  return ISTERM(root);
+}
+
+int      bdd_get_terminal(BDD root)
+{
+  assert(ISTERM(root));
+  return TERM(root);
 }
 
 
@@ -1267,9 +1291,14 @@ void bdd_mark(int i)
       return;
 
    node = &bddnodes[i];
-   if (LEVELp(node) & MARKON  ||  LOWp(node) == -1)
+   if (LEVELp(node) & MARKON ||  LOWp(node) == -1)
       return;
 
+   if (__unlikely(ISTERMp(node)))
+     {
+       LEVELp(node) |= MARKON;
+       return;
+     }
    LEVELp(node) |= MARKON;
 
    bdd_mark(LOWp(node));
@@ -1308,8 +1337,13 @@ void bdd_markcount(int i, int *cou)
    if (MARKEDp(node)  ||  LOWp(node) == -1)
       return;
 
-   SETMARKp(node);
    *cou += 1;
+   if (__unlikely(ISTERMp(node)))
+     {
+       SETMARKp(node);
+       return;
+     }
+   SETMARKp(node);
 
    bdd_markcount(LOWp(node), cou);
    bdd_markcount(HIGHp(node), cou);
@@ -1328,6 +1362,9 @@ void bdd_unmark(int i)
    if (!MARKEDp(node)  ||  LOWp(node) == -1)
       return;
    UNMARKp(node);
+
+   if (__unlikely(ISTERMp(node)))
+     return;
 
    bdd_unmark(LOWp(node));
    bdd_unmark(HIGHp(node));

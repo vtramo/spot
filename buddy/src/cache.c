@@ -41,13 +41,19 @@
 #include "cache.h"
 #include "prime.h"
 
+
+// This is the root of the circular list of external caches.
+// It is declared as an external cache itself, but is only used
+// for the next/prev pointers.
+bddExtCache external_caches = { NULL, 0, &external_caches, &external_caches };
+
+
 /*************************************************************************
 *************************************************************************/
 
 void BddCache_reset(BddCache *cache)
 {
-  int n;
-  for (n = 0; n < cache->tablesize; n++)
+  for (int n = 0; n < cache->tablesize; n++)
     cache->table[n].i.a = -1;
 }
 
@@ -80,5 +86,39 @@ int BddCache_resize(BddCache *cache, int newsize)
 }
 
 
+void bdd_extcache_init(bddExtCache* cache, int size)
+{
+  if (size <= 0)
+    size = bddcachesize;
+
+  size = bdd_nextpower(size);
+  if ((cache->table=NEW(bddExtCacheEntry, size)) == NULL)
+    bdd_error(BDD_MEMORY);
+  cache->tablesize = size;
+  bdd_extcache_reset(cache);
+
+  // register the new cache in the circular list
+  cache->next_ext_cache = external_caches.next_ext_cache;
+  cache->prev_ext_cache = &external_caches;
+  external_caches.next_ext_cache->prev_ext_cache = cache;
+  external_caches.next_ext_cache = cache;
+}
+
+void bdd_extcache_done(bddExtCache* cache)
+{
+  free(cache->table);
+  cache->table = NULL;
+  cache->tablesize = 0;
+
+  // remove the cache from the circular list
+  cache->next_ext_cache->prev_ext_cache = cache->prev_ext_cache;
+  cache->prev_ext_cache->next_ext_cache = cache->next_ext_cache;
+}
+
+void bdd_extcache_reset(bddExtCache* cache)
+{
+  for (int n = 0; n < cache->tablesize; n++)
+    cache->table[n].arg1 = -1;
+}
 
 /* EOF */

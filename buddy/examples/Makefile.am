@@ -6,5 +6,6 @@ SUBDIRS = \
  fdd \
  milner \
  money \
+ mtbdd \
  queen \
  solitare

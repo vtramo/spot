@@ -1,5 +1,5 @@
 /*========================================================================
-               Copyright (C) 1996-2002, 2020 by Jorn Lind-Nielsen
+               Copyright (C) 1996-2002 by Jorn Lind-Nielsen
                             All rights reserved
 
     Permission is hereby granted, without written agreement and without
@@ -38,6 +38,7 @@
 #ifndef _CACHE_H
 #define _CACHE_H
 
+#include "bddx.h"
 
 typedef union
 {
@@ -66,8 +67,21 @@ extern void BddCache_done(BddCache *);
 extern int  BddCache_resize(BddCache *, int);
 extern void BddCache_reset(BddCache *);
 
+extern bddExtCache external_caches;
+
 #define BddCache_lookup(cache, hash) (&(cache)->table[hash & ((cache)->tablesize - 1)])
 #define BddCache_index(cache, hash, index) (&(cache)->table[index = (hash & ((cache)->tablesize - 1))])
+
+
+/* cache entries for external caches */
+
+struct bddExtCacheEntry
+{
+  int arg1;
+  int arg2;
+  int op;
+  int res;
+};
 
 #endif /* _CACHE_H */
 
