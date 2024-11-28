@@ -504,12 +504,12 @@ mintermEnumerator* bdd_init_minterm(BDD fun, BDD vars)
 void bdd_free_minterm(mintermEnumerator* me)
 {
   bdd_delref(me->fun);
-  free(me->stack);
+  free(me->stacktop);
   free(me->vars);
   free(me);
 }
 
-static int reset_minterm(mintermEnumerator*me,
+static int reset_minterm(mintermEnumerator* me,
                          BDD sub, int var)
 {
   int nvars = me->nvars;
@@ -549,6 +549,7 @@ static int reset_minterm(mintermEnumerator*me,
         }
       vars[i] = v;
     }
+  me->leaf = sub;
   return 1;
 }
 
@@ -575,6 +576,110 @@ bdd bdd_next_minterm(mintermEnumerator* me)
   vars[lastbranch] = v;
   // reset everything below to negative polarity
   return reset_minterm(me, lastsub, lastbranch + 1);
+}
+
+/*=== Path Enumerator ==================================================*/
+
+pathEnumerator* bdd_init_path(BDD fun)
+{
+  pathEnumerator* me = malloc(sizeof(pathEnumerator));
+  if (__unlikely(me == NULL))
+    {
+      bdd_error(BDD_MEMORY);
+      return NULL;
+    }
+  int* stack = malloc(sizeof(int)*(bddvarnum + 1));
+  if (__unlikely(stack == NULL))
+    {
+      free(me);
+      bdd_error(BDD_MEMORY);
+      return NULL;
+    }
+  bdd_addref(fun);
+  me->stacktop = stack;
+  me->stack = stack;
+  *stack = fun;
+  return me;
+}
+
+void bdd_free_path(pathEnumerator* me)
+{
+  bdd_delref(*me->stacktop);
+  free(me->stacktop);
+  free(me);
+}
+
+static int reset_path(pathEnumerator* me)
+{
+  int* stacktop = me->stacktop;
+  while (!ISCONST(*stacktop) && !ISTERM(*stacktop))
+    {
+      BDD low = LOW(*stacktop);
+      if (low == BDDZERO)
+        {
+          bdd high = HIGH(*stacktop);
+          *++stacktop = high;
+        }
+      else
+        {
+          *++stacktop = low;
+        }
+    }
+  me->stacktop = stacktop;
+  return 1;
+}
+
+
+int bdd_first_path(pathEnumerator* me)
+{
+  if (__unlikely(*me->stacktop == BDDZERO))
+    return 0;
+  me->stacktop = me->stack;
+  return reset_path(me);
+}
+
+int bdd_next_path(pathEnumerator* me)
+{
+  // rewind the stack until we backtrack a LOW link
+  int* stack = me->stack;
+  int* stacktop = me->stacktop;
+  while (stack < stacktop)
+    {
+      bdd child = *stacktop--;
+      bdd parent = *stacktop;
+      if (child == LOW(parent))
+        {
+          bdd h = HIGH(parent);
+          if (h == 0)
+            continue;
+          *++stacktop = h;
+          me->stacktop = stacktop;
+          return reset_path(me);
+        }
+    }
+  // no next path
+  me->stacktop = stacktop;
+  return 0;
+}
+
+bdd bdd_current_path(const pathEnumerator* me)
+{
+  // build the conjunction that correspond to nodes on the stack.
+  bdd res = BDDONE;
+  int* stack = me->stack;
+  int* stacktop = me->stacktop;
+  while (stack < stacktop)
+    {
+      bdd child = *stacktop--;
+      bdd parent = *stacktop;
+      PUSHREF(res);
+      if (child == LOW(parent))
+        res = bdd_makenode(LEVEL(parent), res, BDDZERO);
+      else
+        res = bdd_makenode(LEVEL(parent), BDDZERO, res);
+      POPREF(1);
+    }
+  return res;
 }
 
 
@@ -3137,13 +3242,13 @@ BDD bdd_support(BDD r)
    BddCacheData *entry;
    static int  supportSize = 0;
    int n;
-   int res=1;
+   int res = 1;
 
    CHECKa(r, bddfalse);
 
    /* Variable sets are conjunctions, so the empty support is bddtrue.  */
    if (r < 2)
-      return bddtrue;
+      return res;
 
    entry = BddCache_lookup(&misccache, SUPPORTHASH(r));
    if (entry->i.a == r && entry->i.c == CACHEID_SUPPORT)
@@ -3156,6 +3261,14 @@ BDD bdd_support(BDD r)
 #ifdef CACHESTATS
    bddcachestats.opMiss++;
 #endif
+
+   if (__unlikely(ISTERM(r)))
+     {
+       entry->i.a = r;
+       entry->i.c = CACHEID_SUPPORT;
+       entry->i.res = res;
+       return res;
+     }
 
       /* On-demand allocation of support set */
    if (__unlikely(supportSize < bddvarnum))
@@ -3226,7 +3339,7 @@ static void support_rec(int r, int* support)
       if (r < 2)
         continue;
       BddNode *node = &bddnodes[r];
-      if (LEVELp(node) & MARKON || LOWp(node) == -1)
+      if (LEVELp(node) & MARKON || LOWp(node) == -1 || ISTERMp(node))
         continue;
       support[LEVELp(node)] = supportID;
       if (LEVELp(node) > supportMax)

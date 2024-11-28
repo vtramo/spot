@@ -613,4 +613,45 @@ ostream &operator<<(ostream &o, const bvec &v)
   return o;
 }
 
+static void leaves_of_rec(int r, std::vector<bdd>& res)
+{
+  if (MARKED(r))
+    return;
+
+  if (ISCONST(r) || ISTERM(r))
+    {
+      SETMARK(r);               // cannot be done before ISTERM
+      res.push_back(bdd_from_int(r));
+      return;
+    }
+  SETMARK(r);
+  leaves_of_rec(LOW(r), res);
+  leaves_of_rec(HIGH(r), res);
+}
+
+
+
+std::vector<bdd> leaves_of(const bdd& b)
+{
+  std::vector<bdd> res;
+  leaves_of_rec(b.root, res);
+  bdd_unmark(b.root);
+  UNMARK(0);                   /* those aren't covered by bdd_unmark */
+  UNMARK(1);
+  return res;
+}
+
+std::vector<bdd> leaves_of(const std::vector<bdd>& b)
+{
+  std::vector<bdd> res;
+  for (const bdd& x : b)
+    leaves_of_rec(x.root, res);
+  for (const bdd& x : b)
+    bdd_unmark(x.root);
+  UNMARK(0);                   /* those aren't covered by bdd_unmark */
+  UNMARK(1);
+  return res;
+}
+
+
 /* EOF */

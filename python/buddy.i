@@ -205,7 +205,11 @@ void     bdd_clear_error(void);
 
 bdd bdd_ithvar(int v);
 bdd bdd_nithvar(int v);
+bdd bdd_terminal(int v);
+int bdd_is_terminal(const bdd& v);
+int bdd_get_terminal(const bdd& v);
 int bdd_var(const bdd &r);
+int bdd_level(const bdd &r);
 bdd bdd_low(const bdd &r);
 bdd bdd_high(const bdd &r);
 int bdd_scanset(const bdd &r, int *&v, int &n);

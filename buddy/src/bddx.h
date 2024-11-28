@@ -134,7 +134,14 @@ typedef struct
   int *stack;
   BDD fun;
   int nvars;
+  BDD leaf;
 } mintermEnumerator;
+
+typedef struct
+{
+  int *stacktop;
+  int *stack;
+} pathEnumerator;
 
 /*=== Status information ===============================================*/
 
@@ -370,6 +377,11 @@ BUDDY_API mintermEnumerator* bdd_init_minterm(BDD, BDD);
 BUDDY_API int      bdd_first_minterm(mintermEnumerator*);
 BUDDY_API int      bdd_next_minterm(mintermEnumerator*);
 BUDDY_API void     bdd_free_minterm(mintermEnumerator*);
+BUDDY_API pathEnumerator* bdd_init_path(BDD);
+BUDDY_API int      bdd_first_path(pathEnumerator*);
+BUDDY_API int      bdd_next_path(pathEnumerator*);
+BUDDY_API void     bdd_free_path(pathEnumerator*);
+BUDDY_API BDD      bdd_current_path(const pathEnumerator*);
 BUDDY_API BDD      bdd_not(BDD);
 BUDDY_API BDD      bdd_apply(BDD, BDD, int);
 BUDDY_API BDD      bdd_mt_apply2(BDD, BDD, int (*)(int, int),
@@ -648,6 +660,14 @@ protected:
    friend int      bdd_first_mintermpp(mintermEnumerator*);
    friend int      bdd_next_mintermpp(mintermEnumerator*);
    friend void     bdd_free_mintermpp(mintermEnumerator*);
+   friend pathEnumerator* bdd_init_path(const bdd&);
+   friend int      bdd_first_pathpp(pathEnumerator*);
+   friend int      bdd_next_pathpp(pathEnumerator*);
+   friend void     bdd_free_pathpp(pathEnumerator*);
+   friend bdd      bdd_current_pathpp(const pathEnumerator*);
+   friend bdd      bdd_current_leaf(const pathEnumerator*);
+   friend bdd      bdd_current_leaf(const mintermEnumerator*);
+
    friend bdd      bdd_not(const bdd &);
    friend bdd      bdd_simplify(const bdd &, const bdd &);
    friend bdd      bdd_apply(const bdd &, const bdd &, int);
@@ -859,6 +879,27 @@ inline int bdd_next_mintermpp(mintermEnumerator* me)
 
 inline void bdd_free_mintermpp(mintermEnumerator* me)
 { return bdd_free_minterm(me); }
+
+inline pathEnumerator* bdd_init_path(const bdd& fun)
+{ return bdd_init_path(fun.root); }
+
+inline int bdd_first_pathpp(pathEnumerator* me)
+{ return bdd_first_path(me); }
+
+inline int bdd_next_pathpp(pathEnumerator* me)
+{ return bdd_next_path(me); }
+
+inline void bdd_free_pathpp(pathEnumerator* me)
+{ return bdd_free_path(me); }
+
+inline bdd bdd_current_pathpp(const pathEnumerator* me)
+{ return bdd_current_path(me); }
+
+inline bdd bdd_current_leaf(const pathEnumerator* me)
+{ return *me->stacktop; }
+
+inline bdd bdd_current_leaf(const mintermEnumerator* me)
+{ return me->leaf; }
 
 inline bdd bdd_not(const bdd &r)
 { return bdd_not(r.root); }
@@ -1082,6 +1123,10 @@ inline int bdd_addvarblock(const bdd &v, int f)
 #define bdd_first_minterm bdd_first_mintermpp
 #define bdd_next_minterm bdd_next_mintermpp
 #define bdd_free_minterm bdd_free_mintermpp
+#define bdd_first_path bdd_first_pathpp
+#define bdd_next_path bdd_next_pathpp
+#define bdd_free_path bdd_free_pathpp
+#define bdd_current_path bdd_current_pathpp
 #define bdd_anodecount bdd_anodecountpp
 
 /*=== Inline C++ functions =============================================*/
@@ -1243,9 +1288,15 @@ typedef void (*bddstrmhandler)(std::ostream &, int);
 
 BUDDY_API bddstrmhandler bdd_strm_hook(bddstrmhandler);
 
+/*=== Leave collection ===*/
+
+BUDDY_API std::vector<bdd> leaves_of(const bdd&);
+BUDDY_API std::vector<bdd> leaves_of(const std::vector<bdd>& b);
+
 /*=== Minterm enumeration ====*/
 
-class minterms_of
+template<bool mt>
+class minterms_of_
 {
 public:
   class minterm_iterator
@@ -1262,7 +1313,7 @@ public:
     {
     }
 
-    minterm_iterator(minterms_of* me) noexcept
+    minterm_iterator(minterms_of_* me) noexcept
       : me_(me)
     {
     }
@@ -1271,17 +1322,17 @@ public:
     void operator++(int);
     bool operator==(std::nullptr_t) const;
     bool operator!=(std::nullptr_t) const;
-    bdd operator*() const;
+    std::conditional_t<mt, std::pair<bdd, bdd>, bdd> operator*() const;
   protected:
-    minterms_of* me_;
+    minterms_of_* me_;
   };
 
-  minterms_of(bdd fun, bdd vars)
+  minterms_of_(bdd fun, bdd vars)
   {
     me_ = bdd_init_minterm(fun, vars);
   }
 
-  ~minterms_of()
+  ~minterms_of_()
   {
     bdd_free_minterm(me_);
   }
@@ -1302,9 +1353,13 @@ public:
     return done_;
   }
 
-  bdd operator*() const
+  std::conditional_t<mt, std::pair<bdd, bdd>, bdd> operator*() const
   {
-    return bdd_ibuildcube2(me_->nvars, me_->vars);
+    if constexpr (mt)
+      return std::pair<bdd, bdd>(bdd_ibuildcube2(me_->nvars, me_->vars),
+                                 bdd_current_leaf(me_));
+    else
+      return bdd_ibuildcube2(me_->nvars, me_->vars);
   }
 
   void operator++()
@@ -1318,30 +1373,159 @@ protected:
   bool done_;
 };
 
-inline minterms_of::minterm_iterator&
-minterms_of::minterm_iterator::operator++()
+template<bool mt>
+inline typename minterms_of_<mt>::minterm_iterator&
+minterms_of_<mt>::minterm_iterator::operator++()
 {
   ++*me_;
   return *this;
 }
 
+template<bool mt>
 inline bool
-minterms_of::minterm_iterator::operator==(std::nullptr_t) const
+minterms_of_<mt>::minterm_iterator::operator==(std::nullptr_t) const
 {
   return me_->done();
 }
 
+template<bool mt>
 inline bool
-minterms_of::minterm_iterator::operator!=(std::nullptr_t) const
+minterms_of_<mt>::minterm_iterator::operator!=(std::nullptr_t) const
 {
   return !me_->done();
 }
 
-inline bdd
-minterms_of::minterm_iterator::operator*() const
+template<bool mt>
+inline std::conditional_t<mt, std::pair<bdd, bdd>, bdd>
+minterms_of_<mt>::minterm_iterator::operator*() const
 {
   return **me_;
 }
+
+typedef minterms_of_<false> minterms_of;
+typedef minterms_of_<true> minterms_mt_of;
+
+// Iterate over all successfull paths of a BDD
+
+template<bool path, bool mt>
+class paths_of_
+{
+public:
+  class path_iterator
+  {
+  public:
+    typedef bdd value_type;
+    typedef value_type& reference;
+    typedef value_type* pointer;
+    typedef std::ptrdiff_t difference_type;
+    typedef std::forward_iterator_tag iterator_category;
+
+    explicit path_iterator() noexcept
+      : me_(nullptr)
+    {
+    }
+
+    path_iterator(paths_of_* me) noexcept
+      : me_(me)
+    {
+    }
+
+    path_iterator& operator++();
+    void operator++(int);
+    bool operator==(std::nullptr_t) const;
+    bool operator!=(std::nullptr_t) const;
+    std::conditional_t<path,
+                       std::conditional_t<mt, std::pair<bdd, bdd>, bdd>,
+                       int> operator*() const;
+  protected:
+    paths_of_* me_;
+  };
+
+  paths_of_(bdd fun)
+  {
+    me_ = bdd_init_path(fun);
+  }
+
+  ~paths_of_()
+  {
+    bdd_free_path(me_);
+  }
+
+  path_iterator begin()
+  {
+    done_ = !bdd_first_path(me_);
+    return this;
+  }
+
+  std::nullptr_t end() const
+  {
+    return nullptr;
+  }
+
+  bool done() const
+  {
+    return done_;
+  }
+
+  std::conditional_t<path,
+                     std::conditional_t<mt, std::pair<bdd, bdd>, bdd>,
+                     int>
+  operator*() const
+  {
+    // Update
+    if constexpr (!path)
+      return bdd_get_terminal(*me_->stacktop);
+    else if constexpr (mt)
+      return std::pair<bdd, bdd>(bdd_current_path(me_), bdd_current_leaf(me_));
+    else
+      return bdd_current_path(me_);
+  }
+
+  void operator++()
+  {
+    if (!bdd_next_path(me_))
+      done_ = true;
+  }
+
+protected:
+  pathEnumerator* me_;
+  bool done_;
+};
+
+template<bool path, bool mt>
+inline typename paths_of_<path, mt>::path_iterator&
+paths_of_<path, mt>::path_iterator::operator++()
+{
+  ++*me_;
+  return *this;
+}
+
+template<bool path, bool mt>
+inline bool
+paths_of_<path, mt>::path_iterator::operator==(std::nullptr_t) const
+{
+  return me_->done();
+}
+
+template<bool path, bool mt>
+inline bool
+paths_of_<path, mt>::path_iterator::operator!=(std::nullptr_t) const
+{
+  return !me_->done();
+}
+
+template<bool path, bool mt>
+inline std::conditional_t<path,
+                          std::conditional_t<mt, std::pair<bdd, bdd>, bdd>,
+                          int>
+paths_of_<path, mt>::path_iterator::operator*() const
+{
+  return **me_;
+}
+
+typedef paths_of_<true, false> paths_of;
+typedef paths_of_<true, true> paths_mt_of;
+typedef paths_of_<false, true> terminals_of;
 
 #endif /* CPLUSPLUS */
 

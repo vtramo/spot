@@ -3,6 +3,7 @@
 #include <math.h>
 #include "bddx.h"
 #include <iostream>
+#include <cassert>
 
 
 void ap_printer(FILE* f, int v)
@@ -68,8 +69,66 @@ int main(int argc, char** argv)
                             [](int a) { return a + 1; },
                             bddfalse, bddtrue,
                             &mt_cache, 2);
+
      bdd_extcache_done(&mt_cache);
      bdd_printdot_array(arr, 4);
+
+     bdd sup = bdd_support(arr[2]);
+     assert(sup == (a & b & c));
+
+     for (auto [minterm, term]: minterms_mt_of(arr[2], sup))
+       std::cout << minterm << " -> " << term << '\n';
+     std::cout << "--\n";
+     for (auto [path, term]: paths_mt_of(arr[2]))
+       std::cout << path << " -> " << term << '\n';
+     std::cout << "--\n";
+     for (int term: terminals_of(arr[2]))
+       std::cout << "terminal " << term << '\n';
+
+     std::cout << "--\n";
+     for (bdd sat: paths_of(sup))
+       std::cout << sat << '\n';
+     std::cout << "--\n";
+     for (bdd sat: paths_of(bddtrue))
+       std::cout << sat << '\n';
+     std::cout << "--\n";
+     for (bdd sat: paths_of(bddfalse))
+       std::cout << sat << '\n';
+     std::cout << "--\n";
+
+     arr[0] = !a & !b & t0;
+     bdd_printdot_array(arr, 1);
+     for (auto [path, term]: paths_mt_of(arr[0]))
+       std::cout << path << " -> " << term << '\n';
+     std::cout << "--\n";
+
+     arr[0] = !a & !b & t0;
+     bdd_printdot_array(arr, 1);
+     std::cerr << "leaves of arr[0]\n";
+     for (bdd b: leaves_of(arr[0]))
+       {
+         if (b == bddtrue)
+           std::cerr << "  true";
+         else if (b == bddfalse)
+           std::cerr << "  false";
+         else
+           std::cerr << "  " << bdd_get_terminal(b);
+       }
+     std::cout << '\n';
+
+     std::cerr << "leaves of arr[0..3]\n";
+     std::vector<bdd> varr(arr, arr + 4);
+     for (bdd b: leaves_of(varr))
+       {
+         if (b == bddtrue)
+           std::cerr << "  true";
+         else if (b == bddfalse)
+           std::cerr << "  false";
+         else
+           std::cerr << "  " << bdd_get_terminal(b);
+       }
+     std::cout << '\n';
+
      fflush(stdout);
    }
 
