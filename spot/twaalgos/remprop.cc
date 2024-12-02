@@ -19,6 +19,7 @@
 #include "config.h"
 #include <spot/twaalgos/remprop.hh>
 #include <spot/twaalgos/mask.hh>
+#include <spot/twaalgos/sccinfo.hh>
 #include <ctype.h>
 #include <sstream>
 
@@ -180,6 +181,8 @@ namespace spot
       make_twa_graph(aut,
                      { false, false, true, false, false, false });
 
+    scc_info si(aut, scc_info_options::TRACK_SUCCS);
+
     bdd rem = bddtrue;
     bdd neg = bddfalse;
     int v = res->get_dict()->
@@ -194,18 +197,18 @@ namespace spot
     unsigned ns = res->num_states();
     std::vector<bool> isacc(ns, false);
     for (unsigned s = 0; s < ns; ++s)
-      {
-        for (auto& e: res->out(s))
-          if (bdd_implies(e.cond, neg))
+      for (auto& e: res->out(s))
+        {
+          if (!si.is_useful_state(e.dst))
             {
-              isacc[e.src] = true;
               e.cond = bddfalse;
+              continue;
             }
-          else
-            {
-              e.cond = bdd_restrict(e.cond, rem);
-            }
-      }
+          if (bdd_have_common_assignment(e.cond, neg))
+            isacc[e.src] = true;
+          e.cond = bdd_restrict(e.cond, rem);
+        }
+
 
     res->set_buchi();
     res->prop_state_acc(true);
