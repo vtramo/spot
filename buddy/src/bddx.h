@@ -342,9 +342,9 @@ BUDDY_API BDD      bdd_terminal(int) __purefn;
 BUDDY_API int      bdd_is_terminal(BDD) __purefn;
 BUDDY_API int      bdd_get_terminal(BDD) __purefn;
 BUDDY_API int      bdd_var(BDD) __purefn;
+BUDDY_API int      bdd_level(BDD) __purefn;
 BUDDY_API BDD      bdd_low(BDD) __purefn;
 BUDDY_API BDD      bdd_high(BDD) __purefn;
-BUDDY_API int      bdd_varlevel(int) __purefn;
 BUDDY_API BDD      bdd_addref_nc(BDD);
 BUDDY_API BDD      bdd_addref(BDD);
 BUDDY_API BDD      bdd_delref_nc(BDD);
@@ -645,6 +645,7 @@ protected:
    friend int      bdd_is_terminal(const bdd&);
    friend int      bdd_get_terminal(const bdd&);
    friend int      bdd_var(const bdd &);
+   friend int      bdd_level(const bdd&);
    friend bdd      bdd_low(const bdd &);
    friend bdd      bdd_high(const bdd &);
    friend int      bdd_scanset(const bdd &, int *&, int &);
@@ -811,6 +812,9 @@ inline bdd bdd_nithvarpp(int v)
 
 inline int bdd_var(const bdd &r)
 { return bdd_var(r.root); }
+
+inline int bdd_level(const bdd &r)
+{ return bdd_level(r.root); }
 
 inline bdd bdd_low(const bdd &r)
 { return bdd_low(r.root); }

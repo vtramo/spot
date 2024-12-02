@@ -1007,6 +1007,12 @@ int bdd_var(BDD root)
    return bddlevel2var[LEVEL(root)];
 }
 
+int bdd_level(BDD root)
+{
+   CHECK(root);
+   return LEVEL(root);
+}
+
 
 /*
 NAME    {* bdd\_low *}
