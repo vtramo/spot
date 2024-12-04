@@ -313,6 +313,26 @@ def make_twa_graph(*args):
     return mtg(*args)
 
 
+@_extend(mtdfa)
+class mtdfa:
+    def _repr_svg_(self, state=-1, labels=True):
+        """Output the automaton as SVG"""
+        ostr = ostringstream()
+        self.print_dot(ostr, state, labels)
+        return _ostream_to_svg(ostr)
+
+    # see spot.jupyter.SVG for why we need _repr_html_ instead of _repr_svg_
+    def _repr_html_(self):
+        return self._repr_svg_()
+
+    def show(self, **args):
+        """Display the automaton as SVG, in the IPython/Jupyter notebook"""
+        # Load the SVG function only if we need it. This way the
+        # bindings can still be used outside of IPython if IPython is
+        # not installed.
+        from spot.jupyter import SVG
+        return SVG(self._repr_svg_(**args))
+
 @_extend(formula)
 class formula:
     def __init__(self, str):
@@ -1053,6 +1073,10 @@ def postprocess(automaton, *args, formula=None, xargs=None):
 
 twa.postprocess = postprocess
 
+
+def ltlf_to_mtdfa(formula, *args, dict=_bdd_dict):
+    from spot.impl import ltlf_to_mtdfa as todfa
+    return todfa(formula, dict, *args)
 
 # Wrap C++-functions into lambdas so that they get converted into
 # instance methods (i.e., self passed as first argument

@@ -80,6 +80,9 @@ def canonicalize(s, type, ignores):
     # ignore trailing newlines (but not space)
     s = s.rstrip('\n')
 
+    # remove timings in ms
+    s = re.sub(r'\s+\d+\.\d+ms\b', ' timing', s)
+
     # remove hex addresses:
     s = re.sub(r'at 0x[a-f0-9]+', 'object', s)
 

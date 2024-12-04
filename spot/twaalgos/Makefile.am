@@ -63,6 +63,7 @@ twaalgos_HEADERS = \
   lbtt.hh \
   ltl2taa.hh \
   ltl2tgba_fm.hh \
+  ltlf2dfa.hh \
   magic.hh \
   mask.hh \
   matchstates.hh \
@@ -140,6 +141,7 @@ libtwaalgos_la_SOURCES = \
   lbtt.cc \
   ltl2taa.cc \
   ltl2tgba_fm.cc \
+  ltlf2dfa.cc \
   magic.cc \
   mask.cc \
   matchstates.cc \

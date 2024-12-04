@@ -49,7 +49,6 @@ New in spot 2.12.1.dev  (not yet released)
     {i1,i1,...,o1,o2,...} so that these formula can be fed directly to
     ltlsynt.
 
-
   - autfilt learned --restrict-dead-end-edges, to restricts labels of
     edges leading to dead-ends.  See the description of
     restrict_dead_end_edges_here() below.
@@ -129,6 +128,17 @@ New in spot 2.12.1.dev  (not yet released)
     spot::maximum_cardinality_search_reorder_here() are new function
     to compute (and apply) an ordering of state based on a maximum
     cardinality search.
+
+  - spot::mtdfa is a new class implementing a DFA using Multi-Terminal
+    BDDs.  The data structure is similar to what can be found in Mona.
+    This comes with convenient rendering routines for use in Jupyter
+    notebook.
+
+    spot::ltlf_to_mtdfa() is a new function that converts a LTLf formula
+    into an MTDFA.
+
+    spot::minimize_mtdfa() is a minimization function for MTDFA.  See
+    https://spot.lre.epita.fr/ipynb/ltlf2dfa.html for some illustrations.
 
   Bug fixes:
 

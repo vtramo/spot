@@ -97,7 +97,9 @@ real notebooks instead.
 - [[https://spot.lrde.epita.fr/ipynb/satmin.html][=satmin.ipynb=]] Python interface for [[file:satmin.org][SAT-based minimization of deterministic ω-automata]].
 - [[https://spot.lrde.epita.fr/ipynb/twagraph-internals.html][=twagraph-internals.ipynb=]] Inner workings of the =twa_graph= class.
 - [[https://spot.lrde.epita.fr/ipynb/aliases.html][=aliases.ipynb=]] Support for HOA aliases.
+- [[https://spot.lrde.epita.fr/ipynb/ltlf2dfa.html][=ltlf2dfa.ipynb=]] translation between LTLf and MTDFA
 - [[https://spot.lrde.epita.fr/ipynb/zlktree.html][=zlktree.ipynb=]] demonstration of Zielonka Trees and ACD
+
 
 #  LocalWords:  utf html bdd IPython ipynb io randaut accparse acc
 #  LocalWords:  cond randltl genltl genaut scc testingaut ltsmin dve

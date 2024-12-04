@@ -378,6 +378,7 @@ TESTS_ipython = \
   python/games.ipynb \
   python/gen.ipynb \
   python/highlighting.ipynb \
+  python/ltlf2dfa.ipynb \
   python/ltsmin-dve.ipynb \
   python/ltsmin-pml.ipynb \
   python/parity.ipynb \
