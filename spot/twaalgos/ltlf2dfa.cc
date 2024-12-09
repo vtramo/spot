@@ -548,56 +548,105 @@ namespace spot
     return os;
   }
 
+
   // convert the MTBDD DFA representation into a DFA.
-  twa_graph_ptr mtdfa::as_twa(bool labels) const
+  twa_graph_ptr mtdfa::as_twa(bool state_based, bool labels) const
   {
     twa_graph_ptr res = make_twa_graph(dict_);
     res->set_buchi();
-    res->prop_state_acc(false);
-
-    unsigned n = states.size();
-
-    int true_state = -1;
-
-    assert(n > 0);
-
     dict_->register_all_variables_of(this, res);
     res->register_aps_from_dict();
+    res->prop_state_acc(state_based);
+    res->prop_universal(true);
+
+    unsigned n = states.size();
+    assert(n > 0);
 
     std::vector<std::string>* names = nullptr;
     if (labels)
       {
         names = new std::vector<std::string>;
         names->reserve(n);
-        for (unsigned i = 0; i < n; ++i)
-          names->push_back(str_psl(this->names[i]));
         res->set_named_prop("state-names", names);
+        if (!state_based)
+          for (unsigned i = 0; i < n; ++i)
+            names->push_back(str_psl(this->names[i]));
       }
 
-    res->new_states(n);
-    for (unsigned i = 0; i < n; ++i)
-      for (auto [b, t]: paths_mt_of(states[i]))
-        {
-          if (t != bddtrue)
-            {
-              int v = bdd_get_terminal(t);
-              assert((unsigned) v / 2 < n);
-              res->new_acc_edge(i, v / 2, b, v & 1);
-            }
-          else
-            {
-              if (true_state == -1)
-                {
-                  true_state = res->new_state();
-                  res->new_acc_edge(true_state, true_state, bddtrue, true);
-                  if (names)
-                    names->push_back("1");
-                }
-              res->new_acc_edge(i, true_state, bddtrue, true);
-            }
-        }
+    if (!state_based)
+      {
+        int true_state = -1;
+        res->new_states(n);
+        for (unsigned i = 0; i < n; ++i)
+          for (auto [b, t]: paths_mt_of(states[i]))
+            if (t != bddtrue)
+              {
+                int v = bdd_get_terminal(t);
+                assert((unsigned) v / 2 < n);
+                res->new_acc_edge(i, v / 2, b, v & 1);
+              }
+            else
+              {
+                if (true_state == -1)
+                  {
+                    true_state = res->new_state();
+                    res->new_acc_edge(true_state, true_state, bddtrue, true);
+                    if (names)
+                      names->push_back("1");
+                  }
+                res->new_acc_edge(i, true_state, bddtrue, true);
+              }
+        res->merge_edges();
+      }
+    else                        // transition-based
+      {
+        robin_hood::unordered_map<int, unsigned> bdd_to_state_map;
+        std::vector<bdd> states;
+        states.reserve(n);
+        bdd init_state = bdd_terminal(0);
+        states.push_back(init_state);
+        bdd_to_state_map[init_state.id()] = res->new_state();
+        // List of dead stats that should be accepting. We
+        // expect at most one in practice, but more could occur
+        // if the translation is change.
+        std::vector<int> dead_acc;
 
-    res->merge_edges();
+        // states.size() will increase in this loop
+        for (unsigned i = 0; i < states.size(); ++i)
+          {
+            bdd src = states[i];
+            if (src == bddtrue)
+              {
+                res->new_acc_edge(i, i, bddtrue, true);
+                if (labels)
+                  names->push_back("1");
+                continue;
+              }
+            int term = bdd_get_terminal(src);
+            bool acc = term & 1;
+            term /= 2;
+            if (labels)
+              names->push_back(str_psl(this->names[term]));
+            bool has_edge = false;
+            for (auto [b, t]: paths_mt_of(this->states[term]))
+              {
+                auto j = bdd_to_state_map.emplace(t.id(), 0);
+                if (j.second)
+                  {
+                    j.first->second = res->new_state();
+                    states.push_back(t);
+                  }
+                res->new_acc_edge(i, j.first->second, b, acc);
+                has_edge = true;
+              }
+            if (acc && !has_edge)
+              dead_acc.push_back(i);
+          }
+        res->merge_edges();
+        // only add bddfalse self-loop after merge_edges.
+        for (unsigned i: dead_acc)
+          res->new_acc_edge(i, i, bddfalse, true);
+      }
     return res;
   }
 

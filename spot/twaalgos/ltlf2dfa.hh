@@ -101,8 +101,8 @@ namespace spot
                             bool labels = true) const;
 
     // convert to twa
-    twa_graph_ptr as_twa(bool labels = true) const;
-  };
+    twa_graph_ptr as_twa(bool state_based = false, bool labels = true) const;
+};
 
   typedef std::shared_ptr<mtdfa> mtdfa_ptr;
   typedef std::shared_ptr<const mtdfa> const_mtdfa_ptr;
