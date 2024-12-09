@@ -37,6 +37,7 @@ a U b W c R (d & e) M f
 {a*;(b;c)[:*3..4];(c;d)[:+];d}!
 G(uglyname->Fuglierlongname42)
 "#foo/$bar$" U "baz~yes^no"
+X[!]XX[!]a | G[2:4!]b
 EOF
 
 (

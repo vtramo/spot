@@ -149,6 +149,9 @@ New in spot 2.12.1.dev  (not yet released)
   - to_finite() was dealing incorrectly with edges that were
     both alive and dead.  (Issue #596.)
 
+  - LaTeX output of the X[!] operator with broken in both
+    LaTeX and self-contained LaTeX mode.  (Issue #597)
+
 New in spot 2.12.1  (2024-09-23)
 
   Bug fixes:

@@ -273,7 +273,7 @@ namespace spot
       "\\SereEqual{",
       "\\SereGoto{",
       "\\FirstMatch",
-      "\\StrongX",
+      "\\StrongX ",
     };
 
     const char* sclatex_kw[] = {
@@ -318,7 +318,7 @@ namespace spot
       "^{=",
       "^{\\to",
       "\\mathsf{first\\_match}",
-      "\\textcircled{\\mathsf{X}}",
+      "\\mathsf{X^{[!]}}",
     };
 
     static bool
