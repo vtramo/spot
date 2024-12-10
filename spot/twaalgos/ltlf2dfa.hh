@@ -113,4 +113,13 @@ namespace spot
 
   SPOT_API
   mtdfa_ptr minimize_mtdfa(mtdfa_ptr dfa);
+
+
+  SPOT_API mtdfa_ptr product(mtdfa_ptr dfa1, mtdfa_ptr dfa2);
+  SPOT_API mtdfa_ptr product_or(mtdfa_ptr dfa1, mtdfa_ptr dfa2);
+  SPOT_API mtdfa_ptr product_xor(mtdfa_ptr dfa1, mtdfa_ptr dfa2);
+  SPOT_API mtdfa_ptr product_xnor(mtdfa_ptr dfa1, mtdfa_ptr dfa2);
+  SPOT_API mtdfa_ptr product_implies(mtdfa_ptr dfa1, mtdfa_ptr dfa2);
+
+  SPOT_API mtdfa_ptr complement(mtdfa_ptr dfa);
 }

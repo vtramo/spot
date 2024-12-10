@@ -369,8 +369,8 @@ namespace spot
     while (!todo.empty())
       {
         formula label = todo.front();
-        int label_term = trans.formula_to_terminal(label) / 2;
         todo.pop();
+        int label_term = trans.formula_to_terminal(label) / 2;
 
         // already processed
         if (terminal_to_state_map.find(label_term)
@@ -437,22 +437,29 @@ namespace spot
     else
       {
         os << "  { rank = source; I [label=\"\", style=invis, width=0]; }\n";
-        edges << "  I -> S0\n";
+        edges << "  I -> S0 [tooltip=\"initial state\"]\n";
       }
 
     os << "  { rank = same;\n";
     for (int i = statemin; i < statemax; ++i)
       {
-        os << "    S" << i << " [shape=invhouse, label=\"";
+        os << "    S" << i << (" [shape=box, style=\"filled,rounded\", "
+                               "fillcolor=\"#e9f4fb\", label=\"");
         if (labels)
           escape_str(os, str_psl(names[i]));
         else
           os << i;
-        os <<  "\"];\n";
+        os <<  "\", tooltip=\"";
+        if (labels)
+          os << '[' << i << ']';
+        else
+          os << str_psl(names[i]);
+        os << "\"];\n";
       }
 
     for (int i = statemin; i < statemax; ++i)
-      edges << "  S" << i << " -> B" << states[i].id() << ";\n";
+      edges << "  S" << i << " -> B" << states[i].id()
+            << " [tooltip=\"[" << i << "]\"];\n";
 
     // This is a heap of BDD nodes, with smallest level at the top.
     std::vector<bdd> nodes;
@@ -480,7 +487,10 @@ namespace spot
             if (oldvar != -2)
               os << "  }\n  { rank = sink;\n";
             os << "    B" << n.id()
-               << " [shape=box, label=\"" << n.id() << '"';
+               << (" [shape=square, style=filled, fillcolor=\"#ffe6cc\", "
+                   "label=\"")
+               << n.id()
+               << "\", tooltip=\"bdd(" << n.id() << ")\" ";
             if (n.id() == 1)
               os << ", peripheries=2";
             os << "];\n";
@@ -491,20 +501,26 @@ namespace spot
           {
             if (oldvar != -2)
               os << "  }\n  { rank = sink;\n";
-            os << "    B" << n.id() << " [shape=house, label=\"";
+            os << "    B" << n.id()
+               << (" [shape=box, style=\"filled,rounded\", "
+                   "fillcolor=\"#ffe5f1\", label=\"");
             int t = bdd_get_terminal(n);
             bool acc = t & 1;
-            t /= 2;
+            int th = t / 2;
             if (labels)
               {
-                assert((unsigned) t < names.size());
-                formula f = names[t];
-                escape_str(os, str_psl(f)) << '"';
+                assert((unsigned) th < names.size());
+                escape_str(os, str_psl(names[th]));
               }
             else
               {
-                os << t << '"';
+                os << th;
               }
+            os << "\", tooltip=\"";
+            if (!labels && (unsigned) th < names.size())
+              escape_str(os, str_psl(names[th])) << '\n';
+            os << "bdd(" << n.id()
+               << ")=term(" << t << ")=[" << th << "]\"";
             if (acc)
               os << ", peripheries=2";
             os << "];\n";
@@ -517,13 +533,17 @@ namespace spot
             os << "  }\n  { rank = same;\n";
             oldvar = var;
           }
-        os << "    B" << n.id() << " [label=\"";
+        std::string label;
+
         if ((unsigned) var < dict_->bdd_map.size()
             && dict_->bdd_map[bdd_var(n)].type == bdd_dict::var)
-          escape_str(os, str_psl(dict_->bdd_map[var].f));
+          label = escape_str(str_psl(dict_->bdd_map[var].f));
         else
-          os << "bogus" << var;
-        os << "\"];\n";
+          label = "var" + std::to_string(var);
+
+        os << "    B" << n.id()
+           << " [style=filled, fillcolor=\"#ffffff\", label=\"" << label
+           << "\", tooltip=\"bdd(" << n.id() << ")\"];\n";
 
         bdd low = bdd_low(n);
         bdd high = bdd_high(n);
@@ -538,8 +558,10 @@ namespace spot
             std::push_heap(nodes.begin(), nodes.end(), bylvl);
           }
         edges << "  B" << n.id() << " -> B" << low.id()
-              << " [style=dotted];\n  B" << n.id()
-              << " -> B" << high.id() << " [style=filled];\n";
+              << " [style=dotted, tooltip=\"" << label
+              << "=0\"];\n  B" << n.id()
+              << " -> B" << high.id() << " [style=filled, tooltip=\""
+              << label << "=1\"];\n";
       }
 
     os << "  }\n";
@@ -845,6 +867,311 @@ namespace spot
     std::swap(res->names, names);
     std::swap(res->states, states);
 
+    bdd_extcache_done(&cache);
+    return res;
+  }
+
+  namespace
+  {
+    typedef std::pair<unsigned, unsigned> product_state;
+
+    struct product_state_hash
+    {
+      size_t
+      operator()(product_state s) const noexcept
+      {
+        return wang32_hash(s.first ^ wang32_hash(s.second));
+      }
+    };
+
+    inline std::pair<bdd, formula>
+    bdd_and_formula_from_state(unsigned s, const mtdfa_ptr& dfa)
+    {
+      if (s == -2U)
+        return {bddfalse, formula::ff()};
+      if (s == -1U)
+        return {bddtrue, formula::tt()};
+      return {dfa->states[s], dfa->names[s]};
+    }
+
+    struct product_data
+    {
+      std::unordered_map<product_state, int,
+                         product_state_hash> pair_to_terminal_map;
+      std::vector<product_state> terminal_to_pair;
+      mtdfa_ptr left;
+      mtdfa_ptr right;
+
+
+      std::pair<unsigned, bool> leaf_to_state(int b) const
+      {
+        if (b == 0)
+          return {-2U, false};
+        if (b == 1)
+          return {-1U, true};
+        int v = bdd_get_terminal(b);
+        return {v / 2, v & 1};
+      }
+
+      int pair_to_terminal(unsigned left,
+                           unsigned right,
+                           bool may_stop = false)
+      {
+        if (auto it = pair_to_terminal_map.find({left, right});
+            it != pair_to_terminal_map.end())
+          return 2 * it->second + may_stop;
+
+        int v = terminal_to_pair.size();
+        terminal_to_pair.push_back({left, right});
+        pair_to_terminal_map[{left, right}] = v;
+        return 2 * v + may_stop;
+      }
+
+      bdd pair_to_terminal_bdd(unsigned left,
+                               unsigned right,
+                               bool may_stop = false)
+      {
+        if (SPOT_UNLIKELY(left == -2U && right == -2U && !may_stop))
+          return bddfalse;
+        else if (SPOT_UNLIKELY(left == -1U && right == -1U && may_stop))
+          return bddtrue;
+        else
+          return bdd_terminal(pair_to_terminal(left, right, may_stop));
+      }
+
+      std::tuple<unsigned, unsigned, bool> leaf_to_pair(bdd leaf)
+      {
+        if (leaf == bddfalse)
+          return {-2U, -2U, false};
+        if (leaf == bddtrue)
+          return {-1U, -1U, true};
+        unsigned v = bdd_get_terminal(leaf);
+        std::pair<unsigned, unsigned> res = terminal_to_pair[v / 2];
+        return {res.first, res.second, v & 1};
+      }
+
+    } the_product_data;
+
+    static int leaf_combine_and(int left, int right)
+    {
+      auto [ls, lb] = the_product_data.leaf_to_state(left);
+      auto [rs, rb] = the_product_data.leaf_to_state(right);
+      if (ls == -2U || rs == -2U)
+        return 0;
+      return the_product_data.pair_to_terminal_bdd(ls, rs, lb & rb).id();
+    }
+
+    static int leaf_combine_or(int left, int right)
+    {
+      auto [ls, lb] = the_product_data.leaf_to_state(left);
+      auto [rs, rb] = the_product_data.leaf_to_state(right);
+      if (ls == -1U || rs == -1U)
+        return 1;
+      return the_product_data.pair_to_terminal_bdd(ls, rs, lb | rb).id();
+    }
+
+    static int leaf_combine_implies(int left, int right)
+    {
+      auto [ls, lb] = the_product_data.leaf_to_state(left);
+      auto [rs, rb] = the_product_data.leaf_to_state(right);
+      if (ls == -2U || rs == -1U)
+        return 1;
+      return the_product_data.pair_to_terminal_bdd(ls, rs, !lb | rb).id();
+    }
+
+    static int leaf_combine_equiv(int left, int right)
+    {
+      auto [ls, lb] = the_product_data.leaf_to_state(left);
+      auto [rs, rb] = the_product_data.leaf_to_state(right);
+      if (rs == ls && (ls == -2U || ls == -1U))
+        return 1;
+      if ((ls == -1U && rs == -2U) || (ls == -2U && rs == -1U))
+        return 0;
+      return the_product_data.pair_to_terminal_bdd(ls, rs, lb == rb).id();
+    }
+
+    static int leaf_combine_xor(int left, int right)
+    {
+      auto [ls, lb] = the_product_data.leaf_to_state(left);
+      auto [rs, rb] = the_product_data.leaf_to_state(right);
+      if (rs == ls && (ls == -2U || ls == -1U))
+        return 0;
+      if ((ls == -1U && rs == -2U) || (ls == -2U && rs == -1U))
+        return 1;
+      return the_product_data.pair_to_terminal_bdd(ls, rs, lb != rb).id();
+    }
+  }
+
+  mtdfa_ptr product_mtdfa_aux(mtdfa_ptr dfa1, mtdfa_ptr dfa2, op o,
+                        bddExtCache* cache)
+  {
+    if (dfa1->dict_ != dfa2->dict_)
+      throw std::runtime_error
+        ("product_mtdfa_and: DFAs should share their dictionaries");
+
+    int (*combine)(int, int);
+    switch (o)
+      {
+        case op::And:
+          combine = leaf_combine_and;
+          break;
+        case op::Or:
+          combine = leaf_combine_or;
+          break;
+        case op::Implies:
+          combine = leaf_combine_implies;
+          break;
+        case op::Equiv:
+          combine = leaf_combine_equiv;
+          break;
+        case op::Xor:
+          combine = leaf_combine_xor;
+          break;
+        default:
+          throw std::runtime_error("product_mtdfa_aux: unsupported operator");
+      }
+
+    the_product_data.left = dfa1;
+    the_product_data.right = dfa2;
+
+    mtdfa_ptr res = std::make_shared<mtdfa>(dfa1->dict_);
+    res->dict_->register_all_variables_of(dfa1, res);
+    res->dict_->register_all_variables_of(dfa2, res);
+
+    terminal_to_state_map.clear();
+    std::queue<product_state> todo;
+    todo.push({0, 0});
+    while (!todo.empty())
+      {
+        product_state s = todo.front();
+        todo.pop();
+        int label_term =
+          the_product_data.pair_to_terminal(s.first, s.second) / 2;
+
+        // already processed
+        if (terminal_to_state_map.find(label_term)
+            != terminal_to_state_map.end())
+          continue;
+
+        auto [left, left_f] = bdd_and_formula_from_state(s.first, dfa1);
+        auto [right, right_f] = bdd_and_formula_from_state(s.second, dfa2);
+
+        bdd b = bdd_mt_apply2b(left, right, combine, cache, (unsigned) o);
+        unsigned n = res->states.size();
+        terminal_to_state_map[label_term] = n;
+        res->states.push_back(b);
+        switch (o)
+          {
+            case op::And:
+              res->names.push_back(formula::And({left_f, right_f}));
+              break;
+            case op::Or:
+              res->names.push_back(formula::Or({left_f, right_f}));
+              break;
+            case op::Implies:
+              res->names.push_back(formula::Implies(left_f, right_f));
+              break;
+            case op::Equiv:
+              res->names.push_back(formula::Equiv(left_f, right_f));
+              break;
+            case op::Xor:
+              res->names.push_back(formula::Xor(left_f, right_f));
+              break;
+            default:
+              SPOT_UNREACHABLE();
+          }
+
+        for (bdd leaf: leaves_of(b))
+          {
+            if (leaf == bddfalse || leaf == bddtrue)
+              continue;
+            auto [ls, rs, _] = the_product_data.leaf_to_pair(leaf);
+            if (terminal_to_state_map.find(bdd_get_terminal(leaf) / 2)
+                == terminal_to_state_map.end())
+              todo.push({ls, rs});
+          }
+      }
+
+    the_product_data.left = nullptr;
+    the_product_data.right = nullptr;
+    the_product_data.pair_to_terminal_map.clear();
+    the_product_data.terminal_to_pair.clear();
+    return res;
+  }
+
+  mtdfa_ptr product(mtdfa_ptr dfa1, mtdfa_ptr dfa2)
+  {
+    bddExtCache cache;
+    bdd_extcache_init(&cache, 0);
+    mtdfa_ptr res = product_mtdfa_aux(dfa1, dfa2, op::And, &cache);
+    bdd_extcache_done(&cache);
+    return res;
+  }
+
+  mtdfa_ptr product_or(mtdfa_ptr dfa1, mtdfa_ptr dfa2)
+  {
+    bddExtCache cache;
+    bdd_extcache_init(&cache, 0);
+    mtdfa_ptr res = product_mtdfa_aux(dfa1, dfa2, op::Or, &cache);
+    bdd_extcache_done(&cache);
+    return res;
+  }
+
+  mtdfa_ptr product_xnor(mtdfa_ptr dfa1, mtdfa_ptr dfa2)
+  {
+    bddExtCache cache;
+    bdd_extcache_init(&cache, 0);
+    mtdfa_ptr res = product_mtdfa_aux(dfa1, dfa2, op::Equiv, &cache);
+    bdd_extcache_done(&cache);
+    return res;
+  }
+
+  mtdfa_ptr product_xor(mtdfa_ptr dfa1, mtdfa_ptr dfa2)
+  {
+    bddExtCache cache;
+    bdd_extcache_init(&cache, 0);
+    mtdfa_ptr res = product_mtdfa_aux(dfa1, dfa2, op::Xor, &cache);
+    bdd_extcache_done(&cache);
+    return res;
+  }
+
+  mtdfa_ptr product_implies(mtdfa_ptr dfa1, mtdfa_ptr dfa2)
+  {
+    bddExtCache cache;
+    bdd_extcache_init(&cache, 0);
+    mtdfa_ptr res = product_mtdfa_aux(dfa1, dfa2, op::Implies, &cache);
+    bdd_extcache_done(&cache);
+    return res;
+  }
+
+  int complement_term(int v)
+  {
+    return v ^ 1;
+  }
+
+  mtdfa_ptr complement_aux(mtdfa_ptr dfa, bddExtCache* cache)
+  {
+    unsigned n = dfa->states.size();
+
+    mtdfa_ptr res = std::make_shared<mtdfa>(dfa->dict_);
+    res->dict_->register_all_variables_of(dfa, res);
+    res->names.reserve(n);
+    res->states.reserve(n);
+
+    for (unsigned i = 0; i < n; ++i)
+      res->states.push_back(bdd_mt_apply1(dfa->states[i], complement_term,
+                                          bddtrue, bddfalse, cache,
+                                          (unsigned) op::Not));
+    for (unsigned i = 0; i < n; ++i)
+      res->names.push_back(formula::Not(dfa->names[i]));
+    return res;
+  }
+
+  mtdfa_ptr complement(mtdfa_ptr dfa)
+  {
+    bddExtCache cache;
+    bdd_extcache_init(&cache, 0);
+    mtdfa_ptr res = complement_aux(dfa, &cache);
     bdd_extcache_done(&cache);
     return res;
   }
