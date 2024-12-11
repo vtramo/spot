@@ -188,6 +188,7 @@ not	1
 F	1
 G	1
 X	1
+strongX	0
 equiv	1
 implies	1
 xor	1
@@ -220,6 +221,10 @@ randltl -n 5 a b c --ltl-priorities 'xor=0,implies=0,equiv=0,W=0,M=0,X=0,U=3'
 : 1
 : !F(1 U ((a U c) U b))
 : 1 U G!b
+
+The key =strongX= refers to the =X[!]= operator of LTLf.  It is
+disabled by default, but you may use =--ltl-priorities 'strongX=1'= to
+enable it.
 
 When using =-r= to simplify generated formulas, beware that these
 rewritings may use operators that you disabled during the initial
@@ -274,7 +279,7 @@ randltl -P -n 5 a b c
 : (a U !b) <-> (!a -> Gb)
 
 As shown with the =--dump-priorities= output below, tweaking the
-priorities used to generated PSL formulas requires three different
+priorities used to generate PSL formulas requires three different
 options:
 
 #+BEGIN_SRC sh

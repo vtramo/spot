@@ -164,6 +164,7 @@ namespace spot
         F       1              F       1
         G       1              G       1
         X       1              X       1
+        strongX 0              strongX 0
         equiv   1              equiv   1
         implies 1              implies 1
         xor     1              xor     1

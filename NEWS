@@ -5,6 +5,10 @@ New in spot 2.12.1.dev  (not yet released)
   - ltlmix is a new tool that generates formulas by combining existing
     ones. See https://spot.lre.epita.fr/ltlmix.html for examples.
 
+  - randltl can now set the prority of the X[!] operator to generate
+    LTLf formulas.   It is disabled by default, but you may
+    enable it with  "randltl --ltl-priorities strongX=1 ...".
+
   - (BACKWARD INCOMPATIBILITY) ltlsynt's CSV output has been largely
     overhauled, and the output columns have been both renamed (for
     consistency) and augmented (with new statistics).  The new CSV

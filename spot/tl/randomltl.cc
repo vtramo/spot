@@ -499,22 +499,24 @@ namespace spot
     proba_[4].setup("F",       2, unop_builder<op::F>);
     proba_[5].setup("G",       2, unop_builder<op::G>);
     proba_[6].setup("X",       2, unop_builder<op::X>);
-    proba_[7].setup("equiv",   3, binop_builder<op::Equiv>);
-    proba_[8].setup("implies", 3, binop_builder<op::Implies>);
-    proba_[9].setup("xor",     3, binop_builder<op::Xor>);
-    proba_[10].setup("R",      3, binop_builder<op::R>);
-    proba_[11].setup("U",      3, binop_builder<op::U>);
-    proba_[12].setup("W",      3, binop_builder<op::W>);
-    proba_[13].setup("M",      3, binop_builder<op::M>);
-    proba_[14].setup("and",    3, multop_builder<op::And>);
-    proba_[15].setup("or",     3, multop_builder<op::Or>);
+    proba_[7].setup("strongX", 2, unop_builder<op::strong_X>);
+    proba_[7].proba = 0.0;
+    proba_[8].setup("equiv",   3, binop_builder<op::Equiv>);
+    proba_[9].setup("implies", 3, binop_builder<op::Implies>);
+    proba_[10].setup("xor",     3, binop_builder<op::Xor>);
+    proba_[11].setup("R",      3, binop_builder<op::R>);
+    proba_[12].setup("U",      3, binop_builder<op::U>);
+    proba_[13].setup("W",      3, binop_builder<op::W>);
+    proba_[14].setup("M",      3, binop_builder<op::M>);
+    proba_[15].setup("and",    3, multop_builder<op::And>);
+    proba_[16].setup("or",     3, multop_builder<op::Or>);
   }
 
   random_ltl::random_ltl(const atomic_prop_set* ap,
                          const atomic_prop_set* output_ap,
                          std::function<bool(formula)> is_output,
                          const atomic_prop_set* patterns)
-    : random_formula(16, ap, output_ap, is_output)
+    : random_formula(17, ap, output_ap, is_output)
   {
     setup_proba_(patterns);
     update_sums();
@@ -532,15 +534,15 @@ namespace spot
 
   // PSL
   random_psl::random_psl(const atomic_prop_set* ap)
-    : random_ltl(19, ap), rs(ap)
+    : random_ltl(20, ap), rs(ap)
   {
     // FIXME: This looks very fragile.
-    memmove(proba_ + 8, proba_ + 7,
-            ((proba_ + 16) - (proba_ + 7)) * sizeof(*proba_));
+    memmove(proba_ + 9, proba_ + 8,
+            ((proba_ + 17) - (proba_ + 8)) * sizeof(*proba_));
 
-    proba_[7].setup("Closure", 2, closure_builder);
-    proba_[17].setup("EConcat", 3, binop_SERELTL_builder<op::EConcat>);
-    proba_[18].setup("UConcat", 3, binop_SERELTL_builder<op::UConcat>);
+    proba_[8].setup("Closure", 2, closure_builder);
+    proba_[18].setup("EConcat", 3, binop_SERELTL_builder<op::EConcat>);
+    proba_[19].setup("UConcat", 3, binop_SERELTL_builder<op::UConcat>);
     update_sums();
   }
 

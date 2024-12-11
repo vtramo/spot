@@ -1228,14 +1228,17 @@ def randltl(ap, n=-1, **kwargs):
                       'following LTL priorities:\n')
                 rg.dump_psl_priorities(dumpstream)
                 print(dumpstream.str())
+                dumpstream.str("")
             print('Use argument sere_priorities=STRING to set the '
                   'following SERE priorities:\n')
             rg.dump_sere_priorities(dumpstream)
             print(dumpstream.str())
+            dumpstream.str("")
             print('Use argument boolean_priorities=STRING to set the '
                   'following Boolean formula priorities:\n')
             rg.dump_sere_bool_priorities(dumpstream)
             print(dumpstream.str())
+            dumpstream.str("")
         else:
             sys.stderr.write("internal error: unknown type of output")
         return

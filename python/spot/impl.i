@@ -1355,6 +1355,7 @@ namespace std {
   public:
      ostringstream();
      std::string str() const;
+     void str(const std::string&);
      ~ostringstream();
   };
 }
