@@ -26,7 +26,7 @@ namespace spot
   class SPOT_API ltlf_translator
   {
   public:
-    ltlf_translator(bdd_dict_ptr& dict);
+    ltlf_translator(const bdd_dict_ptr& dict);
 
     bdd ltlf_to_mtbdd(formula f);
     formula terminal_to_formula(int t) const;
@@ -60,7 +60,7 @@ namespace spot
   struct SPOT_API mtdfa
   {
   public:
-    mtdfa(bdd_dict_ptr& dict)
+    mtdfa(const bdd_dict_ptr& dict)
       : dict_(dict)
      {
      }
@@ -95,6 +95,21 @@ namespace spot
       return states.size() + has_true;
     }
 
+    // FIXME: This assumes that all states are reachable, so
+    // we just have to check if one terminal is accepting.
+    bool is_empty() const
+    {
+      for (bdd b: leaves_of(states))
+        {
+          if (b == bddfalse)
+            continue;
+          if (b == bddtrue || (bdd_get_terminal(b) & 1))
+            return false;
+        }
+      return true;
+    }
+
+
     // Print the MTBDD.  If index >= 0, print only one state.
     std::ostream& print_dot(std::ostream& os,
                             int index = -1,
@@ -108,18 +123,24 @@ namespace spot
   typedef std::shared_ptr<const mtdfa> const_mtdfa_ptr;
 
   SPOT_API mtdfa_ptr
-  ltlf_to_mtdfa(formula f, bdd_dict_ptr& dict,
-              bool fuse_same_bdds = true);
+  ltlf_to_mtdfa(formula f, const bdd_dict_ptr& dict,
+                bool fuse_same_bdds = true);
 
-  SPOT_API
-  mtdfa_ptr minimize_mtdfa(mtdfa_ptr dfa);
+  SPOT_API mtdfa_ptr minimize_mtdfa(const mtdfa_ptr& dfa);
 
+  SPOT_API mtdfa_ptr product(const mtdfa_ptr& dfa1,
+                             const mtdfa_ptr& dfa2);
+  SPOT_API mtdfa_ptr product_or(const mtdfa_ptr& dfa1,
+                                const mtdfa_ptr& dfa2);
+  SPOT_API mtdfa_ptr product_xor(const mtdfa_ptr& dfa1,
+                                 const mtdfa_ptr& dfa2);
+  SPOT_API mtdfa_ptr product_xnor(const mtdfa_ptr& dfa1,
+                                  const mtdfa_ptr& dfa2);
+  SPOT_API mtdfa_ptr product_implies(const mtdfa_ptr& dfa1,
+                                     const mtdfa_ptr& dfa2);
 
-  SPOT_API mtdfa_ptr product(mtdfa_ptr dfa1, mtdfa_ptr dfa2);
-  SPOT_API mtdfa_ptr product_or(mtdfa_ptr dfa1, mtdfa_ptr dfa2);
-  SPOT_API mtdfa_ptr product_xor(mtdfa_ptr dfa1, mtdfa_ptr dfa2);
-  SPOT_API mtdfa_ptr product_xnor(mtdfa_ptr dfa1, mtdfa_ptr dfa2);
-  SPOT_API mtdfa_ptr product_implies(mtdfa_ptr dfa1, mtdfa_ptr dfa2);
+  SPOT_API mtdfa_ptr complement(const mtdfa_ptr& dfa);
 
-  SPOT_API mtdfa_ptr complement(mtdfa_ptr dfa);
+  // Convert a TWA (representing a DFA) into an MTDFA.
+  SPOT_API mtdfa_ptr twadfa_to_mtdfa(const twa_graph_ptr& twa);
 }

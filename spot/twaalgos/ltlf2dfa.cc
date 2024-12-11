@@ -24,6 +24,7 @@
 #include <spot/misc/escape.hh>
 #include <spot/twaalgos/ltlf2dfa.hh>
 #include <spot/twa/formula2bdd.hh>
+#include <spot/twaalgos/isdet.hh>
 #include <spot/tl/apcollect.hh>
 #include <spot/tl/print.hh>
 #include <spot/priv/robin_hood.hh>
@@ -39,7 +40,7 @@ constexpr int hash_key_rename = 7;
 namespace spot
 {
 
-  ltlf_translator::ltlf_translator(bdd_dict_ptr& dict)
+  ltlf_translator::ltlf_translator(const bdd_dict_ptr& dict)
     : dict_(dict)
   {
     bdd_extcache_init(&cache_, 0);
@@ -345,7 +346,7 @@ namespace spot
   }
 
 
-  mtdfa_ptr ltlf_to_mtdfa(formula f, bdd_dict_ptr& dict,
+  mtdfa_ptr ltlf_to_mtdfa(formula f, const bdd_dict_ptr& dict,
                           bool fuse_same_bdds)
   {
     mtdfa_ptr dfa = std::make_shared<mtdfa>(dict);
@@ -429,6 +430,7 @@ namespace spot
 
     int statemin = 0;
     int statemax = states.size();
+    int ns = names.size();
     if (state >= 0 && state < statemax)
       {
         statemin = state;
@@ -445,12 +447,12 @@ namespace spot
       {
         os << "    S" << i << (" [shape=box, style=\"filled,rounded\", "
                                "fillcolor=\"#e9f4fb\", label=\"");
-        if (labels)
+        if (labels && i < ns)
           escape_str(os, str_psl(names[i]));
         else
           os << i;
         os <<  "\", tooltip=\"";
-        if (labels)
+        if (labels || i >= ns)
           os << '[' << i << ']';
         else
           os << str_psl(names[i]);
@@ -507,9 +509,8 @@ namespace spot
             int t = bdd_get_terminal(n);
             bool acc = t & 1;
             int th = t / 2;
-            if (labels)
+            if (labels && th < ns)
               {
-                assert((unsigned) th < names.size());
                 escape_str(os, str_psl(names[th]));
               }
             else
@@ -517,7 +518,7 @@ namespace spot
                 os << th;
               }
             os << "\", tooltip=\"";
-            if (!labels && (unsigned) th < names.size())
+            if (!labels && th < ns)
               escape_str(os, str_psl(names[th])) << '\n';
             os << "bdd(" << n.id()
                << ")=term(" << t << ")=[" << th << "]\"";
@@ -585,7 +586,7 @@ namespace spot
     assert(n > 0);
 
     std::vector<std::string>* names = nullptr;
-    if (labels)
+    if (labels && this->names.size() == this->states.size())
       {
         names = new std::vector<std::string>;
         names->reserve(n);
@@ -616,7 +617,7 @@ namespace spot
                     if (names)
                       names->push_back("1");
                   }
-                res->new_acc_edge(i, true_state, bddtrue, true);
+                res->new_acc_edge(i, true_state, b, true);
               }
         res->merge_edges();
       }
@@ -640,14 +641,14 @@ namespace spot
             if (src == bddtrue)
               {
                 res->new_acc_edge(i, i, bddtrue, true);
-                if (labels)
+                if (names)
                   names->push_back("1");
                 continue;
               }
             int term = bdd_get_terminal(src);
             bool acc = term & 1;
             term /= 2;
-            if (labels)
+            if (names)
               names->push_back(str_psl(this->names[term]));
             bool has_edge = false;
             for (auto [b, t]: paths_mt_of(this->states[term]))
@@ -692,7 +693,7 @@ namespace spot
     return 2 * val + accepting;
   }
 
-  mtdfa_ptr minimize_mtdfa(mtdfa_ptr dfa)
+  mtdfa_ptr minimize_mtdfa(const mtdfa_ptr& dfa)
   {
     bddExtCache cache;
     bdd_extcache_init(&cache, 0);
@@ -789,9 +790,11 @@ namespace spot
     // bddfalse, and get rid of the states equivalent to bddfalse.
     //
     // And we have to keep one name per class for display.
+    bool want_names = dfa->names.size() == n;
     std::vector<formula> names;
-    names.reserve(states.size());
     unsigned sz = states.size();
+    if (want_names)
+      names.reserve(sz);
     unsigned j = 0;
     ++iteration;
     bdd true_term = bdd_terminal(2 * classes[n] + 1);
@@ -808,7 +811,8 @@ namespace spot
             if (i == 0) // the source state is false
               {
                 assert(v.front() == 0);
-                names.push_back(formula::ff());
+                if (want_names)
+                  names.push_back(formula::ff());
                 states[0] = bddfalse;
                 ++j;
                 break;
@@ -823,7 +827,8 @@ namespace spot
             if (i == 0) // the source state is true
               {
                 assert(v.front() == 0);
-                names.push_back(formula::tt());
+                if (want_names)
+                  names.push_back(formula::tt());
                 states[0] = bddtrue;
                 ++j;
                 break;
@@ -833,8 +838,11 @@ namespace spot
             classes[n] = j;
             need_remap = true;
           }
-        assert((unsigned) v.front() < dfa->names.size());
-        names.push_back(dfa->names[v.front()]);
+        if (want_names)
+          {
+            assert((unsigned) v.front() < dfa->names.size());
+            names.push_back(dfa->names[v.front()]);
+          }
         sig = bdd_terminal_to_const(sig, false_term, true_term,
                                     &cache, iteration);
         classes[i] = j;
@@ -891,6 +899,8 @@ namespace spot
         return {bddfalse, formula::ff()};
       if (s == -1U)
         return {bddtrue, formula::tt()};
+      if (s >= dfa->names.size())
+        return {dfa->states[s], nullptr};
       return {dfa->states[s], dfa->names[s]};
     }
 
@@ -1002,7 +1012,8 @@ namespace spot
     }
   }
 
-  mtdfa_ptr product_mtdfa_aux(mtdfa_ptr dfa1, mtdfa_ptr dfa2, op o,
+  mtdfa_ptr product_mtdfa_aux(const mtdfa_ptr& dfa1,
+                              const mtdfa_ptr& dfa2, op o,
                         bddExtCache* cache)
   {
     if (dfa1->dict_ != dfa2->dict_)
@@ -1060,8 +1071,9 @@ namespace spot
         unsigned n = res->states.size();
         terminal_to_state_map[label_term] = n;
         res->states.push_back(b);
-        switch (o)
-          {
+        if (left_f && right_f)
+          switch (o)
+            {
             case op::And:
               res->names.push_back(formula::And({left_f, right_f}));
               break;
@@ -1079,7 +1091,7 @@ namespace spot
               break;
             default:
               SPOT_UNREACHABLE();
-          }
+            }
 
         for (bdd leaf: leaves_of(b))
           {
@@ -1099,7 +1111,7 @@ namespace spot
     return res;
   }
 
-  mtdfa_ptr product(mtdfa_ptr dfa1, mtdfa_ptr dfa2)
+  mtdfa_ptr product(const mtdfa_ptr& dfa1, const mtdfa_ptr& dfa2)
   {
     bddExtCache cache;
     bdd_extcache_init(&cache, 0);
@@ -1108,7 +1120,7 @@ namespace spot
     return res;
   }
 
-  mtdfa_ptr product_or(mtdfa_ptr dfa1, mtdfa_ptr dfa2)
+  mtdfa_ptr product_or(const mtdfa_ptr& dfa1, const mtdfa_ptr& dfa2)
   {
     bddExtCache cache;
     bdd_extcache_init(&cache, 0);
@@ -1117,7 +1129,7 @@ namespace spot
     return res;
   }
 
-  mtdfa_ptr product_xnor(mtdfa_ptr dfa1, mtdfa_ptr dfa2)
+  mtdfa_ptr product_xnor(const mtdfa_ptr& dfa1, const mtdfa_ptr& dfa2)
   {
     bddExtCache cache;
     bdd_extcache_init(&cache, 0);
@@ -1126,7 +1138,7 @@ namespace spot
     return res;
   }
 
-  mtdfa_ptr product_xor(mtdfa_ptr dfa1, mtdfa_ptr dfa2)
+  mtdfa_ptr product_xor(const mtdfa_ptr& dfa1, const mtdfa_ptr& dfa2)
   {
     bddExtCache cache;
     bdd_extcache_init(&cache, 0);
@@ -1135,7 +1147,7 @@ namespace spot
     return res;
   }
 
-  mtdfa_ptr product_implies(mtdfa_ptr dfa1, mtdfa_ptr dfa2)
+  mtdfa_ptr product_implies(const mtdfa_ptr& dfa1, const mtdfa_ptr& dfa2)
   {
     bddExtCache cache;
     bdd_extcache_init(&cache, 0);
@@ -1149,30 +1161,96 @@ namespace spot
     return v ^ 1;
   }
 
-  mtdfa_ptr complement_aux(mtdfa_ptr dfa, bddExtCache* cache)
+  mtdfa_ptr complement_aux(const mtdfa_ptr& dfa, bddExtCache* cache)
   {
     unsigned n = dfa->states.size();
+    unsigned ns = dfa->names.size();
 
     mtdfa_ptr res = std::make_shared<mtdfa>(dfa->dict_);
     res->dict_->register_all_variables_of(dfa, res);
     res->names.reserve(n);
-    res->states.reserve(n);
+    res->states.reserve(ns);
 
     for (unsigned i = 0; i < n; ++i)
       res->states.push_back(bdd_mt_apply1(dfa->states[i], complement_term,
                                           bddtrue, bddfalse, cache,
                                           (unsigned) op::Not));
-    for (unsigned i = 0; i < n; ++i)
+
+    for (unsigned i = 0; i < ns; ++i)
       res->names.push_back(formula::Not(dfa->names[i]));
     return res;
   }
 
-  mtdfa_ptr complement(mtdfa_ptr dfa)
+  mtdfa_ptr complement(const mtdfa_ptr& dfa)
   {
     bddExtCache cache;
     bdd_extcache_init(&cache, 0);
     mtdfa_ptr res = complement_aux(dfa, &cache);
     bdd_extcache_done(&cache);
     return res;
+  }
+
+  // Convert a TWA (representing a DFA) into an MTDFA.
+  mtdfa_ptr twadfa_to_mtdfa(const twa_graph_ptr& twa)
+  {
+    if (!is_deterministic(twa))
+      throw std::runtime_error("twadfa_to_mtdfa: input is not deterministic");
+    mtdfa_ptr dfa = std::make_shared<mtdfa>(twa->get_dict());
+    dfa->dict_->register_all_variables_of(&twa, dfa);
+    unsigned n = twa->num_states();
+    unsigned init = twa->get_init_state_number();
+
+    // twa's state i should be named remap[i] in dfa.  The remaping is
+    // needed because the dfa only accept 0 as initial state, and we
+    // do not want to represent sink states.
+    std::vector<unsigned> remap;
+    remap.reserve(n);
+    unsigned next = 1;
+    for (unsigned i = 0; i < n; ++i)
+      {
+        if (i == init)
+          {
+            remap.push_back(0);
+            continue;
+          }
+        // Is it a sink?
+        bool sink = false;
+        for (auto& e: twa->out(i))
+          if (e.dst == i && e.acc && e.cond == bddtrue)
+            {
+              sink = true;
+              break;
+            }
+        if (sink)
+          {
+            remap.push_back(-1U);
+            continue;
+          }
+        remap.push_back(next++);
+      }
+
+    dfa->states.resize(next);
+
+    bool sbacc = twa->prop_state_acc().is_true();
+    for (unsigned i = 0; i < n; ++i)
+      {
+        unsigned state = remap[i];
+        if (state == -1U)     // sink
+          continue;
+        bdd b = bddfalse;
+        for (auto& e: twa->out(i))
+          {
+            unsigned dst = remap[e.dst];
+            if (dst == -1U)   // sink
+              b |= e.cond;
+            else if (sbacc)
+              b |= e.cond & bdd_terminal(2 * dst +
+                                         twa->state_is_accepting(e.dst));
+            else
+              b |= e.cond & bdd_terminal(2 * dst + !!e.acc);
+          }
+          dfa->states[state] = b;
+      }
+    return dfa;
   }
 }
