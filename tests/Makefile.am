@@ -436,6 +436,7 @@ TESTS_python = \
   python/langmap.py \
   python/ltl2tgba.test \
   python/ltlf.py \
+  python/ltlf2dfa.py \
   python/ltlparse.py \
   python/ltlsimple.py \
   python/matchstates.py \
