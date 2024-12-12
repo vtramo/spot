@@ -19,6 +19,7 @@
 #pragma once
 
 #include <spot/twa/twagraph.hh>
+#include <spot/misc/bddlt.hh>
 
 namespace spot
 {
@@ -29,8 +30,9 @@ namespace spot
     ltlf_translator(const bdd_dict_ptr& dict);
 
     bdd ltlf_to_mtbdd(formula f);
-    formula terminal_to_formula(int t) const;
     std::pair<formula, bool>  leaf_to_formula(int t) const;
+
+    formula terminal_to_formula(int t) const;
     int formula_to_terminal(formula f, bool may_stop = false);
     bdd formula_to_terminal_bdd(formula f, bool may_stop = false);
 
@@ -42,6 +44,8 @@ namespace spot
     bdd combine_xor(bdd left, bdd right);
     bdd combine_not(bdd b);
 
+    formula propeq_representative(formula f);
+
     bddExtCache* get_cache()
     {
       return &cache_;
@@ -49,6 +53,9 @@ namespace spot
 
     ~ltlf_translator();
   private:
+    std::unordered_map<formula, int> formula_to_var_;
+    std::unordered_map<bdd, formula, bdd_hash> propositional_equiv_;
+
     std::unordered_map<formula, bdd> formula_to_bdd_;
     std::unordered_map<formula, int> formula_to_terminal_;
     std::vector<formula> terminal_to_formula_;

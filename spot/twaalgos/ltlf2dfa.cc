@@ -54,6 +54,78 @@ namespace spot
     dict_->unregister_all_my_variables(this);
   }
 
+  formula ltlf_translator::propeq_representative(formula f)
+  {
+    auto formula_to_bddvar = [&] (formula f) -> int
+    {
+      if (auto it = formula_to_var_.find(f);
+          it != formula_to_var_.end())
+        return it->second;
+      if (f.is(op::ap))
+        {
+          int v = dict_->register_proposition(f, this);
+          formula_to_var_[f] = v;
+          return v;
+        }
+      int v = dict_->register_anonymous_variables(1, this);
+      formula_to_var_[f] = v;
+      return v;
+    };
+
+    // Convert the formula to a BDD suitable for propositional
+    // equivalence.  Any subformula that has a non-boolean
+    // operator is replaced by atomic proposition.
+    auto encode_rec = [&] (formula f, auto rec) -> bdd
+    {
+      switch (f.kind())
+        {
+        case op::tt:
+          return bddtrue;
+        case op::ff:
+          return bddfalse;
+        case op::ap:
+          return bdd_ithvar(formula_to_bddvar(f));
+        case op::Not:
+          if (f[0].is_leaf())   // skip one application of bdd_not.
+            {
+              if (f[0].is_tt())
+                return bddfalse;
+              if (f[0].is_ff())
+                return bddtrue;
+              return bdd_nithvar(formula_to_bddvar(f[0]));
+            }
+          return bdd_not(rec(f[0], rec));
+        case op::And:
+          {
+            bdd res = bddtrue;
+            for (const formula& sub: f)
+              res &= rec(sub, rec);
+            return res;
+          }
+        case op::Or:
+          {
+            bdd res = bddfalse;
+            for (const formula& sub: f)
+              res |= rec(sub, rec);
+            return res;
+          }
+        case op::Xor:
+          return rec(f[0], rec) ^ rec(f[1], rec);
+        case op::Implies:
+          return rec(f[0], rec) >> rec(f[1], rec);
+        case op::Equiv:
+          return bdd_biimp(rec(f[0], rec), rec(f[1], rec));
+        default:
+          return bdd_ithvar(formula_to_bddvar(f));
+        }
+    };
+
+    bdd enc = encode_rec(f, encode_rec);
+    auto [it, _] = propositional_equiv_.emplace(enc, f);
+    // std::cerr << f << " ≡ " << it->second << '\n';
+    return it->second;
+  }
+
   formula ltlf_translator::terminal_to_formula(int v) const
   {
     v /= 2;
@@ -76,6 +148,15 @@ namespace spot
     if (auto it = formula_to_terminal_.find(f);
         it != formula_to_terminal_.end())
       return 2 * it->second + maystop;
+
+    if (formula g = propeq_representative(f); g != f)
+      {
+        auto it = formula_to_terminal_.find(g);
+        assert (it != formula_to_terminal_.end());
+        int v = it->second;
+        formula_to_terminal_[g] = v;
+        return 2 * v + maystop;
+      }
 
     int v = terminal_to_formula_.size();
     terminal_to_formula_.push_back(f);
