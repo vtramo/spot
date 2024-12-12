@@ -192,7 +192,14 @@ extern int bddreordermethod;
 #define TERMp(p)    ((p)->high)
 
    /* Stacking for garbage collector */
-#define INITREF    bddrefstacktop = bddrefstack
+#define INITREF                                 \
+  int* bddrefstack_reset = bddrefstacktop;      \
+  int* bddrecstack_reset = bddrecstacktop;
+
+#define RESETREF                                \
+  bddrefstacktop = bddrefstack_reset;           \
+  bddrecstacktop = bddrecstack_reset;
+
 /*
 ** The following (original) definition of PUSHREF is incorrect
 ** when (a) can trigger a garbage collect:
@@ -236,10 +243,21 @@ static inline int PUSHREF(int a)
 #define LOCAL_REC_STACKS                                \
   int* restrict localbddrefstacktop = bddrefstacktop;   \
   int* restrict localbddrecstacktop = bddrecstacktop;   \
-  int* localbddrecstackbot = bddrecstacktop;
+  int* localbddrecstackbot = bddrecstacktop;            \
+  int* localbddrefstackbot = bddrefstacktop;
+
+#define UPDATE_LOCAL_REC_STACKS                                 \
+  localbddrecstackbot =                                         \
+    bddrecstacktop - localbddrecstacktop + localbddrecstackbot; \
+  localbddrefstackbot =                                         \
+    bddrefstacktop - localbddrefstacktop + localbddrefstackbot; \
+  localbddrefstacktop = bddrefstacktop;                         \
+  localbddrecstacktop = bddrecstacktop;
 
 #define NONEMPTY_REC_STACK (localbddrecstacktop > localbddrecstackbot)
-
+#define CHECK_EMPTY_STACK                               \
+   assert(localbddrefstackbot == bddrefstacktop);       \
+   (void) localbddrefstackbot;
 
 #define SYNC_REC_STACKS                         \
   bddrefstacktop = localbddrefstacktop;         \

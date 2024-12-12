@@ -377,13 +377,37 @@ int bdd_setvarnum(int num)
      }
    }
 
+   // The refstack can put 2 int on the stack per variable.   We also
+   // double the size of that stack so that we can do BDD operations inside
+   // the callbacks of MTBDD operations.
+   int* stack = (int*)malloc(sizeof(int)*((num+2)*2*2));
    if (__likely(bddrefstack != NULL))
-      free(bddrefstack);
-   bddrefstack = bddrefstacktop = (int*)malloc(sizeof(int)*((num+2)*2));
+     {
+       memcpy(stack, bddrefstack, (char*)bddrefstacktop - (char*)bddrefstack);
+       bddrefstacktop = bddrefstacktop - bddrefstack + stack;
+       free(bddrefstack);
+     }
+   else
+     {
+       bddrefstacktop = stack;
+     }
+   bddrefstack = stack;
 
+   // The recstack can put 9 int of the stack per variable.   We also
+   // double the size of that stack so that we can do BDD operations inside
+   // the callbacks of MTBDD operations.
+   stack = (int*)malloc(sizeof(int)*((num+1)*9*2));
    if (__likely(bddrecstack != NULL))
-      free(bddrecstack);
-   bddrecstack = bddrecstacktop = (int*)malloc(sizeof(int)*((num+1)*9));
+     {
+       memcpy(stack, bddrecstack, (char*)bddrecstacktop - (char*)bddrecstack);
+       bddrecstacktop = bddrecstacktop - bddrecstack + stack;
+       free(bddrecstack);
+     }
+   else
+     {
+       bddrecstacktop = stack;
+     }
+   bddrecstack = stack;
 
    for(bdv=bddvarnum ; bddvarnum < num; bddvarnum++)
    {

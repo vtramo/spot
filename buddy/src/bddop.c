@@ -38,6 +38,7 @@
 #include <string.h>
 #include <math.h>
 #include <time.h>
+#include <assert.h>
 
 #include "kernel.h"
 #include "cache.h"
@@ -699,14 +700,13 @@ BDD bdd_not(BDD r)
 {
    BDD res;
    firstReorder = 1;
+   INITREF;
    CHECKa(r, bddfalse);
 
  again:
    if (__likely(bddreordermethod == BDD_REORDER_NONE)
        || setjmp(bddexception) == 0)
    {
-      INITREF;
-
       if (__likely(firstReorder))
 	{
 	  res = not_rec(r);
@@ -720,6 +720,7 @@ BDD bdd_not(BDD r)
    }
    else
    {
+      RESETREF;
       bdd_checkreorder();
       if (firstReorder-- == 1)
 	 goto again;
@@ -796,6 +797,7 @@ static BDD not_rec(BDD r)
    BDD res = READREF_(1);
    POPREF_(1);
    SYNC_REC_STACKS;
+   CHECK_EMPTY_STACK;
    return res;
 }
 
@@ -842,6 +844,7 @@ BDD bdd_apply(BDD l, BDD r, int op)
 {
    BDD res;
    firstReorder = 1;
+   INITREF;
 
    CHECKa(l, bddfalse);
    CHECKa(r, bddfalse);
@@ -858,7 +861,6 @@ BDD bdd_apply(BDD l, BDD r, int op)
    if (__likely(bddreordermethod == BDD_REORDER_NONE)
        || setjmp(bddexception) == 0)
    {
-      INITREF;
       applyop = op;
 
       if (__likely(firstReorder))
@@ -874,6 +876,7 @@ BDD bdd_apply(BDD l, BDD r, int op)
    }
    else
    {
+      RESETREF;
       bdd_checkreorder();
 
       if (firstReorder-- == 1)
@@ -1082,6 +1085,7 @@ static BDD apply_rec(BDD l, BDD r)
    BDD res = READREF_(1);
    POPREF_(1);
    SYNC_REC_STACKS;
+   CHECK_EMPTY_STACK;
    return res;
 }
 
@@ -1167,6 +1171,7 @@ BDD bdd_mt_apply2(BDD l, BDD r, int (*termop)(int, int),
                   int applyop)
 {
    LOCAL_REC_STACKS;
+
    int index;
 
    goto work;
@@ -1211,7 +1216,9 @@ BDD bdd_mt_apply2(BDD l, BDD r, int (*termop)(int, int),
              {
                if (ISTERM(l))
                  {
+                   SYNC_REC_STACKS;
                    bdd res = bdd_terminal(termop(TERM(l), TERM(r)));
+                   UPDATE_LOCAL_REC_STACKS;
                    bddExtCacheEntry* entry = cache->table + index;
                    entry->arg1 = l;
                    entry->arg2 = r;
@@ -1265,6 +1272,7 @@ BDD bdd_mt_apply2(BDD l, BDD r, int (*termop)(int, int),
    BDD res = READREF_(1);
    POPREF_(1);
    SYNC_REC_STACKS;
+   CHECK_EMPTY_STACK;
    return res;
 }
 
@@ -1310,7 +1318,9 @@ BDD bdd_mt_apply2b(BDD l, BDD r, int (*termop)(int, int),
               be popped right away.  We jump to "work" instead.*/
            if ((ISCONST(l) || ISTERM(l)) && (ISCONST(r) || ISTERM(r)))
              {
+               SYNC_REC_STACKS;
                bdd res = termop(l, r);
+               UPDATE_LOCAL_REC_STACKS;
                bddExtCacheEntry* entry = cache->table + index;
                entry->arg1 = l;
                entry->arg2 = r;
@@ -1367,6 +1377,7 @@ BDD bdd_mt_apply2b(BDD l, BDD r, int (*termop)(int, int),
    BDD res = READREF_(1);
    POPREF_(1);
    SYNC_REC_STACKS;
+   CHECK_EMPTY_STACK;
    return res;
 }
 
@@ -1394,7 +1405,10 @@ BDD bdd_mt_apply1(BDD r, int (*termop)(int),
            /* R: --- r */
            if (ISTERM(r))
              {
-               PUSHREF_(bdd_terminal(termop(TERM(r))));
+               SYNC_REC_STACKS;
+               int i = bdd_terminal(termop(TERM(r)));
+               UPDATE_LOCAL_REC_STACKS;
+               PUSHREF_(i);
              }
            else
              {
@@ -1441,6 +1455,7 @@ BDD bdd_mt_apply1(BDD r, int (*termop)(int),
    BDD res = READREF_(1);
    POPREF_(1);
    SYNC_REC_STACKS;
+   CHECK_EMPTY_STACK;
    return res;
 }
 
@@ -1513,6 +1528,7 @@ static BDD bdd_mt_map_leaves(BDD r,
    BDD res = READREF_(1);
    POPREF_(1);
    SYNC_REC_STACKS;
+   CHECK_EMPTY_STACK;
    return res;
 }
 
@@ -1730,8 +1746,10 @@ ALSO    {* bdd\_apply *}
 */
 BDD bdd_ite(BDD f, BDD g, BDD h)
 {
+   assert(bddrefstacktop == bddrefstack);
    BDD res;
    firstReorder = 1;
+   INITREF;
 
    CHECKa(f, bddfalse);
    CHECKa(g, bddfalse);
@@ -1741,8 +1759,6 @@ BDD bdd_ite(BDD f, BDD g, BDD h)
    if (__likely(bddreordermethod == BDD_REORDER_NONE)
        || setjmp(bddexception) == 0)
    {
-      INITREF;
-
       if (__likely(firstReorder))
 	{
 	  res = ite_rec(f,g,h);
@@ -1756,6 +1772,7 @@ BDD bdd_ite(BDD f, BDD g, BDD h)
    }
    else
    {
+      RESETREF;
       bdd_checkreorder();
 
       if (firstReorder-- == 1)
@@ -1764,6 +1781,7 @@ BDD bdd_ite(BDD f, BDD g, BDD h)
    }
 
    checkresize();
+   assert(bddrefstacktop == bddrefstack);
    return res;
 }
 
@@ -1919,6 +1937,7 @@ static BDD ite_rec(BDD f, BDD g, BDD h)
    BDD res = READREF_(1);
    POPREF_(1);
    SYNC_REC_STACKS;
+   CHECK_EMPTY_STACK;
    return res;
 }
 
@@ -1952,8 +1971,10 @@ ALSO    {* bdd\_makeset, bdd\_exist, bdd\_forall *}
 */
 BDD bdd_restrict(BDD r, BDD var)
 {
+   assert(bddrefstacktop == bddrefstack);
    BDD res;
    firstReorder = 1;
+   INITREF;
 
    CHECKa(r,bddfalse);
    CHECKa(var,bddfalse);
@@ -1965,10 +1986,9 @@ BDD bdd_restrict(BDD r, BDD var)
    if (__likely(bddreordermethod == BDD_REORDER_NONE)
        || setjmp(bddexception) == 0)
    {
-      if (varset2svartable(var) < 0)
-	 return bddfalse;
+     if (varset2svartable(var) < 0)
+       return bddfalse;
 
-      INITREF;
       miscid = (var << 3) | CACHEID_RESTRICT;
 
       if (__likely(firstReorder))
@@ -1984,6 +2004,7 @@ BDD bdd_restrict(BDD r, BDD var)
    }
    else
    {
+      RESETREF;
       bdd_checkreorder();
 
       if (firstReorder-- == 1)
@@ -2067,6 +2088,7 @@ static BDD restrict_rec(BDD r)
    BDD res = READREF_(1);
    POPREF_(1);
    SYNC_REC_STACKS;
+   CHECK_EMPTY_STACK;
    return res;
 }
 
@@ -2084,8 +2106,10 @@ ALSO    {* bdd\_restrict, bdd\_simplify *}
 */
 BDD bdd_constrain(BDD f, BDD c)
 {
+   assert(bddrefstacktop == bddrefstack);
    BDD res;
    firstReorder = 1;
+   INITREF;
 
    CHECKa(f,bddfalse);
    CHECKa(c,bddfalse);
@@ -2094,7 +2118,6 @@ BDD bdd_constrain(BDD f, BDD c)
    if (__likely(bddreordermethod == BDD_REORDER_NONE)
        || setjmp(bddexception) == 0)
    {
-      INITREF;
       miscid = CACHEID_CONSTRAIN;
 
       if (__likely(firstReorder))
@@ -2110,6 +2133,7 @@ BDD bdd_constrain(BDD f, BDD c)
    }
    else
    {
+      RESETREF;
       bdd_checkreorder();
 
       if (firstReorder-- == 1)
@@ -2213,6 +2237,7 @@ BDD bdd_replace(BDD r, bddPair *pair)
 {
    BDD res;
    firstReorder = 1;
+   INITREF;
 
    CHECKa(r, bddfalse);
 
@@ -2220,7 +2245,6 @@ BDD bdd_replace(BDD r, bddPair *pair)
    if (__likely(bddreordermethod == BDD_REORDER_NONE)
        || setjmp(bddexception) == 0)
    {
-      INITREF;
       replacepair = pair->result;
       replacelast = pair->last;
       replaceid = (pair->id << 2) | CACHEID_REPLACE;
@@ -2238,6 +2262,7 @@ BDD bdd_replace(BDD r, bddPair *pair)
    }
    else
    {
+      RESETREF;
       bdd_checkreorder();
 
       if (firstReorder-- == 1)
@@ -2340,6 +2365,7 @@ BDD bdd_compose(BDD f, BDD g, int var)
 {
    BDD res;
    firstReorder = 1;
+   INITREF;
 
    CHECKa(f, bddfalse);
    CHECKa(g, bddfalse);
@@ -2356,7 +2382,6 @@ BDD bdd_compose(BDD f, BDD g, int var)
    if (__likely(bddreordermethod == BDD_REORDER_NONE) ||
        setjmp(bddexception) == 0)
    {
-      INITREF;
       composelevel = bddvar2level[var];
       replaceid = (composelevel << 2) | CACHEID_COMPOSE;
 
@@ -2373,6 +2398,7 @@ BDD bdd_compose(BDD f, BDD g, int var)
    }
    else
    {
+      RESETREF;
       bdd_checkreorder();
 
       if (firstReorder-- == 1)
@@ -2481,6 +2507,7 @@ static BDD compose_rec(BDD l, BDD r)
    BDD res = READREF_(1);
    POPREF_(1);
    SYNC_REC_STACKS;
+   CHECK_EMPTY_STACK;
    return res;
 }
 
@@ -2509,6 +2536,7 @@ BDD bdd_veccompose(BDD f, bddPair *pair)
 {
    BDD res;
    firstReorder = 1;
+   INITREF;
 
    CHECKa(f, bddfalse);
 
@@ -2516,7 +2544,6 @@ BDD bdd_veccompose(BDD f, bddPair *pair)
    if (__likely(bddreordermethod == BDD_REORDER_NONE) ||
        setjmp(bddexception) == 0)
    {
-      INITREF;
       replacepair = pair->result;
       replaceid = (pair->id << 2) | CACHEID_VECCOMPOSE;
       replacelast = pair->last;
@@ -2534,6 +2561,7 @@ BDD bdd_veccompose(BDD f, bddPair *pair)
    }
    else
    {
+      RESETREF;
       bdd_checkreorder();
 
       if (firstReorder-- == 1)
@@ -2597,6 +2625,7 @@ BDD bdd_simplify(BDD f, BDD d)
 {
    BDD res;
    firstReorder = 1;
+   INITREF;
 
    CHECKa(f, bddfalse);
    CHECKa(d, bddfalse);
@@ -2605,7 +2634,6 @@ BDD bdd_simplify(BDD f, BDD d)
    if (__likely(bddreordermethod == BDD_REORDER_NONE)
        || setjmp(bddexception) == 0)
    {
-      INITREF;
       applyop = bddop_or;
 
       if (__likely(firstReorder))
@@ -2621,6 +2649,7 @@ BDD bdd_simplify(BDD f, BDD d)
    }
    else
    {
+      RESETREF;
       bdd_checkreorder();
 
       if (firstReorder-- == 1)
@@ -2704,6 +2733,7 @@ static BDD quantify(BDD r, BDD var, int op, int comp, int id)
 {
    BDD res;
    firstReorder = 1;
+   INITREF;
 
    CHECKa(r, bddfalse);
    CHECKa(var, bddfalse);
@@ -2718,7 +2748,6 @@ static BDD quantify(BDD r, BDD var, int op, int comp, int id)
       if (varset2vartable(var, comp) < 0)
 	 return bddfalse;
 
-      INITREF;
       quantid = (var << 4) | id; /* FIXME: range */
       applyop = op;
 
@@ -2735,6 +2764,7 @@ static BDD quantify(BDD r, BDD var, int op, int comp, int id)
    }
    else
    {
+      RESETREF;
       bdd_checkreorder();
 
       if (firstReorder-- == 1)
@@ -2773,7 +2803,7 @@ RETURN  {* The quantified BDD. *}
 */
 BDD bdd_existcomp(BDD r, BDD var)
 {
-   return quantify(r, var, bddop_or, 1, CACHEID_EXISTC);
+  return quantify(r, var, bddop_or, 1, CACHEID_EXISTC);
 }
 
 
@@ -2913,6 +2943,7 @@ static int quant_rec(BDD r)
    BDD res = READREF_(1);
    POPREF_(1);
    SYNC_REC_STACKS;
+   CHECK_EMPTY_STACK;
    return res;
 }
 
@@ -2924,6 +2955,7 @@ static BDD appquantify(BDD l, BDD r, int opr, BDD var,
 {
    BDD res;
    firstReorder = 1;
+   INITREF;
 
    CHECKa(l, bddfalse);
    CHECKa(r, bddfalse);
@@ -2947,7 +2979,6 @@ static BDD appquantify(BDD l, BDD r, int opr, BDD var,
       if (varset2vartable(var, comp) < 0)
 	 return bddfalse;
 
-      INITREF;
       applyop = qop;
       appexop = opr;
       appexid = (var << 5) | (appexop << 1); /* FIXME: range! */
@@ -2966,6 +2997,7 @@ static BDD appquantify(BDD l, BDD r, int opr, BDD var,
    }
    else
    {
+      RESETREF;
       bdd_checkreorder();
 
       if (firstReorder-- == 1)
@@ -3217,6 +3249,7 @@ static BDD appquant_rec(BDD l, BDD r)
    BDD res = READREF_(1);
    POPREF_(1);
    SYNC_REC_STACKS;
+   CHECK_EMPTY_STACK;
    return res;
 }
 
@@ -3375,7 +3408,6 @@ BDD bdd_satone(BDD r)
 
    bdd_disable_reorder();
 
-   INITREF;
    res = satone_rec(r);
 
    bdd_enable_reorder();
@@ -3425,6 +3457,7 @@ static BDD satone_rec(BDD r)
    BDD res = READREF_(1);
    POPREF_(1);
    SYNC_REC_STACKS;
+   CHECK_EMPTY_STACK;
    return res;
 }
 
@@ -3443,21 +3476,20 @@ RETURN  {* The result of the operation. *}
 BDD bdd_satprefix(BDD* r)
 {
    BDD res;
+   INITREF;
 
    CHECKa(*r, bddfalse);
    if (__unlikely(*r < 2))
       return *r;
 
    bdd_disable_reorder();
-
-   INITREF;
    res = satprefix_rec(r);
-
    bdd_enable_reorder();
+
+   RESETREF;
 
    checkresize();
    return res;
-
 }
 
 static BDD satprefix_rec(BDD* r)
@@ -3514,7 +3546,6 @@ BDD bdd_satoneset(BDD r, BDD var, BDD pol)
 #endif
    bdd_disable_reorder();
 
-   INITREF;
    satPolarity = pol;
    res = satoneset_rec(r, var);
 
@@ -3575,6 +3606,7 @@ static BDD satoneset_rec(BDD r, BDD var)
    BDD res = READREF_(1);
    POPREF_(1);
    SYNC_REC_STACKS;
+   CHECK_EMPTY_STACK;
    return res;
 }
 
@@ -3709,6 +3741,7 @@ static bdd bdd_satoneshortest_rec(BDD f)
 */
 BDD bdd_satoneshortest(BDD f, unsigned wlow, unsigned whigh, unsigned wdc)
 {
+  INITREF;
   if (wlow != wlow_ref || whigh != whigh_ref || wdc != wdc_ref)
     {
       wlow_ref = wlow;
@@ -3717,9 +3750,9 @@ BDD bdd_satoneshortest(BDD f, unsigned wlow, unsigned whigh, unsigned wdc)
       ++shortest_rev;
     }
   bdd_disable_reorder();
-  INITREF;
   bdd res = bdd_satoneshortest_rec(f);
   bdd_enable_reorder();
+  RESETREF;
   checkresize();
   return res;
 }
@@ -3743,6 +3776,7 @@ BDD bdd_fullsatone(BDD r)
 {
    BDD res;
    int v;
+   INITREF;
 
    CHECKa(r, bddfalse);
    if (r == 0)
@@ -3750,7 +3784,6 @@ BDD bdd_fullsatone(BDD r)
 
    bdd_disable_reorder();
 
-   INITREF;
    res = fullsatone_rec(r);
 
    for (v=LEVEL(r)-1 ; v>=0 ; v--)
@@ -3761,6 +3794,7 @@ BDD bdd_fullsatone(BDD r)
    bdd_enable_reorder();
 
    checkresize();
+   RESETREF;
    return res;
 }
 
@@ -3847,7 +3881,6 @@ void bdd_allsat(BDD r, bddallsathandler handler)
      allsatProfile[bddlevel2var[v]] = -1;
 
    allsatHandler = handler;
-   INITREF;
 
    allsat_rec(r);
 
