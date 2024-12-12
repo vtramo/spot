@@ -40,12 +40,13 @@ constexpr int hash_key_rename = 7;
 namespace spot
 {
 
-  ltlf_translator::ltlf_translator(const bdd_dict_ptr& dict)
-    : dict_(dict)
+  ltlf_translator::ltlf_translator(const bdd_dict_ptr& dict,
+                                   bool simplify_terms)
+    : dict_(dict), simplify_terms_(simplify_terms)
   {
     bdd_extcache_init(&cache_, 0);
 
-    terminal_to_formula_.reserve(32);
+    int_to_formula_.reserve(32);
   }
 
   ltlf_translator::~ltlf_translator()
@@ -56,6 +57,73 @@ namespace spot
 
   formula ltlf_translator::propeq_representative(formula f)
   {
+  again:
+    switch (f.kind())
+      {
+      case op::And:
+        {
+          if (!simplify_terms_)
+            break;
+          // The following cheap simplifications avoid creating
+          // unnecessary terminals that will eventually be found
+          // to be equivalent.
+          //
+          // (α M β) ∧ β ≡ (α M β)
+          // (α R β) ∧ β ≡ (α R β)
+          // Gα ∧ α ≡ Gα
+          robin_hood::unordered_set<formula> removable;
+          for (const formula& sub: f)
+            if (sub.is(op::M) || sub.is(op::R))
+              removable.insert(sub[1]);
+            else if (sub.is(op::G))
+              removable.insert(sub[0]);
+          if (removable.empty())
+            break;
+          std::vector<formula> vec;
+          for (const formula& sub: f)
+            if (removable.find(sub) == removable.end())
+              vec.push_back(sub);
+          if (vec.size() == f.size())
+            break;
+          f = formula::And(std::move(vec));
+          goto again;
+        }
+      case op::Or:
+        {
+          if (!simplify_terms_)
+            break;
+          // (α U β) ∨ β ≡ (α U β)
+          // (α W β) ∨ β ≡ (α W β)
+          // Fα ∨ α ≡ Fα
+          robin_hood::unordered_set<formula> removable;
+          for (const formula& sub: f)
+            if (sub.is(op::U) || sub.is(op::W))
+              removable.insert(sub[1]);
+            else if (sub.is(op::F))
+              removable.insert(sub[0]);
+          if (removable.empty())
+            break;
+          std::vector<formula> vec;
+          for (const formula& sub: f)
+            if (removable.find(sub) == removable.end())
+              vec.push_back(sub);
+          if (vec.size() == f.size())
+            break;
+          f = formula::Or(std::move(vec));
+          goto again;
+        }
+      case op::Not:
+      case op::Xor:
+      case op::Implies:
+      case op::Equiv:
+        break;
+        // abort immediately if the top-level operator is not Boolean
+      default:
+        return f;
+      }
+
+
+
     auto formula_to_bddvar = [&] (formula f) -> int
     {
       if (auto it = formula_to_var_.find(f);
@@ -121,7 +189,12 @@ namespace spot
     };
 
     bdd enc = encode_rec(f, encode_rec);
+    if (enc == bddtrue)
+      f = formula::tt();
+    else if (enc == bddfalse)
+      f = formula::ff();
     auto [it, _] = propositional_equiv_.emplace(enc, f);
+    (void) _;
     // std::cerr << f << " ≡ " << it->second << '\n';
     return it->second;
   }
@@ -129,8 +202,8 @@ namespace spot
   formula ltlf_translator::terminal_to_formula(int v) const
   {
     v /= 2;
-    assert((unsigned) v < terminal_to_formula_.size());
-    return terminal_to_formula_[v];
+    assert((unsigned) v < int_to_formula_.size());
+    return int_to_formula_[v];
   }
 
   std::pair<formula, bool> ltlf_translator::leaf_to_formula(int v) const
@@ -143,54 +216,71 @@ namespace spot
     return {terminal_to_formula(v), v & 1};
   }
 
-  int ltlf_translator::formula_to_terminal(formula f, bool maystop)
+  int ltlf_translator::formula_to_int(formula f)
   {
-    if (auto it = formula_to_terminal_.find(f);
-        it != formula_to_terminal_.end())
-      return 2 * it->second + maystop;
+    if (auto it = formula_to_int_.find(f);
+        it != formula_to_int_.end())
+      return it->second;
 
     if (formula g = propeq_representative(f); g != f)
       {
-        auto it = formula_to_terminal_.find(g);
-        assert (it != formula_to_terminal_.end());
+        auto it = formula_to_int_.find(g);
+        if (it == formula_to_int_.end())
+          {
+            // This can occur if propeq_representative simplify
+            // the formula.
+            int v = int_to_formula_.size();
+            int_to_formula_.push_back(g);
+            formula_to_int_[g] = v;
+            formula_to_int_[f] = v;
+            return v;
+          }
         int v = it->second;
-        formula_to_terminal_[g] = v;
-        return 2 * v + maystop;
+        formula_to_int_[g] = v;
+        return v;
       }
 
-    int v = terminal_to_formula_.size();
-    terminal_to_formula_.push_back(f);
-    formula_to_terminal_[f] = v;
-    return 2 * v + maystop;
+    int v = int_to_formula_.size();
+    int_to_formula_.push_back(f);
+    formula_to_int_[f] = v;
+    return v;
+  }
+
+  int ltlf_translator::formula_to_terminal(formula f, bool maystop)
+  {
+    return formula_to_int(f) * 2 + maystop;
   }
 
   bdd ltlf_translator::formula_to_terminal_bdd(formula f, bool maystop)
   {
     if (SPOT_UNLIKELY(f.is_ff() && !maystop))
       return bddfalse;
-    else if (SPOT_UNLIKELY(f.is_tt() && maystop))
+    if (SPOT_UNLIKELY(f.is_tt() && maystop))
       return bddtrue;
-    else
-      return bdd_terminal(formula_to_terminal(f, maystop));
+    int v = formula_to_int(f);
+    f = int_to_formula_[v];     // The formula might have been reduced to tt/ff.
+    if (SPOT_UNLIKELY(f.is_ff() && !maystop))
+      return bddfalse;
+    if (SPOT_UNLIKELY(f.is_tt() && maystop))
+      return bddtrue;
+    return bdd_terminal(v * 2 + maystop);
   }
 
   static ltlf_translator* term_combine_trans;
   static int term_combine_and(int left, int right)
   {
-    formula ll = term_combine_trans->terminal_to_formula(left);
-    formula rr = term_combine_trans->terminal_to_formula(right);
-    formula res = formula::And({ll, rr});
-    return term_combine_trans->formula_to_terminal(res,
-                                                   left & right & 1);
+    auto [lf, lb] = term_combine_trans->leaf_to_formula(left);
+    auto [rf, rb] = term_combine_trans->leaf_to_formula(right);
+    formula res = formula::And({lf, rf});
+    return term_combine_trans->formula_to_terminal_bdd(res, lb && rb).id();
   }
 
   static int term_combine_or(int left, int right)
   {
-    formula ll = term_combine_trans->terminal_to_formula(left);
-    formula rr = term_combine_trans->terminal_to_formula(right);
-    formula res = formula::Or({ll, rr});
-    return term_combine_trans->formula_to_terminal(res,
-                                                   (left | right) & 1);
+    auto [lf, lb] = term_combine_trans->leaf_to_formula(left);
+    auto [rf, rb] = term_combine_trans->leaf_to_formula(right);
+    formula res = formula::Or({lf, rf});
+    return term_combine_trans->formula_to_terminal_bdd(res, lb || rb).id();
   }
 
   static int term_combine_implies(int left, int right)
@@ -198,7 +288,7 @@ namespace spot
     auto [lf, lb] = term_combine_trans->leaf_to_formula(left);
     auto [rf, rb] = term_combine_trans->leaf_to_formula(right);
     formula res = formula::Implies(lf, rf);
-    return term_combine_trans->formula_to_terminal_bdd(res, !lb | rb).id();
+    return term_combine_trans->formula_to_terminal_bdd(res, !lb || rb).id();
   }
 
   static int term_combine_equiv(int left, int right)
@@ -227,55 +317,49 @@ namespace spot
   bdd ltlf_translator::combine_and(bdd left, bdd right)
   {
     term_combine_trans = this;
-    bdd r = bdd_mt_apply2(left, right,
+    return bdd_mt_apply2b(left, right,
                           term_combine_and, &cache_, hash_key_and,
                           bddop_and);
-    return r;
   }
 
   bdd ltlf_translator::combine_or(bdd left, bdd right)
   {
     term_combine_trans = this;
-    bdd r = bdd_mt_apply2(left, right,
+    return bdd_mt_apply2b(left, right,
                           term_combine_or, &cache_, hash_key_or,
                           bddop_or);
-    return r;
   }
 
   bdd ltlf_translator::combine_implies(bdd left, bdd right)
   {
     term_combine_trans = this;
-    bdd r = bdd_mt_apply2b(left, right,
-                           term_combine_implies, &cache_, hash_key_implies,
-                           bddop_imp);
-    return r;
+    return bdd_mt_apply2b(left, right,
+                          term_combine_implies, &cache_, hash_key_implies,
+                          bddop_imp);
   }
 
   bdd ltlf_translator::combine_equiv(bdd left, bdd right)
   {
     term_combine_trans = this;
-    bdd r = bdd_mt_apply2b(left, right,
-                           term_combine_equiv, &cache_, hash_key_equiv,
-                           bddop_biimp);
-    return r;
+    return bdd_mt_apply2b(left, right,
+                          term_combine_equiv, &cache_, hash_key_equiv,
+                          bddop_biimp);
   }
 
   bdd ltlf_translator::combine_xor(bdd left, bdd right)
   {
     term_combine_trans = this;
-    bdd r = bdd_mt_apply2b(left, right,
-                           term_combine_xor, &cache_, hash_key_xor,
-                           bddop_xor);
-    return r;
+    return bdd_mt_apply2b(left, right,
+                          term_combine_xor, &cache_, hash_key_xor,
+                          bddop_xor);
   }
 
   bdd ltlf_translator::combine_not(bdd left)
   {
     term_combine_trans = this;
-    bdd r = bdd_mt_apply1(left, term_combine_not,
-                          bddtrue, bddfalse,
-                          &cache_, hash_key_not);
-    return r;
+    return bdd_mt_apply1(left, term_combine_not,
+                         bddtrue, bddfalse,
+                         &cache_, hash_key_not);
   }
 
   bdd ltlf_translator::ltlf_to_mtbdd(formula f)
@@ -428,7 +512,7 @@ namespace spot
 
 
   mtdfa_ptr ltlf_to_mtdfa(formula f, const bdd_dict_ptr& dict,
-                          bool fuse_same_bdds)
+                          bool fuse_same_bdds, bool simplify_terms)
   {
     mtdfa_ptr dfa = std::make_shared<mtdfa>(dict);
     // collect all atomic propositions in f, and pre-register them for
@@ -439,7 +523,7 @@ namespace spot
     for (formula f: f_aps)
       dict->register_proposition(f, dfa);
 
-    ltlf_translator trans(dict);
+    ltlf_translator trans(dict, simplify_terms);
 
     std::unordered_map<bdd, int, bdd_hash> bdd_to_state;
     std::unordered_map<formula, int> formula_to_state;
@@ -1179,6 +1263,7 @@ namespace spot
             if (leaf == bddfalse || leaf == bddtrue)
               continue;
             auto [ls, rs, _] = the_product_data.leaf_to_pair(leaf);
+            (void) _;
             if (terminal_to_state_map.find(bdd_get_terminal(leaf) / 2)
                 == terminal_to_state_map.end())
               todo.push({ls, rs});

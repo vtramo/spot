@@ -27,12 +27,13 @@ namespace spot
   class SPOT_API ltlf_translator
   {
   public:
-    ltlf_translator(const bdd_dict_ptr& dict);
+    ltlf_translator(const bdd_dict_ptr& dict, bool simplify_terms = true);
 
     bdd ltlf_to_mtbdd(formula f);
     std::pair<formula, bool>  leaf_to_formula(int t) const;
 
     formula terminal_to_formula(int t) const;
+    int formula_to_int(formula f);
     int formula_to_terminal(formula f, bool may_stop = false);
     bdd formula_to_terminal_bdd(formula f, bool may_stop = false);
 
@@ -57,17 +58,18 @@ namespace spot
     std::unordered_map<bdd, formula, bdd_hash> propositional_equiv_;
 
     std::unordered_map<formula, bdd> formula_to_bdd_;
-    std::unordered_map<formula, int> formula_to_terminal_;
-    std::vector<formula> terminal_to_formula_;
+    std::unordered_map<formula, int> formula_to_int_;
+    std::vector<formula> int_to_formula_;
     bdd_dict_ptr dict_;
     bddExtCache cache_;
+    bool simplify_terms_;
   };
 
 
   struct SPOT_API mtdfa
   {
   public:
-    mtdfa(const bdd_dict_ptr& dict)
+    mtdfa(const bdd_dict_ptr& dict) noexcept
       : dict_(dict)
      {
      }
@@ -131,7 +133,8 @@ namespace spot
 
   SPOT_API mtdfa_ptr
   ltlf_to_mtdfa(formula f, const bdd_dict_ptr& dict,
-                bool fuse_same_bdds = true);
+                bool fuse_same_bdds = true,
+                bool simplify_terms = true);
 
   SPOT_API mtdfa_ptr minimize_mtdfa(const mtdfa_ptr& dfa);
 
