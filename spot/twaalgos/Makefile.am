@@ -70,6 +70,7 @@ twaalgos_HEADERS = \
   mcs.hh \
   minimize.hh \
   mealy_machine.hh \
+  mtdtwa.hh \
   neverclaim.hh \
   parity.hh \
   postproc.hh \
@@ -148,6 +149,7 @@ libtwaalgos_la_SOURCES = \
   mcs.cc \
   minimize.cc \
   mealy_machine.cc \
+  mtdtwa.cc \
   ndfs_result.hxx \
   neverclaim.cc \
   parity.cc \

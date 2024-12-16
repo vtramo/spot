@@ -43,6 +43,7 @@
 %shared_ptr(spot::tgta_explicit)
 %shared_ptr(spot::bdd_dict)
 %shared_ptr(spot::mtdfa)
+%shared_ptr(spot::mtdtwa)
 %shared_ptr(spot::twa)
 %shared_ptr(spot::twa_graph)
 %shared_ptr(spot::twa_product)
@@ -167,6 +168,7 @@
 #include <spot/twaalgos/toweak.hh>
 #include <spot/twaalgos/hoa.hh>
 #include <spot/twaalgos/dtwasat.hh>
+#include <spot/twaalgos/mtdtwa.hh>
 #include <spot/twaalgos/relabel.hh>
 #include <spot/twaalgos/word.hh>
 #include <spot/twaalgos/are_isomorphic.hh>
@@ -521,6 +523,7 @@ static void handle_any_exception()
 namespace std {
   %template(liststr) list<std::string>;
   %template(pairunsigned) pair<unsigned, unsigned>;
+  %template(pairmarkunsigned) pair<spot::acc_cond::mark_t, unsigned>;
   %template(pairmark_t) pair<spot::acc_cond::mark_t, spot::acc_cond::mark_t>;
   %template(pairintacccode) pair<int, spot::acc_cond::acc_code>;
   %template(pairintacccond) pair<int, spot::acc_cond>;
@@ -530,6 +533,7 @@ namespace std {
   %template(vectorpairunsigned) vector<pair<unsigned, unsigned>>;
   %template(vectoracccond) vector<spot::acc_cond>;
   %template(vectoracccode) vector<spot::acc_cond::acc_code>;
+  %template(vectormarkunsigned) vector<pair<spot::acc_cond::mark_t, unsigned>>;
   %template(vectorbool) vector<bool>;
   %template(vectorbdd) vector<bdd>;
   %template(aliasvector) vector<pair<string, bdd>>;
@@ -794,6 +798,7 @@ def state_is_accepting(self, src) -> "bool":
 %include <spot/twaalgos/toweak.hh>
 %include <spot/twaalgos/hoa.hh>
 %include <spot/twaalgos/dtwasat.hh>
+%include <spot/twaalgos/mtdtwa.hh>
 %include <spot/twaalgos/relabel.hh>
 %include <spot/twaalgos/word.hh>
 %template(list_bdd) std::list<bdd>;
