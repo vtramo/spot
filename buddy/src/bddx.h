@@ -723,6 +723,7 @@ protected:
    friend double   bdd_satcountlnset(const bdd &, const bdd &);
    friend int      bdd_nodecount(const bdd &);
    friend int      bdd_anodecountpp(const bdd *, int);
+   friend int      bdd_anodecountpp(const std::vector<bdd>&);
    friend int*     bdd_varprofile(const bdd &);
    friend double   bdd_pathcount(const bdd &);
    friend int      bdd_have_common_assignment(const bdd&, const bdd&);
@@ -1296,6 +1297,7 @@ BUDDY_API bddstrmhandler bdd_strm_hook(bddstrmhandler);
 
 BUDDY_API std::vector<bdd> leaves_of(const bdd&);
 BUDDY_API std::vector<bdd> leaves_of(const std::vector<bdd>& b);
+BUDDY_API int bdd_anodecountpp(const std::vector<bdd>& b);
 
 /*=== Minterm enumeration ====*/
 

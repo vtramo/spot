@@ -28,7 +28,6 @@
 ========================================================================*/
 
 /*************************************************************************
-  $Header: /Volumes/CVS/repository/spot/spot/buddy/src/cppext.cxx,v 1.2 2003/05/05 13:45:06 aduret Exp $
   FILE:  cppext.cxx
   DESCR: C++ extension of BDD package
   AUTH:  Jorn Lind
@@ -653,5 +652,13 @@ std::vector<bdd> leaves_of(const std::vector<bdd>& b)
   return res;
 }
 
-
+int bdd_anodecountpp(const std::vector<bdd>& b)
+{
+  int count = 0;
+  for (const bdd& x: b)
+    bdd_markcount(x.root, &count);
+  for (const bdd& x: b)
+    bdd_unmark(x.root);
+  return count;
+}
 /* EOF */
