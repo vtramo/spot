@@ -29,3 +29,5 @@ for i in range(200):
    a2 = spot.translate(f, "finite", "deterministic", )
    a3 = spot.twadfa_to_mtdfa(a2)
    tc.assertTrue(spot.product_xor(a1b, a3).is_empty());
+   a4 = spot.ltlf_to_mtdfa_compose(f)
+   tc.assertTrue(spot.product_xor(a4, a3).is_empty());

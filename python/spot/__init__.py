@@ -1098,6 +1098,10 @@ def ltlf_to_mtdfa(formula, *args, dict=_bdd_dict):
     from spot.impl import ltlf_to_mtdfa as todfa
     return todfa(formula, dict, *args)
 
+def ltlf_to_mtdfa_compose(formula, *args, dict=_bdd_dict):
+    from spot.impl import ltlf_to_mtdfa_compose as todfa
+    return todfa(formula, dict, *args)
+
 # Wrap C++-functions into lambdas so that they get converted into
 # instance methods (i.e., self passed as first argument
 # automatically), because only user-defined functions are converted as

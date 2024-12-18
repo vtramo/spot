@@ -23,7 +23,6 @@
 #include <spot/misc/bddlt.hh>
 #include <spot/misc/escape.hh>
 #include <spot/twaalgos/ltlf2dfa.hh>
-#include <spot/twa/formula2bdd.hh>
 #include <spot/twaalgos/isdet.hh>
 #include <spot/tl/apcollect.hh>
 #include <spot/tl/print.hh>
@@ -368,131 +367,132 @@ namespace spot
       return it->second;
 
     bdd res = bddfalse;
-    if (f.is_boolean())
+    switch (f.kind())
       {
-        res = formula_to_bdd(f, dict_, this);
-      }
-    else
-      {
-        switch (f.kind())
-          {
-          case op::eword:
-          case op::tt:
-          case op::ff:
-          case op::ap:
-            // already handled in f.is_boolean() above
-            SPOT_UNREACHABLE();
-          case op::Not:
-            res = combine_not(ltlf_to_mtbdd(f[0]));
-            break;
-          case op::Xor:
-            {
-              bdd left = ltlf_to_mtbdd(f[0]);
-              bdd right = ltlf_to_mtbdd(f[1]);
-              res = combine_xor(left, right);
-              break;
-            }
-          case op::Implies:
-            {
-              bdd left = ltlf_to_mtbdd(f[0]);
-              bdd right = ltlf_to_mtbdd(f[1]);
-              res = combine_implies(left, right);
-              break;
-            }
-          case op::Equiv:
-            {
-              bdd left = ltlf_to_mtbdd(f[0]);
-              bdd right = ltlf_to_mtbdd(f[1]);
-              res = combine_equiv(left, right);
-              break;
-            }
-            /*
-          case op::Not:
-          case op::Xor:
-          case op::Implies:
-          case op::Equiv:
-            throw std::runtime_error("ltlf_to_mtbdd: input formula should be "
-                                     "in negative normal form");
-            */
-          case op::AndNLM:
-          case op::AndRat:
-          case op::Closure:
-          case op::Concat:
-          case op::EConcat:
-          case op::EConcatMarked:
-          case op::first_match:
-          case op::FStar:
-          case op::Fusion:
-          case op::NegClosure:
-          case op::NegClosureMarked:
-          case op::OrRat:
-          case op::Star:
-          case op::UConcat:
-            throw std::runtime_error("ltlf_to_mtbdd: unsupported operator");
-          case op::And:
-            {
-              unsigned n = f.size();
-              res = ltlf_to_mtbdd(f[0]);
-              for (unsigned i = 1; i < n; ++i)
-                res = combine_and(res, ltlf_to_mtbdd(f[i]));
-              break;
-            }
-          case op::Or:
-            {
-              unsigned n = f.size();
-              res = ltlf_to_mtbdd(f[0]);
-              for (unsigned i = 1; i < n; ++i)
-                res = combine_or(res, ltlf_to_mtbdd(f[i]));
-              break;
-            }
-          case op::X:
-            res = formula_to_terminal_bdd(f[0], true);
-            break;
-          case op::strong_X:
-            res = formula_to_terminal_bdd(f[0]);
-            break;
-          case op::U:
-            {
-              bdd f0 = ltlf_to_mtbdd(f[0]);
-              bdd f1 = ltlf_to_mtbdd(f[1]);
-              bdd term = formula_to_terminal_bdd(f);
-              res = combine_or(f1, combine_and(f0, term));
-              break;
-            }
-          case op::W:
-            {
-              bdd f0 = ltlf_to_mtbdd(f[0]);
-              bdd f1 = ltlf_to_mtbdd(f[1]);
-              bdd term = formula_to_terminal_bdd(f, true);
-              res = combine_or(f1, combine_and(f0, term));
-              break;
-            }
-          case op::R:
-            {
-              bdd f0 = ltlf_to_mtbdd(f[0]);
-              bdd f1 = ltlf_to_mtbdd(f[1]);
-              bdd term = formula_to_terminal_bdd(f, true);
-              res = combine_and(f1, combine_or(f0, term));
-              break;
-            }
-          case op::M:
-            {
-              bdd f0 = ltlf_to_mtbdd(f[0]);
-              bdd f1 = ltlf_to_mtbdd(f[1]);
-              bdd term = formula_to_terminal_bdd(f);
-              res = combine_and(f1, combine_or(f0, term));
-              break;
-            }
-          case op::G:
-            {
-              bdd term = formula_to_terminal_bdd(f, true);
-              res = combine_and(ltlf_to_mtbdd(f[0]), term);
-              break;
-            }
-          case op::F:
-            res = combine_or(ltlf_to_mtbdd(f[0]), formula_to_terminal_bdd(f));
-            break;
-          }
+      case op::tt:
+        return bddtrue;
+      case op::ff:
+        return bddfalse;
+      case op::ap:
+        return bdd_ithvar(dict_->register_proposition(f, this));
+      case op::Not:
+        // For all purely Boolean subformulas, we want to use the
+        // regular BDD operators, so that the cache entries are long
+        // lived.
+        if (f.is_boolean())
+          res = !ltlf_to_mtbdd(f[0]);
+        else
+          res = combine_not(ltlf_to_mtbdd(f[0]));
+        break;
+      case op::Xor:
+        {
+          bdd left = ltlf_to_mtbdd(f[0]);
+          bdd right = ltlf_to_mtbdd(f[1]);
+          if (f.is_boolean())
+            res = left ^ right;
+          else
+            res = combine_xor(left, right);
+          break;
+        }
+      case op::Implies:
+        {
+          bdd left = ltlf_to_mtbdd(f[0]);
+          bdd right = ltlf_to_mtbdd(f[1]);
+          if (f.is_boolean())
+            res = left >> right;
+          else
+            res = combine_implies(left, right);
+          break;
+        }
+      case op::Equiv:
+        {
+          bdd left = ltlf_to_mtbdd(f[0]);
+          bdd right = ltlf_to_mtbdd(f[1]);
+          if (f.is_boolean())
+            res = bdd_apply(left, right, bddop_biimp);
+          else
+            res = combine_equiv(left, right);
+          break;
+        }
+      case op::eword:
+      case op::AndNLM:
+      case op::AndRat:
+      case op::Closure:
+      case op::Concat:
+      case op::EConcat:
+      case op::EConcatMarked:
+      case op::first_match:
+      case op::FStar:
+      case op::Fusion:
+      case op::NegClosure:
+      case op::NegClosureMarked:
+      case op::OrRat:
+      case op::Star:
+      case op::UConcat:
+        throw std::runtime_error("ltlf_to_mtbdd: unsupported operator");
+      case op::And:
+        {
+          unsigned n = f.size();
+          res = ltlf_to_mtbdd(f[0]);
+          for (unsigned i = 1; i < n; ++i)
+            res = combine_and(res, ltlf_to_mtbdd(f[i]));
+          break;
+        }
+      case op::Or:
+        {
+          unsigned n = f.size();
+          res = ltlf_to_mtbdd(f[0]);
+          for (unsigned i = 1; i < n; ++i)
+            res = combine_or(res, ltlf_to_mtbdd(f[i]));
+          break;
+        }
+      case op::X:
+        res = formula_to_terminal_bdd(f[0], true);
+        break;
+      case op::strong_X:
+        res = formula_to_terminal_bdd(f[0]);
+        break;
+      case op::U:
+        {
+          bdd f0 = ltlf_to_mtbdd(f[0]);
+          bdd f1 = ltlf_to_mtbdd(f[1]);
+          bdd term = formula_to_terminal_bdd(f);
+          res = combine_or(f1, combine_and(f0, term));
+          break;
+        }
+      case op::W:
+        {
+          bdd f0 = ltlf_to_mtbdd(f[0]);
+          bdd f1 = ltlf_to_mtbdd(f[1]);
+          bdd term = formula_to_terminal_bdd(f, true);
+          res = combine_or(f1, combine_and(f0, term));
+          break;
+        }
+      case op::R:
+        {
+          bdd f0 = ltlf_to_mtbdd(f[0]);
+          bdd f1 = ltlf_to_mtbdd(f[1]);
+          bdd term = formula_to_terminal_bdd(f, true);
+          res = combine_and(f1, combine_or(f0, term));
+          break;
+        }
+      case op::M:
+        {
+          bdd f0 = ltlf_to_mtbdd(f[0]);
+          bdd f1 = ltlf_to_mtbdd(f[1]);
+          bdd term = formula_to_terminal_bdd(f);
+          res = combine_and(f1, combine_or(f0, term));
+          break;
+        }
+      case op::G:
+        {
+          bdd term = formula_to_terminal_bdd(f, true);
+          res = combine_and(ltlf_to_mtbdd(f[0]), term);
+          break;
+        }
+      case op::F:
+        res = combine_or(ltlf_to_mtbdd(f[0]), formula_to_terminal_bdd(f));
+        break;
       }
     formula_to_bdd_[f] = res;
     return res;
@@ -510,21 +510,9 @@ namespace spot
     return 2 * v + (terminal & 1);
   }
 
-
-  mtdfa_ptr ltlf_to_mtdfa(formula f, const bdd_dict_ptr& dict,
-                          bool fuse_same_bdds, bool simplify_terms)
+  mtdfa_ptr ltlf_translator::ltlf_to_mtdfa(formula f, bool fuse_same_bdds)
   {
-    mtdfa_ptr dfa = std::make_shared<mtdfa>(dict);
-    // collect all atomic propositions in f, and pre-register them for
-    // the DFA.   We do that to ensure that the "promise" created by
-    // the ltlf_translator is registered with a higher level.
-    atomic_prop_set f_aps;
-    atomic_prop_collect(f, &f_aps);
-    for (formula f: f_aps)
-      dict->register_proposition(f, dfa);
-
-    ltlf_translator trans(dict, simplify_terms);
-
+    mtdfa_ptr dfa = std::make_shared<mtdfa>(dict_);
     std::unordered_map<bdd, int, bdd_hash> bdd_to_state;
     std::unordered_map<formula, int> formula_to_state;
     std::vector<bdd> states;
@@ -536,14 +524,14 @@ namespace spot
       {
         formula label = todo.front();
         todo.pop();
-        int label_term = trans.formula_to_terminal(label) / 2;
+        int label_term = formula_to_terminal(label) / 2;
 
         // already processed
         if (terminal_to_state_map.find(label_term)
             != terminal_to_state_map.end())
           continue;
 
-        bdd b = trans.ltlf_to_mtbdd(label);
+        bdd b = ltlf_to_mtbdd(label);
         if (fuse_same_bdds)
           if (auto it = bdd_to_state.find(b); it != bdd_to_state.end())
             {
@@ -565,26 +553,705 @@ namespace spot
             int term = bdd_get_terminal(leaf);
             if (terminal_to_state_map.find(term / 2)
                 == terminal_to_state_map.end())
-              todo.push(trans.terminal_to_formula(term));
+              todo.push(terminal_to_formula(term));
           }
       }
 
     // Currently, state[i] contains a bdd representing outgoing
     // transitions from state i, however the terminal values represent
     // formulas.  We need to remap the terminal values to state values.
-    bddExtCache* cache = trans.get_cache();
     unsigned sz = states.size();
     for (unsigned i = 0; i < sz; ++i)
       states[i] = bdd_mt_apply1(states[i], terminal_to_state,
                                 bddfalse, bddtrue,
-                                cache, hash_key_rename);
+                                &cache_, hash_key_rename);
 
     dfa->states = std::move(states);
     dfa->names = std::move(names);
-    dict->register_all_variables_of(&trans, dfa);
+    dict_->register_all_variables_of(this, dfa);
     return dfa;
   }
 
+  static std::vector<int> classes;
+  static int num_states;
+  static bool accepting_false_seen;
+  static bool rejecting_true_seen;
+
+  static int rename_class(int val)
+  {
+    assert((unsigned) val/2 < classes.size());
+    bool accepting = val & 1;
+    val = classes[val / 2];
+    if (val == num_states + accepting)
+      {
+        if (accepting)
+          accepting_false_seen = true;
+        else
+          rejecting_true_seen = true;
+      }
+    return 2 * val + accepting;
+  }
+
+
+  mtdfa_ptr minimize_mtdfa(const mtdfa_ptr& dfa,
+                           bddExtCache* cache,
+                           int& iteration)
+  {
+    if (iteration >= (1 << 20))
+      {
+        bdd_extcache_reset(cache);
+        iteration = 0;
+      }
+
+    unsigned n = num_states = dfa->num_roots();
+
+    classes.clear();            // global
+    classes.resize(n + 2, 0);
+
+    std::unordered_map<bdd, std::vector<int>, bdd_hash> groups;
+    std::vector<bdd> states;
+    states.reserve(n);
+    for (;;)
+      {
+        ++iteration;
+        bdd true_term = bdd_terminal(2 * classes[n] + 1);
+        bdd false_term = bdd_terminal(2 * classes[n + 1]);
+        accepting_false_seen = false;
+        rejecting_true_seen = false;
+        for (unsigned i = 0; i < n; ++i)
+          {
+            bdd sig = bdd_mt_apply1(dfa->states[i], rename_class,
+                                    false_term, true_term,
+                                    cache, iteration);
+            auto& v = groups[sig];
+            if (v.empty())
+              states.push_back(sig);
+            v.push_back(i);
+          }
+        // Add the true_term to its group.
+        {
+          auto& v = groups[true_term];
+          if (v.empty())
+            states.push_back(true_term);
+          v.push_back(n);
+        }
+        // Add the false_term to its group.
+        {
+          auto& v = groups[false_term];
+          if (v.empty())
+            states.push_back(false_term);
+          v.push_back(n + 1);
+        }
+
+        int curclass = 0;
+        // { // debug
+        //   std::cerr << "iteration " << iteration << '\n';
+        //   std::cerr << states.size() << " states\n";
+        // }
+        bool changed = false;
+        // in this order, the initial state will always have class 0.
+        for (bdd sig: states)
+          {
+            int mapclass = curclass++;
+            auto& v = groups[sig];
+            unsigned vb = v.back();
+            if (vb >= n)
+              mapclass = vb;
+            for (unsigned i: v)
+              if (classes[i] != mapclass)
+                {
+                  changed = true;
+                  classes[i] = mapclass;
+                }
+            // { // debug
+            //   std::cerr << "class " << mapclass << ':';
+            //   for (unsigned i: v)
+            //     std::cerr << ' ' << i;
+            //   if (mapclass == (int) n)
+            //     std::cerr << "  (true)";
+            //   else if (mapclass == (int) n + 1)
+            //     std::cerr << "  (false)";
+            //   std::cerr << "\n      " << sig << '\n';
+            // }
+          }
+        // for (unsigned i = 0; i <= n + 1; ++i)
+        //    std::cerr << "classes[" << i << "]=" << classes[i] << '\n';
+        if (!changed)
+          break;
+        groups.clear();
+        states.clear();
+      }
+
+    // The BDDs in STATES are actually our new MTBDD representation.
+    // We just have get rid of the terms we introduced to replace
+    // bddfalse, and get rid of the states equivalent to bddfalse.
+    //
+    // And we have to keep one name per class for display.
+    bool want_names = dfa->names.size() == n;
+    std::vector<formula> names;
+    unsigned sz = states.size();
+    if (want_names)
+      names.reserve(sz);
+    unsigned j = 0;
+    ++iteration;
+    bdd true_term = bdd_terminal(2 * classes[n] + 1);
+    bdd false_term = bdd_terminal(2 * classes[n + 1]);
+    bool need_remap = false;
+    for (unsigned i = 0; i < sz; ++i)
+      {
+        bdd sig = states[i];
+        auto& v = groups[sig];
+        assert(!v.empty());
+        unsigned vb = v.back();
+        if (vb == n + 1)      // equivalent to false!
+          {
+            if (i == 0) // the source state is false
+              {
+                assert(v.front() == 0);
+                if (want_names)
+                  names.push_back(formula::ff());
+                states[0] = bddfalse;
+                ++j;
+                break;
+              }
+            if (!accepting_false_seen)
+              continue;
+            classes[n + 1] = j;
+            need_remap = true;
+          }
+        if (vb == n)      // equivalent to true!
+          {
+            if (i == 0) // the source state is true
+              {
+                assert(v.front() == 0);
+                if (want_names)
+                  names.push_back(formula::tt());
+                states[0] = bddtrue;
+                ++j;
+                break;
+              }
+            if (!rejecting_true_seen)
+              continue;
+            classes[n] = j;
+            need_remap = true;
+          }
+        if (want_names)
+          {
+            assert((unsigned) v.front() < dfa->names.size());
+            names.push_back(dfa->names[v.front()]);
+          }
+        sig = bdd_terminal_to_const(sig, false_term, true_term,
+                                    cache, iteration);
+        classes[i] = j;
+        if (i != j)
+          need_remap = true;
+        states[j++] = sig;
+      }
+    if (j < sz)
+      states.resize(j);
+
+    if (need_remap)
+      {
+        ++iteration;
+        for (bdd& sig: states)
+          sig = bdd_mt_apply1(sig, rename_class, bddfalse, bddtrue,
+                              cache, iteration);
+      }
+
+    mtdfa_ptr res = std::make_shared<mtdfa>(dfa->dict_);
+    res->dict_->register_all_variables_of(dfa, res);
+    std::swap(res->names, names);
+    std::swap(res->states, states);
+    return res;
+  }
+
+  mtdfa_ptr minimize_mtdfa(const mtdfa_ptr& dfa)
+  {
+    bddExtCache cache;
+    bdd_extcache_init(&cache, 0);
+    int iteration = 0;
+    mtdfa_ptr res = minimize_mtdfa(dfa, &cache, iteration);
+    bdd_extcache_done(&cache);
+    return res;
+  }
+
+
+  namespace
+  {
+    typedef std::pair<unsigned, unsigned> product_state;
+
+    struct product_state_hash
+    {
+      size_t
+      operator()(product_state s) const noexcept
+      {
+        return wang32_hash(s.first ^ wang32_hash(s.second));
+      }
+    };
+
+    inline std::pair<bdd, formula>
+    bdd_and_formula_from_state(unsigned s, const mtdfa_ptr& dfa)
+    {
+      if (s == -2U)
+        return {bddfalse, formula::ff()};
+      if (s == -1U)
+        return {bddtrue, formula::tt()};
+      if (s >= dfa->names.size())
+        return {dfa->states[s], nullptr};
+      return {dfa->states[s], dfa->names[s]};
+    }
+
+    struct product_data
+    {
+      std::unordered_map<product_state, int,
+                         product_state_hash> pair_to_terminal_map;
+      std::vector<product_state> terminal_to_pair;
+      mtdfa_ptr left;
+      mtdfa_ptr right;
+
+
+      std::pair<unsigned, bool> leaf_to_state(int b) const
+      {
+        if (b == 0)
+          return {-2U, false};
+        if (b == 1)
+          return {-1U, true};
+        int v = bdd_get_terminal(b);
+        return {v / 2, v & 1};
+      }
+
+      int pair_to_terminal(unsigned left,
+                           unsigned right,
+                           bool may_stop = false)
+      {
+        if (auto it = pair_to_terminal_map.find({left, right});
+            it != pair_to_terminal_map.end())
+          return 2 * it->second + may_stop;
+
+        int v = terminal_to_pair.size();
+        terminal_to_pair.push_back({left, right});
+        pair_to_terminal_map[{left, right}] = v;
+        return 2 * v + may_stop;
+      }
+
+      bdd pair_to_terminal_bdd(unsigned left,
+                               unsigned right,
+                               bool may_stop = false)
+      {
+        if (SPOT_UNLIKELY(left == -2U && right == -2U && !may_stop))
+          return bddfalse;
+        else if (SPOT_UNLIKELY(left == -1U && right == -1U && may_stop))
+          return bddtrue;
+        else
+          return bdd_terminal(pair_to_terminal(left, right, may_stop));
+      }
+
+      std::tuple<unsigned, unsigned, bool> leaf_to_pair(bdd leaf)
+      {
+        if (leaf == bddfalse)
+          return {-2U, -2U, false};
+        if (leaf == bddtrue)
+          return {-1U, -1U, true};
+        unsigned v = bdd_get_terminal(leaf);
+        std::pair<unsigned, unsigned> res = terminal_to_pair[v / 2];
+        return {res.first, res.second, v & 1};
+      }
+
+    } the_product_data;
+
+    static int leaf_combine_and(int left, int right)
+    {
+      auto [ls, lb] = the_product_data.leaf_to_state(left);
+      auto [rs, rb] = the_product_data.leaf_to_state(right);
+      if (ls == -2U || rs == -2U)
+        return 0;
+      return the_product_data.pair_to_terminal_bdd(ls, rs, lb & rb).id();
+    }
+
+    static int leaf_combine_or(int left, int right)
+    {
+      auto [ls, lb] = the_product_data.leaf_to_state(left);
+      auto [rs, rb] = the_product_data.leaf_to_state(right);
+      if (ls == -1U || rs == -1U)
+        return 1;
+      return the_product_data.pair_to_terminal_bdd(ls, rs, lb | rb).id();
+    }
+
+    static int leaf_combine_implies(int left, int right)
+    {
+      auto [ls, lb] = the_product_data.leaf_to_state(left);
+      auto [rs, rb] = the_product_data.leaf_to_state(right);
+      if (ls == -2U || rs == -1U)
+        return 1;
+      return the_product_data.pair_to_terminal_bdd(ls, rs, !lb | rb).id();
+    }
+
+    static int leaf_combine_equiv(int left, int right)
+    {
+      auto [ls, lb] = the_product_data.leaf_to_state(left);
+      auto [rs, rb] = the_product_data.leaf_to_state(right);
+      if (rs == ls && (ls == -2U || ls == -1U))
+        return 1;
+      if ((ls == -1U && rs == -2U) || (ls == -2U && rs == -1U))
+        return 0;
+      return the_product_data.pair_to_terminal_bdd(ls, rs, lb == rb).id();
+    }
+
+    static int leaf_combine_xor(int left, int right)
+    {
+      auto [ls, lb] = the_product_data.leaf_to_state(left);
+      auto [rs, rb] = the_product_data.leaf_to_state(right);
+      if (rs == ls && (ls == -2U || ls == -1U))
+        return 0;
+      if ((ls == -1U && rs == -2U) || (ls == -2U && rs == -1U))
+        return 1;
+      return the_product_data.pair_to_terminal_bdd(ls, rs, lb != rb).id();
+    }
+  }
+
+  mtdfa_ptr product_mtdfa_aux(const mtdfa_ptr& dfa1,
+                              const mtdfa_ptr& dfa2, op o,
+                              bddExtCache* cache, int hash_key)
+  {
+    if (dfa1->dict_ != dfa2->dict_)
+      throw std::runtime_error
+        ("product_mtdfa_and: DFAs should share their dictionaries");
+
+    int (*combine)(int, int);
+    switch (o)
+      {
+        case op::And:
+          combine = leaf_combine_and;
+          break;
+        case op::Or:
+          combine = leaf_combine_or;
+          break;
+        case op::Implies:
+          combine = leaf_combine_implies;
+          break;
+        case op::Equiv:
+          combine = leaf_combine_equiv;
+          break;
+        case op::Xor:
+          combine = leaf_combine_xor;
+          break;
+        default:
+          throw std::runtime_error("product_mtdfa_aux: unsupported operator");
+      }
+
+    the_product_data.left = dfa1;
+    the_product_data.right = dfa2;
+
+    mtdfa_ptr res = std::make_shared<mtdfa>(dfa1->dict_);
+    res->dict_->register_all_variables_of(dfa1, res);
+    res->dict_->register_all_variables_of(dfa2, res);
+
+    terminal_to_state_map.clear();
+    std::queue<product_state> todo;
+    todo.push({0, 0});
+    while (!todo.empty())
+      {
+        product_state s = todo.front();
+        todo.pop();
+        int label_term =
+          the_product_data.pair_to_terminal(s.first, s.second) / 2;
+
+        // already processed
+        if (terminal_to_state_map.find(label_term)
+            != terminal_to_state_map.end())
+          continue;
+
+        auto [left, left_f] = bdd_and_formula_from_state(s.first, dfa1);
+        auto [right, right_f] = bdd_and_formula_from_state(s.second, dfa2);
+
+        bdd b = bdd_mt_apply2b(left, right, combine, cache, hash_key);
+        unsigned n = res->states.size();
+        terminal_to_state_map[label_term] = n;
+        res->states.push_back(b);
+        if (left_f && right_f)
+          switch (o)
+            {
+            case op::And:
+              res->names.push_back(formula::And({left_f, right_f}));
+              break;
+            case op::Or:
+              res->names.push_back(formula::Or({left_f, right_f}));
+              break;
+            case op::Implies:
+              res->names.push_back(formula::Implies(left_f, right_f));
+              break;
+            case op::Equiv:
+              res->names.push_back(formula::Equiv(left_f, right_f));
+              break;
+            case op::Xor:
+              res->names.push_back(formula::Xor(left_f, right_f));
+              break;
+            default:
+              SPOT_UNREACHABLE();
+            }
+
+        for (bdd leaf: leaves_of(b))
+          {
+            if (leaf == bddfalse || leaf == bddtrue)
+              continue;
+            auto [ls, rs, _] = the_product_data.leaf_to_pair(leaf);
+            (void) _;
+            if (terminal_to_state_map.find(bdd_get_terminal(leaf) / 2)
+                == terminal_to_state_map.end())
+              todo.push({ls, rs});
+          }
+      }
+
+    the_product_data.left = nullptr;
+    the_product_data.right = nullptr;
+    the_product_data.pair_to_terminal_map.clear();
+    the_product_data.terminal_to_pair.clear();
+    return res;
+  }
+
+  mtdfa_ptr product(const mtdfa_ptr& dfa1, const mtdfa_ptr& dfa2)
+  {
+    bddExtCache cache;
+    bdd_extcache_init(&cache, 0);
+    mtdfa_ptr res = product_mtdfa_aux(dfa1, dfa2, op::And, &cache, 0);
+    bdd_extcache_done(&cache);
+    return res;
+  }
+
+  mtdfa_ptr product_or(const mtdfa_ptr& dfa1, const mtdfa_ptr& dfa2)
+  {
+    bddExtCache cache;
+    bdd_extcache_init(&cache, 0);
+    mtdfa_ptr res = product_mtdfa_aux(dfa1, dfa2, op::Or, &cache, 0);
+    bdd_extcache_done(&cache);
+    return res;
+  }
+
+  mtdfa_ptr product_xnor(const mtdfa_ptr& dfa1, const mtdfa_ptr& dfa2)
+  {
+    bddExtCache cache;
+    bdd_extcache_init(&cache, 0);
+    mtdfa_ptr res = product_mtdfa_aux(dfa1, dfa2, op::Equiv, &cache, 0);
+    bdd_extcache_done(&cache);
+    return res;
+  }
+
+  mtdfa_ptr product_xor(const mtdfa_ptr& dfa1, const mtdfa_ptr& dfa2)
+  {
+    bddExtCache cache;
+    bdd_extcache_init(&cache, 0);
+    mtdfa_ptr res = product_mtdfa_aux(dfa1, dfa2, op::Xor, &cache, 0);
+    bdd_extcache_done(&cache);
+    return res;
+  }
+
+  mtdfa_ptr product_implies(const mtdfa_ptr& dfa1, const mtdfa_ptr& dfa2)
+  {
+    bddExtCache cache;
+    bdd_extcache_init(&cache, 0);
+    mtdfa_ptr res = product_mtdfa_aux(dfa1, dfa2, op::Implies, &cache, 0);
+    bdd_extcache_done(&cache);
+    return res;
+  }
+
+  int complement_term(int v)
+  {
+    return v ^ 1;
+  }
+
+  mtdfa_ptr complement_aux(const mtdfa_ptr& dfa, bddExtCache* cache,
+                           int hash_key)
+  {
+    unsigned n = dfa->states.size();
+    unsigned ns = dfa->names.size();
+
+    mtdfa_ptr res = std::make_shared<mtdfa>(dfa->dict_);
+    res->dict_->register_all_variables_of(dfa, res);
+    res->names.reserve(n);
+    res->states.reserve(ns);
+
+    for (unsigned i = 0; i < n; ++i)
+      res->states.push_back(bdd_mt_apply1(dfa->states[i], complement_term,
+                                          bddtrue, bddfalse, cache,
+                                          hash_key));
+
+    for (unsigned i = 0; i < ns; ++i)
+      res->names.push_back(formula::Not(dfa->names[i]));
+    return res;
+  }
+
+  mtdfa_ptr complement(const mtdfa_ptr& dfa)
+  {
+    bddExtCache cache;
+    bdd_extcache_init(&cache, 0);
+    mtdfa_ptr res = complement_aux(dfa, &cache, 0);
+    bdd_extcache_done(&cache);
+    return res;
+  }
+
+
+  struct compose_data
+  {
+    ltlf_translator trans;
+    bddExtCache mincache;
+    int minimize_iteration;
+    bddExtCache opcache;
+    int opcache_iteration;
+    bool fuse_same_bdds;
+
+    compose_data(bdd_dict_ptr dict, bool simplify_terms, bool fuse_same)
+      : trans(dict, simplify_terms),
+        minimize_iteration(0),
+        opcache_iteration(0),
+        fuse_same_bdds(fuse_same)
+    {
+      bdd_extcache_init(&mincache, 0);
+      bdd_extcache_init(&opcache, 0);
+    }
+
+    ~compose_data()
+    {
+      bdd_extcache_done(&mincache);
+      bdd_extcache_done(&opcache);
+    }
+
+    mtdfa_ptr minimize(mtdfa_ptr dfa)
+    {
+      return minimize_mtdfa(dfa, &mincache, minimize_iteration);
+    }
+  };
+
+
+  static mtdfa_ptr
+  ltlf_to_mtdfa_compose(compose_data& data, formula f)
+  {
+    auto rec = [&](formula f)
+    {
+      return ltlf_to_mtdfa_compose(data, f);
+    };
+    auto byminrootcount = [&](mtdfa_ptr& left, mtdfa_ptr& right)
+    {
+      return left->num_roots() > right->num_roots();
+    };
+
+
+    mtdfa_ptr dfa;
+    if (f.is_boolean())
+      return data.trans.ltlf_to_mtdfa(f, data.fuse_same_bdds);
+    switch (f.kind())
+      {
+      case op::tt:
+      case op::ff:
+      case op::ap:
+        SPOT_UNREACHABLE();
+      case op::Not:
+        return complement_aux(rec(f[0]), &data.opcache,
+                              data.opcache_iteration);
+      case op::And:
+        {
+          std::vector<mtdfa_ptr> dfas;
+          dfas.reserve(f.size());
+          for (const formula& sub: f)
+            dfas.push_back(rec(sub));
+          // Build the product of all DFAs by increasing size.
+          std::make_heap(dfas.begin(), dfas.end(), byminrootcount);
+          while (dfas.size() > 1)
+            {
+              std::pop_heap(dfas.begin(), dfas.end(), byminrootcount);
+              mtdfa_ptr left = dfas.back();
+              dfas.pop_back();
+              std::pop_heap(dfas.begin(), dfas.end(), byminrootcount);
+              mtdfa_ptr right = dfas.back();
+              dfas.pop_back();
+              mtdfa_ptr prod = product_mtdfa_aux(left, right, op::And,
+                                                 &data.opcache,
+                                                 data.opcache_iteration++);
+              dfas.push_back(data.minimize(prod));
+              std::push_heap(dfas.begin(), dfas.end(), byminrootcount);
+            }
+          return dfas[0];
+        }
+      case op::Or:
+        {
+          std::vector<mtdfa_ptr> dfas;
+          dfas.reserve(f.size());
+          for (const formula& sub: f)
+            dfas.push_back(rec(sub));
+          // Build the product of all DFAs by increasing size.
+          std::make_heap(dfas.begin(), dfas.end(), byminrootcount);
+          while (dfas.size() > 1)
+            {
+              std::pop_heap(dfas.begin(), dfas.end(), byminrootcount);
+              mtdfa_ptr left = dfas.back();
+              dfas.pop_back();
+              std::pop_heap(dfas.begin(), dfas.end(), byminrootcount);
+              mtdfa_ptr right = dfas.back();
+              dfas.pop_back();
+              mtdfa_ptr prod = product_mtdfa_aux(left, right, op::Or,
+                                                 &data.opcache,
+                                                 data.opcache_iteration++);
+              dfas.push_back(data.minimize(prod));
+              std::push_heap(dfas.begin(), dfas.end(), byminrootcount);
+            }
+          return dfas[0];
+        }
+      case op::Xor:
+      case op::Implies:
+      case op::Equiv:
+          {
+            mtdfa_ptr left = rec(f[0]);
+            mtdfa_ptr right = rec(f[1]);
+            mtdfa_ptr prod = product_mtdfa_aux(left, right, f.kind(),
+                                               &data.opcache,
+                                               data.opcache_iteration++);
+            return data.minimize(prod);
+          }
+      case op::U:
+      case op::R:
+      case op::W:
+      case op::M:
+      case op::G:
+      case op::F:
+      case op::X:
+      case op::strong_X:
+        {
+          mtdfa_ptr dfa  = data.trans.ltlf_to_mtdfa(f, data.fuse_same_bdds);
+          return data.minimize(dfa);
+        }
+      case op::eword:
+      case op::AndNLM:
+      case op::AndRat:
+      case op::Closure:
+      case op::Concat:
+      case op::EConcat:
+      case op::EConcatMarked:
+      case op::first_match:
+      case op::FStar:
+      case op::Fusion:
+      case op::NegClosure:
+      case op::NegClosureMarked:
+      case op::OrRat:
+      case op::Star:
+      case op::UConcat:
+        throw std::runtime_error("ltlf_to_mtdfa: unsupported operator");
+      }
+    SPOT_UNREACHABLE();
+    return nullptr;
+  }
+
+  mtdfa_ptr ltlf_to_mtdfa(formula f, const bdd_dict_ptr& dict,
+                          bool fuse_same_bdds, bool simplify_terms)
+  {
+    ltlf_translator trans(dict, simplify_terms);
+    return trans.ltlf_to_mtdfa(f, fuse_same_bdds);
+  }
+
+  mtdfa_ptr ltlf_to_mtdfa_compose(formula f, const bdd_dict_ptr& dict,
+                                  bool fuse_same_bdds, bool simplify_terms)
+  {
+    compose_data data(dict, simplify_terms, fuse_same_bdds);
+    return ltlf_to_mtdfa_compose(data, f);
+  }
 
   std::ostream& mtdfa::print_dot(std::ostream& os,
                                  int state, bool labels) const
@@ -838,523 +1505,8 @@ namespace spot
     return res;
   }
 
-  static std::vector<int> classes;
-  static int num_states;
-  static bool accepting_false_seen;
-  static bool rejecting_true_seen;
-
-  static int rename_class(int val)
-  {
-    assert((unsigned) val/2 < classes.size());
-    bool accepting = val & 1;
-    val = classes[val / 2];
-    if (val == num_states + accepting)
-      {
-        if (accepting)
-          accepting_false_seen = true;
-        else
-          rejecting_true_seen = true;
-      }
-    return 2 * val + accepting;
-  }
-
-  mtdfa_ptr minimize_mtdfa(const mtdfa_ptr& dfa)
-  {
-    bddExtCache cache;
-    bdd_extcache_init(&cache, 0);
-    int iteration = 0;
-
-    unsigned n = num_states = dfa->num_roots();
-
-    // std::cerr << "-- input --\n";
-    // for (unsigned i = 0; i < n; ++i)
-    //   {
-    //     std::cerr << i << "  " << dfa->names[i] << '\n';
-    //     std::cerr << "   " << dfa->states[i] << '\n';
-    //   }
-
-    classes.clear();
-    classes.resize(n + 2, 0);
-
-    std::unordered_map<bdd, std::vector<int>, bdd_hash> groups;
-    std::vector<bdd> states;
-    states.reserve(n);
-    for (;;)
-      {
-        ++iteration;
-        bdd true_term = bdd_terminal(2 * classes[n] + 1);
-        bdd false_term = bdd_terminal(2 * classes[n + 1]);
-        accepting_false_seen = false;
-        rejecting_true_seen = false;
-        for (unsigned i = 0; i < n; ++i)
-          {
-            bdd sig = bdd_mt_apply1(dfa->states[i], rename_class,
-                                    false_term, true_term,
-                                    &cache, iteration);
-            auto& v = groups[sig];
-            if (v.empty())
-              states.push_back(sig);
-            v.push_back(i);
-          }
-        // Add the true_term to its group.
-        {
-          auto& v = groups[true_term];
-          if (v.empty())
-            states.push_back(true_term);
-          v.push_back(n);
-        }
-        // Add the false_term to its group.
-        {
-          auto& v = groups[false_term];
-          if (v.empty())
-            states.push_back(false_term);
-          v.push_back(n + 1);
-        }
-
-        int curclass = 0;
-        // { // debug
-        //   std::cerr << "iteration " << iteration << '\n';
-        //   std::cerr << states.size() << " states\n";
-        // }
-        bool changed = false;
-        // in this order, the initial state will always have class 0.
-        for (bdd sig: states)
-          {
-            int mapclass = curclass++;
-            auto& v = groups[sig];
-            unsigned vb = v.back();
-            if (vb >= n)
-              mapclass = vb;
-            for (unsigned i: v)
-              if (classes[i] != mapclass)
-                {
-                  changed = true;
-                  classes[i] = mapclass;
-                }
-            // { // debug
-            //   std::cerr << "class " << mapclass << ':';
-            //   for (unsigned i: v)
-            //     std::cerr << ' ' << i;
-            //   if (mapclass == (int) n)
-            //     std::cerr << "  (true)";
-            //   else if (mapclass == (int) n + 1)
-            //     std::cerr << "  (false)";
-            //   std::cerr << "\n      " << sig << '\n';
-            // }
-          }
-        // for (unsigned i = 0; i <= n + 1; ++i)
-        //   std::cerr << "classes[" << i << "]=" << classes[i] << '\n';
-        if (!changed)
-          break;
-        groups.clear();
-        states.clear();
-      }
-
-    // The BDDs in STATES are actually our new MTBDD representation.
-    // We just have get rid of the terms we introduced to replace
-    // bddfalse, and get rid of the states equivalent to bddfalse.
-    //
-    // And we have to keep one name per class for display.
-    bool want_names = dfa->names.size() == n;
-    std::vector<formula> names;
-    unsigned sz = states.size();
-    if (want_names)
-      names.reserve(sz);
-    unsigned j = 0;
-    ++iteration;
-    bdd true_term = bdd_terminal(2 * classes[n] + 1);
-    bdd false_term = bdd_terminal(2 * classes[n + 1]);
-    bool need_remap = false;
-    for (unsigned i = 0; i < sz; ++i)
-      {
-        bdd sig = states[i];
-        auto& v = groups[sig];
-        assert(!v.empty());
-        unsigned vb = v.back();
-        if (vb == n + 1)      // equivalent to false!
-          {
-            if (i == 0) // the source state is false
-              {
-                assert(v.front() == 0);
-                if (want_names)
-                  names.push_back(formula::ff());
-                states[0] = bddfalse;
-                ++j;
-                break;
-              }
-            if (!accepting_false_seen)
-              continue;
-            classes[n + 1] = j;
-            need_remap = true;
-          }
-        if (vb == n)      // equivalent to true!
-          {
-            if (i == 0) // the source state is true
-              {
-                assert(v.front() == 0);
-                if (want_names)
-                  names.push_back(formula::tt());
-                states[0] = bddtrue;
-                ++j;
-                break;
-              }
-            if (!rejecting_true_seen)
-              continue;
-            classes[n] = j;
-            need_remap = true;
-          }
-        if (want_names)
-          {
-            assert((unsigned) v.front() < dfa->names.size());
-            names.push_back(dfa->names[v.front()]);
-          }
-        sig = bdd_terminal_to_const(sig, false_term, true_term,
-                                    &cache, iteration);
-        classes[i] = j;
-        if (i != j)
-          need_remap = true;
-        states[j++] = sig;
-      }
-    if (j < sz)
-      states.resize(j);
-
-    // std::cerr << "accepting_false_seen = " << accepting_false_seen << '\n';
-    // std::cerr << "rejecting_true_seen = " << rejecting_true_seen << '\n';
-
-    // std::cerr << "need_remap = " << need_remap << '\n';
-    if (need_remap)
-      {
-        ++iteration;
-        for (bdd& sig: states)
-          sig = bdd_mt_apply1(sig, rename_class, bddfalse, bddtrue,
-                              &cache, iteration);
-      }
-    // for (unsigned i = 0; i < j; ++i)
-    //   {
-    //     std::cerr << i << "  " << names[i] << '\n';
-    //     std::cerr << "   " << states[i] << '\n';
-    //   }
-
-    mtdfa_ptr res = std::make_shared<mtdfa>(dfa->dict_);
-    res->dict_->register_all_variables_of(dfa, res);
-    std::swap(res->names, names);
-    std::swap(res->states, states);
-
-    bdd_extcache_done(&cache);
-    return res;
-  }
-
-  namespace
-  {
-    typedef std::pair<unsigned, unsigned> product_state;
-
-    struct product_state_hash
-    {
-      size_t
-      operator()(product_state s) const noexcept
-      {
-        return wang32_hash(s.first ^ wang32_hash(s.second));
-      }
-    };
-
-    inline std::pair<bdd, formula>
-    bdd_and_formula_from_state(unsigned s, const mtdfa_ptr& dfa)
-    {
-      if (s == -2U)
-        return {bddfalse, formula::ff()};
-      if (s == -1U)
-        return {bddtrue, formula::tt()};
-      if (s >= dfa->names.size())
-        return {dfa->states[s], nullptr};
-      return {dfa->states[s], dfa->names[s]};
-    }
-
-    struct product_data
-    {
-      std::unordered_map<product_state, int,
-                         product_state_hash> pair_to_terminal_map;
-      std::vector<product_state> terminal_to_pair;
-      mtdfa_ptr left;
-      mtdfa_ptr right;
 
 
-      std::pair<unsigned, bool> leaf_to_state(int b) const
-      {
-        if (b == 0)
-          return {-2U, false};
-        if (b == 1)
-          return {-1U, true};
-        int v = bdd_get_terminal(b);
-        return {v / 2, v & 1};
-      }
-
-      int pair_to_terminal(unsigned left,
-                           unsigned right,
-                           bool may_stop = false)
-      {
-        if (auto it = pair_to_terminal_map.find({left, right});
-            it != pair_to_terminal_map.end())
-          return 2 * it->second + may_stop;
-
-        int v = terminal_to_pair.size();
-        terminal_to_pair.push_back({left, right});
-        pair_to_terminal_map[{left, right}] = v;
-        return 2 * v + may_stop;
-      }
-
-      bdd pair_to_terminal_bdd(unsigned left,
-                               unsigned right,
-                               bool may_stop = false)
-      {
-        if (SPOT_UNLIKELY(left == -2U && right == -2U && !may_stop))
-          return bddfalse;
-        else if (SPOT_UNLIKELY(left == -1U && right == -1U && may_stop))
-          return bddtrue;
-        else
-          return bdd_terminal(pair_to_terminal(left, right, may_stop));
-      }
-
-      std::tuple<unsigned, unsigned, bool> leaf_to_pair(bdd leaf)
-      {
-        if (leaf == bddfalse)
-          return {-2U, -2U, false};
-        if (leaf == bddtrue)
-          return {-1U, -1U, true};
-        unsigned v = bdd_get_terminal(leaf);
-        std::pair<unsigned, unsigned> res = terminal_to_pair[v / 2];
-        return {res.first, res.second, v & 1};
-      }
-
-    } the_product_data;
-
-    static int leaf_combine_and(int left, int right)
-    {
-      auto [ls, lb] = the_product_data.leaf_to_state(left);
-      auto [rs, rb] = the_product_data.leaf_to_state(right);
-      if (ls == -2U || rs == -2U)
-        return 0;
-      return the_product_data.pair_to_terminal_bdd(ls, rs, lb & rb).id();
-    }
-
-    static int leaf_combine_or(int left, int right)
-    {
-      auto [ls, lb] = the_product_data.leaf_to_state(left);
-      auto [rs, rb] = the_product_data.leaf_to_state(right);
-      if (ls == -1U || rs == -1U)
-        return 1;
-      return the_product_data.pair_to_terminal_bdd(ls, rs, lb | rb).id();
-    }
-
-    static int leaf_combine_implies(int left, int right)
-    {
-      auto [ls, lb] = the_product_data.leaf_to_state(left);
-      auto [rs, rb] = the_product_data.leaf_to_state(right);
-      if (ls == -2U || rs == -1U)
-        return 1;
-      return the_product_data.pair_to_terminal_bdd(ls, rs, !lb | rb).id();
-    }
-
-    static int leaf_combine_equiv(int left, int right)
-    {
-      auto [ls, lb] = the_product_data.leaf_to_state(left);
-      auto [rs, rb] = the_product_data.leaf_to_state(right);
-      if (rs == ls && (ls == -2U || ls == -1U))
-        return 1;
-      if ((ls == -1U && rs == -2U) || (ls == -2U && rs == -1U))
-        return 0;
-      return the_product_data.pair_to_terminal_bdd(ls, rs, lb == rb).id();
-    }
-
-    static int leaf_combine_xor(int left, int right)
-    {
-      auto [ls, lb] = the_product_data.leaf_to_state(left);
-      auto [rs, rb] = the_product_data.leaf_to_state(right);
-      if (rs == ls && (ls == -2U || ls == -1U))
-        return 0;
-      if ((ls == -1U && rs == -2U) || (ls == -2U && rs == -1U))
-        return 1;
-      return the_product_data.pair_to_terminal_bdd(ls, rs, lb != rb).id();
-    }
-  }
-
-  mtdfa_ptr product_mtdfa_aux(const mtdfa_ptr& dfa1,
-                              const mtdfa_ptr& dfa2, op o,
-                        bddExtCache* cache)
-  {
-    if (dfa1->dict_ != dfa2->dict_)
-      throw std::runtime_error
-        ("product_mtdfa_and: DFAs should share their dictionaries");
-
-    int (*combine)(int, int);
-    switch (o)
-      {
-        case op::And:
-          combine = leaf_combine_and;
-          break;
-        case op::Or:
-          combine = leaf_combine_or;
-          break;
-        case op::Implies:
-          combine = leaf_combine_implies;
-          break;
-        case op::Equiv:
-          combine = leaf_combine_equiv;
-          break;
-        case op::Xor:
-          combine = leaf_combine_xor;
-          break;
-        default:
-          throw std::runtime_error("product_mtdfa_aux: unsupported operator");
-      }
-
-    the_product_data.left = dfa1;
-    the_product_data.right = dfa2;
-
-    mtdfa_ptr res = std::make_shared<mtdfa>(dfa1->dict_);
-    res->dict_->register_all_variables_of(dfa1, res);
-    res->dict_->register_all_variables_of(dfa2, res);
-
-    terminal_to_state_map.clear();
-    std::queue<product_state> todo;
-    todo.push({0, 0});
-    while (!todo.empty())
-      {
-        product_state s = todo.front();
-        todo.pop();
-        int label_term =
-          the_product_data.pair_to_terminal(s.first, s.second) / 2;
-
-        // already processed
-        if (terminal_to_state_map.find(label_term)
-            != terminal_to_state_map.end())
-          continue;
-
-        auto [left, left_f] = bdd_and_formula_from_state(s.first, dfa1);
-        auto [right, right_f] = bdd_and_formula_from_state(s.second, dfa2);
-
-        bdd b = bdd_mt_apply2b(left, right, combine, cache, (unsigned) o);
-        unsigned n = res->states.size();
-        terminal_to_state_map[label_term] = n;
-        res->states.push_back(b);
-        if (left_f && right_f)
-          switch (o)
-            {
-            case op::And:
-              res->names.push_back(formula::And({left_f, right_f}));
-              break;
-            case op::Or:
-              res->names.push_back(formula::Or({left_f, right_f}));
-              break;
-            case op::Implies:
-              res->names.push_back(formula::Implies(left_f, right_f));
-              break;
-            case op::Equiv:
-              res->names.push_back(formula::Equiv(left_f, right_f));
-              break;
-            case op::Xor:
-              res->names.push_back(formula::Xor(left_f, right_f));
-              break;
-            default:
-              SPOT_UNREACHABLE();
-            }
-
-        for (bdd leaf: leaves_of(b))
-          {
-            if (leaf == bddfalse || leaf == bddtrue)
-              continue;
-            auto [ls, rs, _] = the_product_data.leaf_to_pair(leaf);
-            (void) _;
-            if (terminal_to_state_map.find(bdd_get_terminal(leaf) / 2)
-                == terminal_to_state_map.end())
-              todo.push({ls, rs});
-          }
-      }
-
-    the_product_data.left = nullptr;
-    the_product_data.right = nullptr;
-    the_product_data.pair_to_terminal_map.clear();
-    the_product_data.terminal_to_pair.clear();
-    return res;
-  }
-
-  mtdfa_ptr product(const mtdfa_ptr& dfa1, const mtdfa_ptr& dfa2)
-  {
-    bddExtCache cache;
-    bdd_extcache_init(&cache, 0);
-    mtdfa_ptr res = product_mtdfa_aux(dfa1, dfa2, op::And, &cache);
-    bdd_extcache_done(&cache);
-    return res;
-  }
-
-  mtdfa_ptr product_or(const mtdfa_ptr& dfa1, const mtdfa_ptr& dfa2)
-  {
-    bddExtCache cache;
-    bdd_extcache_init(&cache, 0);
-    mtdfa_ptr res = product_mtdfa_aux(dfa1, dfa2, op::Or, &cache);
-    bdd_extcache_done(&cache);
-    return res;
-  }
-
-  mtdfa_ptr product_xnor(const mtdfa_ptr& dfa1, const mtdfa_ptr& dfa2)
-  {
-    bddExtCache cache;
-    bdd_extcache_init(&cache, 0);
-    mtdfa_ptr res = product_mtdfa_aux(dfa1, dfa2, op::Equiv, &cache);
-    bdd_extcache_done(&cache);
-    return res;
-  }
-
-  mtdfa_ptr product_xor(const mtdfa_ptr& dfa1, const mtdfa_ptr& dfa2)
-  {
-    bddExtCache cache;
-    bdd_extcache_init(&cache, 0);
-    mtdfa_ptr res = product_mtdfa_aux(dfa1, dfa2, op::Xor, &cache);
-    bdd_extcache_done(&cache);
-    return res;
-  }
-
-  mtdfa_ptr product_implies(const mtdfa_ptr& dfa1, const mtdfa_ptr& dfa2)
-  {
-    bddExtCache cache;
-    bdd_extcache_init(&cache, 0);
-    mtdfa_ptr res = product_mtdfa_aux(dfa1, dfa2, op::Implies, &cache);
-    bdd_extcache_done(&cache);
-    return res;
-  }
-
-  int complement_term(int v)
-  {
-    return v ^ 1;
-  }
-
-  mtdfa_ptr complement_aux(const mtdfa_ptr& dfa, bddExtCache* cache)
-  {
-    unsigned n = dfa->states.size();
-    unsigned ns = dfa->names.size();
-
-    mtdfa_ptr res = std::make_shared<mtdfa>(dfa->dict_);
-    res->dict_->register_all_variables_of(dfa, res);
-    res->names.reserve(n);
-    res->states.reserve(ns);
-
-    for (unsigned i = 0; i < n; ++i)
-      res->states.push_back(bdd_mt_apply1(dfa->states[i], complement_term,
-                                          bddtrue, bddfalse, cache,
-                                          (unsigned) op::Not));
-
-    for (unsigned i = 0; i < ns; ++i)
-      res->names.push_back(formula::Not(dfa->names[i]));
-    return res;
-  }
-
-  mtdfa_ptr complement(const mtdfa_ptr& dfa)
-  {
-    bddExtCache cache;
-    bdd_extcache_init(&cache, 0);
-    mtdfa_ptr res = complement_aux(dfa, &cache);
-    bdd_extcache_done(&cache);
-    return res;
-  }
 
   // Convert a TWA (representing a DFA) into an MTDFA.
   mtdfa_ptr twadfa_to_mtdfa(const twa_graph_ptr& twa)

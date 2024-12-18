@@ -24,48 +24,6 @@
 namespace spot
 {
 
-  class SPOT_API ltlf_translator
-  {
-  public:
-    ltlf_translator(const bdd_dict_ptr& dict, bool simplify_terms = true);
-
-    bdd ltlf_to_mtbdd(formula f);
-    std::pair<formula, bool>  leaf_to_formula(int t) const;
-
-    formula terminal_to_formula(int t) const;
-    int formula_to_int(formula f);
-    int formula_to_terminal(formula f, bool may_stop = false);
-    bdd formula_to_terminal_bdd(formula f, bool may_stop = false);
-
-    bdd combine_and(bdd left, bdd right);
-    bdd combine_or(bdd left, bdd right);
-
-    bdd combine_implies(bdd left, bdd right);
-    bdd combine_equiv(bdd left, bdd right);
-    bdd combine_xor(bdd left, bdd right);
-    bdd combine_not(bdd b);
-
-    formula propeq_representative(formula f);
-
-    bddExtCache* get_cache()
-    {
-      return &cache_;
-    }
-
-    ~ltlf_translator();
-  private:
-    std::unordered_map<formula, int> formula_to_var_;
-    std::unordered_map<bdd, formula, bdd_hash> propositional_equiv_;
-
-    std::unordered_map<formula, bdd> formula_to_bdd_;
-    std::unordered_map<formula, int> formula_to_int_;
-    std::vector<formula> int_to_formula_;
-    bdd_dict_ptr dict_;
-    bddExtCache cache_;
-    bool simplify_terms_;
-  };
-
-
   struct SPOT_API mtdfa
   {
   public:
@@ -126,7 +84,7 @@ namespace spot
 
     // convert to twa
     twa_graph_ptr as_twa(bool state_based = false, bool labels = true) const;
-};
+  };
 
   typedef std::shared_ptr<mtdfa> mtdfa_ptr;
   typedef std::shared_ptr<const mtdfa> const_mtdfa_ptr;
@@ -136,21 +94,66 @@ namespace spot
                 bool fuse_same_bdds = true,
                 bool simplify_terms = true);
 
+  SPOT_API mtdfa_ptr
+  ltlf_to_mtdfa_compose(formula f, const bdd_dict_ptr& dict,
+                        bool fuse_same_bdds = true,
+                        bool simplify_terms = true);
+
   SPOT_API mtdfa_ptr minimize_mtdfa(const mtdfa_ptr& dfa);
 
-  SPOT_API mtdfa_ptr product(const mtdfa_ptr& dfa1,
-                             const mtdfa_ptr& dfa2);
-  SPOT_API mtdfa_ptr product_or(const mtdfa_ptr& dfa1,
-                                const mtdfa_ptr& dfa2);
-  SPOT_API mtdfa_ptr product_xor(const mtdfa_ptr& dfa1,
-                                 const mtdfa_ptr& dfa2);
-  SPOT_API mtdfa_ptr product_xnor(const mtdfa_ptr& dfa1,
-                                  const mtdfa_ptr& dfa2);
+  SPOT_API mtdfa_ptr product(const mtdfa_ptr& dfa1, const mtdfa_ptr& dfa2);
+  SPOT_API mtdfa_ptr product_or(const mtdfa_ptr& dfa1, const mtdfa_ptr& dfa2);
+  SPOT_API mtdfa_ptr product_xor(const mtdfa_ptr& dfa1, const mtdfa_ptr& dfa2);
+  SPOT_API mtdfa_ptr product_xnor(const mtdfa_ptr& dfa1, const mtdfa_ptr& dfa2);
   SPOT_API mtdfa_ptr product_implies(const mtdfa_ptr& dfa1,
                                      const mtdfa_ptr& dfa2);
-
   SPOT_API mtdfa_ptr complement(const mtdfa_ptr& dfa);
 
   // Convert a TWA (representing a DFA) into an MTDFA.
   SPOT_API mtdfa_ptr twadfa_to_mtdfa(const twa_graph_ptr& twa);
+
+
+  class SPOT_API ltlf_translator
+  {
+  public:
+    ltlf_translator(const bdd_dict_ptr& dict, bool simplify_terms = true);
+
+    mtdfa_ptr ltlf_to_mtdfa(formula f, bool fuse_same_bdds);
+
+    bdd ltlf_to_mtbdd(formula f);
+    std::pair<formula, bool>  leaf_to_formula(int t) const;
+
+    formula terminal_to_formula(int t) const;
+    int formula_to_int(formula f);
+    int formula_to_terminal(formula f, bool may_stop = false);
+    bdd formula_to_terminal_bdd(formula f, bool may_stop = false);
+
+    bdd combine_and(bdd left, bdd right);
+    bdd combine_or(bdd left, bdd right);
+    bdd combine_implies(bdd left, bdd right);
+    bdd combine_equiv(bdd left, bdd right);
+    bdd combine_xor(bdd left, bdd right);
+    bdd combine_not(bdd b);
+
+    formula propeq_representative(formula f);
+
+    bddExtCache* get_cache()
+    {
+      return &cache_;
+    }
+
+    ~ltlf_translator();
+  private:
+    std::unordered_map<formula, int> formula_to_var_;
+    std::unordered_map<bdd, formula, bdd_hash> propositional_equiv_;
+
+    std::unordered_map<formula, bdd> formula_to_bdd_;
+    std::unordered_map<formula, int> formula_to_int_;
+    std::vector<formula> int_to_formula_;
+    bdd_dict_ptr dict_;
+    bddExtCache cache_;
+    bool simplify_terms_;
+  };
+
+
 }
