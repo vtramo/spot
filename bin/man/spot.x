@@ -20,6 +20,7 @@ that are listed below.
 .BR ltl2tgta (1)
 .BR ltlcross (1)
 .BR ltldo (1)
+.BR ltlf2dfa (1)
 .BR ltlfilt (1)
 .BR ltlgrind (1)
 .BR ltlmix (1)

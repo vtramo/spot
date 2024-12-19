@@ -102,6 +102,7 @@ ORG_FILES = \
   org/ltl2tgta.org \
   org/ltlcross.org \
   org/ltldo.org \
+  org/ltlf2dfa.org \
   org/ltlfilt.org \
   org/ltlgrind.org \
   org/ltlmix.org \

@@ -1,0 +1,242 @@
+# -*- coding: utf-8 -*-
+#+TITLE: =ltlf2dfa=
+#+DESCRIPTION: Spot command-line tool for translating LTLf into deterministic finite automata
+#+INCLUDE: setup.org
+#+HTML_LINK_UP: tools.html
+#+PROPERTY: header-args:sh :results verbatim :exports both
+
+This tool translates LTLf formulas (i.e., LTL interpreted over finite
+traces) into Deterministic Finite Automata with transition-based
+acceptance.
+
+* Introduction to MTDFAs
+
+Internally, the translation builds a DFA that is stored as an array of
+Multi-Terminal BDDs.  Such a structure is called MTDFA in Spot (for
+Multi-Terminal DFA).  It can be presented as follows:
+
+#+NAME: ltlf2dfa1
+#+BEGIN_SRC sh :exports code
+ltlf2dfa --keep-names 'G(q -> Fr) | GFc' --mtdfa-dot
+#+END_SRC
+
+#+BEGIN_SRC dot :file ltlf2dfa1.svg :var txt=ltlf2dfa1 :exports results
+  $txt
+#+END_SRC
+
+#+RESULTS:
+[[file:ltlf2dfa1.svg]]
+
+The blue rectangles at the top of the diagram are not part of the
+Multi-Terminal BDDs: they are just giving a name to each BDD and can
+be interpreted as state names.  The magenta rectangles at the bottom
+are "terminals" labeled by destination states.
+
+A path going down from a blue rectangle to a magenta rectangle
+corresponds to a transition labeled by the Boolean conjunction
+specified by that path.  As usual in BDD diagrams, plain edges
+indicate that the variable above it is true, and edges are doted if
+the variable is false.  If the terminal is accepting, as indicated
+with a doubled enclosure, the automaton can accept after reading that
+transition.  In any case, the execution can continue from the blue
+state labeled with LTLf formula that was reached.
+
+That structure can be converted to a transition-based DFA where
+accepting transition are marked with a ⓿.  Any finite run is accepted
+if the last transition it went through is marked with ⓿.  Note that
+empty runs cannot be accepted.
+
+#+NAME: ltlf2dfa2
+#+BEGIN_SRC sh :exports code
+ltlf2dfa --keep-names 'G(q -> Fr) | GFc' --dot=.A
+#+END_SRC
+
+#+BEGIN_SRC dot :file ltlf2dfa2.svg :var txt=ltlf2dfa2 :exports results
+  $txt
+#+END_SRC
+
+#+RESULTS:
+[[file:ltlf2dfa2.svg]]
+
+
+As a special optimization, the false and true LTLf formulas are represented in MTDFAs
+as the false and true BDDs constants.  Those are depicted as orange squares:
+
+#+NAME: ltlf2dfa3
+#+BEGIN_SRC sh :exports code
+ltlf2dfa --keep-names 'a M b' --mtdfa-dot
+#+END_SRC
+
+#+BEGIN_SRC dot :file ltlf2dfa3.svg :var txt=ltlf2dfa3 :exports results
+  $txt
+#+END_SRC
+
+#+RESULTS:
+[[file:ltlf2dfa3.svg]]
+
+These false and true constants should be interpreted as rejecting and
+accepting sinks.  When representing the automaton in a more
+traditional ways, we omit paths going to the rejecting sink.
+
+#+NAME: ltlf2dfa4
+#+BEGIN_SRC sh :exports code
+ltlf2dfa --keep-names 'a M b' --dot=.A
+#+END_SRC
+
+#+BEGIN_SRC dot :file ltlf2dfa4.svg :var txt=ltlf2dfa4 :exports results
+  $txt
+#+END_SRC
+
+#+RESULTS:
+[[file:ltlf2dfa4.svg]]
+
+
+* Output format issues
+
+Spot currently has very limited support for DFAs, and does not know
+any format to represent these automata.  Currently we can abuse the HOA format
+to write those DFAs as if they were transition-based Büchi automata.
+
+#+BEGIN_SRC sh :exports both
+ltlf2dfa --keep-names 'a M b' -H
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+HOA: v1
+name: "a M b"
+States: 2
+Start: 0
+AP: 2 "a" "b"
+acc-name: Buchi
+Acceptance: 1 Inf(0)
+properties: trans-labels explicit-labels trans-acc deterministic
+--BODY--
+State: 0 "a M b"
+[!0&1] 0
+[0&1] 1 {0}
+State: 1 "1"
+[t] 1 {0}
+--END--
+#+end_example
+
+In fact, even if we print the automaton with =--dot= without the =A=
+option (that hides the acceptance condition), we can see that the above
+automaton is represented as a Büchi automaton:
+
+#+NAME: ltlf2dfa5
+#+BEGIN_SRC sh :exports code
+ltlf2dfa --keep-names 'a M b' --dot
+#+END_SRC
+
+#+BEGIN_SRC dot :file ltlf2dfa5.svg :var txt=ltlf2dfa5 :exports results
+  $txt
+#+END_SRC
+
+#+RESULTS:
+[[file:ltlf2dfa5.svg]]
+
+
+* Inspecting the MTDFA
+
+Two options allow to study the MTDFA: =--mtdfa-dot= and =--mtdfa-stats=.
+
+The former has already been used above, and prints the MTDFA in DOT format.
+
+#+NAME: ltlf2dfa6
+#+BEGIN_SRC sh :exports code
+ltlf2dfa --keep-names 'a U b U c U d' --mtdfa-dot
+#+END_SRC
+
+#+BEGIN_SRC dot :file ltlf2dfa6.svg :var txt=ltlf2dfa6 :exports results
+  $txt
+#+END_SRC
+
+#+RESULTS:
+[[file:ltlf2dfa6.svg]]
+
+For larger automata, it can be useful to stop tracking the name of
+states (do not use the =--keep-names= option).  In that case the
+terminals are simply numbered, and one should pay attention not to
+confuse the terminals 0 and 1 (in magenta rounded rectangles) with the
+constants 0 and 1 (in orange squares).
+
+#+NAME: ltlf2dfa7
+#+BEGIN_SRC sh :exports code
+ltlf2dfa 'a U b U c U d' --mtdfa-dot
+#+END_SRC
+
+#+BEGIN_SRC dot :file ltlf2dfa7.svg :var txt=ltlf2dfa7 :exports results
+  $txt
+#+END_SRC
+
+#+RESULTS:
+[[file:ltlf2dfa7.svg]]
+
+
+The =--mtdfa-stats= options replace the output by some statistics
+about the MTDFA:
+
+#+BEGIN_SRC sh :exports both
+ltlf2dfa 'a U b U c U d' --mtdfa-stats
+#+END_SRC
+
+#+RESULTS:
+: states: 3
+: leaves: 5
+: nodes: 12
+: paths: 15
+: edges: 9
+: has_true: 1
+: has_false: 1
+
+- =states= is the number of blue nodes, i.e., the number of state in
+  the automaton (not counting any sink state)
+- =leaves= is the number of magenta and orange nodes
+- =nodes= is the number of white, magenta, and orange nodes
+- =paths= is the number of different paths leading from a blue node to
+  a leave (excluding paths leading to the rejecting sink)
+- =edges= is the number of pairs (state,leaf) that are connected by a
+  paths (again, paths leading to false rejecting sink are not considered)
+- =has_true= and =has_edge= indicate the presence of an accepting and
+  rejecting sink
+
+If we want to estimate the memory consumption of a MTDFA, each node
+(white, magenta, or orange) costs 16 bytes in BuDDy (four =int=), and
+each state (blue node) needs 4 bytes (one =int=).  This is ignoring
+the cost of storing state names if requested (an LTLf formula AST is
+stored as DAG in which subformulas are shared with other LTLf
+formulas)
+
+* Disabling output
+
+The =--quiet= option computes the MTDFA and exit without printing
+anything.  This can be used for benchmarking the translation without
+the cost of printing the automaton, computing statistics on that
+automaton, or many even converting it to another automaton
+representation.
+
+* Algorithmic options
+
+The =--translation= option can be used to select between two translation algorithms:
+
+- With =--translation=direct=, the entire formula is translated
+  directly.  The resulting MTDFA can only be minimized after the
+  translation.
+- With =--translation=compositional=, the formula is split according
+  the the Boolean operators that appear above temporal operators.
+  Maximal subformulas whose top-level operator is temporal are
+  translated directly.  Then the resulting MTDFAs are combined
+  according to the Boolean operator that are above it.  This approach
+  gives the opportunity to minimize the intermediate MTDFAs before
+  they get combined.
+
+
+Pass =--minimize=no= to turn off MTDFA minimization.
+
+The =--keep-names= option, already illustrated above, requests that
+every algorithm keeps track of a formula labeling each state.  The
+direct translation has to track those formulas anyway.  For
+minimization and compositions this requires some extra work and
+memory, but it is usually negligible compared to size of the
+automaton.

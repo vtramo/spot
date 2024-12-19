@@ -568,7 +568,7 @@ namespace spot
 
     dfa->states = std::move(states);
     dfa->names = std::move(names);
-    dict_->register_all_variables_of(this, dfa);
+    dict_->register_all_propositions_of(this, dfa);
     return dfa;
   }
 
@@ -759,7 +759,7 @@ namespace spot
       }
 
     mtdfa_ptr res = std::make_shared<mtdfa>(dfa->dict_);
-    res->dict_->register_all_variables_of(dfa, res);
+    res->dict_->register_all_propositions_of(dfa, res);
     std::swap(res->names, names);
     std::swap(res->states, states);
     return res;
@@ -943,8 +943,8 @@ namespace spot
     the_product_data.right = dfa2;
 
     mtdfa_ptr res = std::make_shared<mtdfa>(dfa1->dict_);
-    res->dict_->register_all_variables_of(dfa1, res);
-    res->dict_->register_all_variables_of(dfa2, res);
+    res->dict_->register_all_propositions_of(dfa1, res);
+    res->dict_->register_all_propositions_of(dfa2, res);
 
     terminal_to_state_map.clear();
     std::queue<product_state> todo;
@@ -1066,7 +1066,7 @@ namespace spot
     unsigned ns = dfa->names.size();
 
     mtdfa_ptr res = std::make_shared<mtdfa>(dfa->dict_);
-    res->dict_->register_all_variables_of(dfa, res);
+    res->dict_->register_all_propositions_of(dfa, res);
     res->names.reserve(n);
     res->states.reserve(ns);
 
@@ -1098,12 +1098,17 @@ namespace spot
     bddExtCache opcache;
     int opcache_iteration;
     bool fuse_same_bdds;
+    bool want_minimize;
+    bool want_names;
 
-    compose_data(bdd_dict_ptr dict, bool simplify_terms, bool fuse_same)
+    compose_data(bdd_dict_ptr dict, bool simplify_terms, bool fuse_same,
+                 bool want_minimize, bool want_names)
       : trans(dict, simplify_terms),
         minimize_iteration(0),
         opcache_iteration(0),
-        fuse_same_bdds(fuse_same)
+        fuse_same_bdds(fuse_same),
+        want_minimize(want_minimize),
+        want_names(want_names)
     {
       bdd_extcache_init(&mincache, 0);
       bdd_extcache_init(&opcache, 0);
@@ -1117,6 +1122,8 @@ namespace spot
 
     mtdfa_ptr minimize(mtdfa_ptr dfa)
     {
+      if (!want_minimize)
+        return dfa;
       return minimize_mtdfa(dfa, &mincache, minimize_iteration);
     }
   };
@@ -1216,6 +1223,8 @@ namespace spot
       case op::strong_X:
         {
           mtdfa_ptr dfa  = data.trans.ltlf_to_mtdfa(f, data.fuse_same_bdds);
+          if (!data.want_names)
+            dfa->names.clear();
           return data.minimize(dfa);
         }
       case op::eword:
@@ -1247,9 +1256,11 @@ namespace spot
   }
 
   mtdfa_ptr ltlf_to_mtdfa_compose(formula f, const bdd_dict_ptr& dict,
+                                  bool want_minimize, bool want_names,
                                   bool fuse_same_bdds, bool simplify_terms)
   {
-    compose_data data(dict, simplify_terms, fuse_same_bdds);
+    compose_data data(dict, simplify_terms, fuse_same_bdds,
+                      want_minimize, want_names);
     return ltlf_to_mtdfa_compose(data, f);
   }
 
@@ -1409,7 +1420,7 @@ namespace spot
   {
     twa_graph_ptr res = make_twa_graph(dict_);
     res->set_buchi();
-    dict_->register_all_variables_of(this, res);
+    dict_->register_all_propositions_of(this, res);
     res->register_aps_from_dict();
     res->prop_state_acc(state_based);
     res->prop_universal(true);
@@ -1451,7 +1462,10 @@ namespace spot
                   }
                 res->new_acc_edge(i, true_state, b, true);
               }
-        res->merge_edges();
+        // std::cerr << "before merge" << '\n';
+        // res->merge_edges();
+        // std::cerr << "merged" << '\n';
+
       }
     else                        // transition-based
       {
@@ -1514,7 +1528,7 @@ namespace spot
     if (!is_deterministic(twa))
       throw std::runtime_error("twadfa_to_mtdfa: input is not deterministic");
     mtdfa_ptr dfa = std::make_shared<mtdfa>(twa->get_dict());
-    dfa->dict_->register_all_variables_of(&twa, dfa);
+    dfa->dict_->register_all_propositions_of(&twa, dfa);
     unsigned n = twa->num_states();
     unsigned init = twa->get_init_state_number();
 
@@ -1570,5 +1584,38 @@ namespace spot
           dfa->states[state] = b;
       }
     return dfa;
+  }
+
+  mtdfa_stats mtdfa::get_stats() const
+  {
+    mtdfa_stats res;
+    res.states = states.size();
+    res.edges = 0;
+    res.paths = 0;
+    robin_hood::unordered_set<int> terms;
+    for (bdd b: states)
+      {
+        terms.clear();
+        for (auto [c, t]: paths_mt_of(b))
+          {
+            (void) c;
+            ++res.paths;
+            terms.insert(t.id());
+          }
+        res.edges += terms.size();
+      }
+    res.nodes = bdd_anodecount(states);
+    res.leaves = 0;
+    for (bdd b: leaves_of(states))
+      {
+        ++res.leaves;
+        if (b == bddfalse)
+          res.has_false = true;
+        else if (b == bddtrue)
+          res.has_true = true;
+      }
+    res.nodes += res.has_false;
+    res.nodes += res.has_true;
+    return res;
   }
 }

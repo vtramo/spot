@@ -91,6 +91,19 @@ enum {
   OPT_CHECK,
 };
 
+const char* hoa_option_doc_short = "1.1|b|i|k|l|m|s|t|v";
+const char* hoa_option_doc_long =
+  "Output the automaton in HOA format (default).  Add letters to select "
+  "(1.1) version 1.1 of the format, "
+  "(b) create an alias basis if >=2 AP are used, "
+  "(i) use implicit labels for complete deterministic automata, "
+  "(s) prefer state-based acceptance when possible [default], "
+  "(t) force transition-based acceptance, "
+  "(m) mix state and transition-based acceptance, "
+  "(k) use state labels when possible, "
+  "(l) single-line output, "
+  "(v) verbose properties";
+
 static const argp_option options[] =
   {
     /**************************************************/
@@ -129,17 +142,8 @@ static const argp_option options[] =
       "(+INT) add INT to all set numbers, "
       "(<INT) display at most INT states, "
       "(#) show internal edge numbers", 0 },
-    { "hoaf", 'H', "1.1|i|k|l|m|s|t|v", OPTION_ARG_OPTIONAL,
-      "Output the automaton in HOA format (default).  Add letters to select "
-      "(1.1) version 1.1 of the format, "
-      "(b) create an alias basis if >=2 AP are used, "
-      "(i) use implicit labels for complete deterministic automata, "
-      "(s) prefer state-based acceptance when possible [default], "
-      "(t) force transition-based acceptance, "
-      "(m) mix state and transition-based acceptance, "
-      "(k) use state labels when possible, "
-      "(l) single-line output, "
-      "(v) verbose properties", 0 },
+    { "hoaf", 'H', hoa_option_doc_short, OPTION_ARG_OPTIONAL,
+      hoa_option_doc_long, 0 },
     { "lbtt", OPT_LBTT, "t", OPTION_ARG_OPTIONAL,
       "LBTT's format (add =t to force transition-based acceptance even"
       " on Büchi automata)", 0 },

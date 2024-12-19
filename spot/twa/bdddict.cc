@@ -206,6 +206,20 @@ namespace spot
   }
 
   void
+  bdd_dict::register_all_propositions_of(const void* from_other,
+                                         const void* for_me)
+  {
+    for (auto& i: bdd_map)
+      {
+        if (i.type != var)
+          continue;
+        ref_set& s = i.refs;
+        if (s.find(from_other) != s.end())
+          s.insert(for_me);
+      }
+  }
+
+  void
   bdd_dict::unregister_variable(int v, const void* me)
   {
     assert(unsigned(v) < bdd_map.size());

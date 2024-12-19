@@ -23,6 +23,16 @@
 
 namespace spot
 {
+  struct SPOT_API mtdfa_stats
+  {
+    unsigned states;
+    unsigned leaves;
+    unsigned long long paths;
+    unsigned long long edges;
+    unsigned nodes;
+    bool has_true;
+    bool has_false;
+  };
 
   struct SPOT_API mtdfa
   {
@@ -84,6 +94,9 @@ namespace spot
 
     // convert to twa
     twa_graph_ptr as_twa(bool state_based = false, bool labels = true) const;
+
+
+    mtdfa_stats get_stats() const;
   };
 
   typedef std::shared_ptr<mtdfa> mtdfa_ptr;
@@ -96,6 +109,8 @@ namespace spot
 
   SPOT_API mtdfa_ptr
   ltlf_to_mtdfa_compose(formula f, const bdd_dict_ptr& dict,
+                        bool minimize = true,
+                        bool want_names = true,
                         bool fuse_same_bdds = true,
                         bool simplify_terms = true);
 

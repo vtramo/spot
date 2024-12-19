@@ -52,6 +52,10 @@ extern const char* opt_name;
 // Output options
 extern const struct argp aoutput_argp;
 
+// help text for --hoaf
+extern const char* hoa_option_doc_short;
+extern const char* hoa_option_doc_long;
+
 // help text for %F and %L
 extern char F_doc[32];
 extern char L_doc[32];

@@ -5,6 +5,9 @@ New in spot 2.12.1.dev  (not yet released)
   - ltlmix is a new tool that generates formulas by combining existing
     ones. See https://spot.lre.epita.fr/ltlmix.html for examples.
 
+  - ltlf2dfa is a new tool convering LTLf formula to transition-based
+    DFAs.  See https://spot.lre.epita.fr/ltlf2dfa.html.
+
   - randltl can now set the prority of the X[!] operator to generate
     LTLf formulas.   It is disabled by default, but you may
     enable it with  "randltl --ltl-priorities strongX=1 ...".

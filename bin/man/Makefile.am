@@ -33,6 +33,7 @@ dist_man1_MANS = \
   ltl2tgta.1 \
   ltlcross.1 \
   ltldo.1 \
+  ltlf2dfa.1 \
   ltlfilt.1 \
   ltlgrind.1 \
   ltlmix.1 \
@@ -66,6 +67,9 @@ ltlcross.1: $(common_dep) $(srcdir)/ltlcross.x $(srcdir)/../ltlcross.cc
 
 ltldo.1: $(common_dep) $(srcdir)/ltlcross.x $(srcdir)/../ltldo.cc
 	$(convman) ../ltldo$(EXEEXT) $(srcdir)/ltldo.x $@
+
+ltlf2dfa.1: $(common_dep) $(srcdir)/ltlf2dfa.x $(srcdir)/../ltlf2dfa.cc
+	$(convman) ../ltlf2dfa$(EXEEXT) $(srcdir)/ltlf2dfa.x $@
 
 ltlfilt.1: $(common_dep) $(srcdir)/ltlfilt.x $(srcdir)/../ltlfilt.cc
 	$(convman) ../ltlfilt$(EXEEXT) $(srcdir)/ltlfilt.x $@

@@ -33,6 +33,7 @@ static const argp_option options[] =
     { nullptr, 0, nullptr, 0, "Tools that output LTL/PSL formulas:", 0 },
     { DOC("randltl", "Generate random LTL or PSL formulas.") },
     { DOC("genltl", "Generate LTL formulas from scalable patterns.") },
+    { DOC("ltlf2dfa", "Convert LTLf to transition-based DFA.") },
     { DOC("ltlfilt", "Filter, convert, and transform LTL or PSL formulas.") },
     { DOC("ltlgrind", "Mutate LTL or PSL formulas to generate similar but "
           "simpler ones.  Use this when looking for shorter formula to "

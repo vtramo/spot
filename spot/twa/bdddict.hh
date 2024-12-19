@@ -195,6 +195,38 @@ namespace spot
     }
     /// @}
 
+    /// \brief Duplicate the proposition usage of another object.
+    ///
+    /// This tells this dictionary that the \a for_me object will be
+    /// using the same BDD variables as the \a from_other objects.
+    /// This ensures that the variables won't be freed when \a
+    /// from_other is deleted if \a from_other is still alive.
+    /// @{
+    void register_all_propositions_of(const void* from_other,
+                                     const void* for_me);
+
+    template <typename T>
+    void register_all_propositions_of(const void* from_other,
+                                      std::shared_ptr<T> for_me)
+    {
+      register_all_propositions_of(from_other, for_me.get());
+    }
+
+    template <typename T>
+    void register_all_propositions_of(std::shared_ptr<T> from_other,
+                                   const void* for_me)
+    {
+      register_all_propotitions_of(from_other.get(), for_me);
+    }
+
+    template <typename T, typename U>
+    void register_all_propositions_of(std::shared_ptr<T> from_other,
+                                      std::shared_ptr<U> for_me)
+    {
+      register_all_propositions_of(from_other.get(), for_me.get());
+    }
+    /// @}
+
     /// \brief Release all variables used by an object.
     ///
     /// Usually called in the destructor if \a me.
