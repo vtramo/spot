@@ -612,6 +612,38 @@ ostream &operator<<(ostream &o, const bvec &v)
   return o;
 }
 
+static bool has_true_rec(int r)
+{
+  if (MARKED(r))
+    return false;
+
+  if (ISCONST(r) || ISTERM(r))
+    {
+      SETMARK(r);               // cannot be done before ISTERM
+      return r == 1;
+    }
+  SETMARK(r);
+  return has_true_rec(LOW(r)) || has_true_rec(HIGH(r));
+}
+
+bool bdd_has_true(const std::vector<bdd>& res)
+{
+  bool has_true = false;
+  for (const bdd& x : res)
+    {
+      has_true = has_true_rec(x.root);
+      if (has_true)
+        break;
+    }
+  for (const bdd& x : res)
+    bdd_unmark(x.root);
+  UNMARK(0);                   /* those aren't covered by bdd_unmark */
+  UNMARK(1);
+  return has_true;
+}
+
+
+
 static void leaves_of_rec(int r, std::vector<bdd>& res)
 {
   if (MARKED(r))
@@ -650,6 +682,38 @@ std::vector<bdd> leaves_of(const std::vector<bdd>& b)
   UNMARK(0);                   /* those aren't covered by bdd_unmark */
   UNMARK(1);
   return res;
+}
+
+static bool find_leaf_rec(int b, bool (*pred)(int))
+{
+  if (MARKED(b))
+    return false;
+
+  if (ISCONST(b) || ISTERM(b))
+    {
+      bool res = pred(b);
+      SETMARK(b);               // cannot be done before ISTERM
+      return res;
+    }
+  SETMARK(b);
+  return find_leaf_rec(LOW(b), pred) || find_leaf_rec(HIGH(b), pred);
+}
+
+bool bdd_find_leaf(const std::vector<bdd>& b, bool (*pred)(int))
+{
+  bool res = false;
+  for (const bdd& x : b)
+    {
+      res = find_leaf_rec(x.root, pred);
+      if (res)
+        break;
+    }
+  for (const bdd& x : b)
+    bdd_unmark(x.root);
+  UNMARK(0);                   /* those aren't covered by bdd_unmark */
+  UNMARK(1);
+  return res;
+
 }
 
 int bdd_anodecountpp(const std::vector<bdd>& b)

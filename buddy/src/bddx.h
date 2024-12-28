@@ -745,6 +745,8 @@ protected:
    friend int    bdd_load(FILE*, bdd &);
    friend std::vector<bdd> leaves_of(const bdd&);
    friend std::vector<bdd> leaves_of(const std::vector<bdd>& b);
+   friend bool   bdd_has_true(const std::vector<bdd>& b);
+   friend bool   bdd_find_leaf(const std::vector<bdd>& b, bool (*)(int));
 
    friend bdd    fdd_ithvarpp(int, int);
    friend bdd    fdd_ithsetpp(int);
@@ -1298,6 +1300,8 @@ BUDDY_API bddstrmhandler bdd_strm_hook(bddstrmhandler);
 BUDDY_API std::vector<bdd> leaves_of(const bdd&);
 BUDDY_API std::vector<bdd> leaves_of(const std::vector<bdd>& b);
 BUDDY_API int bdd_anodecountpp(const std::vector<bdd>& b);
+BUDDY_API bool bdd_has_true(const std::vector<bdd>& b);
+BUDDY_API bool bdd_find_leaf(const std::vector<bdd>& b, bool (*)(int));
 
 /*=== Minterm enumeration ====*/
 
