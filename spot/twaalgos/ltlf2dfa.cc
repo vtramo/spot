@@ -1479,10 +1479,7 @@ namespace spot
                   }
                 res->new_acc_edge(i, true_state, b, true);
               }
-        // std::cerr << "before merge" << '\n';
-        // res->merge_edges();
-        // std::cerr << "merged" << '\n';
-
+        res->merge_edges();
       }
     else                        // transition-based
       {
