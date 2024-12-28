@@ -1264,6 +1264,23 @@ namespace spot
     return ltlf_to_mtdfa_compose(data, f);
   }
 
+  namespace
+  {
+    static bool leaf_is_accepting(int v)
+    {
+      if (v == 0)
+        return false;
+      if (v == 1)
+        return true;
+      return bdd_get_terminal(v) & 1;
+    }
+  }
+
+  bool mtdfa::is_empty() const
+  {
+    return !bdd_find_leaf(states, leaf_is_accepting);
+  }
+
   std::ostream& mtdfa::print_dot(std::ostream& os,
                                  int state, bool labels) const
   {

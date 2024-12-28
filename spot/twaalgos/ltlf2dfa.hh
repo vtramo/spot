@@ -58,34 +58,12 @@ namespace spot
 
     unsigned num_states() const
     {
-      bool has_true = false;
-      // FIXME: I'd like a BuDDy function that checks if a BDD node
-      // can be reached from a given set of BDD nodes.  Returning just
-      // a boolean will be more efficient than creating the array of
-      // leaves.
-      for (bdd b: leaves_of(states))
-        if (b == bddtrue)
-          {
-            has_true = true;
-            break;
-          }
-      return states.size() + has_true;
+      return states.size() + bdd_has_true(states);
     }
 
-    // FIXME: This assumes that all states are reachable, so
-    // we just have to check if one terminal is accepting.
-    bool is_empty() const
-    {
-      for (bdd b: leaves_of(states))
-        {
-          if (b == bddfalse)
-            continue;
-          if (b == bddtrue || (bdd_get_terminal(b) & 1))
-            return false;
-        }
-      return true;
-    }
-
+    // This assumes that all states are reachable, so we just have to
+    // check if one terminal is accepting.
+    bool is_empty() const;
 
     // Print the MTBDD.  If index >= 0, print only one state.
     std::ostream& print_dot(std::ostream& os,
