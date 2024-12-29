@@ -83,7 +83,8 @@ namespace spot
   SPOT_API mtdfa_ptr
   ltlf_to_mtdfa(formula f, const bdd_dict_ptr& dict,
                 bool fuse_same_bdds = true,
-                bool simplify_terms = true);
+                bool simplify_terms = true,
+                bool detect_empty_univ = true);
 
   SPOT_API mtdfa_ptr
   ltlf_to_mtdfa_compose(formula f, const bdd_dict_ptr& dict,
@@ -109,9 +110,11 @@ namespace spot
   class SPOT_API ltlf_translator
   {
   public:
-    ltlf_translator(const bdd_dict_ptr& dict, bool simplify_terms = true);
+    ltlf_translator(const bdd_dict_ptr& dict,
+                    bool simplify_terms = true);
 
-    mtdfa_ptr ltlf_to_mtdfa(formula f, bool fuse_same_bdds);
+    mtdfa_ptr ltlf_to_mtdfa(formula f, bool fuse_same_bdds,
+                            bool detect_empty_univ = true);
 
     bdd ltlf_to_mtbdd(formula f);
     std::pair<formula, bool>  leaf_to_formula(int t) const;

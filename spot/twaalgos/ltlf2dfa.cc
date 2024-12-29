@@ -510,7 +510,9 @@ namespace spot
     return 2 * v + (terminal & 1);
   }
 
-  mtdfa_ptr ltlf_translator::ltlf_to_mtdfa(formula f, bool fuse_same_bdds)
+  mtdfa_ptr ltlf_translator::ltlf_to_mtdfa(formula f,
+                                           bool fuse_same_bdds,
+                                           bool detect_empty_univ)
   {
     mtdfa_ptr dfa = std::make_shared<mtdfa>(dict_);
     std::unordered_map<bdd, int, bdd_hash> bdd_to_state;
@@ -519,6 +521,13 @@ namespace spot
     std::vector<formula> names;
     std::queue<formula> todo;
     terminal_to_state_map.clear();
+
+    // Keep track of whether we have seen an accepting or rejecting
+    // state.  If we are missing one of them, we can reduce the
+    // automaton to a single state.
+    bool has_accepting = false;
+    bool has_rejecting = false;
+
     todo.push(f);
     while (!todo.empty())
       {
@@ -548,12 +557,42 @@ namespace spot
 
         for (bdd leaf: leaves_of(b))
           {
-            if (leaf == bddfalse || leaf == bddtrue)
-              continue;
+            if (leaf == bddfalse)
+              {
+                has_rejecting = true;
+                continue;
+              }
+            if (leaf == bddtrue)
+              {
+                has_accepting = true;
+                continue;
+              }
             int term = bdd_get_terminal(leaf);
+            if (term & 1)
+              has_accepting = true;
+            else
+              has_rejecting = true;
             if (terminal_to_state_map.find(term / 2)
                 == terminal_to_state_map.end())
               todo.push(terminal_to_formula(term));
+          }
+      }
+
+    if (detect_empty_univ)
+      {
+        if (!has_accepting)
+          {
+            // return a false MTDFA.
+            dfa->states.push_back(bddfalse);
+            dfa->names.push_back(formula::ff());
+            return dfa;
+          }
+        if (!has_rejecting)
+          {
+            // return a true MTDFA.
+            dfa->states.push_back(bddtrue);
+            dfa->names.push_back(formula::tt());
+            return dfa;
           }
       }
 
@@ -1249,10 +1288,11 @@ namespace spot
   }
 
   mtdfa_ptr ltlf_to_mtdfa(formula f, const bdd_dict_ptr& dict,
-                          bool fuse_same_bdds, bool simplify_terms)
+                          bool fuse_same_bdds, bool simplify_terms,
+                          bool detect_empty_univ)
   {
     ltlf_translator trans(dict, simplify_terms);
-    return trans.ltlf_to_mtdfa(f, fuse_same_bdds);
+    return trans.ltlf_to_mtdfa(f, fuse_same_bdds, detect_empty_univ);
   }
 
   mtdfa_ptr ltlf_to_mtdfa_compose(formula f, const bdd_dict_ptr& dict,
