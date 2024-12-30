@@ -106,6 +106,7 @@ namespace spot
           case op::Implies:
           case op::Equiv:
           case op::U:
+          case op::S:
           case op::R:
           case op::W:
           case op::M:

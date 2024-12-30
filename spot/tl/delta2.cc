@@ -405,6 +405,7 @@ namespace spot
         case op::F:
         case op::G:
         case op::U:
+        case op::S:
         case op::R:
         case op::W:
         case op::M:

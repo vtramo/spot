@@ -50,6 +50,7 @@ namespace spot
       case op::Star:
       case op::FStar:
       case op::U:
+      case op::S:
       case op::R:
       case op::W:
       case op::M:
@@ -114,6 +115,7 @@ namespace spot
       case op::NegClosure:
       case op::NegClosureMarked:
       case op::U:
+      case op::S:
       case op::R:
       case op::W:
       case op::M:

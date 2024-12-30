@@ -54,6 +54,7 @@ Here is the list of supported operators:
   formula::Implies(left, right);
   formula::Equiv(left, right);
   formula::U(left, right);        // (strong) until
+  formula::S(left, right);        // (strict) until
   formula::R(left, right);        // (weak) release
   formula::W(left, right);        // weak until
   formula::M(left, right);        // strong release

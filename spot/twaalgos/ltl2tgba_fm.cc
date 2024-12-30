@@ -735,6 +735,7 @@ namespace spot
           case op::Implies:
           case op::Equiv:
           case op::U:
+          case op::S:
           case op::R:
           case op::W:
           case op::M:
@@ -1323,6 +1324,7 @@ namespace spot
             // which must have been dealt with earlier (in
             // translate_dict::ltl_to_bdd()).
             SPOT_UNREACHABLE();
+          case op::S:
           case op::U:
             {
               bdd f1 = recurse(node[0]);

@@ -95,6 +95,7 @@ namespace spot
     U,                         ///< until
     R,                         ///< release (dual of until)
     W,                         ///< weak until
+    S,                         ///< strict until operator (rtl)
     M,                         ///< strong release (dual of weak until)
     EConcat,                   ///< Seq
     EConcatMarked,             ///< Seq, Marked
@@ -1116,6 +1117,11 @@ namespace spot
     SPOT_DEF_BINOP(U);
     /// @}
 
+    /// \brief Construct a `S` formula
+    /// @{
+    SPOT_DEF_BINOP(S);
+    /// @}
+
     /// \brief Construct an `R` formula
     /// @{
     SPOT_DEF_BINOP(R);
@@ -1814,6 +1820,7 @@ namespace spot
           case op::Implies:
           case op::Equiv:
           case op::U:
+          case op::S:
           case op::R:
           case op::W:
           case op::M:

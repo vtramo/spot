@@ -34,6 +34,7 @@
 #define And_(x, y) formula::And({(x), (y)})
 #define Or_(x, y) formula::Or({(x), (y)})
 #define U_(x, y) formula::U((x), (y))
+#define S_(x, y) formula::S((x), (y))
 
 namespace spot
 {

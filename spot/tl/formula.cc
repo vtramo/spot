@@ -242,6 +242,7 @@ namespace spot
         C(Implies);
         C(Equiv);
         C(U);
+        C(S);
         C(R);
         C(W);
         C(M);
@@ -1116,6 +1117,21 @@ namespace spot
             return second;
           }
         break;
+      case op::S:
+        // TODO:
+        //   - (Exp S 1) = 1
+        //   - (Exp S 0) = 0
+        //   - (0 S Exp) = Exp
+        //   - (Exp S Exp) = Exp
+        if (second->is_tt()
+            || second->is_ff()
+            || first->is_ff()
+            || first == second)
+        {
+          first->destroy();
+          return second;
+        }
+        break;
       case op::W:
         //   - (Exp W 1) = 1
         //   - (0 W Exp) = Exp
@@ -1628,6 +1644,7 @@ namespace spot
         if (children[0]->is_boolean())
           is_.syntactic_si = false;
         break;
+      case op::S:
       case op::U:
         // Beware: (f U g) is a pure eventuality if both operands
         // are pure eventualities, unlike in the proceedings of

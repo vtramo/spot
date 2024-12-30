@@ -342,6 +342,7 @@ eol2        (\n\r)+|(\r\n)+
 "F"|{DIAMOND}			BEGIN(0); return token::OP_F;
 "G"|{BOX}			BEGIN(0); return token::OP_G;
 "U"				BEGIN(0); return token::OP_U;
+"S"				BEGIN(0); return token::OP_S;
 "R"|"V"				BEGIN(0); return token::OP_R;
 "X"|{CIRCLE}			BEGIN(0); return token::OP_X;
 {CIRCLEX}                       BEGIN(0); return token::OP_STRONG_X;

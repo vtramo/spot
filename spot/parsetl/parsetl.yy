@@ -333,6 +333,7 @@ using namespace spot;
 %token OP_AND "and operator" OP_SHORT_AND "short and operator"
 %token OP_IMPLIES "implication operator" OP_EQUIV "equivalent operator"
 %token OP_U "until operator" OP_R "release operator"
+%token OP_S "strict until operator"
 %token OP_W "weak until operator" OP_M "strong release operator"
 %token OP_F "sometimes operator" OP_G "always operator"
 %token OP_X "next operator" OP_STRONG_X "strong next operator"
@@ -390,7 +391,7 @@ using namespace spot;
 %left OP_STAR
 
 /* LTL operators.  */
-%right OP_U OP_R OP_M OP_W
+%right OP_U OP_S OP_R OP_M OP_W
 %precedence OP_F OP_G OP_FREP OP_GREP
 %precedence OP_X OP_XREP OP_STRONG_X
 
@@ -1018,6 +1019,10 @@ subformula: booleanatom
 	      { $$ = fnode::binop(op::U, $1, $3); }
 	    | subformula OP_U error
 	      { missing_right_binop($$, $1, @2, "until operator"); }
+	    | subformula OP_S subformula
+	      { $$ = fnode::binop(op::S, $1, $3); }
+	    | subformula OP_S error
+	      { missing_right_binop($$, $1, @2, "strict until operator"); }
 	    | subformula OP_R subformula
 	      { $$ = fnode::binop(op::R, $1, $3); }
 	    | subformula OP_R error
@@ -1229,6 +1234,8 @@ lbtformula: atomprop
 	      { $$ = fnode::unop(op::G, $2); }
             | 'U' lbtformula lbtformula
 	      { $$ = fnode::binop(op::U, $2, $3); }
+            | 'S' lbtformula lbtformula
+	      { $$ = fnode::binop(op::S, $2, $3); }
             | 'V' lbtformula lbtformula
 	      { $$ = fnode::binop(op::R, $2, $3); }
             | 'R' lbtformula lbtformula

@@ -44,7 +44,7 @@ namespace spot
           // (However beware that the translation given in the
           // Memocode'14 paper forgets to ensure that alive holds
           // initially, as required in the IJCAI'13 paper.)
-        case op::U:
+        case op::U: // We don't need the strict until operator (it's redundant)
           return formula::U(t(f[0]), formula::And({alive, t(f[1])}));
         case op::R:
           return formula::R(t(f[0]),

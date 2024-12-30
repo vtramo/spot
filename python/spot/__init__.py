@@ -115,7 +115,7 @@ def setup(**kwargs):
 if 'formula_ff' not in globals():
     for i in ('ff', 'tt', 'eword', 'ap', 'Not', 'X', 'F', 'G',
               'Closure', 'NegClosure', 'NegClosureMarked',
-              'Xor', 'Implies', 'Equiv', 'U', 'R', 'W', 'M',
+              'Xor', 'Implies', 'Equiv', 'U', 'S', 'R', 'W', 'M',
               'EConcat', 'EConcatMarked', 'UConcat', 'Or',
               'OrRat', 'And', 'AndRat', 'AndNLM', 'Concat',
               'Fusion', 'Star', 'FStar', 'nested_unop_range',
@@ -457,7 +457,7 @@ class formula:
         if k in (op_Not, op_X, op_F, op_G, op_Closure,
                  op_NegClosure, op_NegClosureMarked):
             return formula.unop(k, func(self[0], *args))
-        if k in (op_Xor, op_Implies, op_Equiv, op_U, op_R, op_W,
+        if k in (op_Xor, op_Implies, op_Equiv, op_U, op_S, op_R, op_W,
                  op_M, op_EConcat, op_EConcatMarked, op_UConcat):
             return formula.binop(k, func(self[0], *args), func(self[1], *args))
         if k in (op_Or, op_OrRat, op_And, op_AndRat, op_AndNLM,

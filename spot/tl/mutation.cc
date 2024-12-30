@@ -157,6 +157,7 @@ namespace spot
           case op::Implies:
           case op::Equiv:
           case op::U:
+          case op::S:
           case op::R:
           case op::W:
           case op::M:
@@ -186,6 +187,7 @@ namespace spot
                 {
                   switch (o)
                     {
+                    // S
                     case op::U:
                       if (mutation_counter_-- == 0)
                         return formula::W(first, second);

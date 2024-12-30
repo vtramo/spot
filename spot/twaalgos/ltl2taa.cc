@@ -127,6 +127,7 @@ namespace spot
             SPOT_UNIMPLEMENTED();
 
           case op::U:
+          case op::S:
           case op::W:
           case op::R:
           case op::M:
@@ -154,6 +155,7 @@ namespace spot
         switch (f.kind())
         {
         case op::U:
+        case op::S:
           strong = true;
           SPOT_FALLTHROUGH;
         case op::W:

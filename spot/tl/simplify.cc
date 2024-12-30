@@ -569,6 +569,7 @@ namespace spot
                 result = equiv_or_xor(!negated, f[0], f[1], c, deep);
                 break;
               }
+            case op::S:
             case op::U:
               {
                 deep = true;
@@ -1611,6 +1612,7 @@ namespace spot
           case op::Implies:
           case op::Equiv:
           case op::U:
+          case op::S:
           case op::R:
           case op::W:
           case op::M:
@@ -3952,6 +3954,7 @@ namespace spot
           break;
 
         case op::U:
+        case op::S:
         case op::W:
           if (syntactic_implication(f, g[1]))
             return true;

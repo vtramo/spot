@@ -460,7 +460,10 @@ namespace spot
           break;
         case 'U':
           v.push_back(op::U);
-          break;
+        break;
+        case 'S':
+          v.push_back(op::S);
+        break;
         case 'W':
           v.push_back(op::W);
           break;

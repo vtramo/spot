@@ -38,6 +38,7 @@ namespace spot
       KImplies,
       KEquiv,
       KU,
+      KS,
       KR,
       KW,
       KM,
@@ -79,6 +80,7 @@ namespace spot
       " -> ",
       " <-> ",
       " U ",
+      " S ",
       " R ",
       " W ",
       " M ",
@@ -120,6 +122,7 @@ namespace spot
       " -> ",
       " <-> ",
       " U ",
+      " S ",
       " V ",
       " W ",                        // rewritten
       " M ",                        // rewritten
@@ -161,6 +164,7 @@ namespace spot
       " -> ",
       " <-> ",
       " U ",
+      " S ",
       " R ",
       " W ",                    // rewritten
       " M ",                    // rewritten
@@ -202,6 +206,7 @@ namespace spot
       " → ",
       " ↔ ",
       " U ",
+      " S ",
       " R ",
       " W ",
       " M ",
@@ -243,6 +248,7 @@ namespace spot
       " \\limplies ",
       " \\liff ",
       " \\U ",
+      " \\S ",
       " \\R ",
       " \\W ",
       " \\M ",
@@ -284,6 +290,7 @@ namespace spot
       " \\rightarrow ",
       " \\leftrightarrow ",
       " \\mathbin{\\mathsf{U}} ",
+      " \\mathbin{\\mathsf{S}} ",
       " \\mathbin{\\mathsf{R}} ",
       " \\mathbin{\\mathsf{W}} ",
       " \\mathbin{\\mathsf{M}} ",
@@ -332,7 +339,7 @@ namespace spot
           || *str == 'G'
           || *str == 'X'
           || !(isalpha(*str) || *str == '_' || *str == '.')
-          || ((*str == 'U' || *str == 'W' || *str == 'M' || *str == 'R')
+          || ((*str == 'U' || *str == 'W' || *str == 'M' || *str == 'R' || *str == 'S')
               && str[1] == 0)
           || !strcasecmp(str, "true")
           || !strcasecmp(str, "false"))
@@ -579,6 +586,11 @@ namespace spot
           case op::U:
             visit(f[0]);
             emit(KU);
+            visit(f[1]);
+            break;
+          case op::S:
+            visit(f[0]);
+            emit(KS);
             visit(f[1]);
             break;
           case op::R:
@@ -1112,6 +1124,9 @@ namespace spot
             break;
           case op::U:
             os_ << 'U';
+            break;
+          case op::S:
+            os_ << 'S';
             break;
           case op::R:
             os_ << 'V';

@@ -130,6 +130,7 @@ for (x, msg) in [('{foo[->bug]}', "treating this goto block as [->]"),
                  ('!', "missing right operand for \"not operator\""),
                  ('a W', "missing right operand for \"weak until operator\""),
                  ('a U', "missing right operand for \"until operator\""),
+                 ('a S', "missing right operand for \"strict until operator\""),
                  ('a R', "missing right operand for \"release operator\""),
                  ('a M', "missing right operand for "
                   + "\"strong release operator\""),
